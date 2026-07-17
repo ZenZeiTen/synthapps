@@ -6,6 +6,13 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: >-
+          Optional release tag (e.g. v1.0.0). If set, a release with this
+          tag is created (or updated) with the exe attached.
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -77,7 +84,10 @@ jobs:
           path: backend/dist/TermExtrax.exe
 
       - name: Attach to release
-        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
+        if: >-
+          github.event_name == 'release' ||
+          startsWith(github.ref, 'refs/tags/v') ||
+          (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
@@ -85,15 +95,17 @@ jobs:
           Copy-Item backend/dist/TermExtrax.exe TermExtrax-windows-x64.exe
           if ("${{ github.event_name }}" -eq "release") {
             $tag = "${{ github.event.release.tag_name }}"
+          } elseif ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.release_tag }}"
           } else {
             $tag = "${{ github.ref_name }}"
           }
-          # For a tag push, create the release if it doesn't exist yet;
-          # otherwise just (re)attach the asset.
+          # Create the release (and its tag, at the built commit) if it
+          # doesn't exist yet; otherwise just (re)attach the asset.
           gh release view $tag *> $null
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag TermExtrax-windows-x64.exe `
-              --title "TermExtrax $tag" --generate-notes --verify-tag
+              --title "TermExtrax $tag" --generate-notes --target "${{ github.sha }}"
           } else {
             gh release upload $tag TermExtrax-windows-x64.exe --clobber
           }
