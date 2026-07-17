@@ -1,0 +1,84 @@
+name: Build Windows executable
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+          # Bundled into the exe so segmentation and noun-chunk term
+          # extraction work at full quality with no downloads at runtime.
+          python -m spacy download en_core_web_sm
+
+      - name: Bundle frontend into backend/static
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force backend/static -ErrorAction SilentlyContinue
+          Copy-Item -Recurse frontend/dist backend/static
+
+      - name: Build executable
+        working-directory: backend
+        run: pyinstaller --noconfirm TermExtrax.spec
+
+      - name: Smoke test executable
+        shell: pwsh
+        run: |
+          $env:TERMEXTRAX_NO_BROWSER = "1"
+          $proc = Start-Process -FilePath "backend/dist/TermExtrax.exe" -PassThru
+          $ok = $false
+          foreach ($i in 1..30) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/health" -TimeoutSec 2
+              if ($r.status -eq "ok") { $ok = $true; break }
+            } catch {}
+          }
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          if (-not $ok) { throw "Executable did not respond on /api/health" }
+          Write-Host "Smoke test passed"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TermExtrax-windows-x64
+          path: backend/dist/TermExtrax.exe
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          Copy-Item backend/dist/TermExtrax.exe TermExtrax-windows-x64.exe
+          gh release upload "${{ github.event.release.tag_name }}" TermExtrax-windows-x64.exe --clobber

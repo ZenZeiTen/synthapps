@@ -72,6 +72,17 @@ Linux binary on Linux. The executable bundles whichever spaCy models are
 installed in the Python environment at build time, so optionally run
 `python -m spacy download en_core_web_sm` (etc.) before building.
 
+### Pre-built .exe from GitHub Actions
+
+The `Build Windows executable` workflow
+(`.github/workflows/build-windows-exe.yml`) builds `TermExtrax.exe` on a
+Windows runner with the English spaCy model bundled, smoke-tests it, and:
+
+- on every **published release** — attaches `TermExtrax-windows-x64.exe`
+  as a release asset;
+- on **manual dispatch** (Actions tab → Build Windows executable →
+  Run workflow) — uploads it as a downloadable workflow artifact.
+
 ## Running from source
 
 ### 1. Backend
