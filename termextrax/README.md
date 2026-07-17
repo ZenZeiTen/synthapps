@@ -7,9 +7,11 @@ translation memory (TMX/CSV) and a termbase (TBX/CSV).
 
 ## Features
 
-- **Ingestion** — upload two `.txt` files (encoding auto-detected: UTF-8,
-  UTF-16, CP1252, Latin-1) or paste text directly; language dropdowns for both
-  sides.
+- **Ingestion** — upload `.txt` files (encoding auto-detected: UTF-8, UTF-16,
+  CP1252, Latin-1) or Microsoft Office documents — Word (`.docx`), Excel
+  (`.xlsx`), PowerPoint (`.pptx`) — or paste text directly; language dropdowns
+  for both sides. Office text extraction preserves paragraph, table-row and
+  slide structure so segmentation respects the document layout.
 - **Segmentation** — sentence splitting with spaCy (full pretrained model when
   installed, rule-based sentencizer fallback for any language).
 - **Automatic alignment** — Gale–Church length-based alignment (supports 1-1,
@@ -33,13 +35,44 @@ backend/            FastAPI + spaCy API
   app/main.py       routes: /api/upload, /api/segment, /api/extract-terms, /api/export/*
   app/nlp.py        pipeline loading, segmentation, term extraction
   app/alignment.py  Gale–Church + sequential alignment
+  app/office.py     .docx / .xlsx / .pptx text extraction (stdlib only)
   app/exports.py    TMX / TBX / CSV generation
+  launcher.py       single-process entry point for the packaged executable
+  TermExtrax.spec   PyInstaller spec
 frontend/           React (TypeScript) + Vite + Tailwind CSS + Zustand
   src/store.ts      alignment/termbase state and row operations
   src/components/   IngestPanel, AlignmentTable, TermPanel, ExportPanel
+build_exe.bat       one-command Windows executable build
+build_exe.sh        same for Linux/macOS
 ```
 
-## Running locally
+## Standalone executable (easiest way to run)
+
+Build a single self-contained executable — no Python or Node needed on the
+machine that runs it:
+
+```bat
+:: Windows (requires Python 3.10+ and Node.js 18+ on the BUILD machine)
+build_exe.bat
+```
+
+```bash
+# Linux / macOS
+./build_exe.sh
+```
+
+The result is `backend/dist/TermExtrax.exe` (Windows) or
+`backend/dist/TermExtrax` (Linux/macOS). Double-click it (or run it from a
+terminal): it starts the server on a free local port and opens the app in
+your default browser. Close the console window to stop it. Set
+`TERMEXTRAX_NO_BROWSER=1` to suppress the automatic browser launch.
+
+Note: PyInstaller does not cross-compile — build the `.exe` on Windows, the
+Linux binary on Linux. The executable bundles whichever spaCy models are
+installed in the Python environment at build time, so optionally run
+`python -m spacy download en_core_web_sm` (etc.) before building.
+
+## Running from source
 
 ### 1. Backend
 
@@ -72,8 +105,9 @@ backend on port 8000.
 
 ## Workflow
 
-1. Paste or upload the source and target texts, pick their languages, choose
-   the alignment method, and click **Segment, align & extract terms**.
+1. Paste or upload the source and target texts (`.txt`, `.docx`, `.xlsx` or
+   `.pptx`), pick their languages, choose the alignment method, and click
+   **Segment, align & extract terms**.
 2. Fix the alignment in the table: double-click to edit, hover a cell for
    **Merge ↓** / **Split at cursor** / **Shift ↑** / **Shift ↓**. Empty cells
    are highlighted amber; click the status pill to approve a row.

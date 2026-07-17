@@ -1,13 +1,17 @@
 """TermExtrax API: segmentation & alignment, term extraction, exports."""
 from __future__ import annotations
 
+import os
+import sys
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
 
-from . import alignment, exports, nlp
+from . import alignment, exports, nlp, office
 from .schemas import (
     AlignedSegment,
     ExportSegmentsRequest,
@@ -30,7 +34,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 _ENCODINGS = ("utf-8", "utf-8-sig", "utf-16", "cp1252", "latin-1")
 
 
@@ -49,10 +53,29 @@ def languages() -> list[LanguageInfo]:
 
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)) -> dict:
-    """Decode an uploaded .txt file, trying several encodings."""
+    """Extract text from an uploaded file.
+
+    Supports plain text (several encodings tried) and Microsoft Office
+    OOXML documents: Word (.docx), Excel (.xlsx) and PowerPoint (.pptx).
+    """
     raw = await file.read()
     if len(raw) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="File larger than 5 MB")
+        raise HTTPException(status_code=413, detail="File larger than 20 MB")
+
+    ext = Path(file.filename or "").suffix.lower()
+    if ext in office.LEGACY_EXTENSIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Legacy Office format '{ext}' is not supported. Please re-save "
+            f"the file as {ext}x (e.g. in Word/Excel/PowerPoint: File > Save As) and retry.",
+        )
+    if ext in office.OFFICE_EXTENSIONS:
+        try:
+            text = office.extract_text(raw, ext)
+        except office.OfficeParseError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {"filename": file.filename, "encoding": ext.lstrip("."), "text": text}
+
     for enc in _ENCODINGS:
         try:
             text = raw.decode(enc)
@@ -61,7 +84,8 @@ async def upload(file: UploadFile = File(...)) -> dict:
             continue
     raise HTTPException(
         status_code=422,
-        detail="Could not decode file. Please save it as UTF-8 plain text and retry.",
+        detail="Could not decode file. Please upload UTF-8 plain text or a "
+        ".docx/.xlsx/.pptx document.",
     )
 
 
@@ -140,3 +164,30 @@ def export_terms_tbx(req: ExportTermsRequest) -> Response:
     terms = [t.model_dump() for t in req.terms if req.include_unmapped or t.targetTerm.strip()]
     content = exports.terms_to_tbx(terms, req.source_lang, req.target_lang)
     return _file_response(content, "termbase.tbx", "application/xml; charset=utf-8")
+
+
+def _static_dir() -> Path | None:
+    """Locate the built frontend for single-process (packaged .exe) mode.
+
+    Checked in order: TERMEXTRAX_STATIC env var, the PyInstaller bundle
+    directory, backend/static, and frontend/dist from a source checkout.
+    In dev mode none of these exist and the Vite dev server is used instead.
+    """
+    candidates = []
+    if os.environ.get("TERMEXTRAX_STATIC"):
+        candidates.append(Path(os.environ["TERMEXTRAX_STATIC"]))
+    if getattr(sys, "_MEIPASS", None):
+        candidates.append(Path(sys._MEIPASS) / "static")
+    here = Path(__file__).resolve()
+    candidates.append(here.parent.parent / "static")
+    candidates.append(here.parent.parent.parent / "frontend" / "dist")
+    for cand in candidates:
+        if (cand / "index.html").is_file():
+            return cand
+    return None
+
+
+_static = _static_dir()
+if _static is not None:
+    # API routes above take precedence; everything else serves the SPA.
+    app.mount("/", StaticFiles(directory=str(_static), html=True), name="static")

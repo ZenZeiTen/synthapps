@@ -17,3 +17,9 @@ dist/
 
 # TypeScript incremental build
 *.tsbuildinfo
+
+# PyInstaller build artifacts
+backend/build/
+backend/static/
+backend/dist/
+

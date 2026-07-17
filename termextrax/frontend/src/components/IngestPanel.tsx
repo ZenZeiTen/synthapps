@@ -49,15 +49,18 @@ function TextInput(props: {
       <textarea
         value={props.text}
         onChange={(e) => props.setText(e.target.value)}
-        placeholder="Paste text here, or upload a .txt file below…"
+        placeholder="Paste text here, or upload a .txt / .docx / .xlsx / .pptx file below…"
         className="h-44 w-full resize-y rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm shadow-inner focus:border-indigo-400 focus:outline-none"
       />
       <div className="flex items-center gap-3 text-xs text-slate-500">
-        <label className="cursor-pointer rounded-md border border-slate-300 bg-white px-2 py-1 font-medium text-slate-600 hover:bg-slate-50">
-          Upload .txt
+        <label
+          className="cursor-pointer rounded-md border border-slate-300 bg-white px-2 py-1 font-medium text-slate-600 hover:bg-slate-50"
+          title="Plain text (.txt), Word (.docx), Excel (.xlsx) or PowerPoint (.pptx)"
+        >
+          Upload file
           <input
             type="file"
-            accept=".txt,text/plain"
+            accept=".txt,.docx,.xlsx,.pptx,text/plain"
             className="hidden"
             onChange={(e) => {
               void handleFile(e.target.files?.[0]);
