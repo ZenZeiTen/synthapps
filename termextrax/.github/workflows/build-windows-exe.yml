@@ -3,6 +3,8 @@ name: Build Windows executable
 on:
   release:
     types: [published]
+  push:
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -75,10 +77,23 @@ jobs:
           path: backend/dist/TermExtrax.exe
 
       - name: Attach to release
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           Copy-Item backend/dist/TermExtrax.exe TermExtrax-windows-x64.exe
-          gh release upload "${{ github.event.release.tag_name }}" TermExtrax-windows-x64.exe --clobber
+          if ("${{ github.event_name }}" -eq "release") {
+            $tag = "${{ github.event.release.tag_name }}"
+          } else {
+            $tag = "${{ github.ref_name }}"
+          }
+          # For a tag push, create the release if it doesn't exist yet;
+          # otherwise just (re)attach the asset.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag TermExtrax-windows-x64.exe `
+              --title "TermExtrax $tag" --generate-notes --verify-tag
+          } else {
+            gh release upload $tag TermExtrax-windows-x64.exe --clobber
+          }
