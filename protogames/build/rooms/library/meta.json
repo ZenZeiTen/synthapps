@@ -1,0 +1,134 @@
+{
+ "room": "library",
+ "size": [
+  320,
+  168
+ ],
+ "pixel_aspect_y": 1.2,
+ "near": 8.99,
+ "far": 20.30999923706055,
+ "camera": {
+  "loc": [
+   0.0,
+   -14.0,
+   6.199999809265137
+  ],
+  "rot": [
+   1.2793396711349487,
+   -0.0,
+   0.0
+  ],
+  "lens": 40.0
+ },
+ "points": {
+  "from_hall": [
+   256.07,
+   105.37,
+   16.3
+  ],
+  "door": [
+   260.16,
+   105.37,
+   16.3
+  ],
+  "shelves": [
+   194.14,
+   92.03,
+   18.8
+  ],
+  "skeleton": [
+   111.38,
+   109.14,
+   15.7
+  ],
+  "desk": [
+   90.2,
+   94.19,
+   18.35
+  ],
+  "fireplace": [
+   72.47,
+   102.42,
+   16.8
+  ]
+ },
+ "zones": {
+  "door_east": {
+   "poly": [
+    [
+     275.47,
+     110.46
+    ],
+    [
+     318.24,
+     110.46
+    ],
+    [
+     304.88,
+     100.72
+    ],
+    [
+     265.72,
+     100.72
+    ]
+   ],
+   "target": [
+    278.56,
+    105.37
+   ]
+  }
+ },
+ "markers": {
+  "whistle": [
+   91.05,
+   81.31,
+   18.82
+  ]
+ },
+ "probes": {},
+ "groups": {
+  "armchair": 1,
+  "beyond_r": 2,
+  "book": 3,
+  "bookcase": 4,
+  "curtains": 5,
+  "desk": 6,
+  "drawer": 7,
+  "drawer_knob": 8,
+  "fireplace": 9,
+  "fireplace_mouth": 10,
+  "flames": 11,
+  "floor": 12,
+  "floorlamp": 13,
+  "floorlamp_glow": 14,
+  "frame_r": 15,
+  "globe": 16,
+  "globe_ball": 17,
+  "hearth": 18,
+  "ladder": 19,
+  "lamp": 20,
+  "lamp_glow": 21,
+  "mantel": 22,
+  "rug": 23,
+  "skeleton": 24,
+  "walls": 25,
+  "window": 26,
+  "window_glass": 27
+ },
+ "states": {
+  "drawer_open": {
+   "base": null
+  }
+ },
+ "shade": {},
+ "sky": false,
+ "erode": [
+  3,
+  0
+ ],
+ "glow_ids": [
+  11,
+  14,
+  21
+ ]
+}
