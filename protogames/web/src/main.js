@@ -141,9 +141,8 @@ class App {
     this.pendingDeath = false;
     const hasSave = !!storage('get');
     const opts = deathOptions(this.history, hasSave) || {};
-    const lines = ['', ...(hasSave ? ['R - restore your saved game'] : []), 'S - start over'];
+    const lines = [''];
     const keys = { s: () => this.newGame(false) };
-    if (hasSave) keys.r = () => { if (!this.restore()) this.openDeathDialog(); };
     const i = opts.rewindTo;
     if (Number.isInteger(i) && i >= 0 && i < this.history.length) {
       lines.push('U - undo, and try something else');
@@ -154,6 +153,11 @@ class App {
         this.ui.say('Let\'s pretend that never happened.');
       };
     }
+    if (hasSave) {
+      lines.push('R - restore your saved game');
+      keys.r = () => { if (!this.restore()) this.openDeathDialog(); };
+    }
+    lines.push('S - start over');
     this.ui.dialog = { title: 'You have died.', lines, keys, border: 4 };
   }
 

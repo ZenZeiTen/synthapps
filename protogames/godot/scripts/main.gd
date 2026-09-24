@@ -375,8 +375,12 @@ func restore_game() -> bool:
 
 
 # Mirror of web/src/death.js -- keep the two in step when the policy changes.
-func death_options(_hist: Array, _has_save: bool) -> Dictionary:
-	# TODO(you): mirror the policy chosen in web/src/death.js
+# Always offer to undo the fatal step: the newest snapshot that isn't itself dead.
+func death_options(hist: Array, _has_save: bool) -> Dictionary:
+	for i in range(hist.size() - 1, -1, -1):
+		var snap = JSON.parse_string(hist[i]["snap"])
+		if snap is Dictionary and not snap.get("dead", false):
+			return {"rewind_to": i}
 	return {"rewind_to": null}
 
 
@@ -386,12 +390,6 @@ func open_death_dialog() -> void:
 	var opts := death_options(history, saved)
 	var lines: Array = [""]
 	var keys := {"s": func(): new_game(false)}
-	if saved:
-		lines.append("R - restore your saved game")
-		keys["r"] = func():
-			if not restore_game():
-				open_death_dialog()
-	lines.append("S - start over")
 	var i = opts.get("rewind_to")
 	if typeof(i) == TYPE_INT and i >= 0 and i < history.size():
 		lines.append("U - undo, and try something else")
@@ -400,6 +398,12 @@ func open_death_dialog() -> void:
 			history = history.slice(0, i)
 			enter_room()
 			say("Let's pretend that never happened.")
+	if saved:
+		lines.append("R - restore your saved game")
+		keys["r"] = func():
+			if not restore_game():
+				open_death_dialog()
+	lines.append("S - start over")
 	dialog = {"title": "You have died.", "lines": lines, "keys": keys}
 
 

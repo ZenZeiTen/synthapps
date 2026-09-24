@@ -55,7 +55,7 @@ dist/        the single-file build
 ## Checks
 
 ```bash
-node --test tests/lint.test.mjs tests/transcripts.test.mjs tests/bundle.test.mjs
+node --test tests/lint.test.mjs tests/transcripts.test.mjs tests/bundle.test.mjs tests/death.test.mjs
 ```
 
 ```bash
@@ -79,6 +79,10 @@ godot --headless --path godot --script res://tests/run_transcripts.gd
 ```
 
 ```bash
+godot --headless --path godot --script res://tests/death_policy.gd
+```
+
+```bash
 python tests/mutation_godot.py
 ```
 
@@ -93,22 +97,21 @@ What each check proves:
 - The **walk checks** in the lint suite require every point to be reachable on foot,
   and every exit to be enterable on foot, from where Gus enters. They also check each
   room's probes, such as "behind the kitchen table is walkable, under it is not".
+- The **death-policy tests** hold both engines to the same rule: every death offers
+  an undo to the moment before the fatal step.
 
 Status on 2026-09-24:
 
-- 17/17 node tests pass.
+- 21/21 node tests pass.
 - Mutants caught: 7/7 in the core suite, 7/7 in the bundle suite, 5/5 in the walk
   checks, 5/5 in the GDScript core.
-- Godot parity: 4/4 transcripts.
+- Godot parity: 4/4 transcripts, and 5/5 death-policy cases.
 - Art is pixel-exact: 36 sprite frames, the font sheet and 49 textures.
 - An end-to-end browser run of the walkthrough, with real pathfinding (20
   auto-walks), wins 80/80 on the bundled file.
 
 ## Not done yet
 
-- **Death policy.** `web/src/death.js` decides whether dying offers an undo, and is
-  deliberately left as a decision for the owner. Godot's `death_options` in
-  `main.gd` mirrors whatever it becomes.
 - **Godot export.** `godot/content/` carries a `.gdignore`, so the editor never
   re-imports (and re-encodes) the PNGs. That also keeps them out of exported builds.
   Exporting needs an include filter or a different loading path.

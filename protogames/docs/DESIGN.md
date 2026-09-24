@@ -32,8 +32,9 @@ A few modern kindnesses soften the period rough edges without changing the feel:
 - **Typed exits** ("west", "go upstairs") walk Gus to the doorway, so nobody has to
   pixel-hunt for an exit.
 - **`hint`** gives the next step for the current situation (20 context hints).
-- **Undo after death** is an open question left to the owner. See
-  `web/src/death.js`.
+- **Undo after death.** Every death offers **U**, which rewinds to the moment before
+  the fatal step. The deaths stay sudden and funny, but none of them costs a
+  replay. Restoring an F5 save and starting over remain on the menu.
 
 ## Map
 

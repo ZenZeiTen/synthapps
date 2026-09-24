@@ -215,8 +215,12 @@ feel the same.
   - Lightning flashes only sky pixels (scene depth 255), so the house stays a
     silhouette.
 - **Death** opens a dialog with these options:
+  - **U**: undo the fatal step. `deathOptions()` in `web/src/death.js` picks the
+    newest snapshot that isn't itself dead. That's the moment before the fatal
+    command, or the last room change if Gus walked into trouble. Using it drops that
+    snapshot from the history, so the next death undoes the step before.
   - **R**: restore the save. Offered only when an F5 save exists.
   - **S**: start over.
-  - **U**: undo to an earlier moment. Offered only if `deathOptions()` in
-    `web/src/death.js` returns a `rewindTo` index into the history. Godot's twin is
-    `death_options` in `main.gd`.
+  - Godot's twin of the policy is `death_options` in `main.gd`.
+    `tests/death.test.mjs` and `godot/tests/death_policy.gd` check both engines
+    against the same cases.
