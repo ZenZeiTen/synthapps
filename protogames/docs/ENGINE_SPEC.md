@@ -26,6 +26,7 @@ content/
   sprites/*.png + *.json    sheets and Aseprite sidecars; anims.json holds anchors and cycles
   font/font.png + font.json 5x9 glyphs in 6x10 cells
   sfx/*.wav + sfx.json      sound effects
+  music/*.wav + music.json  looping background music, and which track plays where
 ```
 
 `game.json` top level: `meta`, `start`, `reach`, `intro`, `text`, `vocab`, `objects`,
@@ -214,6 +215,17 @@ feel the same.
     candle burns.
   - Lightning flashes only sky pixels (scene depth 255), so the house stays a
     silhouette.
+- **Music.**
+  - `musicFor()` in `web/src/music.js`, and its twin `music_for` in `main.gd`, pick
+    the track: the title and ending have their own, each room names one in
+    `music.json`, and there is silence while Gus lies dead.
+  - Each engine asks every frame. A change fades the old track out over 0.6 s and
+    the new one in over 0.8 s. Moving between rooms that share a track (the title
+    into the gate) doesn't restart it.
+  - F2 silences everything and F3 just the music. Both settings persist: browser
+    storage on the web, `user://prefs.cfg` in Godot.
+  - `tests/music.test.mjs` and `godot/tests/music_policy.gd` hold the two engines
+    to the same cases.
 - **Death** opens a dialog with these options:
   - **U**: undo the fatal step. `deathOptions()` in `web/src/death.js` picks the
     newest snapshot that isn't itself dead. That's the moment before the fatal

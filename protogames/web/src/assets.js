@@ -65,5 +65,6 @@ export async function loadAll(onProgress = () => {}) {
     rooms[id] = { id, data: r, bg, sceneDepth: depth ? scene : null, floorDepth: depth ? floor : null, overlays, extra };
   }
   const sfx = await getJSON('sfx/sfx.json', true);
-  return { game, sprites, font, fontMeta, rooms, roomData, sfx: sfx || {} };
+  const music = await getJSON('music/music.json', true);
+  return { game, sprites, font, fontMeta, rooms, roomData, sfx: sfx || {}, music };
 }

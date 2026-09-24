@@ -8,10 +8,21 @@ import { UI } from './ui.js';
 import { World } from './world.js';
 import { Sound } from './audio.js';
 import { deathOptions } from './death.js';
+import { musicFor } from './music.js';
 
 const TICK_MS = 40;
 const SAVE_KEY = 'crowmere-hill.save.v1';
 const HISTORY_MAX = 100;
+
+// Sound and music on/off survive a reload: a per-viewer convenience, so any storage
+// failure just means the defaults (both on).
+const PREFS_KEY = 'crowmere-hill.prefs.v1';
+function loadPrefs() {
+  try { return JSON.parse(window.localStorage.getItem(PREFS_KEY)) || {}; } catch (e) { return {}; }
+}
+function savePrefs(sound) {
+  try { window.localStorage.setItem(PREFS_KEY, JSON.stringify({ sound: sound.enabled, music: sound.musicOn })); } catch (e) { /* not kept */ }
+}
 
 function storage(op, value) {
   try {
@@ -32,7 +43,10 @@ class App {
     this.core = new Game(A.game, A.roomData);
     this.font = new Font(A.font, A.fontMeta);
     this.ui = new UI(this.font);
-    this.sound = new Sound(A.sfx);
+    this.sound = new Sound(A.sfx, A.music);
+    const prefs = loadPrefs();
+    if (prefs.sound === false) this.sound.enabled = false;
+    if (prefs.music === false) this.sound.musicOn = false;
     this.world = new World(A, this.core);
     this.world.onThunder = () => { if (this.mode !== 'play' || this.state.room === 'gate') this.sound.play('thunder'); };
     this.keys = {};
@@ -172,6 +186,7 @@ class App {
   }
 
   tick() {
+    this.sound.setMusic(musicFor(this.mode, this.state, this.assets.music));
     if (this.mode !== 'play') { this.world.tickFx(this.state || { flags: {} }); return; }
     if (!this.ui.modal) {
       const ev = this.world.tick(this.state, this.keys);
@@ -190,7 +205,7 @@ class App {
     if (this.mode === 'title') this.drawTitle(t);
     else if (this.mode === 'ending') this.drawEnding(t);
     else {
-      this.ui.drawStatus(s, this.state.score, this.assets.game.meta.maxScore, this.sound.enabled);
+      this.ui.drawStatus(s, this.state.score, this.assets.game.meta.maxScore, this.sound.enabled, this.sound.musicOn);
       this.world.draw(s, this.state, t);
       this.ui.drawInput(s, !this.ui.modal && ((t / 400) | 0) % 2 === 0);
       this.ui.drawTop(s);
@@ -243,7 +258,9 @@ class App {
   // ------------------------------------------------------------ input
 
   bindInput() {
-    const fkeys = { F2: () => this.sound.toggle(), F4: () => this.canvas.classList.toggle('square'),
+    const fkeys = { F2: () => { this.sound.toggle(); savePrefs(this.sound); },
+      F3: () => { this.sound.toggleMusic(); savePrefs(this.sound); },
+      F4: () => this.canvas.classList.toggle('square'),
       F5: () => this.mode === 'play' && !this.ui.dialog && this.save(),
       F7: () => this.mode === 'play' && !this.ui.dialog && this.restore(),
       F9: () => this.mode === 'play' && this.meta('restart') };

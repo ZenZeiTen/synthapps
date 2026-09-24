@@ -16,6 +16,7 @@ pipeline/blender/rooms/*.py  one script per room, built with kit.py
 pipeline/post/compose.py ─────────────> content/rooms/<room>/  bg.png, depth.png,
                                         ov_<state>.png, room.json
 pipeline/audio/make_sfx.py ───────────> content/sfx/*.wav + sfx.json
+pipeline/audio/make_music.py ─────────> content/music/*.wav + music.json
 tools/sync_godot.mjs ─────────────────> godot/content/ (raw copy + .gdignore)
 tools/bundle_web.mjs ─────────────────> dist/crowmere-hill.html (+ .fragment.html)
 ```
@@ -42,6 +43,10 @@ python pipeline/post/compose.py
 
 ```bash
 python pipeline/audio/make_sfx.py
+```
+
+```bash
+python pipeline/audio/make_music.py
 ```
 
 ```bash
@@ -117,6 +122,38 @@ blender -b --factory-startup --python pipeline/blender/build_rooms.py -- --walk-
    `room.json`.
 4. **Overlays.** Each state is diffed against the base render. The changed pixels are
    cropped into `ov_<state>.png`, and item sprites are placed at their markers.
+
+## How the music is made
+
+`make_music.py` holds four original scores as plain text, one line per part. For
+example, `A4:2 D5:1 F5:2 E5:1` is a phrase and `[F3,A3,D4]:6` is a chord. It
+renders them with two-operator FM synthesis, the way an AdLib card's OPL2 chip made
+sound in 1990.
+
+| track | plays | style |
+|---|---|---|
+| Crowmere Hill | title screen, gate | D minor waltz in 6/8, theremin lead over organ and plucked bass |
+| Tiptoe | hall, library, kitchen, bedroom | A minor staccato harpsichord, with the grandfather clock ticking |
+| Down Below | cellar | E Phrygian drone, distant bells, drips, a faint heartbeat |
+| Delivery Complete | ending | the title's opening call in D major |
+
+The files are 8-bit mono WAV at 22050 Hz, which is what a sound card of the day
+played. That keeps all four pieces to 2.2 MB.
+
+Every loop is rendered twice and only the second pass is kept. Notes still ringing
+at the end of the loop are then already sounding at its start, so the seam can't be
+heard. Mixing levels were set by measuring each part's loudness: in every piece the
+melody is at least as loud as each accompaniment part.
+
+`tests/verify_music.py` checks three things:
+- the files match `music.json`;
+- every loop seam is as smooth as an ordinary sample step;
+- every melody note sounds at its written pitch (152 notes).
+
+The expected pitches come from the checker's own reading of the note names, so a
+parser bug can't agree with itself. `tests/mutation_music.py` plants faults in the
+synth (sharps ignored, wrong octave, seam cut from the first pass, late notes,
+16-bit output) and requires the check to catch each one.
 
 ## Measured facts
 

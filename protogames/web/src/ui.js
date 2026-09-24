@@ -53,10 +53,10 @@ export class UI {
     for (const l of lines) { f.draw(screen, l, x + 8, ty, 0); ty += f.ch; }
   }
 
-  drawStatus(screen, score, max, sound) {
+  drawStatus(screen, score, max, sound, music) {
     screen.rect(0, 0, SCREEN_W, PIC_Y, 15);
     this.font.draw(screen, ` Score: ${score} of ${max}`, 0, 1, 0);
-    const s = `Sound: ${sound ? 'on' : 'off'} `;
+    const s = `Sound: ${sound ? 'on' : 'off'}  Music: ${music ? 'on' : 'off'} `;
     this.font.draw(screen, s, SCREEN_W - this.font.width(s), 1, 0);
   }
 

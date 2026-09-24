@@ -35,6 +35,15 @@ var font_meta: Dictionary
 var sfx := {}
 var players: Array = []
 var sound_on := true
+# Background music (content/music/): which track plays is music_for(); F3 toggles it.
+const MUSIC_VOLUME := 0.22
+const MUSIC_FADE_IN := 0.8
+const MUSIC_FADE_OUT := 0.6
+var music_on := true
+var music_index = null
+var music_streams := {}
+var music_current = null
+var music_voices: Array = []
 
 var state: Dictionary = {}
 var mode := "title"
@@ -74,6 +83,7 @@ var ui_canvas: Node2D
 func _ready() -> void:
 	randomize()
 	_load_content()
+	load_prefs()
 	core = Core.new(game, room_data)
 	world_canvas = Node2D.new()
 	add_child(world_canvas)
@@ -215,6 +225,19 @@ func _load_content() -> void:
 			var s := _wav("sfx/" + idx[name])
 			if s != null:
 				sfx[name] = s
+	# music: 8-bit loops, parsed by Godot itself, set to loop over the whole file
+	music_index = _json("music/music.json", true)
+	if music_index != null:
+		for id in music_index["tracks"]:
+			var b := _bytes("music/" + str(music_index["tracks"][id]["file"]))
+			if b.size() == 0:
+				continue
+			var m: AudioStreamWAV = AudioStreamWAV.load_from_buffer(b)
+			if m != null:
+				m.loop_mode = AudioStreamWAV.LOOP_FORWARD
+				m.loop_begin = 0
+				m.loop_end = int(round(m.get_length() * m.mix_rate))
+				music_streams[id] = m
 
 
 func _wav(rel: String) -> AudioStreamWAV:
@@ -235,6 +258,63 @@ func _wav(rel: String) -> AudioStreamWAV:
 			return s
 		pos += 8 + size + (size & 1)
 	return null
+
+
+# Mirror of web/src/music.js -- keep the two in step. The track that should play
+# now, or null: the title and ending have their own, each room names one, and a dead
+# Gus gets silence so the death jingle lands on its own.
+func music_for(m: String, st: Dictionary, index) -> Variant:
+	if index == null:
+		return null
+	if m == "title":
+		return index.get("title")
+	if m == "ending":
+		return index.get("ending")
+	if m != "play" or st.is_empty() or bool(st.get("dead", false)):
+		return null
+	return index.get("rooms", {}).get(st.get("room"))
+
+
+# Called every frame: fade out whatever plays if the wanted track changed, and
+# fade the new one in. Several players may be fading at once.
+func sync_music(delta: float) -> void:
+	var want = music_for(mode, state, music_index) if sound_on and music_on else null
+	if want != null and not music_streams.has(want):
+		want = null
+	if want != music_current:
+		for v in music_voices:
+			v["target"] = 0.0
+		music_current = want
+		if want != null:
+			var p := AudioStreamPlayer.new()
+			p.stream = music_streams[want]
+			p.volume_db = linear_to_db(0.0001)
+			add_child(p)
+			p.play()
+			music_voices.append({"player": p, "level": 0.0, "target": MUSIC_VOLUME})
+	for v in music_voices.duplicate():
+		var fading_in: bool = v["target"] > v["level"]
+		var rate: float = MUSIC_VOLUME / (MUSIC_FADE_IN if fading_in else MUSIC_FADE_OUT)
+		v["level"] = move_toward(v["level"], v["target"], rate * delta)
+		v["player"].volume_db = linear_to_db(maxf(v["level"], 0.0001))
+		if v["target"] == 0.0 and v["level"] <= 0.0:
+			v["player"].queue_free()
+			music_voices.erase(v)
+
+
+# Sound and music on/off survive a restart, like the web build's localStorage.
+func load_prefs() -> void:
+	var cf := ConfigFile.new()
+	if cf.load("user://prefs.cfg") == OK:
+		sound_on = bool(cf.get_value("audio", "sound", true))
+		music_on = bool(cf.get_value("audio", "music", true))
+
+
+func save_prefs() -> void:
+	var cf := ConfigFile.new()
+	cf.set_value("audio", "sound", sound_on)
+	cf.set_value("audio", "music", music_on)
+	cf.save("user://prefs.cfg")
 
 
 func play(name: String) -> void:
@@ -740,6 +820,7 @@ func _process(delta: float) -> void:
 	while acc >= TICK:
 		tick()
 		acc -= TICK
+	sync_music(delta)
 	var dark: bool = mode == "play" and bool(game["rooms"][state["room"]].get("dark", false))
 	var lit: bool = mode == "play" and bool(state["flags"].get("candle_lit", false)) and state["loc"].get("candle") == "inv"
 	var dm: ShaderMaterial = dark_rect.material
@@ -980,7 +1061,7 @@ func _draw_ui() -> void:
 		return
 	ui_canvas.draw_rect(Rect2(0, 0, SCREEN_W, PIC_Y), EGA[15])
 	text(ui_canvas, " Score: %d of %d" % [int(state["score"]), int(game["meta"]["maxScore"])], 0, 1, 0)
-	var snd := "Sound: %s " % ("on" if sound_on else "off")
+	var snd := "Sound: %s  Music: %s " % ["on" if sound_on else "off", "on" if music_on else "off"]
 	text(ui_canvas, snd, SCREEN_W - snd.length() * 6, 1, 0)
 	ui_canvas.draw_rect(Rect2(0, PIC_Y + PIC_H, SCREEN_W, 200 - PIC_Y - PIC_H), EGA[0])
 	var shown := input_text.right(50) if input_text.length() > 50 else input_text
@@ -1003,6 +1084,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	match k:
 		KEY_F2:
 			sound_on = not sound_on
+			save_prefs()
+			return
+		KEY_F3:
+			music_on = not music_on
+			save_prefs()
 			return
 		KEY_F5:
 			if mode == "play" and dialog == null:

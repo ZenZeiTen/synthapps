@@ -36,6 +36,22 @@ A few modern kindnesses soften the period rough edges without changing the feel:
   the fatal step. The deaths stay sudden and funny, but none of them costs a
   replay. Restoring an F5 save and starting over remain on the menu.
 
+## Music
+
+Four short original pieces, in the voice of a 1990 AdLib card:
+
+- **Crowmere Hill** plays on the title screen and at the gate. It's a haunted waltz
+  with a theremin lead, spooky but grinning.
+- **Tiptoe** plays in every room of the house. A staccato harpsichord sneaks over
+  the tick-tock of the grandfather clock.
+- **Down Below** plays in the cellar: a low drone, far-off bells, dripping water,
+  and a faint heartbeat.
+- **Delivery Complete** plays at the end. It's the title's opening call again, now
+  in a major key.
+
+The music drops to silence when Gus dies, so each death's comic sting lands on its
+own, and it comes back with the undo.
+
 ## Map
 
 ```

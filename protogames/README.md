@@ -16,7 +16,10 @@ Every room was modelled in **Blender** and every sprite, texture and glyph drawn
 **Aseprite**, both driven through their MCP servers. The rooms were then rendered and
 dithered down to the EGA palette. See [docs/PIPELINE.md](docs/PIPELINE.md).
 
-All characters, text, puzzles, art and sound are original to this project.
+The music is four original pieces, synthesized by the pipeline from plain-text scores
+in the style of a 1990 AdLib card.
+
+All characters, text, puzzles, art, sound and music are original to this project.
 
 ## Play
 
@@ -34,13 +37,14 @@ Controls:
 
 - **Arrow keys**, or click the picture, to walk. Clicking a doorway leaves through it.
 - Type a command and press **Enter**. `help` and `hint` exist.
-- **F2** sound, **F5** save, **F7** restore, **F9** restart.
+- **F2** sound, **F3** music, **F5** save, **F7** restore, **F9** restart. The sound
+  and music settings are remembered.
 - **F4** switches between 4:3 and square pixels (web build only).
 
 ## Layout
 
 ```
-content/     the engine-agnostic package: game.json, rooms, sprites, font, sfx
+content/     the engine-agnostic package: game.json, rooms, sprites, font, sfx, music
 web/         browser build: core.js (pure rules) + gfx, ui, world, audio, main
 godot/       Godot 4.7 build: scripts/core.gd (port of core.js), main.gd, shaders
 pipeline/    asset pipeline: aseprite/, blender/ (kit + one script per room), post/, audio/
@@ -55,7 +59,7 @@ dist/        the single-file build
 ## Checks
 
 ```bash
-node --test tests/lint.test.mjs tests/transcripts.test.mjs tests/bundle.test.mjs tests/death.test.mjs
+node --test tests/lint.test.mjs tests/transcripts.test.mjs tests/bundle.test.mjs tests/death.test.mjs tests/music.test.mjs
 ```
 
 ```bash
@@ -75,11 +79,23 @@ node tools/dump_art.mjs && python tests/verify_art.py
 ```
 
 ```bash
+python tests/verify_music.py
+```
+
+```bash
+python tests/mutation_music.py
+```
+
+```bash
 godot --headless --path godot --script res://tests/run_transcripts.gd
 ```
 
 ```bash
 godot --headless --path godot --script res://tests/death_policy.gd
+```
+
+```bash
+godot --headless --path godot --script res://tests/music_policy.gd
 ```
 
 ```bash
@@ -99,13 +115,17 @@ What each check proves:
   room's probes, such as "behind the kitchen table is walkable, under it is not".
 - The **death-policy tests** hold both engines to the same rule: every death offers
   an undo to the moment before the fatal step.
+- `verify_music.py` re-renders every melody and measures each note against the
+  written score. It also checks that every loop seam is inaudible. The
+  **music-policy tests** hold both engines to the same choice of track.
 
 Status on 2026-09-24:
 
-- 21/21 node tests pass.
+- 25/25 node tests pass.
 - Mutants caught: 7/7 in the core suite, 7/7 in the bundle suite, 5/5 in the walk
-  checks, 5/5 in the GDScript core.
-- Godot parity: 4/4 transcripts, and 5/5 death-policy cases.
+  checks, 5/5 in the music synth, 5/5 in the GDScript core.
+- Godot parity: 4/4 transcripts, 5/5 death-policy cases, 7/7 music-policy cases.
+- Music: 4 seamless loops, and all 152 melody notes at their written pitch.
 - Art is pixel-exact: 36 sprite frames, the font sheet and 49 textures.
 - An end-to-end browser run of the walkthrough, with real pathfinding (20
   auto-walks), wins 80/80 on the bundled file.
