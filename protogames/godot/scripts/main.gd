@@ -3,7 +3,8 @@
 # A port of web/src/{main,world,ui}.js on top of the shared GDScript core
 # (scripts/core.gd). Everything draws at 320x200; project stretch mode
 # "viewport" scales it to the 4:3 window. Content comes from res://content,
-# loaded as raw bytes (the folder carries .gdignore, so no import step).
+# loaded as raw bytes: tools/sync_godot.mjs marks every PNG/WAV importer="keep", so
+# nothing is re-encoded and exports carry the files as-is.
 extends Node2D
 
 const Core = preload("res://scripts/core.gd")
@@ -82,6 +83,7 @@ var ui_canvas: Node2D
 
 func _ready() -> void:
 	randomize()
+	get_tree().auto_accept_quit = false        # closing the window goes through quit_cleanly()
 	_load_content()
 	load_prefs()
 	core = Core.new(game, room_data)
@@ -133,7 +135,7 @@ func _take_screenshot_if_due() -> void:
 	img.save_png(screenshot_path)
 	print("screenshot ", screenshot_path, " ", img.get_size())
 	screenshot_path = ""
-	get_tree().quit()
+	quit_cleanly()
 
 
 func _shader_rect(shader_path: String) -> ColorRect:
@@ -300,6 +302,24 @@ func sync_music(delta: float) -> void:
 		if v["target"] == 0.0 and v["level"] <= 0.0:
 			v["player"].queue_free()
 			music_voices.erase(v)
+
+
+# Quitting mid-song left the audio server holding the stream and its playback, which
+# Godot reports as leaked objects at exit. Stopping in _exit_tree is too late -- the
+# audio thread lets go of a playback on its next mix -- so every quit goes through
+# here: stop all sound, give the mixer a moment, then quit.
+func quit_cleanly() -> void:
+	for v in music_voices:
+		v["player"].stop()
+	for p in players:
+		p.stop()
+	await get_tree().create_timer(0.1).timeout
+	get_tree().quit()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		quit_cleanly()
 
 
 # Sound and music on/off survive a restart, like the web build's localStorage.

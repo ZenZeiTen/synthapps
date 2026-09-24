@@ -17,7 +17,7 @@ pipeline/post/compose.py ─────────────> content/rooms/
                                         ov_<state>.png, room.json
 pipeline/audio/make_sfx.py ───────────> content/sfx/*.wav + sfx.json
 pipeline/audio/make_music.py ─────────> content/music/*.wav + music.json
-tools/sync_godot.mjs ─────────────────> godot/content/ (raw copy + .gdignore)
+tools/sync_godot.mjs ─────────────────> godot/content/ (raw copy; PNG/WAV imported as "keep")
 tools/bundle_web.mjs ─────────────────> dist/crowmere-hill.html (+ .fragment.html)
 ```
 
@@ -203,3 +203,24 @@ Two Blender behaviours that aren't about pixels, both learned by failure:
 | A4 | `export_png` returns no `bytes` field. | Result inspection. | Sizes are read from disk. |
 
 A2 and A4 are worth reporting upstream to the Aseprite MCP project.
+
+### Godot export
+
+Measured with Godot 4.7.2 on 2026-09-24 by exporting a pack from a scratch copy of the
+project.
+
+| # | Fact | Evidence | What the code does about it |
+|---|---|---|---|
+| G1 | A folder carrying `.gdignore` is left out of exports, **even when the preset's include filter names it**. | A 59 KB pack holding only scripts, the scene and shaders. None of the 61 content files. | `godot/content/` has no `.gdignore`. |
+| G2 | A `<file>.import` sidecar with `importer="keep"` makes the editor leave the file untouched. The exporter packs it byte for byte. | Every one of the 61 content files in the pack has the source's md5, and no imported copies appeared under `.godot/imported`. | `tools/sync_godot.mjs` writes that sidecar for every PNG and WAV. |
+| G3 | `--export-pack` needs no export templates; `--export-release` to an `.exe` does. | The pack exported with no templates installed. | `tests/verify_godot_export.py` checks the export through a pack. |
+| G4 | A PCK file (format 4) keeps a table of contents at an offset given in its header, with an md5 for every file. | Parsed; each stored md5 matches its bytes. | The verifier reads the table itself and refuses any other format version. |
+| G5 | The first full editor scan writes a `.uid` file beside each script and shader. | They appeared after the first export. | Committed, as Godot recommends. |
+| G6 | Quitting while music plays leaks the stream and its playback at exit. Stopping the players in `_exit_tree` is too late. | `--verbose` exit report: `AudioStreamWAV` and `AudioStreamPlaybackWAV` leaked. Gone after stopping the players and waiting 0.1 s. | Every quit, including the window's close button, goes through `quit_cleanly()` in `main.gd`, with `auto_accept_quit` off. |
+
+`python tests/verify_godot_export.py --run` exports the real preset, requires every
+content file byte for byte and no test scripts, then starts the game from the pack alone.
+Three planted faults, all caught:
+- bringing back the `.gdignore` (61 files missing);
+- a texture importer on one PNG (1 file changed);
+- a preset that ships the test scripts (6 found).

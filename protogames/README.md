@@ -28,6 +28,7 @@ All characters, text, puzzles, art, sound and music are original to this project
 | single file | `node tools/bundle_web.mjs`, then open `dist/crowmere-hill.html` (offline). Fonts are the only thing it fetches |
 | dev page | serve the repo root (below) and open http://localhost:8766/web/index.html |
 | Godot | `node tools/sync_godot.mjs`, then open `godot/project.godot` in Godot 4.7 and press F5 |
+| Windows .exe | `node tools/sync_godot.mjs`, then `godot --headless --path godot --export-release "Windows Desktop"`. This writes one self-contained `dist/godot/crowmere-hill.exe`. It needs Godot's export templates, installed once (Editor → Manage Export Templates) |
 
 ```bash
 python -m http.server 8766 --bind 127.0.0.1
@@ -102,6 +103,10 @@ godot --headless --path godot --script res://tests/music_policy.gd
 python tests/mutation_godot.py
 ```
 
+```bash
+python tests/verify_godot_export.py --run
+```
+
 What each check proves:
 
 - The **golden transcripts** (`tests/transcripts/*.txt`) are replayed by both cores
@@ -126,14 +131,18 @@ Status on 2026-09-24:
   checks, 5/5 in the music synth, 5/5 in the GDScript core.
 - Godot parity: 4/4 transcripts, 5/5 death-policy cases, 7/7 music-policy cases.
 - Music: 4 seamless loops, and all 152 melody notes at their written pitch.
+- Windows export: a single 112 MB `crowmere-hill.exe`, run on its own from an unrelated
+  folder.
+  - Its pack carries all 61 content files byte for byte.
+  - The export check caught 3/3 planted faults.
+  - Closing the window quits without leaks.
 - Art is pixel-exact: 36 sprite frames, the font sheet and 49 textures.
 - An end-to-end browser run of the walkthrough, with real pathfinding (20
   auto-walks), wins 80/80 on the bundled file.
 
 ## Not done yet
 
-- **Godot export.** `godot/content/` carries a `.gdignore`, so the editor never
-  re-imports (and re-encodes) the PNGs. That also keeps them out of exported builds.
-  Exporting needs an include filter or a different loading path.
+- **Other export targets.** Only a Windows preset exists (`godot/export_presets.cfg`).
+  The same content setup works for any other platform preset.
 - **Planned but cut:** a rocking-chair animation, and a dawn version of the gate for
   the ending, which currently reuses the night scene.
