@@ -55,5 +55,16 @@ came from a gap in what the checks covered, so each is now a standing rule:
   (a full level name and date in Gates Below; stages, score and date in Vale of Shards). Check
   every screen for text outside its frame with the longest real data, as Vale of Shards'
   `fit` harness command does.
+- **Walk every narrow gap from slightly off-line.** Vale of Shards' map walker moves 4 px a
+  step and stops at any blocked cell, so a player a few pixels off the path's row met an
+  "invisible barrier" beside an open gate in a one-tile gap. Test each gap, door and
+  corridor from every offset the step size allows.
+- **A hold keeps gravity.** A boss's death blast held the hero still for 3.3 s; started
+  mid-jump, it froze him in the air and the player reported a freeze. Start every hold,
+  cutscene and dialog from mid-air and mid-action in a check.
+- **Tests keep out of the player's files.** Harness runs shared the high-score table; once
+  test scores filled it, the ending took another path and a check passed in the project but
+  failed on the exported exe. Harness runs get their own saves, options and scores, start
+  empty, and the same checks run against the exported build before it is sent.
 - **Recorded inputs are fragile.** A replay that passes alone can drift in a full run
   when the random numbers differ. Check each segment's goal, not only that it ended.
