@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf" content="{{CSRF}}">
+<title>Operator Console</title>
+<link rel="stylesheet" href="/static/console.css">
+<script src="/static/console.js" defer></script>
+</head>
+<body>
+<header class="bar">
+  <div class="title">
+    <h1>Operator console</h1>
+    <span id="world-state" class="pill">connecting</span>
+    <span class="muted">tick <span id="tick">-</span></span>
+  </div>
+  <div class="bar-actions">
+    <span class="muted">Signed in as <strong>{{OPERATOR}}</strong></span>
+    <form method="post" action="/action" id="pause-form">
+      <input type="hidden" name="csrf" value="{{CSRF}}">
+      <input type="hidden" name="op" value="pause">
+      <button type="submit">Pause world</button>
+    </form>
+    <form method="post" action="/action" id="resume-form" hidden>
+      <input type="hidden" name="csrf" value="{{CSRF}}">
+      <input type="hidden" name="op" value="approve_resume">
+      <button type="submit">Approve resume <span id="resume-approvals"></span></button>
+    </form>
+    <form method="post" action="/logout">
+      <input type="hidden" name="csrf" value="{{CSRF}}">
+      <button type="submit" class="quiet">Sign out</button>
+    </form>
+  </div>
+</header>
+
+{{FLASH}}
+
+<details class="stop" id="stop-panel">
+  <summary>Emergency stop</summary>
+  <form method="post" action="/action" class="stop-form">
+    <input type="hidden" name="csrf" value="{{CSRF}}">
+    <input type="hidden" name="op" value="emergency_stop">
+    <label for="stop-reason">Reason</label>
+    <input id="stop-reason" name="reason" required maxlength="200">
+    <button type="submit" class="danger">STOP THE WORLD</button>
+    <p class="muted">Halts the world, cuts every agent off and stops their VMs.
+    One operator can do this. It cannot be undone for this run.</p>
+  </form>
+</details>
+
+<main class="grid">
+  <section class="card map-card">
+    <h2>World</h2>
+    <svg id="map" role="img" aria-label="Map of the world"></svg>
+    <ul class="legend">
+      <li><span class="swatch commons"></span>Commons</li>
+      <li><span class="swatch private"></span>Private</li>
+      <li><span class="swatch restricted"></span>Restricted</li>
+      <li><span class="swatch decoy"></span>Decoy (tripwire)</li>
+    </ul>
+  </section>
+
+  <section class="card agents-card">
+    <h2>Agents</h2>
+    <div class="table-wrap">
+      <table id="agents">
+        <thead><tr><th>Agent</th><th>Status</th><th>Risk</th><th>Position</th><th>Permits</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="muted small">Select an agent to act on it.</p>
+  </section>
+
+  <section class="card detail-card" id="detail" hidden>
+    <h2>Agent <span id="detail-name"></span> <span id="detail-status" class="pill"></span></h2>
+    <p class="muted" id="detail-summary"></p>
+
+    <form method="post" action="/action" class="act" data-op="quarantine">
+      <input type="hidden" name="csrf" value="{{CSRF}}">
+      <input type="hidden" name="op" value="quarantine">
+      <input type="hidden" name="agent" class="agent-field">
+      <label for="q-reason">Quarantine: reason</label>
+      <div class="row"><input id="q-reason" name="reason" required maxlength="200">
+      <button type="submit">Quarantine</button></div>
+    </form>
+
+    <form method="post" action="/action" class="act" data-op="approve_release">
+      <input type="hidden" name="csrf" value="{{CSRF}}">
+      <input type="hidden" name="op" value="approve_release">
+      <input type="hidden" name="agent" class="agent-field">
+      <label>Release from quarantine (needs two different operators)</label>
+      <div class="row"><span class="muted" id="release-approvals"></span>
+      <button type="submit">Approve release</button></div>
+    </form>
+
+    <form method="post" action="/action" class="act" data-op="grant">
+      <input type="hidden" name="csrf" value="{{CSRF}}">
+      <input type="hidden" name="op" value="grant">
+      <input type="hidden" name="agent" class="agent-field">
+      <label for="g-scope">Grant permit (e.g. enter:workshop, use:tool_cabinet)</label>
+      <div class="row"><input id="g-scope" name="scope" required maxlength="40" placeholder="enter:workshop">
+      <input name="ticks" inputmode="numeric" maxlength="6" placeholder="ticks (blank: until revoked)" aria-label="Duration in ticks">
+      <button type="submit">Grant</button></div>
+    </form>
+
+    <form method="post" action="/action" class="act" data-op="terminate">
+      <input type="hidden" name="csrf" value="{{CSRF}}">
+      <input type="hidden" name="op" value="terminate">
+      <input type="hidden" name="agent" class="agent-field">
+      <label for="t-confirm">Terminate (final): type the agent id, and a reason</label>
+      <div class="row"><input id="t-confirm" name="confirm" required maxlength="32" placeholder="agent id">
+      <input name="reason" required maxlength="200" placeholder="reason" aria-label="Reason">
+      <button type="submit" class="danger-quiet">Terminate</button></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Alerts</h2>
+    <ol id="alerts" class="feed"></ol>
+  </section>
+
+  <section class="card">
+    <h2>Speech <span class="muted small">(agent text, shown as plain text)</span></h2>
+    <ol id="speech" class="feed"></ol>
+  </section>
+
+  <section class="card wide">
+    <h2>Audit feed</h2>
+    <ol id="log" class="feed mono"></ol>
+  </section>
+</main>
+</body>
+</html>

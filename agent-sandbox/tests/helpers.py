@@ -1,10 +1,20 @@
 from __future__ import annotations
 
 import json
+import os
+import socket
+import unittest
 from typing import Any
 
 from synthapps_zenzeiworld.kernel import AgentGateway, KernelConfig, OperatorConsole, WorldKernel
 from synthapps_zenzeiworld.world import default_world
+
+# The VM gateway, control socket and drill use Unix sockets. They only need to
+# run on the Linux enclave hosts, so on Windows those tests are skipped.
+needs_unix_sockets = unittest.skipUnless(
+    hasattr(socket, "AF_UNIX"), "needs Unix sockets (Linux/macOS); runs on the enclave hosts")
+needs_posix_permissions = unittest.skipUnless(
+    os.name == "posix", "file permission bits are only meaningful on Linux/macOS")
 
 
 def req(action: str, **params: Any) -> str:

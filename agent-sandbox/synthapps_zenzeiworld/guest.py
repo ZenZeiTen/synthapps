@@ -20,9 +20,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import select
 import socket
 import sys
-import time
 from collections.abc import Callable
 from typing import Any
 
@@ -76,13 +76,21 @@ class GatewayClient:
     @classmethod
     def connect_vsock(cls, port: int = DEFAULT_PORT) -> GatewayClient:
         sock = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
-        sock.connect((VSOCK_HOST_CID, port))
+        try:
+            sock.connect((VSOCK_HOST_CID, port))
+        except OSError:
+            sock.close()
+            raise
         return cls(sock)
 
     @classmethod
     def connect_unix(cls, path: str) -> GatewayClient:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.connect(path)
+        try:
+            sock.connect(path)
+        except OSError:
+            sock.close()
+            raise
         return cls(sock)
 
     def _call(self, message: dict[str, Any]) -> dict[str, Any]:
@@ -107,6 +115,17 @@ class GatewayClient:
         reply = self._call({"op": "infer", "prompt": prompt[:MAX_PROMPT_CHARS]})
         text = reply.get("text")
         return text if reply.get("ok") and isinstance(text, str) else None
+
+    def idle(self, seconds: float) -> None:
+        """Wait between turns, but wake at once if the gateway hangs up.
+
+        The gateway never speaks first, so anything readable while idle means
+        the connection was closed (e.g. by the kill switch) or the protocol
+        was broken. Either way the runner must stop immediately.
+        """
+        readable, _, _ = select.select([self._sock], [], [], seconds)
+        if readable:
+            raise ProtocolError("gateway closed the connection")
 
     def close(self) -> None:
         self._sock.close()
@@ -159,8 +178,13 @@ def extract_action(text: str | None) -> str:
 
 
 def run(client: GatewayClient, max_turns: int | None = None,
-        poll_seconds: float = 0.2, sleep: Callable[[float], None] = time.sleep) -> int:
-    """Play turns until the world halts. Returns the number of actions submitted."""
+        poll_seconds: float = 0.2, sleep: Callable[[float], None] | None = None) -> int:
+    """Play turns until the world halts. Returns the number of actions submitted.
+
+    Raises ProtocolError if the gateway hangs up, which ends the process and,
+    inside a VM, stops the VM.
+    """
+    wait = sleep if sleep is not None else client.idle
     turns = 0
     last_tick: int | None = None
     while max_turns is None or turns < max_turns:
@@ -170,7 +194,7 @@ def run(client: GatewayClient, max_turns: int | None = None,
             break
         tick = observation.get("tick")
         if status == "suspended" or tick == last_tick:
-            sleep(poll_seconds)
+            wait(poll_seconds)
             continue
         last_tick = tick if isinstance(tick, int) else None
         request = extract_action(client.infer(build_prompt(observation)))

@@ -20,6 +20,8 @@ What *is* implemented and tested is the software both ends run:
 |---|---|---|
 | Host gateway (one socket per VM, identity by socket, frame caps, inference budget) | `synthapps_zenzeiworld/server.py` | Yes, over local Unix sockets (`tests/test_server.py`) |
 | Guest runner (observe → model → one JSON action → submit) | `synthapps_zenzeiworld/guest.py` | Yes, same tests; the vsock transport itself is not exercised |
+| Kill switch: button, control socket and CLI, containment step | `synthapps_zenzeiworld/control.py`, `server.py` | Yes, `tests/test_control.py`, including the real gateway process; timed in [DRILL.md](DRILL.md) |
+| Operator console (web) | `synthapps_zenzeiworld/operator_ui.py`, `static/` | Yes, `tests/test_operator_ui.py`, plus a scripted headless-browser check (see below) |
 
 ## Files
 
@@ -132,16 +134,92 @@ sudo firecracker/launch-agent-vm.sh start ada 10001
 sudo firecracker/launch-agent-vm.sh start bo  10002
 ```
 
-Stop one VM with `launch-agent-vm.sh stop <id>` (cgroup v2 kill). Stop
-everything by stopping the gateway: with no gateway, every guest runner
-loses its connection and exits, and each VM stops.
+The gateway config (`gateway.example.json`) also sets the operators, the
+control socket, the kill-switch button and the stop commands. Install
+`launch-agent-vm.sh` at the path the stop commands use.
+
+## Kill switch
+
+Every way of stopping ends in the same containment step, in this order:
+
+1. the world halts (recorded in the audit log)
+2. every agent connection is cut, and the agent sockets stop listening
+3. the `on_halt_commands` run in parallel: one `launch-agent-vm.sh stop <id>`
+   per VM, which kills the VM's whole cgroup
+
+Guest runners also exit on their own the moment their connection is cut, and
+a VM stops when its runner exits. So VMs stop even if a stop command fails.
+
+| How | Who | Notes |
+|---|---|---|
+| **Button**: web page on the gateway host, `127.0.0.1:<port>` | Any registered operator with the kill-switch token | Reach it through an SSH tunnel: `ssh -L 8787:127.0.0.1:8787 gateway-host`, then open `http://127.0.0.1:8787`. Keep the same local port number: the page refuses other `Host` headers. The token is in the root-only `token_file` (created on first start) and is never shown on the page |
+| **CLI**: `python -m synthapps_zenzeiworld.control --socket /run/zw/control.sock stop --operator alice --reason "..."` | Root on the gateway host | Also `status`, `pause`, `quarantine <agent>` |
+| **Stop the gateway process** (`SIGTERM` or Ctrl-C) | Root on the gateway host | Runs the same containment before exiting |
+| **Automatic**: the watchdog halts the world | Nobody | Same containment, no press needed |
+| **Stop one VM**: `launch-agent-vm.sh stop <id>` | Root on the VM host | Just that agent |
+| **Power off** | On-site staff | Independent of all software |
+
+![The kill-switch page before and after a press, at phone width](kill-switch.png)
+
+One operator can stop the world. Nothing in these tools can restart a halted
+world: a restart means a fresh world from a reviewed snapshot.
+
+Measured times for the software part are in [DRILL.md](DRILL.md): about 1 ms
+to halt, and 1 to 23 ms to cut every agent (4 to 16 agents).
+
+## Operator console
+
+A web app for watching and running the world, served by the gateway process on
+`127.0.0.1:<port>` and reached through an SSH tunnel, like the kill switch.
+
+![The operator console during a run](operator-console.png)
+
+It shows a live map (decoy zones outlined), every agent's status and risk,
+alerts, recent speech and an audit feed. From it an operator can quarantine,
+release (two operators), terminate (type the id to confirm), grant permits,
+pause, resume (two operators) and trigger the emergency stop.
+
+**Set up one credential per operator** (the two-person rule depends on it):
+
+```bash
+sudo python -m synthapps_zenzeiworld.operator_ui add-operator --file /etc/zw/operators.json alice
+sudo python -m synthapps_zenzeiworld.operator_ui add-operator --file /etc/zw/operators.json bashir
+```
+
+Each command prints that operator's token once; hand it over privately. The
+file stores only hashes and must stay mode 0600 (the gateway refuses it
+otherwise). Every name in it must also be in the config's `operators` list.
+Running `add-operator` again for a name replaces that operator's token.
+
+**Connect:** `ssh -L 8788:127.0.0.1:8788 gateway-host`, then open
+`http://127.0.0.1:8788`. Keep the same local port number.
+
+**Security properties** (each covered by a test):
+
+- Two-person actions count distinct *signed-in* operators; the name always
+  comes from the session, never from the form.
+- Five failed sign-ins lock a name for five minutes. Sessions end after 30
+  minutes idle. Every sign-in, failure and command is in the audit log.
+- Every action needs the session's CSRF token. The cookie is HttpOnly and
+  SameSite=Strict, and requests with a foreign `Host` header are refused.
+- Agent speech is untrusted. The page only receives it as JSON and inserts it
+  as plain text, under a CSP with no inline script. A headless-browser check
+  confirmed an agent saying `<img src=x onerror=alert(1)>` shows up as literal
+  text, with no element created and no script run.
+
+**Try it locally** with a demo world (scripted agents including one rogue):
+
+```bash
+python -m synthapps_zenzeiworld.operator_ui demo --port 8788
+```
+
+It prints a sign-in token for each demo operator.
+
+The kill-switch page stays separate on purpose: it needs no session, so it
+still works if the console's login does not.
 
 ## Not yet built
 
-- **Operator console over the network.** `OperatorConsole` exists in the
-  kernel, but the gateway process does not expose it. Until it does, the
-  controls are: stop the gateway process, stop VMs with the launch script, or
-  power off the host.
 - **Audit shipping.** The gateway appends the hash-chained log to a local file
   and fsyncs each entry. Shipping it to the write-once store is left to your
   log agent.
@@ -158,4 +236,6 @@ Do not run any model in this world until these are done and signed off:
 3. **Your security team, or an independent penetration tester, has tested the
    enclave's isolation and egress controls on your own hosts, and signed off
    the result.** This repository does not include that test.
-4. The kill-switch drill (stop gateway, stop VM, power off) has been timed.
+4. The kill-switch drill has been run on the real enclave and recorded in
+   [DRILL.md](DRILL.md): button to every VM gone, gateway killed outright,
+   host power-off, and alert-to-button time for the on-call operator.

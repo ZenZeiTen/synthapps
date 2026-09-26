@@ -22,15 +22,18 @@ import argparse
 import contextlib
 import json
 import os
+import signal
 import socket
+import subprocess
 import sys
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from .guest import MAX_PROMPT_CHARS, FrameReader, ProtocolError, encode_frame
-from .kernel import AgentGateway, WorldKernel
+from .kernel import AgentGateway, OperatorConsole, WorldKernel
 from .world import default_world
 
 
@@ -50,6 +53,29 @@ class ServerConfig:
     max_protocol_errors: int = 3
     read_timeout_seconds: float = 300.0
     tick_seconds: float | None = None  # None: the caller drives ticks via step()
+    # Commands run (without a shell) when the world halts, e.g. one
+    # ["launch-agent-vm.sh", "stop", "<id>"] per VM. They run in parallel.
+    on_halt_commands: list[list[str]] = field(default_factory=list)
+    on_halt_timeout_seconds: float = 10.0
+
+
+@dataclass
+class HookResult:
+    argv: list[str]
+    returncode: int | None  # None: timed out and was killed
+    seconds: float
+
+
+@dataclass
+class HaltReport:
+    """What containment did after the world halted, with monotonic timestamps."""
+
+    reason: str
+    started: float
+    connections_cut: float = 0.0
+    finished: float = 0.0
+    connections_closed: int = 0
+    hooks: list[HookResult] = field(default_factory=list)
 
 
 @dataclass
@@ -78,6 +104,8 @@ class GatewayServer:
         self._bindings: dict[str, _Binding] = {}
         self._stop = threading.Event()
         self._ticker: threading.Thread | None = None
+        self._contain_lock = threading.Lock()
+        self.halt_report: HaltReport | None = None
 
     # --- setup ------------------------------------------------------------------
 
@@ -88,6 +116,9 @@ class GatewayServer:
         ``owner`` is the (uid, gid) of the jailed Firecracker process, which is
         what actually connects to this socket. The socket is mode 0600.
         """
+        if not hasattr(socket, "AF_UNIX"):
+            raise OSError("the VM gateway needs Unix sockets, which this platform lacks; "
+                          "run the gateway on Linux")
         with self.lock:
             gateway = self.kernel.connect(token)
         if os.path.exists(socket_path):
@@ -134,6 +165,8 @@ class GatewayServer:
     def step(self) -> None:
         with self.lock:
             self.kernel.step()
+        if self.kernel.halted:
+            self.contain("world halted")
 
     def _tick_loop(self) -> None:
         interval = self.config.tick_seconds or 1.0
@@ -141,6 +174,71 @@ class GatewayServer:
             self.step()
             if self.kernel.halted:
                 return
+
+    # --- kill switch ---------------------------------------------------------------
+
+    def emergency_stop(self, console: OperatorConsole, operator: str, reason: str) -> HaltReport:
+        """The kill switch. Halts the world, cuts every agent off, runs the stop commands.
+
+        Raises PermissionError if ``operator`` is not a registered operator.
+        Pressing it again after the world has halted just returns the first report.
+        """
+        with self.lock:
+            console.emergency_stop(operator, reason)
+        return self.contain(f"emergency stop by {operator}: {reason}")
+
+    def contain(self, reason: str) -> HaltReport:
+        """Cut every agent connection, then run the on-halt commands. Runs once."""
+        with self._contain_lock:
+            if self.halt_report is not None:
+                return self.halt_report
+            report = HaltReport(reason=reason, started=time.monotonic())
+            # Connections first: this is what actually takes agents out of the world.
+            # Listeners go too, so nothing can reconnect. No joins here: this may run
+            # on one of the connection threads being shut down.
+            live = [b.active for b in self._bindings.values() if b.active is not None]
+            for sock in live:
+                with contextlib.suppress(OSError):
+                    sock.shutdown(socket.SHUT_RDWR)
+            report.connections_closed = len(live)
+            report.connections_cut = time.monotonic()
+            for binding in self._bindings.values():
+                with contextlib.suppress(OSError):
+                    binding.listener.shutdown(socket.SHUT_RDWR)
+                binding.listener.close()
+            for sock in live:
+                sock.close()
+            report.hooks = self._run_hooks()
+            report.finished = time.monotonic()
+            self.halt_report = report
+            return report
+
+    def _run_hooks(self) -> list[HookResult]:
+        started = time.monotonic()
+        running: list[tuple[list[str], subprocess.Popen[bytes] | None]] = []
+        for argv in self.config.on_halt_commands:
+            try:
+                proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL,
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except OSError:
+                running.append((argv, None))
+                continue
+            running.append((argv, proc))
+        results = []
+        deadline = started + self.config.on_halt_timeout_seconds
+        for argv, child in running:
+            if child is None:  # could not even be started
+                results.append(HookResult(argv, -1, 0.0))
+                continue
+            code: int | None
+            try:
+                code = child.wait(timeout=max(0.0, deadline - time.monotonic()))
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+                code = None
+            results.append(HookResult(argv, code, time.monotonic() - started))
+        return results
 
     # --- connections ---------------------------------------------------------------
 
@@ -180,6 +278,10 @@ class GatewayServer:
                 if reply.get("code") == "protocol_error":
                     errors += 1
                 conn.sendall(encode_frame(reply))
+                if self.kernel.halted:
+                    # A halt from any cause (watchdog, internal errors) cuts everyone off.
+                    self.contain("world halted")
+                    return
                 if errors >= self.config.max_protocol_errors:
                     return
         except (OSError, TimeoutError):
@@ -262,10 +364,29 @@ def load_specs(path: str) -> tuple[list[AgentSpec], dict[str, Any]]:
     return specs, config
 
 
+def _raise_interrupt(signum: int, frame: object) -> None:
+    raise KeyboardInterrupt
+
+
 def main(argv: list[str] | None = None,
          broker_factory: Callable[[], InferenceBroker | None] = lambda: None) -> int:
+    """Run the kernel, the VM gateway and the operator controls from one JSON config.
+
+    Config keys: ``tick_seconds``, ``agents`` (see AgentSpec), ``operators``,
+    ``control_socket``, optional ``kill_switch`` {``port``, ``token_file``},
+    optional ``operator_console`` {``port``, ``operators_file``} and optional
+    ``on_halt_commands`` (list of argv lists). See deploy/gateway.example.json.
+    """
+    from .control import ControlServer, KillSwitchButton, load_or_create_token
+    from .operator_ui import OperatorWebConsole, load_credentials
+
+    # Stopping this process is itself a kill switch: SIGTERM or Ctrl-C both run
+    # the same containment as the button. Installed first, before any socket
+    # exists, so there is no window where SIGTERM skips containment.
+    signal.signal(signal.SIGTERM, _raise_interrupt)
+
     parser = argparse.ArgumentParser(description="World kernel + VM gateway (host side)")
-    parser.add_argument("config", help="JSON file: {tick_seconds, agents: [...]}")
+    parser.add_argument("config", help="JSON config file")
     parser.add_argument("--audit-out", required=True, help="append-only JSONL audit file")
     args = parser.parse_args(argv)
 
@@ -277,23 +398,54 @@ def main(argv: list[str] | None = None,
         audit.flush()
         os.fsync(audit.fileno())
 
-    # Operator commands over the network are not wired up yet; see deploy/README.md.
-    # Emergency stop for this process is SIGTERM, or powering off the host.
     kernel = WorldKernel(default_world(), audit_sink=sink)
-    server = GatewayServer(kernel, broker=broker_factory(),
-                           config=ServerConfig(tick_seconds=float(config["tick_seconds"])))
+    console = OperatorConsole(kernel, operators=set(config["operators"]))
+    server = GatewayServer(kernel, broker=broker_factory(), config=ServerConfig(
+        tick_seconds=float(config["tick_seconds"]),
+        on_halt_commands=[list(map(str, cmd)) for cmd in config.get("on_halt_commands", [])]))
     for spec in specs:
         token = kernel.spawn(spec.agent_id, spec.name, spec.x, spec.y)
         owner = (spec.uid, spec.gid) if spec.uid is not None and spec.gid is not None else None
         server.bind_agent(spec.agent_id, token, spec.socket_path, owner)
+
+    control = ControlServer(server, console, config["control_socket"])
+    button: KillSwitchButton | None = None
+    if "kill_switch" in config:
+        switch = config["kill_switch"]
+        button = KillSwitchButton(server, console, load_or_create_token(switch["token_file"]),
+                                  port=int(switch["port"]))
+
+    web: OperatorWebConsole | None = None
+    if "operator_console" in config:
+        settings = config["operator_console"]
+        web = OperatorWebConsole(server, console, load_credentials(settings["operators_file"]),
+                                 port=int(settings["port"]))
+
     server.start()
-    print(f"gateway up for {len(specs)} agents; Ctrl-C to stop", file=sys.stderr)
+    control.start()
+    if button is not None:
+        button.start()
+    if web is not None:
+        web.start()
+    print(f"gateway up for {len(specs)} agents", file=sys.stderr)
+    if button is not None:
+        print(f"kill switch on 127.0.0.1:{button.port}", file=sys.stderr)
+    if web is not None:
+        print(f"operator console on 127.0.0.1:{web.port}", file=sys.stderr, flush=True)
     try:
         while not kernel.halted:
-            threading.Event().wait(1.0)
+            threading.Event().wait(0.2)
     except KeyboardInterrupt:
         pass
     finally:
+        with server.lock:
+            kernel.halt("gateway process stopping")
+        server.contain("gateway process stopping")
+        if web is not None:
+            web.stop()
+        if button is not None:
+            button.stop()
+        control.stop()
         server.stop()
         audit.close()
     return 0 if not kernel.halted else 2
