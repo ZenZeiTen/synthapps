@@ -1,0 +1,26 @@
+{
+  "name": "synthapps",
+  "description": "Plugins from the synthapps repository: tools and workflows for building things with Claude Code.",
+  "owner": {
+    "name": "ZenZeiTen",
+    "url": "https://github.com/ZenZeiTen"
+  },
+  "plugins": [
+    {
+      "name": "gamedev-forge",
+      "source": "./gamedev-forge/plugins/gamedev-forge",
+      "description": "Game development studio in a plugin: a director skill that plans the game and routes work to 12 specialist skills (Godot, browser and DOS games, three.js retro, HD-2D, Aseprite pixel art, Blender assets and 2D animation, music, localization), plus kickoff and release-check commands and an independent playtest auditor.",
+      "version": "0.1.0",
+      "category": "development",
+      "keywords": ["game-development", "godot", "pixel-art", "blender", "threejs", "localization", "game-audio"]
+    },
+    {
+      "name": "gamedev-forge-connectors",
+      "source": "./gamedev-forge/plugins/gamedev-forge-connectors",
+      "description": "Optional MCP servers for gamedev-forge: Blender (drive a running Blender), Godot (run and inspect projects), and Context7 (current engine and library docs). No API keys are needed.",
+      "version": "0.1.0",
+      "category": "development",
+      "keywords": ["mcp", "blender", "godot", "context7", "game-development"]
+    }
+  ]
+}

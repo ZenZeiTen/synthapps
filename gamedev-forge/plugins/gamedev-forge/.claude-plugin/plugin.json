@@ -1,0 +1,14 @@
+{
+  "name": "gamedev-forge",
+  "displayName": "Gamedev Forge",
+  "version": "0.1.0",
+  "description": "Plan, build, test, localize and ship small games with Claude. A director skill turns an idea into a game brief and routes each job to a specialist skill: Godot 4, browser, DOS-era and three.js retro games, HD-2D, Aseprite pixel art, Blender assets and 2D animation, game music, and game localization.",
+  "author": {
+    "name": "ZenZeiTen",
+    "url": "https://github.com/ZenZeiTen"
+  },
+  "homepage": "https://github.com/ZenZeiTen/synthapps/tree/main/gamedev-forge",
+  "repository": "https://github.com/ZenZeiTen/synthapps",
+  "license": "MIT",
+  "keywords": ["game-development", "godot", "pixel-art", "aseprite", "blender", "threejs", "hd-2d", "dos", "game-audio", "localization", "lqa"]
+}
