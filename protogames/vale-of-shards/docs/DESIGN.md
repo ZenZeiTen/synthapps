@@ -106,6 +106,8 @@ Every mechanic and control in `ANALYSIS.md` has a row here.
 | 65 | level editor (design mode), memory checks, sound card set-up, joystick calibration, ordering info, Epic-specific fidget lines | dropped | none of these apply to a modern build. Calibration is replaced by a stick dead zone |
 | 66 | (none) jump buffer | added | a jump pressed up to 3 steps before landing is kept and fires on the landing step, so a slightly early press is not lost |
 | 67 | (none) ledge grace | added | for 3 steps after walking off an edge, a jump press still jumps |
+| 68 | player held still during a boss's death blast (`msg_front`, the Regent's 60-step blast) | adapted | the source freezes Orrin wherever he is, so a last shot fired mid-jump left him hanging in the air for 3.3 s, which a player took for a freeze. Here a hold that begins in mid-air falls to the floor, then holds (`kinds.gd _still_fall`) |
+| 69 | overworld walker moves 4 px a step and stops at any blocked cell (`msg_tiny`) | adapted | walking straight into a bank, the walker slides up to 12 px sideways toward an opening, and a blocked diagonal walks along the open side. The Vale's gates stand in one-cell gaps through the river and the rocks, and a walker a few pixels off the path's row met an invisible barrier beside an open gate (`kinds.gd _tiny_slide`) |
 
 ### Enemy cast
 

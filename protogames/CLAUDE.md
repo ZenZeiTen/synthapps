@@ -51,5 +51,9 @@ came from a gap in what the checks covered, so each is now a standing rule:
 - **Buttons carry over.** The button that closes a window, or a player still firing,
   must not act on the next screen: swallow held buttons until release, and guard story
   pages for a moment after they appear.
+- **Text must fit with real data.** Both games shipped a save label that ran past its box
+  (a full level name and date in Gates Below; stages, score and date in Vale of Shards). Check
+  every screen for text outside its frame with the longest real data, as Vale of Shards'
+  `fit` harness command does.
 - **Recorded inputs are fragile.** A replay that passes alone can drift in a full run
   when the random numbers differ. Check each segment's goal, not only that it ended.

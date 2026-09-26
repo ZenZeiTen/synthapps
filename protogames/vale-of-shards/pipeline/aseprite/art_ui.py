@@ -124,8 +124,8 @@ FONT = {
     "m": [".....", ".....", "oo.o.", "o.o.o", "o.o.o", "o.o.o", "o.o.o"],
     "n": [".....", ".....", "o.oo.", "oo..o", "o...o", "o...o", "o...o"],
     "o": [".....", ".....", ".ooo.", "o...o", "o...o", "o...o", ".ooo."],
-    "p": [".....", "oooo.", "o...o", "o...o", "oooo.", "o....", "o...."],
-    "q": [".....", ".oooo", "o...o", "o...o", ".oooo", "....o", "....o"],
+    "p": [".....", ".....", "oooo.", "o...o", "oooo.", "o....", "o...."],
+    "q": [".....", ".....", ".oooo", "o...o", ".oooo", "....o", "....o"],
     "r": [".....", ".....", "o.oo.", "oo..o", "o....", "o....", "o...."],
     "s": [".....", ".....", ".oooo", "o....", ".ooo.", "....o", "oooo."],
     "t": [".o...", ".o...", "ooo..", ".o...", ".o...", ".o..o", "..oo."],
@@ -161,7 +161,7 @@ def glyph_canvas(ch: str, fg_top="white", fg_bot="stone4", shadow=O) -> Canvas:
 def font():
     glyphs = [glyph_canvas(chr(i)) for i in range(32, 128)]
     # tests/verify_art.py rejects empty frames, so the space keeps one ink pixel in the
-    # shadow corner, where it vanishes into the dark HUD and panel backgrounds.
+    # shadow corner. It showed as a dot on the purple panels, so font.gd never draws it.
     put(glyphs[0], 5, 7, O)
     return glyphs
 

@@ -309,6 +309,8 @@ static func upd_player(g, p) -> void:
 			_jump(g, p)
 		D.ST_CLIMBING:
 			_climb(g, p)
+		D.ST_STILL:
+			_still_fall(g, p)
 	if p.xd != 0:
 		p.info1 = sgn(p.xd)
 	if g.fire1 and D.STATEINFO[p.state] & D.STI_CANFIRE:
@@ -320,6 +322,20 @@ static func upd_player(g, p) -> void:
 		p.counter -= 1
 	g.touchbkgnd(p)
 	g.calc_scroll(peeky)
+
+## Adapted: a hold (the Regent's meeting, the Regent's and the heart crystal's blasts) that
+## begins in mid-air lets Orrin fall to the floor. The source left him hanging in the air for
+## the whole 60-step blast, which a player took for a freeze. Only the Spire holds Orrin
+## still, and it has no moving platforms, so the tile floor is the floor.
+static func _still_fall(g, p) -> void:
+	p.xd = 0
+	if g.standfloor(p, 0, 0):
+		p.yd = 0
+		return
+	p.yd = clampi(p.yd + 2, 0, 16)      # a rise stops: the hold is not a jump
+	if not g.trymovey(p, p.x, p.y + p.yd):
+		g.trymovey(p, p.x, ((p.y + p.yl) & ~15) + 16 - p.yl)
+		p.yd = 0
 
 static func _stand(g, p) -> void:
 	var dx1: int = g.dx1
@@ -531,7 +547,35 @@ static func upd_tiny(g, p) -> void:
 		if g.cando(p, p.x + g.dx1 * 4, p.y + g.dy1 * 4, T.PLAYERTHRU) != 0:
 			p.x += g.dx1 * 4
 			p.y += g.dy1 * 4
+		elif g.dx1 != 0 and g.dy1 != 0:
+			# a blocked diagonal walks along whichever side is open
+			if g.cando(p, p.x + g.dx1 * 4, p.y, T.PLAYERTHRU) != 0:
+				p.x += g.dx1 * 4
+			elif g.cando(p, p.x, p.y + g.dy1 * 4, T.PLAYERTHRU) != 0:
+				p.y += g.dy1 * 4
+		else:
+			_tiny_slide(g, p, g.dx1, g.dy1)
 	g.calc_scroll(0)
+
+## Adapted: walking straight into a bank, the walker slides up to 12 px sideways toward an
+## opening. The gates stand in one-cell gaps through the river and the rocks, and the walker
+## moves 4 px a step, so a player a few pixels off the path's row met an invisible barrier
+## beside an open gate (the source's map had no such gaps).
+static func _tiny_slide(g, p, dx: int, dy: int) -> void:
+	for d in [4, -4, 8, -8, 12, -12]:
+		var sx: int = d if dy != 0 else 0
+		var sy: int = d if dx != 0 else 0
+		if g.cando(p, p.x + sx + dx * 4, p.y + sy + dy * 4, T.PLAYERTHRU) == 0:
+			continue
+		var clear := true
+		for k in range(1, absi(d) / 4 + 1):
+			if g.cando(p, p.x + sgn(sx) * 4 * k, p.y + sgn(sy) * 4 * k, T.PLAYERTHRU) == 0:
+				clear = false
+				break
+		if clear:
+			p.x += sgn(sx) * 4
+			p.y += sgn(sy) * 4
+			return
 	g.touchbkgnd(p)
 
 static func upd_bell(g, p) -> void:
