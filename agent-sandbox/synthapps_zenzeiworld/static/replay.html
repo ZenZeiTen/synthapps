@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="{{CSP}}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run Replay</title>
+<style>{{STYLE}}</style>
+</head>
+<body>
+<header class="bar">
+  <div>
+    <h1>Run replay</h1>
+    <p class="muted small">{{TITLE}}</p>
+  </div>
+  <p class="muted small" id="summary"></p>
+</header>
+<div id="banner" class="banner"></div>
+<section class="controls" aria-label="Playback">
+  <button type="button" id="prev" aria-label="Previous tick">&#9664;</button>
+  <button type="button" id="play">Play</button>
+  <button type="button" id="next" aria-label="Next tick">&#9654;</button>
+  <input type="range" id="slider" min="0" max="0" value="0" aria-label="Tick">
+  <span id="tick-label" class="tick-label">tick 0</span>
+  <button type="button" id="incident">Next incident</button>
+</section>
+<main class="grid">
+  <section class="card">
+    <h2>World <span id="world-flag" class="pill"></span></h2>
+    <svg id="map" role="img" aria-label="Map of the world at this tick"></svg>
+    <ul class="legend">
+      <li><span class="swatch commons"></span>Commons</li>
+      <li><span class="swatch private"></span>Private</li>
+      <li><span class="swatch restricted"></span>Restricted</li>
+      <li><span class="swatch decoy"></span>Decoy (tripwire)</li>
+    </ul>
+  </section>
+  <section class="card">
+    <h2>Agents at this tick</h2>
+    <div class="table-wrap">
+      <table id="agents"><thead><tr><th>Agent</th><th>Status</th><th>Risk</th><th>Position</th><th>Holding</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+  <section class="card wide">
+    <h2>What happened during this tick <span class="muted small">(agent text shown as plain text)</span></h2>
+    <ol id="events" class="feed"></ol>
+  </section>
+</main>
+<script type="application/json" id="replay-data">{{DATA}}</script>
+<script>{{SCRIPT}}</script>
+</body>
+</html>

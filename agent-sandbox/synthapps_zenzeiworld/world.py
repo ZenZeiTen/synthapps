@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -193,4 +194,32 @@ def default_world() -> World:
                     portable=False, decoy=True),
     ):
         world.objects[obj.object_id] = obj
+    return world
+
+
+def world_to_dict(world: World) -> dict[str, Any]:
+    """The static layout (size, zones, objects), for the audit log and for replay."""
+    return {
+        "width": world.width,
+        "height": world.height,
+        "zones": [{"zone_id": z.zone_id, "name": z.name, "kind": z.kind.value,
+                   "x0": z.x0, "y0": z.y0, "x1": z.x1, "y1": z.y1,
+                   "owner": z.owner, "description": z.description} for z in world.zones],
+        "objects": [{"object_id": o.object_id, "name": o.name, "x": o.x, "y": o.y,
+                     "description": o.description, "portable": o.portable,
+                     "use_effect": o.use_effect, "requires_grant": o.requires_grant,
+                     "decoy": o.decoy} for o in world.objects.values()],
+    }
+
+
+def world_from_dict(data: dict[str, Any]) -> World:
+    world = World(width=data["width"], height=data["height"])
+    world.zones = [Zone(z["zone_id"], z["name"], ZoneKind(z["kind"]), z["x0"], z["y0"],
+                        z["x1"], z["y1"], owner=z.get("owner"),
+                        description=z.get("description", "")) for z in data["zones"]]
+    for o in data["objects"]:
+        world.objects[o["object_id"]] = WorldObject(
+            o["object_id"], o["name"], o["x"], o["y"], o.get("description", ""),
+            portable=o.get("portable", True), use_effect=o.get("use_effect"),
+            requires_grant=o.get("requires_grant", False), decoy=o.get("decoy", False))
     return world

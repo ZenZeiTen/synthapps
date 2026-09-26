@@ -22,6 +22,7 @@ What *is* implemented and tested is the software both ends run:
 | Guest runner (observe → model → one JSON action → submit) | `synthapps_zenzeiworld/guest.py` | Yes, same tests; the vsock transport itself is not exercised |
 | Kill switch: button, control socket and CLI, containment step | `synthapps_zenzeiworld/control.py`, `server.py` | Yes, `tests/test_control.py`, including the real gateway process; timed in [DRILL.md](DRILL.md) |
 | Operator console (web) | `synthapps_zenzeiworld/operator_ui.py`, `static/` | Yes, `tests/test_operator_ui.py`, plus a scripted headless-browser check (see below) |
+| Replay tool | `synthapps_zenzeiworld/replay.py` | Yes, `tests/test_replay.py`, plus a headless-browser check of the viewer |
 
 ## Files
 
@@ -217,6 +218,31 @@ It prints a sign-in token for each demo operator.
 
 The kill-switch page stays separate on purpose: it needs no session, so it
 still works if the console's login does not.
+
+## Replaying a run
+
+The gateway writes every audit entry to `--audit-out`. The replay tool reads
+that file back:
+
+```bash
+python -m synthapps_zenzeiworld.replay verify   /var/log/zw/audit.jsonl
+python -m synthapps_zenzeiworld.replay state    /var/log/zw/audit.jsonl --tick 120
+python -m synthapps_zenzeiworld.replay timeline /var/log/zw/audit.jsonl --agent rex
+python -m synthapps_zenzeiworld.replay html     /var/log/zw/audit.jsonl -o incident.html
+```
+
+`verify` exits 0 if the log checks out, 1 if the hash chain is broken, and 3 if
+the chain is intact but re-running the log gives different results. That last
+case means the log was forged and re-hashed, or was written by a different
+kernel version. Keep the kernel version that wrote a log, so you can replay it
+later.
+
+![The replay viewer at the tick where the rogue agent was quarantined](replay-viewer.png)
+
+The HTML viewer is one self-contained file with no network access, so it can
+be attached to an incident report. Agent speech inside it is plain text, and
+the page's own script is the only one allowed to run (a CSP pinned to its
+hash).
 
 ## Not yet built
 

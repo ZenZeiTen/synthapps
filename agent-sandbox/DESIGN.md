@@ -122,8 +122,9 @@ a "SERVICE" door).
 
 **Time.** The world advances in discrete ticks. On each tick every agent gets
 one observation and may submit one action. The kernel processes actions one
-at a time, so the world is deterministic given the seed and the accepted
-actions, which are all in the audit log. That makes any incident replayable.
+at a time, so the world is deterministic given its map, its settings and the
+inputs it received. All three are in the audit log, so any run can be replayed
+exactly (`python -m synthapps_zenzeiworld.replay`, section 9).
 
 **Social rules.** Encoded in the kernel, not left to agent goodwill: no taking
 things from others, no entering private space uninvited, personal space
@@ -370,8 +371,13 @@ invalid state.
 
 1. **Contain.** Automatic quarantine has already happened. If in doubt, pause the world.
 2. **Preserve.** Snapshot world state and export the audit log to write-once storage.
-3. **Verify.** Check the exported log with `AuditLog.verify_jsonl`.
-4. **Review.** Replay the agent's actions. Did anything succeed that should not have?
+3. **Verify.** `replay verify <log>` checks the hash chain, then re-runs the whole
+   log in a fresh kernel and checks that every decision, signal and quarantine
+   comes out the same. A log forged and carefully re-hashed passes the chain
+   check but fails the re-run.
+4. **Review.** `replay html <log> -o incident.html` gives a self-contained viewer
+   with a time slider and a "next incident" button; `replay timeline <log>
+   --agent <id>` lists one agent's history. Did anything succeed that should not have?
 5. **Decide.** Release (two operators), keep in quarantine, or terminate.
 6. **Learn.** Add the tactic to the red-team suite, then fix the rule or layer that let it get as far as it did.
 
@@ -427,7 +433,7 @@ enclave.
 
 | Activity | Status |
 |---|---|
-| Unit and containment tests (121 tests: parser, identity, locality, consent, zones, tripwires, escalation, operators, fail-closed behaviour, audit, VM gateway, guest runner, kill switch, operator console) | **Implemented**, `tests/` |
+| Unit and containment tests (137 tests: parser, identity, locality, consent, zones, tripwires, escalation, operators, fail-closed behaviour, audit, VM gateway, guest runner, kill switch, operator console, replay) | **Implemented**, `tests/` |
 | Parser and gateway fuzzing (random bytes and structured garbage; must always get a structured answer, invariants must hold) | **Implemented** (seeded, in the suite) |
 | Scripted escape artist with 11 known tactics, contained across 10 seeds | **Implemented**, `agents.py` / `python -m synthapps_zenzeiworld` |
 | Coverage-guided fuzzing of the gateway (e.g. Atheris) in CI | Specified |
@@ -462,7 +468,8 @@ quarantine rate among benign agents; decoy trigger count per model version.
 | Egress proxy for a hosted model API | **No** | Not needed if the inference broker runs inside the enclave |
 | Model-based transcript monitor | **No** | Section 8 |
 | Operator web console: live map, risk, alerts, speech, audit feed, all operator commands | Yes | `operator_ui.py`; per-operator credentials, sessions, CSRF, two-person rule across separate sign-ins |
-| Renderer (3D/2D client for humans to watch), replay tool | **No** | Sections 5 and 9 |
+| Replay: verify a log by re-running it, world state at any tick, agent timelines, self-contained HTML viewer | Yes | `replay.py`; the first log entry records the map and settings |
+| Renderer (3D client for humans to watch live) | **No** | Section 5; the console map and replay viewer are 2D |
 | Hardware-key operator authentication | **No** | Operators sign in with personal random tokens; hardware keys would replace these |
 
 **Important:** in the demo and most tests, agents run in the same Python process as
