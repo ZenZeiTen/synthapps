@@ -26,6 +26,7 @@ from synthapps_zenzeiworld.guest import (
 from synthapps_zenzeiworld.kernel import AgentStatus, OperatorConsole, WorldKernel
 from synthapps_zenzeiworld.server import GatewayServer, ServerConfig
 from synthapps_zenzeiworld.world import default_world
+from tests.helpers import needs_unix_sockets
 
 
 class ScriptedBroker:
@@ -52,6 +53,7 @@ def wait_until(condition: object, timeout: float = 2.0) -> bool:
     return False
 
 
+@needs_unix_sockets
 class ServerTestCase(unittest.TestCase):
     broker: object = None
 

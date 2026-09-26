@@ -68,6 +68,9 @@ class ControlServer:
         self.server = server
         self.console = console
         self.path = path
+        if not hasattr(socket, "AF_UNIX"):
+            raise OSError("the control socket needs Unix sockets, which this platform lacks; "
+                          "run the gateway on Linux")
         if os.path.exists(path):
             os.unlink(path)
         self._listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

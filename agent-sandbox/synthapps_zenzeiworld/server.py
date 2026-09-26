@@ -116,6 +116,9 @@ class GatewayServer:
         ``owner`` is the (uid, gid) of the jailed Firecracker process, which is
         what actually connects to this socket. The socket is mode 0600.
         """
+        if not hasattr(socket, "AF_UNIX"):
+            raise OSError("the VM gateway needs Unix sockets, which this platform lacks; "
+                          "run the gateway on Linux")
         with self.lock:
             gateway = self.kernel.connect(token)
         if os.path.exists(socket_path):

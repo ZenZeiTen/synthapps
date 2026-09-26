@@ -12,6 +12,7 @@ import unittest
 import urllib.parse
 from importlib import resources
 from typing import Any
+from unittest import mock
 
 from synthapps_zenzeiworld.kernel import AgentStatus, OperatorConsole, WorldKernel
 from synthapps_zenzeiworld.operator_ui import (
@@ -23,7 +24,7 @@ from synthapps_zenzeiworld.operator_ui import (
 )
 from synthapps_zenzeiworld.server import GatewayServer
 from synthapps_zenzeiworld.world import default_world
-from tests.helpers import req
+from tests.helpers import needs_posix_permissions, req
 
 
 class FakeClock:
@@ -116,17 +117,27 @@ class ConsoleTestCase(unittest.TestCase):
 
 
 class CredentialTests(ConsoleTestCase):
-    def test_file_is_private_and_holds_only_hashes(self) -> None:
+    @needs_posix_permissions
+    def test_file_is_private(self) -> None:
         self.assertEqual(stat.S_IMODE(os.stat(self.creds).st_mode), 0o600)
+
+    def test_file_holds_only_hashes(self) -> None:
         with open(self.creds) as handle:
             text = handle.read()
         for token in self.tokens.values():
             self.assertNotIn(token, text)
 
+    @needs_posix_permissions
     def test_readable_credentials_file_is_refused(self) -> None:
         os.chmod(self.creds, 0o644)
         with self.assertRaises(PermissionError):
             load_credentials(self.creds)
+
+    def test_permission_check_is_skipped_where_mode_bits_mean_nothing(self) -> None:
+        # Windows reports every writable file as 0o666, so the check cannot apply there.
+        os.chmod(self.creds, 0o644)
+        with mock.patch("synthapps_zenzeiworld.operator_ui.os.name", "nt"):
+            self.assertEqual(set(load_credentials(self.creds)), {"alice", "bashir"})
 
     def test_credentials_for_non_operators_are_refused(self) -> None:
         add_operator(self.creds, "mallory")

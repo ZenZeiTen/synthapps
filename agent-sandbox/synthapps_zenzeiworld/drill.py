@@ -23,6 +23,7 @@ import http.client
 import json
 import os
 import secrets
+import socket
 import statistics
 import subprocess
 import sys
@@ -191,6 +192,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--json", help="also write the full results here")
     args = parser.parse_args(argv)
+    if not hasattr(socket, "AF_UNIX"):
+        print("The drill needs Unix sockets (Linux or macOS). On Windows, try "
+              "`python -m synthapps_zenzeiworld.operator_ui demo` instead.", file=sys.stderr)
+        return 2
 
     rounds = []
     for n in range(args.rounds):

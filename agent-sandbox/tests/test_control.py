@@ -28,10 +28,12 @@ from synthapps_zenzeiworld.guest import GatewayClient, ProtocolError
 from synthapps_zenzeiworld.kernel import OperatorConsole, WorldKernel
 from synthapps_zenzeiworld.server import GatewayServer, ServerConfig
 from synthapps_zenzeiworld.world import default_world
+from tests.helpers import needs_posix_permissions, needs_unix_sockets
 
 TOKEN = "t" * 40
 
 
+@needs_unix_sockets
 class KillSwitchTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.mkdtemp(prefix="zk-")
@@ -194,6 +196,7 @@ class ButtonTests(KillSwitchTestCase):
             KillSwitchButton(self.server, self.console, "short")
 
 
+@needs_posix_permissions
 class TokenFileTests(unittest.TestCase):
     def test_token_file_is_created_private_and_reused(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -222,6 +225,7 @@ class GuestWakesOnHangUpTests(unittest.TestCase):
         client.close()
 
 
+@needs_unix_sockets
 class DrillSmokeTests(unittest.TestCase):
     def test_one_round_contains_every_agent(self) -> None:
         from synthapps_zenzeiworld.drill import run_round
@@ -235,6 +239,7 @@ class DrillSmokeTests(unittest.TestCase):
         self.assertLess(result.cut_ms, result.exited_ms)
 
 
+@needs_unix_sockets
 class GatewayProcessTests(unittest.TestCase):
     """The real entry point, as an operator would start it, stopped two ways."""
 
@@ -298,6 +303,7 @@ class GatewayProcessTests(unittest.TestCase):
             self.check_audit(audit, "world_halted")
 
 
+@needs_unix_sockets
 class GatewayProcessConsoleTests(unittest.TestCase):
     def test_operator_console_is_served_by_the_gateway_process(self) -> None:
         from synthapps_zenzeiworld.operator_ui import add_operator

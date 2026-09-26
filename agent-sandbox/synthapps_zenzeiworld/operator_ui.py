@@ -72,9 +72,15 @@ def hash_token(token: str) -> str:
 
 
 def load_credentials(path: str) -> dict[str, str]:
-    """Read ``{operator: sha256(token)}``. Refuses a file others can read or write."""
+    """Read ``{operator: sha256(token)}``. Refuses a file others can read or write.
+
+    The permission check applies on Linux and macOS, where the gateway is
+    deployed. Windows does not expose POSIX mode bits (every writable file
+    reads as 0o666), so there the check is skipped; that is only for trying
+    the demo locally.
+    """
     mode = os.stat(path).st_mode
-    if mode & 0o077:
+    if os.name == "posix" and mode & 0o077:
         raise PermissionError(f"{path} must not be accessible by group or others (chmod 600)")
     with open(path) as handle:
         data = json.load(handle)

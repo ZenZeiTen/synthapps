@@ -21,6 +21,21 @@ python -m synthapps_zenzeiworld.drill --agents 4         # time the kill switch
 python -m synthapps_zenzeiworld.operator_ui demo         # operator console with a demo world
 ```
 
+### Platforms
+
+| Part | Linux | macOS | Windows |
+|---|---|---|---|
+| World kernel demo (`python -m synthapps_zenzeiworld`) | Yes | Yes | Yes |
+| Operator console demo (`python -m synthapps_zenzeiworld.operator_ui demo`) | Yes | Yes | Yes |
+| VM gateway, kill-switch control socket, drill | Yes | Yes | No: needs Unix sockets |
+| Enclave deployment (`deploy/`) | Yes | No | No |
+
+On Windows, the tests that need Unix sockets are skipped with a message
+saying so. Everything was tested on Linux; Windows behaviour was checked by
+simulation only (running the suite with Unix sockets removed), not on a
+Windows machine. On Windows, use `py` in place of `python` if `python` is not
+on your PATH.
+
 To install it as a package (distribution name `synthapps-zenzeiworld`,
 import name `synthapps_zenzeiworld`):
 
