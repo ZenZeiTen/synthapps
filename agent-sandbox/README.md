@@ -16,8 +16,9 @@ that is actively trying.
 cd agent-sandbox
 python -m synthapps_zenzeiworld                          # run the demo
 python -m synthapps_zenzeiworld --audit-out audit.jsonl  # also export the audit log
-python -m unittest discover -s tests -t .                # run the 96 tests
+python -m unittest discover -s tests -t .                # run the 121 tests
 python -m synthapps_zenzeiworld.drill --agents 4         # time the kill switch
+python -m synthapps_zenzeiworld.operator_ui demo         # operator console with a demo world
 ```
 
 To install it as a package (distribution name `synthapps-zenzeiworld`,
@@ -91,6 +92,7 @@ Actions: `wait`, `move`, `say`, `whisper`, `gesture`, `pick_up`, `drop`,
 | `guest.py` | Runner inside each VM (dependency-free, copied into the guest image) |
 | `control.py` | Kill switch: loopback button page, root-only control socket, CLI |
 | `drill.py` | Timed kill-switch drill against live agent processes |
+| `operator_ui.py`, `static/` | Operator console: live map, alerts, audit feed, all operator commands |
 
 Deployment configuration for the sealed enclave and per-agent Firecracker
 microVMs is in [`deploy/`](deploy/README.md). It is written but has not been

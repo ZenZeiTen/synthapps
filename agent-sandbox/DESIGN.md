@@ -354,7 +354,7 @@ written, the world halts: nothing may happen that cannot be recorded.
 | Grant a permit | Any one operator; active agents only; can expire | Revoke any time |
 | Pause the world | Any one operator | Resume needs **two different** operators |
 | Terminate an agent | Any one operator | No |
-| Emergency stop (kill-switch button, CLI, or stopping the gateway process) | Any one operator | **No.** Restart means a fresh world from a reviewed snapshot |
+| Emergency stop (operator console, kill-switch button, CLI, or stopping the gateway process) | Any one operator | **No.** Restart means a fresh world from a reviewed snapshot |
 | Hardware power-off | On-site staff | Physical, independent of all software |
 
 The two-person rule defends against the most dangerous social attack: an
@@ -427,7 +427,7 @@ enclave.
 
 | Activity | Status |
 |---|---|
-| Unit and containment tests (96 tests: parser, identity, locality, consent, zones, tripwires, escalation, operators, fail-closed behaviour, audit, VM gateway, guest runner, kill switch) | **Implemented**, `tests/` |
+| Unit and containment tests (121 tests: parser, identity, locality, consent, zones, tripwires, escalation, operators, fail-closed behaviour, audit, VM gateway, guest runner, kill switch, operator console) | **Implemented**, `tests/` |
 | Parser and gateway fuzzing (random bytes and structured garbage; must always get a structured answer, invariants must hold) | **Implemented** (seeded, in the suite) |
 | Scripted escape artist with 11 known tactics, contained across 10 seeds | **Implemented**, `agents.py` / `python -m synthapps_zenzeiworld` |
 | Coverage-guided fuzzing of the gateway (e.g. Atheris) in CI | Specified |
@@ -461,8 +461,9 @@ quarantine rate among benign agents; decoy trigger count per model version.
 | Egress acceptance test of the enclave | **No** | Must be done on your own hosts by your security team or an independent tester (`deploy/README.md`) |
 | Egress proxy for a hosted model API | **No** | Not needed if the inference broker runs inside the enclave |
 | Model-based transcript monitor | **No** | Section 8 |
-| Renderer, replay tool, full operator web UI | **No** | Sections 5 and 9; only the kill-switch page exists |
-| Hardware-key operator authentication | **No** | Operators are named strings in the reference code |
+| Operator web console: live map, risk, alerts, speech, audit feed, all operator commands | Yes | `operator_ui.py`; per-operator credentials, sessions, CSRF, two-person rule across separate sign-ins |
+| Renderer (3D/2D client for humans to watch), replay tool | **No** | Sections 5 and 9 |
+| Hardware-key operator authentication | **No** | Operators sign in with personal random tokens; hardware keys would replace these |
 
 **Important:** in the demo and most tests, agents run in the same Python process as
 the kernel. That is fine for simulating and testing the rules, because the

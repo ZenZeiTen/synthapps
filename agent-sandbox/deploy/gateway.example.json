@@ -6,6 +6,10 @@
     "port": 8787,
     "token_file": "/etc/zw/kill-switch.token"
   },
+  "operator_console": {
+    "port": 8788,
+    "operators_file": "/etc/zw/operators.json"
+  },
   "on_halt_commands": [
     ["/srv/zw/launch-agent-vm.sh", "stop", "ada"],
     ["/srv/zw/launch-agent-vm.sh", "stop", "bo"]

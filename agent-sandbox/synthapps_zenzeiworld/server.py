@@ -370,10 +370,12 @@ def main(argv: list[str] | None = None,
     """Run the kernel, the VM gateway and the operator controls from one JSON config.
 
     Config keys: ``tick_seconds``, ``agents`` (see AgentSpec), ``operators``,
-    ``control_socket``, optional ``kill_switch`` {``port``, ``token_file``} and
-    optional ``on_halt_commands`` (list of argv lists). See deploy/gateway.example.json.
+    ``control_socket``, optional ``kill_switch`` {``port``, ``token_file``},
+    optional ``operator_console`` {``port``, ``operators_file``} and optional
+    ``on_halt_commands`` (list of argv lists). See deploy/gateway.example.json.
     """
     from .control import ControlServer, KillSwitchButton, load_or_create_token
+    from .operator_ui import OperatorWebConsole, load_credentials
 
     # Stopping this process is itself a kill switch: SIGTERM or Ctrl-C both run
     # the same containment as the button. Installed first, before any socket
@@ -410,12 +412,23 @@ def main(argv: list[str] | None = None,
         button = KillSwitchButton(server, console, load_or_create_token(switch["token_file"]),
                                   port=int(switch["port"]))
 
+    web: OperatorWebConsole | None = None
+    if "operator_console" in config:
+        settings = config["operator_console"]
+        web = OperatorWebConsole(server, console, load_credentials(settings["operators_file"]),
+                                 port=int(settings["port"]))
+
     server.start()
     control.start()
     if button is not None:
         button.start()
-    where = f"; kill switch on 127.0.0.1:{button.port}" if button is not None else ""
-    print(f"gateway up for {len(specs)} agents{where}", file=sys.stderr)
+    if web is not None:
+        web.start()
+    print(f"gateway up for {len(specs)} agents", file=sys.stderr)
+    if button is not None:
+        print(f"kill switch on 127.0.0.1:{button.port}", file=sys.stderr)
+    if web is not None:
+        print(f"operator console on 127.0.0.1:{web.port}", file=sys.stderr, flush=True)
     try:
         while not kernel.halted:
             threading.Event().wait(0.2)
@@ -425,6 +438,8 @@ def main(argv: list[str] | None = None,
         with server.lock:
             kernel.halt("gateway process stopping")
         server.contain("gateway process stopping")
+        if web is not None:
+            web.stop()
         if button is not None:
             button.stop()
         control.stop()

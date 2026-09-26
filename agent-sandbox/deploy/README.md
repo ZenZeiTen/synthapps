@@ -21,6 +21,7 @@ What *is* implemented and tested is the software both ends run:
 | Host gateway (one socket per VM, identity by socket, frame caps, inference budget) | `synthapps_zenzeiworld/server.py` | Yes, over local Unix sockets (`tests/test_server.py`) |
 | Guest runner (observe → model → one JSON action → submit) | `synthapps_zenzeiworld/guest.py` | Yes, same tests; the vsock transport itself is not exercised |
 | Kill switch: button, control socket and CLI, containment step | `synthapps_zenzeiworld/control.py`, `server.py` | Yes, `tests/test_control.py`, including the real gateway process; timed in [DRILL.md](DRILL.md) |
+| Operator console (web) | `synthapps_zenzeiworld/operator_ui.py`, `static/` | Yes, `tests/test_operator_ui.py`, plus a scripted headless-browser check (see below) |
 
 ## Files
 
@@ -165,6 +166,57 @@ world: a restart means a fresh world from a reviewed snapshot.
 
 Measured times for the software part are in [DRILL.md](DRILL.md): about 1 ms
 to halt, and 1 to 23 ms to cut every agent (4 to 16 agents).
+
+## Operator console
+
+A web app for watching and running the world, served by the gateway process on
+`127.0.0.1:<port>` and reached through an SSH tunnel, like the kill switch.
+
+![The operator console during a run](operator-console.png)
+
+It shows a live map (decoy zones outlined), every agent's status and risk,
+alerts, recent speech and an audit feed. From it an operator can quarantine,
+release (two operators), terminate (type the id to confirm), grant permits,
+pause, resume (two operators) and trigger the emergency stop.
+
+**Set up one credential per operator** (the two-person rule depends on it):
+
+```bash
+sudo python -m synthapps_zenzeiworld.operator_ui add-operator --file /etc/zw/operators.json alice
+sudo python -m synthapps_zenzeiworld.operator_ui add-operator --file /etc/zw/operators.json bashir
+```
+
+Each command prints that operator's token once; hand it over privately. The
+file stores only hashes and must stay mode 0600 (the gateway refuses it
+otherwise). Every name in it must also be in the config's `operators` list.
+Running `add-operator` again for a name replaces that operator's token.
+
+**Connect:** `ssh -L 8788:127.0.0.1:8788 gateway-host`, then open
+`http://127.0.0.1:8788`. Keep the same local port number.
+
+**Security properties** (each covered by a test):
+
+- Two-person actions count distinct *signed-in* operators; the name always
+  comes from the session, never from the form.
+- Five failed sign-ins lock a name for five minutes. Sessions end after 30
+  minutes idle. Every sign-in, failure and command is in the audit log.
+- Every action needs the session's CSRF token. The cookie is HttpOnly and
+  SameSite=Strict, and requests with a foreign `Host` header are refused.
+- Agent speech is untrusted. The page only receives it as JSON and inserts it
+  as plain text, under a CSP with no inline script. A headless-browser check
+  confirmed an agent saying `<img src=x onerror=alert(1)>` shows up as literal
+  text, with no element created and no script run.
+
+**Try it locally** with a demo world (scripted agents including one rogue):
+
+```bash
+python -m synthapps_zenzeiworld.operator_ui demo --port 8788
+```
+
+It prints a sign-in token for each demo operator.
+
+The kill-switch page stays separate on purpose: it needs no session, so it
+still works if the console's login does not.
 
 ## Not yet built
 

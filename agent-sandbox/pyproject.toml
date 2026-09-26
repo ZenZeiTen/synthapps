@@ -17,6 +17,9 @@ synthapps-zenzeiworld = "synthapps_zenzeiworld.__main__:main"
 [tool.setuptools]
 packages = ["synthapps_zenzeiworld"]
 
+[tool.setuptools.package-data]
+synthapps_zenzeiworld = ["static/*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

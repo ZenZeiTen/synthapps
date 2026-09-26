@@ -296,3 +296,49 @@ class GatewayProcessTests(unittest.TestCase):
             self.assertEqual(proc.wait(timeout=10), 2)
             self.assertTrue(os.path.exists(os.path.join(tmp, "vm-stopped")))
             self.check_audit(audit, "world_halted")
+
+
+class GatewayProcessConsoleTests(unittest.TestCase):
+    def test_operator_console_is_served_by_the_gateway_process(self) -> None:
+        from synthapps_zenzeiworld.operator_ui import add_operator
+
+        with tempfile.TemporaryDirectory(prefix="zg-") as tmp:
+            creds = os.path.join(tmp, "operators.json")
+            token = add_operator(creds, "alice")
+            config = {
+                "tick_seconds": 0.1, "operators": ["alice", "bashir"],
+                "control_socket": os.path.join(tmp, "control.sock"),
+                "operator_console": {"port": 0, "operators_file": creds},
+                "agents": [{"agent_id": "ada", "name": "Ada", "x": 30.0, "y": 20.5,
+                            "socket_path": os.path.join(tmp, "ada.sock_5000")}],
+            }
+            config_path = os.path.join(tmp, "gateway.json")
+            with open(config_path, "w") as handle:
+                json.dump(config, handle)
+            proc = subprocess.Popen(
+                [sys.executable, "-m", "synthapps_zenzeiworld.server", config_path,
+                 "--audit-out", os.path.join(tmp, "audit.jsonl")],
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            try:
+                assert proc.stderr is not None
+                port = None
+                for line in proc.stderr:
+                    if line.startswith("operator console on 127.0.0.1:"):
+                        port = int(line.rsplit(":", 1)[1])
+                        break
+                self.assertIsNotNone(port, "console did not start")
+                conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+                body = urllib.parse.urlencode({"name": "alice", "token": token})
+                conn.request("POST", "/login", body=body, headers={
+                    "Host": f"127.0.0.1:{port}",
+                    "Content-Type": "application/x-www-form-urlencoded"})
+                response = conn.getresponse()
+                response.read()
+                conn.close()
+                self.assertEqual(response.status, 303)
+            finally:
+                proc.send_signal(signal.SIGTERM)
+                self.assertEqual(proc.wait(timeout=10), 2)
+                if proc.stderr is not None:
+                    proc.stderr.close()

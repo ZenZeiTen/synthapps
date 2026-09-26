@@ -534,6 +534,14 @@ class WorldKernel:
         alerts, self._alerts = self._alerts, []
         return alerts
 
+    def release_approvals(self, agent_id: str) -> list[str]:
+        """Operators who have approved releasing ``agent_id`` so far."""
+        return sorted(self._agents[agent_id].release_approvals)
+
+    def log_operator_event(self, kind: str, data: dict[str, Any]) -> None:
+        """Audit something an operator did outside the command set (e.g. a login)."""
+        self._log(kind, None, data)
+
     def record_transport_violation(self, agent_id: str, detail: str) -> None:
         """Called by the network gateway when a VM breaks the wire protocol.
 
@@ -642,6 +650,14 @@ class OperatorConsole:
         self._kernel = kernel
         self._operators = frozenset(operators)
         self._resume_approvals: set[str] = set()
+
+    @property
+    def operators(self) -> frozenset[str]:
+        return self._operators
+
+    @property
+    def resume_approvals(self) -> list[str]:
+        return sorted(self._resume_approvals)
 
     def _check(self, operator: str) -> None:
         if operator not in self._operators:
