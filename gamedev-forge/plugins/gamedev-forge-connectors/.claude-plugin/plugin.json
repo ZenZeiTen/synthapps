@@ -1,0 +1,14 @@
+{
+  "name": "gamedev-forge-connectors",
+  "displayName": "Gamedev Forge Connectors",
+  "version": "0.1.0",
+  "description": "Optional MCP servers that let the gamedev-forge skills drive real tools: Blender through its MCP add-on, Godot through a local Godot binary, and Context7 for current engine and library documentation. No API keys are needed.",
+  "author": {
+    "name": "ZenZeiTen",
+    "url": "https://github.com/ZenZeiTen"
+  },
+  "homepage": "https://github.com/ZenZeiTen/synthapps/tree/main/gamedev-forge",
+  "repository": "https://github.com/ZenZeiTen/synthapps",
+  "license": "MIT",
+  "keywords": ["mcp", "blender", "godot", "context7", "game-development"]
+}

@@ -1,0 +1,13 @@
+id,class,source,target,max_len
+SKL_001,C2,Increases ATK by 30% for 2 turns.,Meningkatkan ATK sebesar 20% selama 2 giliran.,
+SKL_002,C2,Has a 15% chance to stun the target for 1 turn.,Memiliki peluang 15% untuk membuat target pingsan selama 1 giliran.,
+EVT_001,C3,"Event ends at 23:59 on July 5 (server time). Players ranked 1-100 receive rewards.","Event berakhir pukul 23:59 pada 5 Juli. Pemain peringkat 1-100 menerima hadiah.",
+EVT_002,C3,"Earn up to 500 Event Points per day. Points expire when the event ends.","Dapatkan hingga 500 Poin Event per hari. Poin hangus saat event berakhir.",
+PACK_01,C4,Only $4.99! Contains 1000 gems and 3 Speedups.,"Hanya $4,99! Berisi 1.000 permata dan 3 Percepatan.",
+PACK_02,C4,Monthly Card: get 100 gems daily for 30 days.,Kartu Bulanan: dapatkan 100 permata setiap hari selama 30 hari.,
+PACK_03,C4,Limited offer: 9.99 USD for the Starter Bundle.,Penawaran terbatas: 9990 untuk Paket Pemula.,
+MAIL_01,C6,"{player_name} joined {alliance_name}.",{player_name} bergabung dengan aliansi.,
+UI_0001,C1,Claim,Klaim,12
+UI_0002,C1,Claim,Ambil,12
+UI_0003,C1,Insufficient resources,Sumber daya tidak mencukupi,12
+BAN_001,C4,"Featured hero drop rate: 0.6%. Guaranteed after 90 pulls.","Rate drop hero unggulan: 0,6%. Dijamin setelah 90 tarikan.",

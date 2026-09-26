@@ -1,0 +1,4 @@
+# Private sanitization deny-list: names that must never be published (never commit)
+.sanitize-denylist
+__pycache__/
+*.pyc

@@ -1,0 +1,9 @@
+string_id,source,target,context,max_length,screen_ref,speaker,addressee,string_type,placeholders,dnt,status,notes_dev
+UI.MAINMENU.BTN.CONTINUE,Continue,,"Button on the main menu that resumes the last save. Verb, imperative. Sits next to ""New Game"".",12,ui_mainmenu_01.png,,,UI,,FALSE,new,
+UI.SETTINGS.HDR.AUDIO,Audio,,"Section header on the settings screen. Noun, not a verb.",18,ui_settings_02.png,,,UI,,FALSE,new,
+ITEM.POTION.HEAL.NAME,Healing Draught,,"Item name. Fantasy register. Appears in inventory grid and in dialogue.",22,ui_inventory_01.png,,,UI,,FALSE,new,Glossary term - keep consistent with Chapter 1 usage
+ITEM.POTION.HEAL.DESC,Restores {Amount} health.,,"Tooltip under the item name. {Amount} is an integer, 10-999.",,ui_inventory_01.png,,,UI,"{Amount}: integer, 10-999, no formatting",FALSE,new,
+DLG.CH02.GUIDE.TUTORIAL_03,Press {ButtonJump} to jump.,,"On-screen tutorial prompt during the ledge sequence. {ButtonJump} resolves to a platform-specific glyph, not text.",,tutorial_ledge.png,System,Player,tutorial,"{ButtonJump}: platform button glyph sprite",FALSE,new,Platform terminology applies - use the mandated button name per platform
+DLG.CH03.MERCHANT.GREETING_01,"Well met, traveller. Coin first, questions after.",,"Merchant's opening line, first meeting. Gruff, transactional, mildly amused. Spoken aloud - subtitle and VO.",,,Merchant_Halda,Player,dialogue,,FALSE,new,See character bible: Halda uses no honorifics with anyone
+SYS.LEGAL.AGEGATE.PROMPT,Please enter your date of birth.,,"Age gate shown before first play. Legally sensitive - do not paraphrase without legal review.",,ui_agegate_01.png,,Player,legal,,FALSE,new,Legal review required per locale
+BRAND.STUDIO.NAME,Ninefold Studio,,Studio name. Never translate or transliterate.,,,,,system,,TRUE,unchanged,

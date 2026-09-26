@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "blender": {
+      "command": "uvx",
+      "args": ["mcp-for-blender"],
+      "env": {
+        "BLENDER_HOST": "${BLENDER_HOST:-localhost}",
+        "BLENDER_PORT": "${BLENDER_PORT:-9876}"
+      }
+    },
+    "godot": {
+      "command": "npx",
+      "args": ["-y", "@coding-solo/godot-mcp"]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    }
+  }
+}
