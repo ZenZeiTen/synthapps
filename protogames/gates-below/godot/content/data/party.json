@@ -1,0 +1,18 @@
+{
+ "_doc": "The starting party and the recruitable NPC. Base stats only; max HP/mana/stamina and regeneration follow the original's creation formulas (scripts/core/rules.gd new_character).",
+ "start": ["brann", "ilsa", "odo", "tobin"],
+ "start_gold": 40,
+ "start_runes": ["mend"],
+ "characters": {
+  "brann": {"name": "Brann", "portrait": "brann", "sex": "m", "str": 22, "mag": 3,  "mob": 16, "dex": 14,
+            "equip": {"hand_r": "mace", "hand_l": "shield", "body": "leather"}, "pack": ["bread"]},
+  "ilsa":  {"name": "Ilsa", "portrait": "ilsa", "sex": "f", "str": 8,  "mag": 22, "mob": 15, "dex": 15,
+            "equip": {"hand_r": "staff"}, "pack": ["potion_blue"]},
+  "odo":   {"name": "Odo", "portrait": "odo", "sex": "m", "str": 15, "mag": 16, "mob": 13, "dex": 12,
+            "equip": {"hand_r": "dagger"}, "pack": ["potion_red", "bread"]},
+  "tobin": {"name": "Tobin", "portrait": "tobin", "sex": "m", "str": 14, "mag": 6,  "mob": 18, "dex": 22,
+            "equip": {"hand_r": "bow", "quiver": 24}, "pack": ["dagger"]},
+  "maren": {"name": "Maren", "portrait": "maren", "sex": "f", "str": 16, "mag": 8,  "mob": 22, "dex": 20, "level": 3,
+            "equip": {"hand_r": "sword"}, "pack": ["potion_green"]}
+ }
+}

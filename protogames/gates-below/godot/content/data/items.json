@@ -1,0 +1,369 @@
+{
+ "_doc": "Item templates. type: melee|thrown|ranged|armor|potion|food|water|key|rune|money|text|quest|misc. slot: head|neck|body|legs|feet|hand|two_hand|ring|quiver. mods use the 24-slot stat names (see scripts/core/stats.gd). req: minimum str/mag/mob/dex. weapon: sword|axe|hammer|staff|dagger|missile|other.",
+ "dagger": {
+  "name": "Dagger",
+  "icon": "dagger",
+  "type": "melee",
+  "slot": "hand",
+  "weapon": "dagger",
+  "weight": 1,
+  "value": 12,
+  "req": {
+   "dex": 8
+  },
+  "mods": {
+   "atk_l": 2,
+   "atk_h": 5
+  },
+  "throwable": true
+ },
+ "sword": {
+  "name": "Short Sword",
+  "icon": "sword",
+  "type": "melee",
+  "slot": "hand",
+  "weapon": "sword",
+  "weight": 3,
+  "value": 40,
+  "req": {
+   "str": 12
+  },
+  "mods": {
+   "atk_l": 4,
+   "atk_h": 8
+  }
+ },
+ "axe": {
+  "name": "Hand Axe",
+  "icon": "axe",
+  "type": "melee",
+  "slot": "hand",
+  "weapon": "axe",
+  "weight": 4,
+  "value": 45,
+  "req": {
+   "str": 14
+  },
+  "mods": {
+   "atk_l": 4,
+   "atk_h": 11
+  }
+ },
+ "mace": {
+  "name": "Watch Mace",
+  "icon": "mace",
+  "type": "melee",
+  "slot": "hand",
+  "weapon": "hammer",
+  "weight": 4,
+  "value": 45,
+  "req": {
+   "str": 13
+  },
+  "mods": {
+   "atk_l": 5,
+   "atk_h": 9
+  }
+ },
+ "staff": {
+  "name": "Lamp Staff",
+  "icon": "staff",
+  "type": "melee",
+  "slot": "two_hand",
+  "weapon": "staff",
+  "weight": 2,
+  "value": 50,
+  "req": {
+   "mag": 8
+  },
+  "mods": {
+   "atk_l": 2,
+   "atk_h": 6,
+   "mag": 3,
+   "mp_max": 6
+  }
+ },
+ "bow": {
+  "name": "Hunting Bow",
+  "icon": "bow",
+  "type": "ranged",
+  "slot": "two_hand",
+  "weapon": "missile",
+  "weight": 2,
+  "value": 45,
+  "req": {
+   "dex": 12
+  },
+  "mods": {
+   "atk_l": 3,
+   "atk_h": 8
+  }
+ },
+ "arrows": {
+  "name": "Arrows",
+  "icon": "arrows",
+  "type": "ammo",
+  "slot": "quiver",
+  "weight": 0,
+  "value": 1,
+  "stack": true
+ },
+ "shield": {
+  "name": "Round Shield",
+  "icon": "shield",
+  "type": "armor",
+  "slot": "hand",
+  "weight": 4,
+  "value": 40,
+  "req": {
+   "str": 10
+  },
+  "mods": {
+   "def_l": 1,
+   "def_h": 3
+  }
+ },
+ "helm": {
+  "name": "Iron Cap",
+  "icon": "helm",
+  "type": "armor",
+  "slot": "head",
+  "weight": 2,
+  "value": 30,
+  "mods": {
+   "def_l": 1,
+   "def_h": 2
+  }
+ },
+ "leather": {
+  "name": "Leather Jerkin",
+  "icon": "leather",
+  "type": "armor",
+  "slot": "body",
+  "weight": 4,
+  "value": 25,
+  "mods": {
+   "def_l": 1,
+   "def_h": 3
+  }
+ },
+ "mail": {
+  "name": "Ring Mail",
+  "icon": "mail",
+  "type": "armor",
+  "slot": "body",
+  "weight": 10,
+  "value": 90,
+  "req": {
+   "str": 14
+  },
+  "mods": {
+   "def_l": 2,
+   "def_h": 5
+  }
+ },
+ "boots": {
+  "name": "Wading Boots",
+  "icon": "boots",
+  "type": "armor",
+  "slot": "feet",
+  "weight": 2,
+  "value": 25,
+  "mods": {
+   "def_h": 1,
+   "mob": 3
+  }
+ },
+ "ring_ember": {
+  "name": "Ring of Embers",
+  "icon": "ring",
+  "type": "armor",
+  "slot": "ring",
+  "weight": 0,
+  "value": 80,
+  "mods": {
+   "r_fire": 25,
+   "mag_l": 1,
+   "mag_h": 3,
+   "mag_el": 0
+  }
+ },
+ "amulet": {
+  "name": "Lampbearer's Amulet",
+  "icon": "amulet",
+  "type": "armor",
+  "slot": "neck",
+  "weight": 0,
+  "value": 90,
+  "mods": {
+   "mag": 2,
+   "mp_max": 8,
+   "mp_reg": 3
+  }
+ },
+ "potion_red": {
+  "name": "Red Draught",
+  "icon": "potion_red",
+  "type": "potion",
+  "weight": 1,
+  "value": 30,
+  "spell": "potion_heal"
+ },
+ "potion_blue": {
+  "name": "Blue Draught",
+  "icon": "potion_blue",
+  "type": "potion",
+  "weight": 1,
+  "value": 35,
+  "spell": "potion_mana"
+ },
+ "potion_green": {
+  "name": "Green Draught",
+  "icon": "potion_green",
+  "type": "potion",
+  "weight": 1,
+  "value": 20,
+  "spell": "potion_vigor"
+ },
+ "bread": {
+  "name": "Hard Bread",
+  "icon": "bread",
+  "type": "food",
+  "weight": 1,
+  "value": 4,
+  "hours": 24
+ },
+ "key_iron": {
+  "name": "Iron Key",
+  "icon": "key_iron",
+  "type": "key",
+  "weight": 0,
+  "value": 0,
+  "key": "iron"
+ },
+ "key_gold": {
+  "name": "Gilt Key",
+  "icon": "key_gold",
+  "type": "key",
+  "weight": 0,
+  "value": 0,
+  "key": "gold"
+ },
+ "key_bone": {
+  "name": "Bone Key",
+  "icon": "key_bone",
+  "type": "key",
+  "weight": 0,
+  "value": 0,
+  "key": "bone"
+ },
+ "rune_ember": {
+  "name": "Ember Rune",
+  "icon": "rune_fire",
+  "type": "rune",
+  "weight": 0,
+  "value": 0,
+  "rune": "ember"
+ },
+ "rune_rime": {
+  "name": "Rime Rune",
+  "icon": "rune_frost",
+  "type": "rune",
+  "weight": 0,
+  "value": 0,
+  "rune": "rime"
+ },
+ "rune_spark": {
+  "name": "Spark Rune",
+  "icon": "rune_air",
+  "type": "rune",
+  "weight": 0,
+  "value": 0,
+  "rune": "spark"
+ },
+ "rune_return": {
+  "name": "Return Rune",
+  "icon": "rune_earth",
+  "type": "rune",
+  "weight": 0,
+  "value": 0,
+  "rune": "return"
+ },
+ "rune_sight": {
+  "name": "Sight Rune",
+  "icon": "rune_void",
+  "type": "rune",
+  "weight": 0,
+  "value": 0,
+  "rune": "sight"
+ },
+ "coins": {
+  "name": "Coins",
+  "icon": "coins",
+  "type": "money",
+  "weight": 0,
+  "value": 1
+ },
+ "gem": {
+  "name": "Cistern Opal",
+  "icon": "gem",
+  "type": "misc",
+  "weight": 0,
+  "value": 60
+ },
+ "bone": {
+  "name": "Old Bone",
+  "icon": "bone",
+  "type": "misc",
+  "weight": 1,
+  "value": 0,
+  "throwable": true
+ },
+ "note_start": {
+  "name": "Mayor's Letter",
+  "icon": "scroll",
+  "type": "text",
+  "weight": 0,
+  "value": 0,
+  "book": "letter"
+ },
+ "note_plate": {
+  "name": "Mason's Scrap",
+  "icon": "scroll",
+  "type": "text",
+  "weight": 0,
+  "value": 0,
+  "book": "plates"
+ },
+ "note_hands": {
+  "name": "Warden's Litany",
+  "icon": "scroll",
+  "type": "text",
+  "weight": 0,
+  "value": 0,
+  "book": "hands"
+ },
+ "note_robber": {
+  "name": "Robber's Tally",
+  "icon": "scroll",
+  "type": "text",
+  "weight": 0,
+  "value": 0,
+  "book": "robbers"
+ },
+ "sealstone": {
+  "name": "The Sealstone",
+  "icon": "sealstone",
+  "type": "quest",
+  "weight": 2,
+  "value": 0
+ },
+ "note_cistern": {
+  "name": "Cistern Notes",
+  "icon": "scroll",
+  "type": "text",
+  "weight": 0,
+  "value": 0,
+  "book": "cistern"
+ }
+}
