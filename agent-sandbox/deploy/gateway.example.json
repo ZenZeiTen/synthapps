@@ -1,0 +1,23 @@
+{
+  "tick_seconds": 2.0,
+  "agents": [
+    {
+      "agent_id": "ada",
+      "name": "Ada",
+      "x": 30.0,
+      "y": 20.5,
+      "socket_path": "/srv/jailer/firecracker/ada/root/v.sock_5000",
+      "uid": 10001,
+      "gid": 10001
+    },
+    {
+      "agent_id": "bo",
+      "name": "Bo",
+      "x": 32.0,
+      "y": 21.0,
+      "socket_path": "/srv/jailer/firecracker/bo/root/v.sock_5000",
+      "uid": 10002,
+      "gid": 10002
+    }
+  ]
+}

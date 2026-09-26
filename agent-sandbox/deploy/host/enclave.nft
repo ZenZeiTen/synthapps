@@ -1,0 +1,48 @@
+#!/usr/sbin/nft -f
+# Firewall for every host inside the enclave (VM hosts, kernel host, inference hosts).
+#
+# Default is DROP in all three directions. The only traffic allowed:
+#   * loopback
+#   * SSH in from the admin network
+#   * audit-log shipping out to the write-once store
+#   * replies to the above
+# Everything dropped is counted and logged, so an escape attempt leaves a trace
+# even when it fails.
+#
+# Edit the three addresses below, then check before loading:
+#   nft -c -f enclave.nft      # syntax check only, changes nothing
+#   nft -f enclave.nft
+# NOTE: "flush ruleset" removes every other nftables table on the host.
+# UNTESTED in this repository.
+
+flush ruleset
+
+define ADMIN_NET   = 10.20.0.0/24     # operator workstations / bastion
+define AUDIT_STORE = 10.20.1.10       # write-once audit log store
+define AUDIT_PORT  = 443
+
+table inet zw_enclave {
+    chain input {
+        type filter hook input priority filter; policy drop;
+        iif "lo" accept
+        ct state invalid drop
+        ct state established,related accept
+        ip saddr $ADMIN_NET tcp dport 22 ct state new accept
+        counter log prefix "zw-in-drop " level warn
+    }
+
+    chain forward {
+        # Enclave hosts never route. Nothing passes through them.
+        type filter hook forward priority filter; policy drop;
+        counter log prefix "zw-fwd-drop " level warn
+    }
+
+    chain output {
+        type filter hook output priority filter; policy drop;
+        oif "lo" accept
+        ct state invalid drop
+        ct state established,related accept
+        ip daddr $AUDIT_STORE tcp dport $AUDIT_PORT ct state new accept
+        counter log prefix "zw-out-drop " level warn
+    }
+}
