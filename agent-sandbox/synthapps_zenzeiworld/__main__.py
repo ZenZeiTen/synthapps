@@ -1,4 +1,4 @@
-"""``python -m agentworld``: run the containment demo and print a summary."""
+"""``python -m synthapps_zenzeiworld``: run the containment demo and print a summary."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from .simulation import run
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="agentworld", description=__doc__)
+    parser = argparse.ArgumentParser(prog="synthapps-zenzeiworld", description=__doc__)
     parser.add_argument("--ticks", type=int, default=20)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--audit-out", help="write the hash-chained audit log here (JSONL)")

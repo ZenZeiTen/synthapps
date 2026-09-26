@@ -1,7 +1,7 @@
 import dataclasses
 import unittest
 
-from agentworld.audit import AuditLog
+from synthapps_zenzeiworld.audit import AuditLog
 
 
 class AuditLogTests(unittest.TestCase):

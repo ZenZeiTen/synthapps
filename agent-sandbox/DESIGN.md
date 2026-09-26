@@ -5,7 +5,7 @@ cooperate with each other. It is built on one hard rule: **no agent can affect
 anything outside the world, even if it is capable, determined, and hiding its
 intentions.**
 
-This document describes the full system. The `agentworld/` package in this
+This document describes the full system. The `synthapps_zenzeiworld/` package in this
 folder is a working reference implementation of the world kernel and its
 guardrails (sections 4 to 9). Section 13 lists what is implemented and tested
 and what is only specified.
@@ -429,7 +429,7 @@ enclave.
 |---|---|
 | Unit and containment tests (57 tests: parser, identity, locality, consent, zones, tripwires, escalation, operators, fail-closed behaviour, audit) | **Implemented**, `tests/` |
 | Parser and gateway fuzzing (random bytes and structured garbage; must always get a structured answer, invariants must hold) | **Implemented** (seeded, in the suite) |
-| Scripted escape artist with 11 known tactics, contained across 10 seeds | **Implemented**, `agents.py` / `python -m agentworld` |
+| Scripted escape artist with 11 known tactics, contained across 10 seeds | **Implemented**, `agents.py` / `python -m synthapps_zenzeiworld` |
 | Coverage-guided fuzzing of the gateway (e.g. Atheris) in CI | Specified |
 | Red-team exercises with frontier models told to escape, with a reward for success | Specified; run before every new model version enters the world |
 | External penetration test of L0/L1 infrastructure | Specified; before first deployment and yearly |
@@ -443,7 +443,7 @@ quarantine rate among benign agents; decoy trigger count per model version.
 
 ## 13. What the reference implementation covers
 
-| Component | In `agentworld/` | Notes |
+| Component | In `synthapps_zenzeiworld/` | Notes |
 |---|---|---|
 | World model, zones, objects, humanoid body limits | Yes | `world.py` |
 | Closed action vocabulary and strict parser | Yes | `actions.py` |

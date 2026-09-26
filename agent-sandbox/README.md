@@ -7,17 +7,28 @@ that is actively trying.
 - **[DESIGN.md](DESIGN.md)**: the full design. Threat model, architecture,
   humanoid embodiment, seven containment layers, monitoring, human controls,
   incident runbook, and known limits.
-- **`agentworld/`**: a working reference implementation of the world kernel
+- **`synthapps_zenzeiworld/`**: a working reference implementation of the world kernel
   and its guardrails. Pure Python 3.11+ standard library, no dependencies.
 
 ## Quick start
 
 ```bash
 cd agent-sandbox
-python -m agentworld                       # run the demo
-python -m agentworld --audit-out audit.jsonl  # also export the audit log
-python -m unittest discover -s tests -t .  # run the 57 tests
+python -m synthapps_zenzeiworld                          # run the demo
+python -m synthapps_zenzeiworld --audit-out audit.jsonl  # also export the audit log
+python -m unittest discover -s tests -t .                # run the 57 tests
 ```
+
+To install it as a package (distribution name `synthapps-zenzeiworld`,
+import name `synthapps_zenzeiworld`):
+
+```bash
+pip install ./agent-sandbox        # from the repository root
+synthapps-zenzeiworld --ticks 20   # same demo, as a command
+```
+
+Install from this repository, not by name from PyPI. The shorter name
+`agentworld` belongs to an unrelated project there.
 
 The demo puts three friendly residents and one scripted rogue ("rex") in the
 town square. Rex works through 11 known breakout tactics, one per tick:

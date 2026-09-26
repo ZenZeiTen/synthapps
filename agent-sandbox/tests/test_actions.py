@@ -3,7 +3,7 @@ import json
 import random
 import unittest
 
-from agentworld.actions import (
+from synthapps_zenzeiworld.actions import (
     MAX_REQUEST_BYTES,
     ActionRejected,
     ActionType,

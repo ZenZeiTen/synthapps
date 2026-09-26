@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentworld"
+name = "synthapps-zenzeiworld"
 version = "0.1.0"
 description = "Reference kernel for a contained, embodied multi-agent sandbox world"
 readme = "README.md"
@@ -12,10 +12,10 @@ license = { text = "MIT" }
 dependencies = []
 
 [project.scripts]
-agentworld = "agentworld.__main__:main"
+synthapps-zenzeiworld = "synthapps_zenzeiworld.__main__:main"
 
 [tool.setuptools]
-packages = ["agentworld"]
+packages = ["synthapps_zenzeiworld"]
 
 [tool.ruff]
 line-length = 100

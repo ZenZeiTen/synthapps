@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from agentworld.kernel import AgentGateway, KernelConfig, OperatorConsole, WorldKernel
-from agentworld.world import default_world
+from synthapps_zenzeiworld.kernel import AgentGateway, KernelConfig, OperatorConsole, WorldKernel
+from synthapps_zenzeiworld.world import default_world
 
 
 def req(action: str, **params: Any) -> str:

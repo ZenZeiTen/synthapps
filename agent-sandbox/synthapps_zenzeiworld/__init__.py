@@ -1,4 +1,4 @@
-"""agentworld: reference kernel for a contained, embodied multi-agent world."""
+"""synthapps_zenzeiworld: reference kernel for a contained, embodied multi-agent world."""
 
 from .actions import Action, ActionRejected, ActionType, parse_action
 from .kernel import AgentGateway, AgentStatus, KernelConfig, OperatorConsole, WorldKernel

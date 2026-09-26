@@ -5,11 +5,11 @@ import json
 import random
 import unittest
 
-from agentworld.kernel import AgentStatus, KernelConfig, WorldKernel
-from agentworld.policy import PolicyConfig
-from agentworld.security import AuthenticationError
-from agentworld.simulation import run
-from agentworld.world import World, Zone, ZoneKind, default_world
+from synthapps_zenzeiworld.kernel import AgentStatus, KernelConfig, WorldKernel
+from synthapps_zenzeiworld.policy import PolicyConfig
+from synthapps_zenzeiworld.security import AuthenticationError
+from synthapps_zenzeiworld.simulation import run
+from synthapps_zenzeiworld.world import World, Zone, ZoneKind, default_world
 from tests.helpers import make_world, req
 
 
