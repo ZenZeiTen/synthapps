@@ -25,8 +25,10 @@ and line, or screenshot path):
    character names and brand names. Flag anything that looks traced or copied.
 5. **Credits.** Every non-code asset (images, audio, fonts, models) should have a line in
    `CREDITS.md` with source and licence. List assets with no line.
-6. **Secrets and personal data.** Search for API keys, tokens, private keys, `.env` files,
-   e-mail addresses and absolute home-folder paths in the project and in any build output.
+6. **Nothing private ships.** Within the project folder and its build output only, look for
+   key-shaped strings, private-key blocks, committed environment files, e-mail addresses and
+   absolute home-folder paths. Report the file and line, never the value, and never open files
+   outside the project.
 7. **Localization readiness** (only if the game has or plans more than one language):
    hard-coded player-facing strings, concatenated sentences, missing placeholders.
 

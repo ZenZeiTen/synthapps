@@ -1,6 +1,6 @@
 ---
 name: hd2d-forge
-description: Design and build HD-2D games — pixel-art billboard sprites inside fully 3D, dynamically lit environments, in the register of Octopath Traveler, Triangle Strategy and Final Fantasy Resonance. Ships the six-dial Pixel Density Contract, the render-pass order, the three-layer sprite shadow strategy, normal-mapped sprite lighting, and bokeh and tilt-shift depth of field, engine-neutral, with hand-offs to the Godot and three.js skills. ALWAYS trigger when the user wants to build, art-direct or debug an HD-2D or HD2D game; wants pixel sprites in a lit 3D world; mentions billboard sprites, sprite normal maps, diorama look, tilt-shift game camera, 2.5D JRPG or Sea of Stars; or says "make it look like Octopath", "my sprites look flat", "my sprites look like they are floating", "bikin game HD-2D", "sprite piksel di dunia 3D". Prefer over generic 2D or 3D game skills whenever pixel sprites and a lit 3D environment appear in one scene.
+description: Design and build HD-2D games — pixel-art billboard sprites inside fully 3D, dynamically lit environments, in the register of Octopath Traveler, Triangle Strategy and Final Fantasy Resonance. Ships the six-dial Pixel Density Contract, the render-pass order, the three-layer sprite shadow strategy, normal-mapped sprite lighting, bokeh and tilt-shift depth of field, engine recipes for Godot 4, Unity URP, Unreal 5 and three.js, a tested three.js module and a sprite normal-map generator. ALWAYS trigger when the user wants to build, art-direct or debug an HD-2D or HD2D game; wants pixel sprites in a lit 3D world; mentions billboard sprites, sprite normal maps, diorama look, tilt-shift game camera, 2.5D JRPG or Sea of Stars; or says "make it look like Octopath", "my sprites look flat", "my sprites look like they are floating", "bikin game HD-2D", "sprite piksel di dunia 3D". Prefer over generic 2D or 3D game skills whenever pixel sprites and a lit 3D environment appear in one scene.
 ---
 
 # HD-2D Forge
@@ -137,22 +137,24 @@ read as miniature.
 ## Workflow
 
 1. **Set all six dials.** Write the numbers in your response. They are the spec.
-2. **Choose the pipeline** from the light budget (see *The render pass order* below).
+2. **Choose the pipeline** from the light budget — `references/rendering-pipeline.md`.
    Deferred, Forward+, or plain forward. This is the decision that is expensive to reverse.
 3. **Establish the sprite contract before any art is made**: sheet layout, direction count,
    pivot at the feet, hard alpha edges, and the normal-map convention (including green-channel
-   handedness).
+   handedness). `references/art-production.md`.
 4. **Build the sprite material**: billboard vertex transform, TBN construction, alpha-tested
-   shadow casting.
+   shadow casting. `references/rendering-pipeline.md` → *Sprite as first-class geometry*;
+   settings per engine in `references/engine-recipes.md`.
 5. **Ground the sprites** with the three-layer shadow strategy. Skipping this is why sprites
-   float.
+   float. `references/rendering-pipeline.md` → *Shadows*.
 6. **Build the environment** as real geometry with pixel-art textures at `env_ratio` — not as
-   a painted backdrop.
+   a painted backdrop. `references/art-production.md`.
 7. **Apply the post chain in the correct order.** Order is not cosmetic here; DoF before
    bloom and bloom before tone mapping produce a different image than any other permutation.
-   See *The render pass order* below.
-8. **Run the gates** in *Non-negotiable gates* below. Each one catches a defect that ships
-   in amateur HD-2D and has a specific, known fix.
+   `references/rendering-pipeline.md` → *Post order*.
+8. **Run the gates** in *Non-negotiable gates* below, then walk the failure-mode checklist in
+   `references/failure-modes.md`. Every entry is a defect that ships in amateur HD-2D and has
+   a specific, known fix.
 9. **Verify on real hardware at target resolution.** Density defects are invisible in an
    editor viewport at an arbitrary zoom.
 
@@ -160,8 +162,9 @@ read as miniature.
 
 ## The render pass order
 
-The short version. For engine-specific settings, check the engine's current documentation
-(Context7 or the official docs) before writing code.
+The short version. Full detail and the deferred-vs-forward argument:
+`references/rendering-pipeline.md`. Engine settings: `references/engine-recipes.md`, checked
+September 2026; re-check against current engine docs (Context7 or the official docs).
 
 ```
 1. Shadow pass          — meshes write depth; sprites write depth via ALPHA-TESTED discard
@@ -210,14 +213,16 @@ accessibility defect, not a style.
 
 ---
 
-## Scope of this edition
+## Bundled resources
 
-This skill ships as `SKILL.md` only: the dials, workflow, pass order and gates above. It
-does not include a separate rendering-pipeline reference, engine recipe sheets, a
-failure-mode catalogue, a three.js module or a normal-map generator. For those details,
-use `godot-forge` for Godot specifics, `threejs-retro-forge` for three.js API currency,
-`aseprite-pixel-forge` for sprite sheets, and the engine's current documentation for
-Unreal and Unity. Say so when a step relies on engine settings you could not check.
+| Path | What it is |
+|---|---|
+| `references/rendering-pipeline.md` | Pipeline choice by light budget, sprite as first-class geometry, billboard modes, tangent frames and normal-map conventions, the three-layer shadow strategy, contact shadows, sorting, DoF and tilt-shift, bloom and ACES, post order, texel snapping |
+| `references/art-production.md` | Sprite sheet contract, direction counts, painting for dynamic light, normal-map methods, silhouette and outline rules, environment construction, pre-import checklist |
+| `references/engine-recipes.md` | Godot 4, Unity 6 URP, Unreal 5 and three.js: the node, component and setting names for each part of the pipeline, and each engine's trap. Unconfirmed items are marked **check** |
+| `references/failure-modes.md` | 25 named defects with symptom, cause, fix and the gate that catches them. Use as the review checklist |
+| `assets/hd2d-threejs.js` | three.js module (`WebGLRenderer`, tested on r186 in headless Chromium): lit, normal-mapped, alpha-tested billboard sprite with a light-facing shadow proxy and blob decal; key light; long-lens camera rig with texel snap; HDR post chain (bokeh DoF with tilt-shift, bloom, ACES, sRGB) |
+| `scripts/sprite_normalmap.py` | Normal map from a sprite or sheet (bevel from alpha plus luminance), per-frame with `--frame WxH`, OpenGL by default, `--flip-green` for DirectX. Pure Python, no dependencies |
 
 ---
 
@@ -232,7 +237,7 @@ Use these to calibrate a brief when the user says "like X":
 | Triangle Strategy (2022) | Tactical grid readability under the same style — the "how to keep it legible" case |
 | Live A Live (2022) | Remake case: an existing 2D game re-rendered, useful when adapting rather than authoring |
 | Dragon Quest III HD-2D Remake (2024) | The most restrained lighting of the family |
-| Sea of Stars (2023) | Custom pipeline, not Unreal; nearer Forward+; proof the style is not engine-locked |
+| Sea of Stars (2023) | Built in Unity, not Unreal; proof the style is not engine-locked |
 | Final Fantasy Resonance (2026) | First HD-2D Final Fantasy; Square Enix + Lancarse; release scheduled for 22 Oct 2026 on Switch, Switch 2, PS5, Xbox Series X\|S and PC. Adapts the first arc of Final Fantasy Brave Exvius, reusing its sprites |
 
 **Fact:** the Final Fantasy Resonance details above are from Square Enix's June 2026

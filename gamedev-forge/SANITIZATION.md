@@ -39,9 +39,11 @@ publish them.
 These were not privacy issues, but were found during the review:
 
 - `hd2d-forge` pointed to six support files (four references, a three.js module, a
-  normal-map script) that did not exist in the source. The pointers were removed, the
-  description no longer promises engine recipes, and a "Scope of this edition" section
-  says what the skill does not include.
+  normal-map script) that did not exist in the source. The first release removed the
+  pointers; a later change wrote all six files and restored them. The module and the script
+  are covered by tests (`tests/test_sprite_normalmap.py`, `tests/test_hd2d_threejs.py`).
+- `hd2d-forge` described Sea of Stars' pipeline as custom and "nearer Forward+" without a
+  source. Unity's own blog lists it as made with Unity; the row now says only that.
 - `hd2d-forge` described a game's October 2026 release in the past tense; it now says
   "scheduled".
 

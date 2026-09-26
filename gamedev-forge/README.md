@@ -58,7 +58,7 @@ Plugin skills are namespaced, so every skill is also available as
 | `game-creator-2d` | Multi-level NES/SNES/SEGA-style 2D games in one HTML file |
 | `dos-game-forge` | 1981-96 PC-style games: CGA/EGA/VGA, PC speaker and FM sound, browser or real DOS .EXE |
 | `threejs-retro-forge` | three.js scenes and games with PS1/N64/CRT/Y2K looks |
-| `hd2d-forge` | Pixel sprites lit inside 3D worlds, with engine recipes |
+| `hd2d-forge` | Pixel sprites lit inside 3D worlds: engine recipes, a tested three.js module and a sprite normal-map generator |
 | `godot-forge` | Godot 4 projects: scenes, GDScript, shaders, input, headless tests, exports |
 | `aseprite-pixel-forge` | Palettes, tilesets, sprite animation and sheet export |
 | `blender-game-asset-forge` | Game-ready 3D assets, glTF export, pre-rendered sprites |
@@ -84,9 +84,14 @@ browser. Each skill says what it needs and what it does without it.
 
 ```bash
 python gamedev-forge/tools/sanitize_scan.py                            # release gate
-python -m unittest discover -s gamedev-forge/tests -t gamedev-forge    # 21 tests
+python -m unittest discover -s gamedev-forge/tests -t gamedev-forge    # 38 tests
 claude plugin validate --strict .                                      # marketplace + plugins
 ```
 
-Run these from the repository root. The scanner can also read a private deny-list of
+Run these from the repository root. One test renders the HD-2D three.js module in headless
+Chromium; it skips unless you install its packages first (`cd gamedev-forge/tests/browser
+&& npm ci`) and Chromium is present (set `CHROMIUM_PATH` if it is not at the Playwright
+default).
+
+The scanner can also read a private deny-list of
 names that must never be published; see [SANITIZATION.md](SANITIZATION.md).

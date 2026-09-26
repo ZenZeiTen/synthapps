@@ -57,6 +57,35 @@ class MarketplaceTests(unittest.TestCase):
         self.assertNotIn("mcpServers", load_json(CORE / ".claude-plugin" / "plugin.json"))
 
 
+class DirectoryPolicyTests(unittest.TestCase):
+    """Checks mirroring the plugin directory's validation warnings."""
+
+    def test_each_plugin_has_a_square_icon(self) -> None:
+        for plugin in (CORE, CONNECTORS):
+            icon = plugin / ".claude-plugin" / "icon.svg"
+            text = icon.read_text(encoding="utf-8")
+            m = re.search(r'<svg[^>]*width="(\d+)"[^>]*height="(\d+)"', text)
+            self.assertIsNotNone(m, icon)
+            assert m is not None
+            w, h = int(m.group(1)), int(m.group(2))
+            self.assertEqual(w, h, icon)
+            self.assertGreaterEqual(w, 128, icon)
+
+    def test_no_download_and_run_commands(self) -> None:
+        # Fetching a file and then executing or installing it in one step is flagged by the
+        # directory; skills must describe a verified, user-approved download instead.
+        pattern = re.compile(
+            r"(curl|wget)[^\n`]*(\|\s*(ba|z)?sh\b|&&[^\n`]*(chmod \+x|ln -s|/usr/local/bin|\./))"
+        )
+        hits = []
+        for f in sorted(CORE.rglob("*")):
+            if f.is_file() and f.suffix in {".md", ".py", ".js", ".html", ".sh"}:
+                for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+                    if pattern.search(line):
+                        hits.append(f"{f.relative_to(CORE)}:{n}")
+        self.assertEqual(hits, [])
+
+
 class ConnectorConfigTests(unittest.TestCase):
     def setUp(self) -> None:
         self.servers = load_json(CONNECTORS / ".mcp.json")["mcpServers"]
