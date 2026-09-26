@@ -47,8 +47,8 @@ Every mechanic and control in `ANALYSIS.md` has a row here.
 | 6 | `trymove`, `trymovey`, `justmove`, `crawl`, `standfloor`, `fishdo`, `moveobj` clamps | kept | same names |
 | 7 | run: turn step, 8 px/step, 4-step reverse, 2-step stop | kept | `core/player.gd` |
 | 8 | fall off edge (0-step hang from the dupe code) | kept | |
-| 9 | jump `-(16+4·boots)`, 2-step launch hang, gravity 2 to 16, air control 8 px from the current stick, snap landing, head bump | kept | rise 56 px, 90 px with boots |
-| 10 | landing recovery (-4 / -7) and dust | kept | |
+| 9 | jump `-(16+4·boots)`, 2-step launch hang, gravity 2 to 16, air control 8 px from the current stick, snap landing, head bump | adapted | the arc, heights (56 px, 90 px with boots), gravity and air control are kept. The 2-step hang before the first rise is dropped: a player felt it as input delay (110 ms at 18.2 Hz). A jump now rises on the step it is pressed, from the floor, a spring or a moving plank (`kinds.gd _launch`) |
+| 10 | landing recovery (-4 / -7) and dust | adapted | the source holds Orrin still for 4 to 7 steps after landing before he can run, which felt stiff. A held direction now runs straight on; only a full-speed fall with the stick centred keeps a 2-step crouch. The dust stays. The view shows the landing in profile (`land_r`/`land_l`) rather than turning Orrin to face the camera |
 | 11 | vine grab in air and from ground; climb rhythm 4,0,0,6,4,4; hop off (`yd -4` / `-16`) | kept | |
 | 12 | look up / down, squat, camera peek | kept | |
 | 13 | squatting shrinks the touch box by 18 px | kept | |
@@ -82,8 +82,8 @@ Every mechanic and control in `ANALYSIS.md` has a row here.
 | 41 | breakable walls (+10), shootable eyes (+100) | kept | eyes become crystal nodes |
 | 42 | arrow traps | kept | dart traps |
 | 43 | enemy behaviours | kept for the kinds listed below | new looks and names; the numbers are from the source |
-| 44 | reactor finale (40 hits) | adapted | the Spire's heart crystal, destroyed after the Regent falls, ends the game |
-| 45 | final boss: hover, range turning, skulls, 50 hits | kept | the Glass Regent throws glass shards |
+| 44 | reactor finale (40 hits) | adapted | the Spire's heart crystal, destroyed after the Regent falls, ends the game. After its 60-step blast the screen fades to white, the Vale comes up at dawn with the Spire gone (a Blender scene, `dawn`), the ending pages play, and the credits roll before the high-score entry. Buttons are ignored for a moment on each page, so a player still firing at the crystal does not skip the ending |
+| 45 | final boss: hover, range turning, skulls, 50 hits | adapted | the Glass Regent throws glass shards. He waits faint and harmless until Orrin comes within 176 px on the floor; then a short scene plays (the music stops, the camera pans to frame them both, the Regent takes form, they speak) and the fight begins with the Spire music restarting. The source goes straight into the fight (`kinds.gd _regent_wait`, `_regent_meet`; level option `meet=`) |
 | 46 | checkpoints: level number, next board, song, restart-on-death, map-key and power-object guards, end of game | kept | |
 | 47 | overworld: stage played once, map snapshot, gates need keys | kept | |
 | 48 | level intro card 2–4 s | kept | |
@@ -104,6 +104,8 @@ Every mechanic and control in `ANALYSIS.md` has a row here.
 | 63 | F7 cheat | dropped | not part of play |
 | 64 | edge-triggered fire buttons | kept | |
 | 65 | level editor (design mode), memory checks, sound card set-up, joystick calibration, ordering info, Epic-specific fidget lines | dropped | none of these apply to a modern build. Calibration is replaced by a stick dead zone |
+| 66 | (none) jump buffer | added | a jump pressed up to 3 steps before landing is kept and fires on the landing step, so a slightly early press is not lost |
+| 67 | (none) ledge grace | added | for 3 steps after walking off an edge, a jump press still jumps |
 
 ### Enemy cast
 

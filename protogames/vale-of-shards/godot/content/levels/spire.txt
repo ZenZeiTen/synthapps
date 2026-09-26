@@ -55,6 +55,6 @@ legend:
 V owl text=owl_spire channel=1 xd=-4
 G shade
 U turret align=top
-X regent opens=90
+X regent opens=90 meet=regent_meet wake=176
 Z bridger channel=90 yd=1 on=I
 O heartcrystal

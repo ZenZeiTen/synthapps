@@ -7,6 +7,9 @@ const D = preload("res://scripts/core/defs.gd")
 const T = preload("res://scripts/core/tiles.gd")
 
 const FIDGET_MAX := 300
+# adapted jump feel (DESIGN rows 9, 10, 66, 67); the arc, heights and air control are the source's
+const JUMP_BUFFER := 3         # steps a jump pressed in the air waits for the landing
+const LEDGE_GRACE := 3         # steps after walking off an edge in which a jump still works
 const CLIMBY := [4, 0, 0, 6, 4, 4, 0]
 
 static func sgn(v: int) -> int:
@@ -253,11 +256,17 @@ static func _age(g, o, life: int) -> void:
 # ================================================================ player (X_PLAYER.C msg_player)
 static func upd_player(g, p) -> void:
 	var peeky := 0
+	if g.jump_buffer > 0:
+		g.jump_buffer -= 1
+	if g.ledge_grace > 0:
+		g.ledge_grace -= 1
 	var dx1: int = g.dx1
 	var dy1: int = g.dy1
 	match p.state:
 		D.ST_STAND:
 			_stand(g, p)
+			if p.state == D.ST_JUMPING and p.yd < 0:
+				_jump(g, p, true)          # adapted: a jump rises on the step it is pressed
 			if p.state == D.ST_STAND and dx1 == 0 and dy1 != 0 and p.xd == 0:
 				if p.yd > 1:
 					peeky = 2
@@ -339,6 +348,7 @@ static func _stand(g, p) -> void:
 			p.state = D.ST_JUMPING
 			p.yd = 0
 			p.substate = 2
+			g.ledge_grace = LEDGE_GRACE
 	elif dx1 != 0:
 		if dx1 == p.xd:
 			if g.cando(p, p.x + dx1 * 8, p.y, T.PLAYERTHRU) != 0:
@@ -359,13 +369,11 @@ static func _stand(g, p) -> void:
 		p.state = D.ST_JUMPING
 		p.yd = 0
 		p.substate = 0
-	if g.fire2:
-		g.fire2off = 1
-		p.state = D.ST_JUMPING
-		p.yd = -(16 + 4 * g.invcount(D.INV_BOOTS))
-		p.substate = 0
-		p.xd = dx1
-		g.snd("jump", 2)
+		g.ledge_grace = LEDGE_GRACE
+	if g.fire2 or (g.jump_buffer > 0 and p.state == D.ST_STAND):
+		if g.fire2:
+			g.fire2off = 1
+		_launch(g, p, dx1)
 	elif dy1 != 0:
 		if p.x & 15 == 0:
 			if g.cando(p, p.x, p.y + dy1 * 4, T.PLAYERTHRU) != 0:
@@ -379,7 +387,7 @@ static func _stand(g, p) -> void:
 			p.substate = 0
 			p.statecount = 3
 
-static func _jump(g, p) -> void:
+static func _jump(g, p, launched: bool = false) -> void:
 	var dx1: int = g.dx1
 	p.counter = 0
 	if p.x & 15 == 0:
@@ -387,6 +395,12 @@ static func _jump(g, p) -> void:
 			p.state = D.ST_CLIMBING
 			p.substate = 6
 			return
+	if g.fire2 and not launched:
+		g.fire2off = 1
+		if g.ledge_grace > 0 and p.yd >= 0:
+			_launch(g, p, dx1)         # just walked off an edge: still a jump
+		else:
+			g.jump_buffer = JUMP_BUFFER
 	p.substate += 1
 	if p.substate > 2:
 		p.yd = mini(p.yd + 2, 16)
@@ -401,18 +415,41 @@ static func _jump(g, p) -> void:
 				if not landed and not g.trymovey(p, p.x + dx1 * 8, ((p.y + p.yl) & ~15) + 16 - p.yl):
 					landed = true
 				if landed:
+					# adapted: the source holds a landing for 4 (7 after a full fall) steps before
+					# Orrin can run; here a held direction runs straight on, and only a hard
+					# landing with the stick centred keeps a short 2-step crouch
+					var hard: bool = p.yd >= 16
 					p.state = D.ST_STAND
 					p.counter = 6
-					p.statecount = (-7 if p.yd >= 16 else -4) + (1 if dx1 != 0 else 0)
-					p.xd = 0
 					p.yd = 0
+					if dx1 != 0:
+						p.xd = dx1
+						p.statecount = 0
+						p.substate = 1
+					else:
+						p.xd = 0
+						p.statecount = -2 if hard else 0
 					g.snd("land", 2)
+					if g.jump_buffer > 0:
+						g.jump_buffer = 0
+						_launch(g, p, dx1)
 			else:
 				var desty: int = (p.y - 1) & ~15
 				if desty == p.y:
 					p.yd = 0
 				elif not g.trymovey(p, p.x + dx1 * 8, desty):
 					p.yd = 0
+
+## A jump from the floor. Adapted: the source waits two steps (substate 0 -> 3) before the
+## first rise; starting at substate 2 rises on the next move, on the same arc.
+static func _launch(g, p, dx1: int) -> void:
+	p.state = D.ST_JUMPING
+	p.yd = -(16 + 4 * g.invcount(D.INV_BOOTS))
+	p.substate = 2
+	p.xd = dx1
+	g.jump_buffer = 0
+	g.ledge_grace = 0
+	g.snd("jump", 2)
 
 static func _climb(g, p) -> void:
 	var dx1: int = g.dx1
@@ -683,7 +720,7 @@ static func touch_spring(g, o, z) -> void:
 			if o.counter > 4:
 				o.counter = 0
 		p.xd = g.dx1
-		p.substate = 0
+		p.substate = 2                 # adapted: no launch hang (see _launch)
 		g.snd("spring", 1)
 		o.zaphold = 5
 		o.statecount = 10
@@ -757,7 +794,7 @@ static func upd_platform(g, o) -> void:
 			g.fire2off = 1
 			p.state = D.ST_JUMPING
 			p.yd = -(16 + 4 * g.invcount(D.INV_BOOTS))
-			p.substate = 0
+			p.substate = 2                 # adapted: no launch hang (see _launch)
 			p.xd = g.dx1
 			p.xl = 24
 			g.snd("jump", 2)
@@ -2054,12 +2091,24 @@ static func upd_glassbolt(g, o) -> void:
 		return
 	o.xd = maxi(o.xd - 1, -10)
 
+## Regent phases in o.yd: 2 waiting (faint, harmless), 1 the meeting, 0 the fight.
+const REGENT_WAIT := 2
+const REGENT_MEET := 1
+const MEET_APPEAR := 14             # meeting step at which the Regent takes full form
+const MEET_TALK := 24               # meeting step at which the dialog opens
+
 static func upd_regent(g, o) -> void:
 	# X_OBJ2.C msg_xargon: 50 hits; hovers and bobs; turns at 80 and 256 px
 	const BOB := [1, 2, 1, 0, -1, -2, -1, 0]
 	const DIEY := [4, -2, 6, -4, 8, -6, 8, -6]
 	const DIEX := [4, -4, 4, -4, 4, -4, 4, -4]
 	o.counter = (o.counter + 1) & 15
+	if o.yd == REGENT_WAIT:
+		_regent_wait(g, o)
+		return
+	if o.yd == REGENT_MEET:
+		_regent_meet(g, o)
+		return
 	if o.state > 0:
 		o.state -= 1
 	if o.info1 > 0:
@@ -2102,8 +2151,44 @@ static func upd_regent(g, o) -> void:
 		o.state = 5
 		g.snd("enemyfire", 2)
 
+## Adapted (the source has no scene before its last boss): Orrin stops on the floor, the
+## camera pans to the Regent, the Regent takes form, they speak, and the fight begins.
+static func _regent_wait(g, o) -> void:
+	var p = g.player()
+	if p.kind != D.PLAYER or p.state != D.ST_STAND or absi(p.x - o.x) > int(o.p.get("wake", 176)):
+		return
+	o.yd = REGENT_MEET
+	o.statecount = 0
+	p.state = D.ST_STILL
+	p.xd = 0
+	p.info1 = sgn(o.x - p.x)
+	g.focus_x = (p.x + p.xl / 2 + o.x + o.xl / 2) / 2    # frame them both
+	g.events.append({"t": "music", "n": "-"})
+	g.snd("warp", 4)
+
+static func _regent_meet(g, o) -> void:
+	o.statecount += 1
+	var p = g.player()
+	p.state = D.ST_STILL
+	if o.statecount == MEET_APPEAR:
+		g.snd("sigil", 5)
+		g.addobj(D.FLASH, o.x + 4, o.y + 8, 0, 0)
+		g.addobj(D.FLASH, o.x + 34, o.y + 20, 0, 0)
+		g.addobj(D.FLASH, o.x + 14, o.y + 44, 0, 0)
+		g.addobj(D.IMPACT, o.x + 20, o.y + 24, 0, 0)
+	if o.statecount == MEET_TALK:
+		g.textwin(o.inside)          # the step waits while the dialog is open
+	if o.statecount > MEET_TALK:
+		g.focus_x = -1               # the camera drifts back to Orrin
+		p.state = D.ST_STAND
+		p.statecount = 0
+		o.yd = 0
+		o.statecount = 0
+		o.info1 = 15                 # a breath before the first glass bolt
+		g.music_for_level()
+
 static func touch_regent(g, o, z, zp: bool) -> void:
-	if o.substate >= 50:
+	if o.substate >= 50 or o.yd != 0:
 		return
 	if zp:
 		g.hitplayer(o, false)

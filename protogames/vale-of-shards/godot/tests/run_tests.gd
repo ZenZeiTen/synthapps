@@ -39,6 +39,10 @@ func run(g: Game, inp: Dictionary, n: int) -> void:
 func _init() -> void:
 	test_begin_and_run()
 	test_jump_heights()
+	test_jump_launch()
+	test_land_into_run()
+	test_jump_buffer()
+	test_ledge_grace()
 	test_ledge_from_below()
 	test_wall_stop()
 	test_vine()
@@ -73,20 +77,73 @@ func _rise(boots: int) -> int:
 	var y0: int = p.y
 	var miny: int = y0
 	g.step({"fire2": true})
-	var hang := 0
+	miny = p.y
 	for i in 60:
 		g.step({})
 		miny = mini(miny, p.y)
-		if p.y == y0 and p.state == D.ST_JUMPING and i < 3:
-			hang += 1
 	eq(p.y, y0, "lands back on the floor (boots %d)" % boots)
 	eq(p.state, D.ST_STAND, "standing after the jump (boots %d)" % boots)
-	eq(hang, 2, "two launch steps before rising (substate > 2)")
 	return y0 - miny
 
 func test_jump_heights() -> void:
 	eq(_rise(0), 56, "jump height 14+12+..+2")
 	eq(_rise(1), 90, "jump height with spring boots 18+16+..+2")
+
+## Adapted jump feel (DESIGN rows 9, 10, 66, 67): the source's arc and heights stay, but the jump
+## leaves the floor at once, a landing runs straight on, a press just before landing is
+## kept, and a press just after walking off an edge still jumps.
+func test_jump_launch() -> void:
+	var g := fixture()
+	var p = g.player()
+	var y0: int = p.y
+	g.step({"fire2": true})
+	eq(y0 - p.y, 14, "the jump rises 14 px on the step it is pressed (no launch hang)")
+	eq(p.state, D.ST_JUMPING, "airborne after one step")
+
+func test_land_into_run() -> void:
+	var g := fixture()
+	var p = g.player()
+	g.step({"dx": 1})
+	g.step({"dx": 1, "fire2": true})
+	var landed := false
+	for i in 40:
+		g.step({"dx": 1})
+		if p.state == D.ST_STAND:
+			landed = true
+			break
+	check(landed, "the running jump lands")
+	var x0: int = p.x
+	g.step({"dx": 1})
+	eq(p.x - x0, 8, "holding the direction runs on from the landing step")
+
+func test_jump_buffer() -> void:
+	var g := fixture()
+	var p = g.player()
+	var y0: int = p.y
+	g.step({"fire2": true})
+	while not (p.state == D.ST_JUMPING and p.yd >= 12):
+		g.step({})
+	g.step({"fire2": true})          # pressed while still falling, before the floor
+	var miny: int = y0
+	for i in 40:
+		g.step({})
+		miny = mini(miny, p.y)
+	check(y0 - miny >= 40, "a jump pressed just before landing jumps again (rose %d px)" % (y0 - miny))
+
+func test_ledge_grace() -> void:
+	var g := fixture()
+	var p = g.player()
+	p.x = 240
+	p.y = 120
+	g.step({})
+	while p.state == D.ST_STAND:
+		g.step({"dx": 1})
+	g.step({"dx": 1, "fire2": true})    # the first step after walking off
+	var miny: int = p.y
+	for i in 30:
+		g.step({})
+		miny = mini(miny, p.y)
+	check(miny < 120 - 30, "a jump just after walking off an edge still jumps (top y %d)" % miny)
 
 func test_ledge_from_below() -> void:
 	var g := fixture()

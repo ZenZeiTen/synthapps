@@ -6,6 +6,10 @@
 ## gate and stage marker in turn, so the gates must open with the keys the stages give.
 ## Inside a stage the recorded route (content/routes/<stage>.json) is replayed segment by
 ## segment; boss fights are fought live by the hunt policy, since creatures move at random.
+## Each replayed segment must reach its goal (the level's route: line, one goal per segment).
+## The recording was made from a fresh stage, and random events (a stone's bounce, a creature's
+## turn) can differ here, so a segment that misses its goal is searched again live from the
+## real state; the count of re-searched segments is printed.
 ## Creatures cannot hurt Orrin (god mode); hazard tiles still can.
 ## Passes when all six stages are done, the three sigils are held and the game is won.
 extends SceneTree
@@ -64,7 +68,16 @@ func _init() -> void:
 			g.step({})
 			Router.settle(g)
 		var rec = JSON.parse_string(FileAccess.get_file_as_string("res://content/routes/%s.json" % stage))
-		for seg in rec["segments"]:
+		var goals := Router.parse(String(g.level.get("route", "")))
+		if goals.size() != rec["segments"].size():
+			fail("%s: %d route goals but %d recorded segments (re-record: tests/make_routes.sh)" % [stage, goals.size(),
+				rec["segments"].size()])
+			_end()
+			return
+		var searched := 0
+		for si in goals.size():
+			var seg: Dictionary = rec["segments"][si]
+			var last: bool = si == goals.size() - 1
 			if seg["t"] == "hunt":
 				var res := r.hunt(g, int(seg["kind"]), false)
 				if res.is_empty():
@@ -72,11 +85,23 @@ func _init() -> void:
 					_end()
 					return
 				total += res[0].size()
-			else:
-				for i in seg["inputs"]:
-					g.step(Demo.INPUTS[int(i)])
-					Router.settle(g)
-					total += 1
+				g = res[1]
+				continue
+			var before: Game = g.clone()
+			for i in seg["inputs"]:
+				g.step(Demo.INPUTS[int(i)])
+				Router.settle(g)
+			if r.reached(g, goals[si], last):
+				total += seg["inputs"].size()
+				continue
+			searched += 1
+			var res := r.run(before, goals[si], last)
+			if res.is_empty():
+				fail("%s: goal %d (%s) cannot be reached from the playthrough's state" % [stage, si + 1, str(goals[si])])
+				_end()
+				return
+			g = res[1]
+			total += res[0].size()
 		# finish: the exit (or, in the Spire, the heart crystal) ends the stage
 		var n := 0
 		while g.curlevel == stage and g.gameover == 0 and n < 3000:
@@ -88,8 +113,9 @@ func _init() -> void:
 			g.step({})
 			Router.settle(g)
 			n += 1
-		print("stage %-9s done at step %d; score %d, shards %d, sigils %d" % [stage, total, g.pl["score"], g.pl["shards"],
-			g.invcount(D.INV_SIGIL1) + g.invcount(D.INV_SIGIL2) + g.invcount(D.INV_SIGIL3)])
+		print("stage %-9s done at step %d; score %d, shards %d, sigils %d; %d of %d segments re-searched" % [stage, total,
+			g.pl["score"], g.pl["shards"], g.invcount(D.INV_SIGIL1) + g.invcount(D.INV_SIGIL2) + g.invcount(D.INV_SIGIL3),
+			searched, goals.size()])
 		if stage != "spire" and g.curlevel != "vale":
 			fail("%s did not return to the Vale" % stage)
 			_end()

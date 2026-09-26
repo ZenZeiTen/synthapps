@@ -34,6 +34,7 @@ art, text, names, stages and music are original. Read `README.md` for the game, 
 | whole game | `godot --headless --path godot --script res://tests/playthrough.gd` (about 4 min) |
 | scripted session | `timeout 120 godot --headless --path godot --quit-after 900 -- --script=stage:hollow,key:right,wait:30,keyup:right,dump` |
 | stage from the pad | `... --quit-after 30000 -- --script=replay:hollow:pad` (prints `REPLAY hollow ok`) |
+| routes for all stages | `bash tests/make_routes.sh` (after any rules change; the jump change in 2026-09 needed all six) |
 | screenshot | `xvfb-run -a -s "-screen 0 1280x720x24" godot --path godot --rendering-driver opengl3 --resolution 1280x720 -- --script=replay:canopy:kb --shot=/tmp/s.png --frames=900` |
 | Windows exe | `godot --headless --path godot --export-release "Windows Desktop" ../dist/windows/vale-of-shards.exe` |
 
@@ -48,8 +49,11 @@ Harness commands (in `main.gd run_harness`), one every 6 frames:
 | `axis:lx:-1` | a stick axis |
 | `wait:N` | wait N frames |
 | `replay:STAGE:kb` or `:pad` | play a recorded route through device events |
-| `dump` | print the state |
+| `replay:STAGE:pad:talk` | the same, but each dialog stays open until the script pages it (`ptap:a`) |
+| `waitmodal` | wait for the next dialog of a talk replay (prints `HARNESS waitmodal: ...` if the replay ends first) |
+| `dump` | print the state (in a dialog: `modal=dialog:<speaker>`; in the ending: `phase=` and `page=`) |
 | `close` | close a text window |
+| `quit` | quit (a script otherwise runs until `--quit-after`) |
 
 An unknown command prints `HARNESS unknown`, and `run_all.sh` fails on it.
 
@@ -73,6 +77,14 @@ An unknown command prints `HARNESS unknown`, and `run_all.sh` fails on it.
 | the export check never saw stage 1 finish | the screenshot fired at frame 1200, before the replay ended | `--frames=3000`; replays quit the harness when they end | `verify_export.py` |
 | the harness never reported the Spire replay | the ending screens took over before the replay was marked done | a replay ends at `gameover == 2` or a stage exit | the Spire pad replay in `run_all.sh` |
 | the title menu ran off the screen | 9 items at 11 px rows under the logo | 10 px rows, starting at y 74 | screenshot review |
+| **player report:** the game froze after the heart crystal, with no ending | the ending pages returned to a mode `name_check` that nothing handled; fire and jump also turned the pages, so a player still firing at the crystal skipped all three at once and landed on the frozen screen | a real ending mode (fade, dawn scene, pages, credits, then scores and the title); buttons are ignored for 0.8 s on each page | the Spire and ending check in `run_all.sh` fires during the fade and must reach the title |
+| no check ever saw the ending | replays stop at `gameover == 2`, and the playthrough runs the core only | the Spire check keeps driving the harness after the replay ends | the same check |
+| **player report:** the jump felt delayed and stiff | the source's 2-step hang before the first rise (110 ms), a 4 to 7-step landing lag before running again, one pose for the whole rise, and a front-facing pose on straight-up jumps and landings | the jump rises on the press step, landings run on, and there are takeoff, apex and landing poses in profile; a jump buffer and a ledge grace (DESIGN rows 9, 10, 66, 67) | `run_tests.gd` jump checks (each fails on the old core) |
+| **player report:** no scene before the final boss | the source has none | the Regent's meeting (DESIGN row 45) | the Spire check expects the Regent's and Orrin's lines before the fight |
+| the game's manifest copy went stale | `godot/content/data/manifest.json` was copied by hand once | `pipeline/manifest.py` writes both copies | re-running the pipeline |
+| closing a dialog with A (jump) made Orrin jump as the game resumed | the press was latched for the next step, and the still-held button read as a fresh jump | the button that closes a window is ignored by the game until it is released (`main.gd _swallow_held`) | the Spire check's talk replay, which desyncs if a jump leaks |
+| the playthrough lost the Mines after the jump change | recorded inputs assume the recording's random numbers; in the playthrough a stone bounced differently and the run drifted. The old routes had passed by luck | each replayed segment must reach its goal from the level's `route:` line, or is searched again live from the real state | `playthrough.gd` prints how many segments were re-searched |
+| a new image could be left out of the export unnoticed | the export check only played stage 1 | the `assets` harness command loads every manifest sprite and music track; `verify_export.py` runs it inside the exported build | `verify_export.py` |
 
 ## Delivering a playable build
 

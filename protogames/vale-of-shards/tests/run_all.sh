@@ -30,8 +30,28 @@ echo "== stage 1 driven through the real input path"
 for dev in kb pad; do
   run_godot "REPLAY hollow ok" --quit-after 30000 -- --script=replay:hollow:$dev
 done
-echo "== the Glass Spire (boss and heart crystal) from the gamepad"
-run_godot "REPLAY spire ok" --quit-after 60000 -- --script=replay:spire:pad
+echo "== the Glass Spire from the gamepad: Sable, the meeting with the Regent, the fight, the ending"
+# a "talk" replay stops at each dialog; the script pages it with the A button (the script only
+# runs while a dialog is open or its button is still down; otherwise the replay plays on).
+# After the heart crystal, fire pressed during the fade and on the first page must not skip the
+# ending; then A pages it, a held A runs the credits, and the game must reach the title (it once
+# froze here). The replay also fails if closing a dialog with A makes Orrin jump (it once did).
+spire_script="replay:spire:pad:talk,\
+waitmodal,wait:20,dump,ptap:a,wait:20,ptap:a,\
+waitmodal,wait:20,dump,ptap:a,wait:20,dump,ptap:a,wait:20,dump,ptap:a,\
+waitmodal,ptap:x,ptap:x,ptap:x,wait:30,dump,wait:34,ptap:x,ptap:x,wait:40,dump,\
+ptap:a,wait:60,ptap:a,wait:60,ptap:a,wait:60,dump,\
+pad:a,wait:600,padup:a,wait:10,dump,ptap:a,wait:10,ptap:start,wait:10,ptap:a,wait:10,dump,quit"
+out=$(timeout 600 godot --headless --path godot --quit-after 90000 -- --script="$spire_script" 2>&1) \
+  || { echo "$out" | tail -20; echo "FAIL godot exited non-zero: the Spire and the ending"; exit 1; }
+got=$(echo "$out" | grep -E "^REPLAY|^DUMP|^HARNESS|SCRIPT ERROR" | sed -E 's/ level=[a-z]+ pos=.* modal=/ modal=/; s/ inv=.*//' | tr '\n' ';')
+want="DUMP mode=play modal=dialog:sable;DUMP mode=play modal=dialog:regent;DUMP mode=play modal=dialog:orrin;\
+DUMP mode=play modal=dialog:regent;REPLAY spire ok steps=[0-9]+;\
+HARNESS waitmodal: the replay ended without another dialog;DUMP mode=ending phase=white page=0;\
+DUMP mode=ending phase=pages page=0;DUMP mode=ending phase=credits page=3;DUMP mode=ending phase=end page=3;\
+DUMP mode=title;"
+if ! echo "$got" | grep -qxE "$want"; then echo "FAIL the Spire and the ending"; echo " got:  $got"; echo " want: $want"; exit 1; fi
+echo "Sable speaks, the Regent meets Orrin before the fight, the crystal falls, the ending and credits play, the title returns"
 
 echo "== menus with a gamepad: title -> new game -> story pages -> pause menu -> items -> shop refusal"
 got=$(timeout 120 godot --headless --path godot --quit-after 900 -- \

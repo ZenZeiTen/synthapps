@@ -12,7 +12,7 @@ pipeline/blender/*.py, then palette-locked by pipeline/aseprite/import_renders.p
 Both write art/aseprite/<name>.aseprite, and pipeline/aseprite/export_art.py exports every
 file listed here. tests/verify_art.py checks sizes, frame counts, tags and the palette.
 
-    python3 pipeline/manifest.py     # also writes pipeline/manifest.json for other tools
+    python3 pipeline/manifest.py     # also writes pipeline/manifest.json and godot/content/data/manifest.json
 """
 from __future__ import annotations
 
@@ -27,7 +27,8 @@ SPRITES: dict[str, tuple] = {
         ("stand_r", 1), ("stand_l", 1), ("front", 2), ("look_up", 1), ("squat", 1), ("land", 1),
         ("run_r", 4), ("run_l", 4),
         ("jump_r", 1), ("fall_r", 1), ("jump_l", 1), ("fall_l", 1), ("jump_up", 1), ("fall_down", 1),
-        ("climb", 3), ("hurt_r", 1), ("hurt_l", 1), ("ash", 5), ("warp", 4)]),
+        ("climb", 3), ("hurt_r", 1), ("hurt_l", 1), ("ash", 5), ("warp", 4),
+        ("takeoff_r", 1), ("takeoff_l", 1), ("apex_r", 1), ("apex_l", 1), ("land_r", 1), ("land_l", 1)]),
     "tiny": (16, 16, (3, 0), "code", [("down", 2), ("up", 2), ("left", 2), ("right", 2)]),   # overworld, hitbox 10x16
     "moth": (32, 32, (4, 4), "code", [("fly_r", 2), ("fly_l", 2), ("hover", 2), ("fall", 1)]),  # hitbox 24x24
     "bell": (32, 32, (1, 1), "blender", [("down", 1), ("up", 1), ("left", 1), ("right", 1), ("still", 1), ("sink", 1)]),  # hitbox 30x30
@@ -125,6 +126,7 @@ SPRITES: dict[str, tuple] = {
     "bg_ember": (480, 148, (0, 0), "blender", [("far", 1)]),
     "bg_spire": (480, 148, (0, 0), "blender", [("far", 1)]),
     "title": (320, 180, (0, 0), "blender", [("scene", 1)]),
+    "dawn": (320, 180, (0, 0), "blender", [("scene", 1)]),      # the ending: the Vale at dawn, the spire gone
 }
 
 # Tile sheets: godot/content/tiles/<theme>.png, 256x96 = 16 columns x 6 rows of 16x16.
@@ -186,6 +188,9 @@ def as_json() -> dict:
 
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(here, "manifest.json"), "w") as f:
-        json.dump(as_json(), f, indent=1, sort_keys=True)
+    # one copy for the pipeline tools, one the game reads (tile layouts, sprite origins)
+    for path in (os.path.join(here, "manifest.json"),
+                 os.path.join(here, "..", "godot", "content", "data", "manifest.json")):
+        with open(path, "w") as f:
+            json.dump(as_json(), f, indent=1, sort_keys=True)
     print(f"{len(SPRITES)} sprites")

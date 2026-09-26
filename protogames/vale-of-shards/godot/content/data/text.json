@@ -121,5 +121,22 @@
  "ending": [
    {"who": "orrin", "title": "Dawn", "lines": ["The Spire rings once and falls quiet.", "Down in the Vale the crystals", "begin, softly, to sing."]},
    {"who": "sable", "title": "Sable", "lines": ["Well lit, lamplighter.", "Hoo. Now go home and sleep."]},
-   {"who": "orrin", "title": "Orrin", "lines": ["Tonight I'll light the lamps", "a little early."]}]
+   {"who": "orrin", "title": "Orrin", "lines": ["Tonight I'll light the lamps", "a little early."]}],
+
+ "regent_meet": [
+   {"who": "regent", "title": "The Glass Regent", "lines": ["A lamplighter. How quaint.", "Every light in this Vale", "ends in my glass."]},
+   {"who": "orrin", "title": "Orrin", "lines": ["Then I've come to take it back,", "one lamp at a time."]},
+   {"who": "regent", "title": "The Glass Regent", "lines": ["Come, then. Burn bright.", "Glass remembers every flame."]}],
+
+ "credits": [
+   "# VALE OF SHARDS", "",
+   "# The Cast", "Orrin, the lamplighter", "Sable, the owl", "Tolly, the pedlar", "The Glass Regent", "",
+   "# The Stages", "Mossgate Hollow", "Lantern Mines", "Sunken Aqueduct", "Thornwood Canopy", "Ember Foundry",
+   "The Glass Spire", "",
+   "# Game Rules", "Adapted from the released source", "of Xargon (1993-95) by Allen W. Pilgrim", "and Epic MegaGames", "",
+   "# Made With", "Godot 4.7", "Pixel art in the Aseprite format", "Scenes and models rendered in Blender",
+   "Sound and music synthesized in code", "",
+   "# A protogames project", "", "", "",
+   "Thank you for playing.", "The lamps of the Vale are lit.", "", "", "",
+   "# THE END"]
 }

@@ -240,6 +240,12 @@ static func spawn(g, spec: Dictionary) -> void:
 			g.settile(cx, cy, T.GATE)
 		"regent":
 			o.p["channel"] = _i(spec, "opens", 90)
+			if spec.has("meet"):
+				# adapted: the Regent waits, faint, until Orrin comes within wake px; then the
+				# meeting plays (kinds.gd upd_regent) before the fight
+				o.inside = spec["meet"]
+				o.p["wake"] = _i(spec, "wake", 176)
+				o.yd = 2
 		"urchin":
 			if not spec.has("yd"):
 				o.yd = 1

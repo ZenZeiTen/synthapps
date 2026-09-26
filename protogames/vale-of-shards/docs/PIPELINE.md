@@ -9,10 +9,11 @@ these:
 
 ```
 pipeline/manifest.py              the art contract: every sprite's size, origin, tags, source
+                                    (writes pipeline/manifest.json and godot/content/data/manifest.json)
 pipeline/aseprite/art_*.py        pixel art drawn in code ─> art/aseprite/*.aseprite
    └─ build_art.py                  runs them all
 pipeline/blender/sprites.py       bell, sentry, drone, turret, geode, regent, heart crystal
-pipeline/blender/backdrops.py     six parallax backdrops and the title scene
+pipeline/blender/backdrops.py     six parallax backdrops, the title scene (dusk) and the ending's dawn scene
    └─ build/renders/…  ─> pipeline/aseprite/import_renders.py (palette lock) ─> art/aseprite/*.aseprite
 pipeline/aseprite/export_art.py   every .aseprite ─> godot/content/{sprites,tiles}/*.png (+ .json)
 pipeline/audio/make_sfx.py        ─> godot/content/sfx/*.wav   (53 effects)
