@@ -1,0 +1,123 @@
+{
+ "frames": [
+  {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 80,
+    "h": 80
+   },
+   "duration": 400
+  },
+  {
+   "frame": {
+    "x": 80,
+    "y": 0,
+    "w": 80,
+    "h": 80
+   },
+   "duration": 400
+  },
+  {
+   "frame": {
+    "x": 160,
+    "y": 0,
+    "w": 80,
+    "h": 80
+   },
+   "duration": 160
+  },
+  {
+   "frame": {
+    "x": 240,
+    "y": 0,
+    "w": 80,
+    "h": 80
+   },
+   "duration": 160
+  },
+  {
+   "frame": {
+    "x": 320,
+    "y": 0,
+    "w": 80,
+    "h": 80
+   },
+   "duration": 200
+  },
+  {
+   "frame": {
+    "x": 400,
+    "y": 0,
+    "w": 80,
+    "h": 80
+   },
+   "duration": 180
+  },
+  {
+   "frame": {
+    "x": 480,
+    "y": 0,
+    "w": 80,
+    "h": 80
+   },
+   "duration": 180
+  },
+  {
+   "frame": {
+    "x": 560,
+    "y": 0,
+    "w": 80,
+    "h": 80
+   },
+   "duration": 180
+  },
+  {
+   "frame": {
+    "x": 640,
+    "y": 0,
+    "w": 80,
+    "h": 80
+   },
+   "duration": 180
+  }
+ ],
+ "meta": {
+  "size": {
+   "w": 720,
+   "h": 80
+  },
+  "frameTags": [
+   {
+    "name": "idle",
+    "from": 0,
+    "to": 1,
+    "direction": "forward"
+   },
+   {
+    "name": "attack",
+    "from": 2,
+    "to": 3,
+    "direction": "forward"
+   },
+   {
+    "name": "hurt",
+    "from": 4,
+    "to": 4,
+    "direction": "forward"
+   },
+   {
+    "name": "side",
+    "from": 5,
+    "to": 6,
+    "direction": "forward"
+   },
+   {
+    "name": "back",
+    "from": 7,
+    "to": 8,
+    "direction": "forward"
+   }
+  ]
+ }
+}

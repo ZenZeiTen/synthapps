@@ -17,7 +17,7 @@ from PIL import Image  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC = os.path.join(ROOT, "art", "aseprite")
-DEST = {"tex": "textures", "ui": "ui", "item": "items", "portrait": "portraits"}
+DEST = {"tex": "textures", "ui": "ui", "item": "items", "portrait": "portraits", "mob": "sprites"}
 
 
 def export_one(path: str) -> str:
