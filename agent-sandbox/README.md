@@ -16,7 +16,7 @@ that is actively trying.
 cd agent-sandbox
 python -m synthapps_zenzeiworld                          # run the demo
 python -m synthapps_zenzeiworld --audit-out audit.jsonl  # also export the audit log
-python -m unittest discover -s tests -t .                # run the 57 tests
+python -m unittest discover -s tests -t .                # run the 77 tests
 ```
 
 To install it as a package (distribution name `synthapps-zenzeiworld`,
@@ -86,11 +86,18 @@ Actions: `wait`, `move`, `say`, `whisper`, `gesture`, `pick_up`, `drop`,
 | `kernel.py` | The mediator, invariant watchdog, agent gateway, operator console |
 | `agents.py` | Scripted residents, a trader, and the escape artist |
 | `simulation.py` | Demo runner and containment report |
+| `server.py` | Host gateway: one socket per agent VM, wired to the kernel |
+| `guest.py` | Runner inside each VM (dependency-free, copied into the guest image) |
+
+Deployment configuration for the sealed enclave and per-agent Firecracker
+microVMs is in [`deploy/`](deploy/README.md). It is written but has not been
+run; read its status notes first.
 
 ## Important limitation
 
-The reference kernel runs agents **in the same Python process**, so isolation
-here is by API only. That is fine for scripted agents and for testing the
-rules. It is not a place to run untrusted model output. A real deployment puts
-each agent in its own microVM inside a network-sealed enclave, as described
-in DESIGN.md section 7.
+The demo runs agents **in the same Python process** as the kernel, so
+isolation there is by API only. That is fine for scripted agents and for
+testing the rules. It is not a place to run untrusted model output. A real
+deployment puts each agent in its own microVM inside a network-sealed enclave
+(DESIGN.md section 7, `deploy/`), and that setup must pass an egress
+acceptance test on your own hosts before any model runs in it.

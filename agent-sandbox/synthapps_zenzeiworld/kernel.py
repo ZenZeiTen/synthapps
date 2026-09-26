@@ -530,6 +530,17 @@ class WorldKernel:
         alerts, self._alerts = self._alerts, []
         return alerts
 
+    def record_transport_violation(self, agent_id: str, detail: str) -> None:
+        """Called by the network gateway when a VM breaks the wire protocol.
+
+        Malformed frames never reach the parser, so without this hook they
+        would cost the agent nothing. They count like other probing.
+        """
+        if agent_id not in self._agents:
+            return
+        self._log("transport_violation", agent_id, {"detail": detail[:200]})
+        self._signal(Signal(agent_id, "transport_violation", Severity.MEDIUM, detail[:80]))
+
     # Operator actions are reached through OperatorConsole, which checks who is asking.
 
     def _op_quarantine(self, agent_id: str, operator: str, reason: str) -> None:

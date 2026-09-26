@@ -1,0 +1,15 @@
+#!/bin/sh
+# PID 1 inside each agent VM. Installed in the guest image as /sbin/agent-init.
+#
+# The VM has no network card, so nothing here configures networking.
+# If the runner exits for any reason, PID 1 exits, the guest kernel panics,
+# and with "panic=1 reboot=k" on the kernel command line the VM stops.
+# That is the intended failure mode: stop, never limp on.
+set -eu
+
+mount -t proc  -o nosuid,nodev,noexec     proc  /proc
+mount -t sysfs -o nosuid,nodev,noexec,ro  sysfs /sys
+mount -t tmpfs -o size=16m,nosuid,nodev,noexec tmpfs /tmp
+
+# -I: isolated mode (ignore PYTHON* environment variables and user site-packages).
+exec /usr/bin/python3 -I /opt/agent/guest.py --transport vsock --port 5000

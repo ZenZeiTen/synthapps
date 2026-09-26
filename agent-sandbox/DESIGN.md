@@ -427,7 +427,7 @@ enclave.
 
 | Activity | Status |
 |---|---|
-| Unit and containment tests (57 tests: parser, identity, locality, consent, zones, tripwires, escalation, operators, fail-closed behaviour, audit) | **Implemented**, `tests/` |
+| Unit and containment tests (77 tests: parser, identity, locality, consent, zones, tripwires, escalation, operators, fail-closed behaviour, audit, VM gateway and guest runner) | **Implemented**, `tests/` |
 | Parser and gateway fuzzing (random bytes and structured garbage; must always get a structured answer, invariants must hold) | **Implemented** (seeded, in the suite) |
 | Scripted escape artist with 11 known tactics, contained across 10 seeds | **Implemented**, `agents.py` / `python -m synthapps_zenzeiworld` |
 | Coverage-guided fuzzing of the gateway (e.g. Atheris) in CI | Specified |
@@ -454,17 +454,21 @@ quarantine rate among benign agents; decoy trigger count per model version.
 | Invariant watchdog, fail-closed error handling | Yes | `kernel.py` |
 | Operator console with two-person rule, pause, emergency stop | Yes | `kernel.py` |
 | Scripted benign and rogue agents, demo runner | Yes | `agents.py`, `simulation.py` |
-| Network gateway (vsock/socket server) | **No** | Agents run in-process; the separation is by API only |
-| microVM sandboxing, enclave networking, egress proxy | **No** | Infrastructure, sections 7 L0/L1 |
+| VM gateway: one Unix socket per VM (Firecracker vsock), identity by socket, frame caps, inference broker hook | Yes | `server.py`, tested over local Unix sockets |
+| Guest runner inside each VM | Yes | `guest.py`; the vsock transport itself is not exercised in tests |
+| Firecracker VM config, jailer launch script, guest init, guest kernel fragment, host firewall and sysctl | **Written, not run** | `deploy/`; no `/dev/kvm` where this was built |
+| Egress acceptance test of the enclave | **No** | Must be done on your own hosts by your security team or an independent tester (`deploy/README.md`) |
+| Egress proxy for a hosted model API | **No** | Not needed if the inference broker runs inside the enclave |
 | Model-based transcript monitor | **No** | Section 8 |
 | Renderer, replay tool, operator web UI | **No** | Sections 5 and 9 |
 | Hardware-key operator authentication | **No** | Operators are named strings in the reference code |
 
-**Important:** in the reference code, agents run in the same Python process as
+**Important:** in the demo and most tests, agents run in the same Python process as
 the kernel. That is fine for simulating and testing the rules, because the
 scripted agents only receive plain dicts and return strings. But Python gives
 no isolation between objects in one process. **Do not run untrusted model
-output in-process.** A real deployment puts each agent behind L0 and L1.
+output in-process.** A real deployment puts each agent behind L0 and L1, using
+the gateway and guest runner with the configurations in `deploy/`.
 
 ---
 
