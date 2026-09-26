@@ -61,9 +61,8 @@ version) and follow the migration guides between that version and 4.7 before edi
 
 1. **Find out what is available.** Look for a Godot binary (`godot --version`, or `Godot_v4*` on the user's machine).
    - Read the version the project (or a sibling project in the repo) targets first: the `config/features` line in `project.godot`. Then fetch exactly that version; one session downloaded 4.5.1 before noticing the repo was on 4.7.
-   - If there is none, download the Linux editor from `github.com/godotengine/godot/releases`, when the network allows, and use it for headless checks:
-     `curl -sSfL -o g.zip https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip && unzip -o -q g.zip && ln -sf "$PWD/Godot_v4.7.1-stable_linux.x86_64" /usr/local/bin/godot`.
-   - Export templates are one large `.tpz`, 1.28 GB for 4.7.1. Start the download in the background early. Unzip only the templates you need, flat, into `~/.local/share/godot/export_templates/<version>.stable/`:
+   - If there is none, ask the user to install that exact version, or ask before downloading it yourself. Get it only from the official release page, `github.com/godotengine/godot/releases/tag/<version>-stable` (the Linux editor is `Godot_v<version>-stable_linux.x86_64.zip`). Every release publishes `SHA512-SUMS.txt`: compare the archive's SHA-512 with its line there (`sha512sum`) before unzipping, and stop if they differ. Run it from the project's working folder rather than installing it system-wide.
+   - Export templates are one large `.tpz`, 1.28 GB for 4.7.1, from the same release page and checked against the same `SHA512-SUMS.txt`. Start the download in the background early. Unzip only the templates you need, flat, into `~/.local/share/godot/export_templates/<version>.stable/`:
      `unzip -o -q -j tpl.tpz templates/version.txt templates/linux_release.x86_64 templates/windows_release_x86_64.exe -d ~/.local/share/godot/export_templates/4.7.1.stable`.
    - Otherwise, deliver unchecked files and say so plainly.
 2. **Build scenes in code or in small `.tscn` files.** Hand-written `.tscn` is fragile: a wrong `ext_resource` id or UID silently breaks a scene. Prefer:
@@ -101,7 +100,7 @@ timeout 300 godot --headless --main-pack build/game.exe --quit-after 3000 -- --s
 - export templates for the **exact** engine version;
 - an existing output folder.
 
-Commit `export_presets.cfg`, but never `.godot/export_credentials.cfg`.
+Commit `export_presets.cfg`. Godot keeps sensitive export options in its own file inside `.godot/`; keep the whole `.godot/` folder out of version control (Godot's default `.gitignore` does).
 
 ## World design
 

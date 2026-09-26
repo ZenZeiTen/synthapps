@@ -23,8 +23,11 @@ honest answer; a guessed PASS is not.
    game. Brand names only where the originality rules allow them.
 4. **Credits and licences.** Every non-code asset has a `CREDITS.md` line with source and
    licence, and each licence covers shipping it inside a build.
-5. **Secrets.** Search the project and the build for API keys, tokens, private keys, `.env`
-   files and personal paths. Any hit is a FAIL until removed from the build and history.
+5. **Nothing private ships.** Check that the project's own files and the build contain no
+   key-shaped strings, private-key blocks, committed environment files or personal paths.
+   Report only the file and line, never the value. Stay inside the project folder: never open
+   files elsewhere on the user's machine. Any hit is a FAIL until removed from the build and
+   history.
 6. **Localization** (if the game has more than one language, or plans to). Run the
    `game-loc-ops` readiness gate and its string lint and pseudo-localization scripts.
 7. **Accessibility.** Readable text at the target resolution, reduced motion respected on the

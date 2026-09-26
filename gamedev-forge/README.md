@@ -84,7 +84,7 @@ browser. Each skill says what it needs and what it does without it.
 
 ```bash
 python gamedev-forge/tools/sanitize_scan.py                            # release gate
-python -m unittest discover -s gamedev-forge/tests -t gamedev-forge    # 36 tests
+python -m unittest discover -s gamedev-forge/tests -t gamedev-forge    # 38 tests
 claude plugin validate --strict .                                      # marketplace + plugins
 ```
 
