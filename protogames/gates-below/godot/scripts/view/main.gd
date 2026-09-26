@@ -922,3 +922,6 @@ func _run_cmd(cmd: String) -> void:
 			f.store_string(var_to_str({"label": "The Cellar Vaults, 2026-09-26 13:22:24", "state": g.to_save()}))
 			f.close()
 			_labels.erase(int(parts[1]))
+		_:
+			# a typo in a test script must fail the test, not silently do nothing
+			print("HARNESS unknown command: ", cmd)
