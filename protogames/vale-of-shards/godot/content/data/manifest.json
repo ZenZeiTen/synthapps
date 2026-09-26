@@ -1,0 +1,2117 @@
+{
+ "map_layout": {
+  "bridge_h": [
+   5,
+   4
+  ],
+  "bridge_v": [
+   5,
+   5
+  ],
+  "deco": [
+   5,
+   12
+  ],
+  "flowers": [
+   0,
+   4
+  ],
+  "forest": [
+   3,
+   0
+  ],
+  "gate": [
+   5,
+   0
+  ],
+  "grass": [
+   0,
+   0
+  ],
+  "house": [
+   5,
+   8
+  ],
+  "path": [
+   1,
+   0
+  ],
+  "reeds": [
+   0,
+   12
+  ],
+  "rock": [
+   4,
+   0
+  ],
+  "sand": [
+   0,
+   8
+  ],
+  "stump": [
+   5,
+   11
+  ],
+  "tower": [
+   5,
+   9
+  ],
+  "water": [
+   2,
+   0
+  ],
+  "well": [
+   5,
+   10
+  ]
+ },
+ "map_theme": "map",
+ "side_layout": {
+  "backwall": [
+   1,
+   0
+  ],
+  "beam": [
+   3,
+   14
+  ],
+  "blink": [
+   2,
+   11
+  ],
+  "breakable": [
+   2,
+   10
+  ],
+  "bridge": [
+   2,
+   15
+  ],
+  "crumble": [
+   2,
+   6
+  ],
+  "dart_l": [
+   4,
+   3
+  ],
+  "dart_r": [
+   4,
+   2
+  ],
+  "deco_a": [
+   4,
+   6
+  ],
+  "deco_b": [
+   5,
+   8
+  ],
+  "lava": [
+   3,
+   10
+  ],
+  "lava_top": [
+   3,
+   6
+  ],
+  "ledge_l": [
+   2,
+   0
+  ],
+  "ledge_m": [
+   2,
+   1
+  ],
+  "ledge_one": [
+   2,
+   3
+  ],
+  "ledge_r": [
+   2,
+   2
+  ],
+  "node": [
+   3,
+   15
+  ],
+  "node_broken": [
+   4,
+   4
+  ],
+  "shaft_l": [
+   4,
+   0
+  ],
+  "shaft_r": [
+   4,
+   1
+  ],
+  "solid": [
+   0,
+   0
+  ],
+  "solid_var": [
+   5,
+   0
+  ],
+  "spikes": [
+   3,
+   12
+  ],
+  "thorns": [
+   3,
+   13
+  ],
+  "vine": [
+   2,
+   4
+  ],
+  "vine_top": [
+   2,
+   5
+  ],
+  "water": [
+   3,
+   4
+  ],
+  "water_top": [
+   3,
+   0
+  ]
+ },
+ "side_themes": [
+  "moss",
+  "mine",
+  "water",
+  "wood",
+  "ember",
+  "spire"
+ ],
+ "sprites": {
+  "bell": {
+   "frames": 6,
+   "h": 32,
+   "origin": [
+    1,
+    1
+   ],
+   "source": "blender",
+   "tags": {
+    "down": [
+     0,
+     0
+    ],
+    "left": [
+     2,
+     2
+    ],
+    "right": [
+     3,
+     3
+    ],
+    "sink": [
+     5,
+     5
+    ],
+    "still": [
+     4,
+     4
+    ],
+    "up": [
+     1,
+     1
+    ]
+   },
+   "w": 32
+  },
+  "berry": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "fig": [
+     2,
+     2
+    ],
+    "plum": [
+     1,
+     1
+    ],
+    "starfruit": [
+     3,
+     3
+    ],
+    "sunberry": [
+     0,
+     0
+    ]
+   },
+   "w": 16
+  },
+  "bg_ember": {
+   "frames": 1,
+   "h": 148,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "blender",
+   "tags": {
+    "far": [
+     0,
+     0
+    ]
+   },
+   "w": 480
+  },
+  "bg_mine": {
+   "frames": 1,
+   "h": 148,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "blender",
+   "tags": {
+    "far": [
+     0,
+     0
+    ]
+   },
+   "w": 480
+  },
+  "bg_moss": {
+   "frames": 1,
+   "h": 148,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "blender",
+   "tags": {
+    "far": [
+     0,
+     0
+    ]
+   },
+   "w": 480
+  },
+  "bg_spire": {
+   "frames": 1,
+   "h": 148,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "blender",
+   "tags": {
+    "far": [
+     0,
+     0
+    ]
+   },
+   "w": 480
+  },
+  "bg_water": {
+   "frames": 1,
+   "h": 148,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "blender",
+   "tags": {
+    "far": [
+     0,
+     0
+    ]
+   },
+   "w": 480
+  },
+  "bg_wood": {
+   "frames": 1,
+   "h": 148,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "blender",
+   "tags": {
+    "far": [
+     0,
+     0
+    ]
+   },
+   "w": 480
+  },
+  "bolt": {
+   "frames": 2,
+   "h": 4,
+   "origin": [
+    1,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "normal": [
+     0,
+     0
+    ],
+    "rapid": [
+     1,
+     1
+    ]
+   },
+   "w": 16
+  },
+  "bubble": {
+   "frames": 3,
+   "h": 8,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "size": [
+     0,
+     2
+    ]
+   },
+   "w": 8
+  },
+  "burrowhog": {
+   "frames": 14,
+   "h": 32,
+   "origin": [
+    5,
+    7
+   ],
+   "source": "code",
+   "tags": {
+    "hit": [
+     12,
+     13
+    ],
+    "idle_l": [
+     10,
+     11
+    ],
+    "idle_r": [
+     8,
+     9
+    ],
+    "walk_l": [
+     4,
+     7
+    ],
+    "walk_r": [
+     0,
+     3
+    ]
+   },
+   "w": 48
+  },
+  "burst": {
+   "frames": 5,
+   "h": 32,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "boom": [
+     0,
+     4
+    ]
+   },
+   "w": 32
+  },
+  "button": {
+   "frames": 2,
+   "h": 8,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "down": [
+     1,
+     1
+    ],
+    "up": [
+     0,
+     0
+    ]
+   },
+   "w": 16
+  },
+  "cairnbrute": {
+   "frames": 8,
+   "h": 56,
+   "origin": [
+    4,
+    8
+   ],
+   "source": "code",
+   "tags": {
+    "walk_l": [
+     4,
+     7
+    ],
+    "walk_r": [
+     0,
+     3
+    ]
+   },
+   "w": 40
+  },
+  "crate": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "kind": [
+     0,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "creeper": {
+   "frames": 8,
+   "h": 32,
+   "origin": [
+    4,
+    3
+   ],
+   "source": "code",
+   "tags": {
+    "climb": [
+     0,
+     7
+    ]
+   },
+   "w": 24
+  },
+  "cursor": {
+   "frames": 2,
+   "h": 8,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "blink": [
+     0,
+     1
+    ]
+   },
+   "w": 8
+  },
+  "dart": {
+   "frames": 2,
+   "h": 4,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "left": [
+     0,
+     0
+    ],
+    "right": [
+     1,
+     1
+    ]
+   },
+   "w": 12
+  },
+  "digits": {
+   "frames": 10,
+   "h": 6,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "n": [
+     0,
+     9
+    ]
+   },
+   "w": 4
+  },
+  "door": {
+   "frames": 4,
+   "h": 48,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "amber": [
+     0,
+     0
+    ],
+    "moss": [
+     1,
+     1
+    ],
+    "rose": [
+     2,
+     2
+    ],
+    "sky": [
+     3,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "drone": {
+   "frames": 7,
+   "h": 24,
+   "origin": [
+    4,
+    2
+   ],
+   "source": "blender",
+   "tags": {
+    "armored_hover": [
+     4,
+     4
+    ],
+    "armored_left": [
+     3,
+     3
+    ],
+    "armored_right": [
+     5,
+     5
+    ],
+    "fall": [
+     6,
+     6
+    ],
+    "hover": [
+     1,
+     1
+    ],
+    "left": [
+     0,
+     0
+    ],
+    "right": [
+     2,
+     2
+    ]
+   },
+   "w": 24
+  },
+  "duskwing": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    4,
+    2
+   ],
+   "source": "code",
+   "tags": {
+    "fly": [
+     0,
+     3
+    ]
+   },
+   "w": 24
+  },
+  "dust": {
+   "frames": 3,
+   "h": 8,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "puff": [
+     0,
+     2
+    ]
+   },
+   "w": 16
+  },
+  "eel": {
+   "frames": 10,
+   "h": 24,
+   "origin": [
+    3,
+    2
+   ],
+   "source": "code",
+   "tags": {
+    "swim_l": [
+     0,
+     4
+    ],
+    "swim_r": [
+     5,
+     9
+    ]
+   },
+   "w": 40
+  },
+  "ember": {
+   "frames": 4,
+   "h": 24,
+   "origin": [
+    0,
+    1
+   ],
+   "source": "code",
+   "tags": {
+    "left": [
+     0,
+     1
+    ],
+    "right": [
+     2,
+     3
+    ]
+   },
+   "w": 24
+  },
+  "fire": {
+   "frames": 12,
+   "h": 32,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "burn": [
+     0,
+     5
+    ],
+    "drip": [
+     6,
+     11
+    ]
+   },
+   "w": 16
+  },
+  "flash": {
+   "frames": 8,
+   "h": 16,
+   "origin": [
+    1,
+    1
+   ],
+   "source": "code",
+   "tags": {
+    "ring": [
+     4,
+     7
+    ],
+    "star": [
+     0,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "font": {
+   "frames": 96,
+   "h": 8,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "ascii": [
+     0,
+     95
+    ]
+   },
+   "w": 6
+  },
+  "frag": {
+   "frames": 6,
+   "h": 8,
+   "origin": [
+    1,
+    1
+   ],
+   "source": "code",
+   "tags": {
+    "bits": [
+     0,
+     4
+    ],
+    "pebble": [
+     5,
+     5
+    ]
+   },
+   "w": 8
+  },
+  "gar": {
+   "frames": 10,
+   "h": 16,
+   "origin": [
+    4,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "dead_l": [
+     8,
+     8
+    ],
+    "dead_r": [
+     9,
+     9
+    ],
+    "swim_l": [
+     0,
+     3
+    ],
+    "swim_r": [
+     4,
+     7
+    ]
+   },
+   "w": 32
+  },
+  "gem": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    2,
+    1
+   ],
+   "source": "code",
+   "tags": {
+    "kind": [
+     0,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "geode": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "blender",
+   "tags": {
+    "roll": [
+     0,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "glassbolt": {
+   "frames": 2,
+   "h": 16,
+   "origin": [
+    3,
+    1
+   ],
+   "source": "code",
+   "tags": {
+    "spin": [
+     0,
+     1
+    ]
+   },
+   "w": 24
+  },
+  "glyph": {
+   "frames": 8,
+   "h": 12,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "a": [
+     0,
+     0
+    ],
+    "b": [
+     1,
+     1
+    ],
+    "back": [
+     5,
+     5
+    ],
+    "dpad": [
+     6,
+     6
+    ],
+    "key": [
+     7,
+     7
+    ],
+    "start": [
+     4,
+     4
+    ],
+    "x": [
+     2,
+     2
+    ],
+    "y": [
+     3,
+     3
+    ]
+   },
+   "w": 12
+  },
+  "heart": {
+   "frames": 3,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "beat": [
+     0,
+     2
+    ]
+   },
+   "w": 16
+  },
+  "heartcrystal": {
+   "frames": 2,
+   "h": 64,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "blender",
+   "tags": {
+    "cracked": [
+     1,
+     1
+    ],
+    "whole": [
+     0,
+     0
+    ]
+   },
+   "w": 64
+  },
+  "hero": {
+   "frames": 35,
+   "h": 48,
+   "origin": [
+    4,
+    8
+   ],
+   "source": "code",
+   "tags": {
+    "ash": [
+     26,
+     30
+    ],
+    "climb": [
+     21,
+     23
+    ],
+    "fall_down": [
+     20,
+     20
+    ],
+    "fall_l": [
+     18,
+     18
+    ],
+    "fall_r": [
+     16,
+     16
+    ],
+    "front": [
+     2,
+     3
+    ],
+    "hurt_l": [
+     25,
+     25
+    ],
+    "hurt_r": [
+     24,
+     24
+    ],
+    "jump_l": [
+     17,
+     17
+    ],
+    "jump_r": [
+     15,
+     15
+    ],
+    "jump_up": [
+     19,
+     19
+    ],
+    "land": [
+     6,
+     6
+    ],
+    "look_up": [
+     4,
+     4
+    ],
+    "run_l": [
+     11,
+     14
+    ],
+    "run_r": [
+     7,
+     10
+    ],
+    "squat": [
+     5,
+     5
+    ],
+    "stand_l": [
+     1,
+     1
+    ],
+    "stand_r": [
+     0,
+     0
+    ],
+    "warp": [
+     31,
+     34
+    ]
+   },
+   "w": 32
+  },
+  "hud": {
+   "frames": 1,
+   "h": 32,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "bar": [
+     0,
+     0
+    ]
+   },
+   "w": 320
+  },
+  "icon": {
+   "frames": 11,
+   "h": 12,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "bolt": [
+     5,
+     5
+    ],
+    "boots": [
+     9,
+     9
+    ],
+    "embers": [
+     6,
+     6
+    ],
+    "fig": [
+     3,
+     3
+    ],
+    "gatekey": [
+     8,
+     8
+    ],
+    "plum": [
+     2,
+     2
+    ],
+    "shard": [
+     0,
+     0
+    ],
+    "starfruit": [
+     4,
+     4
+    ],
+    "stones": [
+     7,
+     7
+    ],
+    "sunberry": [
+     1,
+     1
+    ],
+    "ward": [
+     10,
+     10
+    ]
+   },
+   "w": 12
+  },
+  "impact": {
+   "frames": 5,
+   "h": 40,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "hit": [
+     0,
+     4
+    ]
+   },
+   "w": 24
+  },
+  "key": {
+   "frames": 16,
+   "h": 20,
+   "origin": [
+    2,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "amber": [
+     0,
+     3
+    ],
+    "moss": [
+     4,
+     7
+    ],
+    "rose": [
+     8,
+     11
+    ],
+    "sky": [
+     12,
+     15
+    ]
+   },
+   "w": 16
+  },
+  "keyslot": {
+   "frames": 5,
+   "h": 12,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "amber": [
+     1,
+     1
+    ],
+    "empty": [
+     0,
+     0
+    ],
+    "moss": [
+     2,
+     2
+    ],
+    "rose": [
+     3,
+     3
+    ],
+    "sky": [
+     4,
+     4
+    ]
+   },
+   "w": 10
+  },
+  "lift": {
+   "frames": 1,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "car": [
+     0,
+     0
+    ]
+   },
+   "w": 32
+  },
+  "logo": {
+   "frames": 1,
+   "h": 64,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "title": [
+     0,
+     0
+    ]
+   },
+   "w": 256
+  },
+  "loomspider": {
+   "frames": 8,
+   "h": 32,
+   "origin": [
+    4,
+    8
+   ],
+   "source": "code",
+   "tags": {
+    "walk_l": [
+     4,
+     7
+    ],
+    "walk_r": [
+     0,
+     3
+    ]
+   },
+   "w": 48
+  },
+  "marker": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "done": [
+     2,
+     2
+    ],
+    "locked": [
+     3,
+     3
+    ],
+    "open": [
+     0,
+     1
+    ]
+   },
+   "w": 16
+  },
+  "masher": {
+   "frames": 3,
+   "h": 20,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "stage": [
+     0,
+     2
+    ]
+   },
+   "w": 24
+  },
+  "minnow": {
+   "frames": 8,
+   "h": 8,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "swim_l": [
+     0,
+     3
+    ],
+    "swim_r": [
+     4,
+     7
+    ]
+   },
+   "w": 16
+  },
+  "moth": {
+   "frames": 7,
+   "h": 32,
+   "origin": [
+    4,
+    4
+   ],
+   "source": "code",
+   "tags": {
+    "fall": [
+     6,
+     6
+    ],
+    "fly_l": [
+     2,
+     3
+    ],
+    "fly_r": [
+     0,
+     1
+    ],
+    "hover": [
+     4,
+     5
+    ]
+   },
+   "w": 32
+  },
+  "newt": {
+   "frames": 8,
+   "h": 16,
+   "origin": [
+    4,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "walk_l": [
+     4,
+     7
+    ],
+    "walk_r": [
+     0,
+     3
+    ]
+   },
+   "w": 24
+  },
+  "note": {
+   "frames": 1,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "scroll": [
+     0,
+     0
+    ]
+   },
+   "w": 16
+  },
+  "owl": {
+   "frames": 6,
+   "h": 48,
+   "origin": [
+    3,
+    2
+   ],
+   "source": "code",
+   "tags": {
+    "fly": [
+     0,
+     3
+    ],
+    "perch": [
+     4,
+     5
+    ]
+   },
+   "w": 40
+  },
+  "pad": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "glow": [
+     0,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "panel": {
+   "frames": 1,
+   "h": 24,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "nine": [
+     0,
+     0
+    ]
+   },
+   "w": 24
+  },
+  "pellet": {
+   "frames": 3,
+   "h": 4,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "orb": [
+     1,
+     2
+    ],
+    "slug": [
+     0,
+     0
+    ]
+   },
+   "w": 8
+  },
+  "pip": {
+   "frames": 2,
+   "h": 8,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "empty": [
+     1,
+     1
+    ],
+    "full": [
+     0,
+     0
+    ]
+   },
+   "w": 8
+  },
+  "piptoad": {
+   "frames": 6,
+   "h": 24,
+   "origin": [
+    4,
+    10
+   ],
+   "source": "code",
+   "tags": {
+    "down_l": [
+     5,
+     5
+    ],
+    "down_r": [
+     2,
+     2
+    ],
+    "sit_l": [
+     3,
+     3
+    ],
+    "sit_r": [
+     0,
+     0
+    ],
+    "up_l": [
+     4,
+     4
+    ],
+    "up_r": [
+     1,
+     1
+    ]
+   },
+   "w": 24
+  },
+  "platform": {
+   "frames": 4,
+   "h": 8,
+   "origin": [
+    2,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "glint": [
+     0,
+     3
+    ]
+   },
+   "w": 32
+  },
+  "poker": {
+   "frames": 2,
+   "h": 16,
+   "origin": [
+    3,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "rest": [
+     0,
+     0
+    ],
+    "stab": [
+     1,
+     1
+    ]
+   },
+   "w": 16
+  },
+  "portal": {
+   "frames": 4,
+   "h": 48,
+   "origin": [
+    8,
+    8
+   ],
+   "source": "code",
+   "tags": {
+    "swirl": [
+     0,
+     3
+    ]
+   },
+   "w": 32
+  },
+  "portrait": {
+   "frames": 4,
+   "h": 32,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "orrin": [
+     0,
+     0
+    ],
+    "regent": [
+     3,
+     3
+    ],
+    "sable": [
+     1,
+     1
+    ],
+    "tolly": [
+     2,
+     2
+    ]
+   },
+   "w": 32
+  },
+  "regent": {
+   "frames": 4,
+   "h": 72,
+   "origin": [
+    2,
+    2
+   ],
+   "source": "blender",
+   "tags": {
+    "cast": [
+     2,
+     2
+    ],
+    "hurt": [
+     3,
+     3
+    ],
+    "idle": [
+     0,
+     1
+    ]
+   },
+   "w": 64
+  },
+  "rune": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "a": [
+     1,
+     1
+    ],
+    "e": [
+     3,
+     3
+    ],
+    "l": [
+     2,
+     2
+    ],
+    "v": [
+     0,
+     0
+    ]
+   },
+   "w": 16
+  },
+  "segmenter": {
+   "frames": 12,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "body": [
+     4,
+     9
+    ],
+    "head_l": [
+     0,
+     1
+    ],
+    "head_r": [
+     2,
+     3
+    ],
+    "tail_l": [
+     10,
+     10
+    ],
+    "tail_r": [
+     11,
+     11
+    ]
+   },
+   "w": 16
+  },
+  "sentry": {
+   "frames": 8,
+   "h": 32,
+   "origin": [
+    2,
+    4
+   ],
+   "source": "blender",
+   "tags": {
+    "walk_l": [
+     4,
+     7
+    ],
+    "walk_r": [
+     0,
+     3
+    ]
+   },
+   "w": 32
+  },
+  "shade": {
+   "frames": 10,
+   "h": 32,
+   "origin": [
+    1,
+    1
+   ],
+   "source": "code",
+   "tags": {
+    "fade_l": [
+     5,
+     9
+    ],
+    "fade_r": [
+     0,
+     4
+    ]
+   },
+   "w": 32
+  },
+  "shard": {
+   "frames": 3,
+   "h": 12,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "sparkle": [
+     0,
+     2
+    ]
+   },
+   "w": 16
+  },
+  "sigil": {
+   "frames": 3,
+   "h": 24,
+   "origin": [
+    3,
+    3
+   ],
+   "source": "code",
+   "tags": {
+    "ember": [
+     2,
+     2
+    ],
+    "root": [
+     0,
+     0
+    ],
+    "tide": [
+     1,
+     1
+    ]
+   },
+   "w": 24
+  },
+  "signpost": {
+   "frames": 1,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "post": [
+     0,
+     0
+    ]
+   },
+   "w": 16
+  },
+  "slick": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    1,
+    3
+   ],
+   "source": "code",
+   "tags": {
+    "crawl": [
+     0,
+     3
+    ]
+   },
+   "w": 32
+  },
+  "slick_leap": {
+   "frames": 4,
+   "h": 32,
+   "origin": [
+    2,
+    4
+   ],
+   "source": "code",
+   "tags": {
+    "leap": [
+     0,
+     3
+    ]
+   },
+   "w": 56
+  },
+  "snapjaw": {
+   "frames": 6,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "open_l": [
+     4,
+     4
+    ],
+    "open_r": [
+     1,
+     1
+    ],
+    "rest_l": [
+     3,
+     3
+    ],
+    "rest_r": [
+     0,
+     0
+    ],
+    "snap_l": [
+     5,
+     5
+    ],
+    "snap_r": [
+     2,
+     2
+    ]
+   },
+   "w": 24
+  },
+  "spark": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    1,
+    1
+   ],
+   "source": "code",
+   "tags": {
+    "pop": [
+     0,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "spear": {
+   "frames": 6,
+   "h": 20,
+   "origin": [
+    1,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "down": [
+     3,
+     5
+    ],
+    "up": [
+     0,
+     2
+    ]
+   },
+   "w": 8
+  },
+  "spikes": {
+   "frames": 8,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "down": [
+     4,
+     7
+    ],
+    "up": [
+     0,
+     3
+    ]
+   },
+   "w": 24
+  },
+  "spring": {
+   "frames": 3,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "mid": [
+     1,
+     1
+    ],
+    "pressed": [
+     2,
+     2
+    ],
+    "rest": [
+     0,
+     0
+    ]
+   },
+   "w": 32
+  },
+  "stalactite": {
+   "frames": 1,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "hang": [
+     0,
+     0
+    ]
+   },
+   "w": 16
+  },
+  "stingmote": {
+   "frames": 6,
+   "h": 32,
+   "origin": [
+    4,
+    4
+   ],
+   "source": "code",
+   "tags": {
+    "fly_l": [
+     0,
+     1
+    ],
+    "fly_r": [
+     2,
+     3
+    ],
+    "hover": [
+     4,
+     5
+    ]
+   },
+   "w": 32
+  },
+  "stone": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "spin": [
+     0,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "switch": {
+   "frames": 2,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "down": [
+     1,
+     1
+    ],
+    "up": [
+     0,
+     0
+    ]
+   },
+   "w": 16
+  },
+  "tiny": {
+   "frames": 8,
+   "h": 16,
+   "origin": [
+    3,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "down": [
+     0,
+     1
+    ],
+    "left": [
+     4,
+     5
+    ],
+    "right": [
+     6,
+     7
+    ],
+    "up": [
+     2,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "title": {
+   "frames": 1,
+   "h": 180,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "blender",
+   "tags": {
+    "scene": [
+     0,
+     0
+    ]
+   },
+   "w": 320
+  },
+  "token": {
+   "frames": 8,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "bolt": [
+     1,
+     1
+    ],
+    "boots": [
+     3,
+     3
+    ],
+    "embers": [
+     5,
+     5
+    ],
+    "gatekey": [
+     0,
+     0
+    ],
+    "lamp": [
+     6,
+     6
+    ],
+    "moth": [
+     7,
+     7
+    ],
+    "stones": [
+     2,
+     2
+    ],
+    "ward": [
+     4,
+     4
+    ]
+   },
+   "w": 16
+  },
+  "torch": {
+   "frames": 4,
+   "h": 24,
+   "origin": [
+    3,
+    0
+   ],
+   "source": "code",
+   "tags": {
+    "burn": [
+     0,
+     3
+    ]
+   },
+   "w": 16
+  },
+  "torpedo": {
+   "frames": 2,
+   "h": 8,
+   "origin": [
+    1,
+    1
+   ],
+   "source": "code",
+   "tags": {
+    "left": [
+     0,
+     0
+    ],
+    "right": [
+     1,
+     1
+    ]
+   },
+   "w": 12
+  },
+  "turret": {
+   "frames": 10,
+   "h": 16,
+   "origin": [
+    1,
+    1
+   ],
+   "source": "blender",
+   "tags": {
+    "aim": [
+     0,
+     4
+    ],
+    "glow": [
+     5,
+     9
+    ]
+   },
+   "w": 24
+  },
+  "urchin": {
+   "frames": 2,
+   "h": 16,
+   "origin": [
+    2,
+    1
+   ],
+   "source": "code",
+   "tags": {
+    "float": [
+     0,
+     1
+    ]
+   },
+   "w": 24
+  }
+ }
+}

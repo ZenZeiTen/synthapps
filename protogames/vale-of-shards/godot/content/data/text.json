@@ -1,0 +1,125 @@
+{
+ "fidget_0": "Lamps don't light themselves, Orrin.",
+ "fidget_1": "Somewhere a kettle is boiling without me.",
+ "fidget_2": "The crystals hum when nobody moves.",
+ "fidget_3": "Right. Onward. Any moment now.",
+ "door_open_0": "The lock gives with a heavy clunk.",
+ "door_open_1": "The key turns and the door slides away.",
+ "door_open_2": "A perfect fit. The way is open.",
+ "door_open_3": "Iron grinds, and the door parts.",
+ "door_locked_0": "Locked. The plate is marked with a colour.",
+ "door_locked_1": "This door wants a key of its own colour.",
+ "door_locked_2": "Locked tight. Look for a matching key.",
+ "door_locked_3": "No key, no way through.",
+ "key_got_amber": "An amber key!",
+ "key_got_moss": "A moss-green key!",
+ "key_got_rose": "A rose key!",
+ "key_got_sky": "A sky-blue key!",
+ "key_have": "You already carry a key of that colour.",
+ "tip_heart": "Hearts restore health.",
+ "tip_lift": "Hold UP or DOWN to ride the lift.",
+ "tip_switch": "Press UP or DOWN to throw the lever.",
+ "tip_sign": "Press UP to read.",
+ "tip_door_up": "Press UP to go through the door.",
+ "tip_oneway": "This door only opens from the other side.",
+ "leave_need_gatekey": "The gate key is still somewhere in here.",
+ "leave_need_sigil": "The sigil must not stay behind.",
+ "token_gatekey": "A gate key! It opens a gate on the Vale path.",
+ "token_bolt": "The lantern burns brighter: one more bolt at a time.",
+ "token_stones": "A handful of stones to throw.",
+ "token_boots": "Spring boots! You jump much higher.",
+ "token_ward": "A ward of light surrounds you.",
+ "xfm_lamp": "The lamp's glow returns you to yourself.",
+ "xfm_moth": "Your coat unfolds into soft grey wings!",
+ "xfm_bell": "You climb into the brass diving bell.",
+ "rapid": "Rapid fire! Five bolts at a time.",
+ "embers5": "Five ember charges. Use them well.",
+ "rune_hint": "A carved rune. Find them all, in order.",
+ "rune_bonus": "V-A-L-E in order! A 4,000 point bonus!",
+ "ward_gone": "The ward flickers out.",
+ "flag": "The lantern post is lit. You will return here.",
+ "gate_open": "The crystal gate melts away.",
+ "gate_need": "A crystal gate. It needs a gate key.",
+ "gate_sigils": "The Spire's gate answers only to all three sigils.",
+ "regent_down": "The Regent falls! Strike the heart crystal!",
+ "crystal_down": "The heart crystal shatters!",
+ "shop_poor": "Tolly shakes his head: 'Not enough shards, friend.'",
+ "shop_full": "Tolly: 'You can't carry any more of that.'",
+ "shop_form": "Tolly: 'Come back when you're yourself again.'",
+ "shop_map": "Tolly only trades inside the stages.",
+ "save_where": "You can only save on the Vale map.",
+
+ "tip_shard": {"title": "Shards", "who": "tolly", "lines": [
+   "Green shards are the Vale's coin.", "Tolly the pedlar trades them for",
+   "health, bolts, embers and a ward.", "Open his pack with B (or Back)."]},
+ "tip_berry": {"title": "Berries", "who": "orrin", "lines": [
+   "Berries! Sixteen of them make", "a whole new heart."]},
+ "tip_platform": {"title": "Floating Planks", "who": "sable", "lines": [
+   "Ride the planks where they go.", "Jump to leave one, or hold DOWN", "and jump to drop through."]},
+ "tip_crate": {"title": "Crates", "who": "orrin", "lines": [
+   "Crates hide useful things.", "Shoot one to break it open."]},
+
+ "sigil_root": {"title": "The Sigil of Root", "who": "orrin", "lines": [
+   "A knot of living green, warm in the hand.", "The first of the three sigils.",
+   "Two more wait beyond the Vale path."]},
+ "sigil_tide": {"title": "The Sigil of Tide", "who": "orrin", "lines": [
+   "It ripples like water held still.", "The second sigil.", "Only the Sigil of Ember remains."]},
+ "sigil_ember": {"title": "The Sigil of Ember", "who": "orrin", "lines": [
+   "It glows like a coal that never cools.", "All three sigils are yours.",
+   "The Glass Spire's gate will open now."]},
+
+ "help": {"title": "How to Play", "who": "sable", "lines": [
+   "Move: arrows, WASD, D-pad or left stick", "Jump: Z, Alt, Ctrl or K  (pad A)",
+   "Fire: X, Shift, Space or J  (pad X or B)", "Climb vines and look: UP / DOWN",
+   "Items: I or Enter (pad Y)   Pack: B (pad Back)", "Menu: Esc or P (pad Start)"]},
+ "story": [
+   {"who": "orrin", "title": "The Vale", "lines": [
+     "Every night I light the lamps of the Vale.", "Every morning the crystals sing them out.",
+     "Last night the singing stopped."]},
+   {"who": "sable", "title": "Sable", "lines": [
+     "The Glass Regent has taken the three sigils,", "Root, Tide and Ember, into his Spire.",
+     "Without them the Vale will set like glass."]},
+   {"who": "sable", "title": "Sable", "lines": [
+     "Walk the Vale path, lamplighter.", "Find the sigils. Break the Spire's heart.",
+     "I will find you on the way."]}],
+
+ "owl_hollow": [
+   {"who": "sable", "title": "Sable", "lines": ["Hoo. You came, lamplighter.", "The hollow is overgrown, but it", "remembers the old paths."]},
+   {"who": "orrin", "title": "Orrin", "lines": ["Where do I start?"]},
+   {"who": "sable", "title": "Sable", "lines": ["Climb the vines, find the gate key.", "Keys of colour open doors of colour.", "And mind the burrowhogs."]}],
+ "owl_mines": [
+   {"who": "sable", "title": "Sable", "lines": ["The miners fled when the Regent's", "drones came. Their levers still work."]},
+   {"who": "orrin", "title": "Orrin", "lines": ["And the Sigil of Root?"]},
+   {"who": "sable", "title": "Sable", "lines": ["Deep below, past the crumbling floors.", "Stones break cracked rock. Try them."]}],
+ "owl_aqueduct": [
+   {"who": "sable", "title": "Sable", "lines": ["The old aqueduct is flooded.", "No lamplighter can swim that deep..."]},
+   {"who": "orrin", "title": "Orrin", "lines": ["...but a diving bell could."]},
+   {"who": "sable", "title": "Sable", "lines": ["Exactly. And the lamp will", "bring you back to yourself."]}],
+ "owl_canopy": [
+   {"who": "sable", "title": "Sable", "lines": ["The Thornwood grows too tall", "to climb. You will need wings."]},
+   {"who": "orrin", "title": "Orrin", "lines": ["Wings. Of course. Why not."]}],
+ "owl_foundry": [
+   {"who": "sable", "title": "Sable", "lines": ["The Regent's foundry pours glass", "day and night. It is very hot."]},
+   {"who": "orrin", "title": "Orrin", "lines": ["I'll keep off the orange parts."]},
+   {"who": "sable", "title": "Sable", "lines": ["Embers melt his sentries.", "Tolly sells them, if you have shards."]}],
+ "owl_spire": [
+   {"who": "sable", "title": "Sable", "lines": ["This is his Spire. Above us", "the heart crystal holds the Vale still."]},
+   {"who": "orrin", "title": "Orrin", "lines": ["Then I'll put out his light", "and give the Vale its own back."]}],
+
+ "sign_hollow_1": {"title": "Old Signpost", "who": "", "lines": ["MOSSGATE HOLLOW", "Mind the vines, they are older", "than the path."]},
+ "sign_hollow_2": {"title": "Scratched Note", "who": "", "lines": ["Springs in the moss.", "Jump on them from above."]},
+ "sign_mines_1": {"title": "Miners' Board", "who": "", "lines": ["LIFT: hold UP to rise.", "LEVER opens the east bridge.", "Cracked rock: stand clear."]},
+ "sign_mines_2": {"title": "Warning", "who": "", "lines": ["Soft floor ahead. Keep moving!"]},
+ "sign_aqueduct_1": {"title": "Keeper's Plaque", "who": "", "lines": ["The bell stays in the cistern.", "Leave the water and the lamp", "will make you walk again."]},
+ "sign_canopy_1": {"title": "Carved Bark", "who": "", "lines": ["The glowing boughs come and go.", "Count before you jump."]},
+ "sign_foundry_1": {"title": "Foundry Rule", "who": "", "lines": ["NO LAMPLIGHTERS.", "(Someone has crossed that out.)"]},
+ "sign_vale_1": {"title": "Waystone", "who": "", "lines": ["The Vale path. Walk to a", "glowing marker to enter a stage.", "You can save here from the menu."]},
+ "note_hollow": {"title": "Orrin's Notebook", "who": "orrin", "lines": ["Day one. The lamps are dark.", "Sable says to follow the path.", "My boots are already wet."]},
+ "note_mines": {"title": "A Miner's Letter", "who": "", "lines": ["Mara, we are leaving the mine.", "The drones don't sleep and the lift", "groans. Take the key by the lamp."]},
+ "note_foundry": {"title": "Regent's Order", "who": "regent", "lines": ["All living growth is flawed.", "Glass does not rot.", "Pour faster."]},
+
+ "ending": [
+   {"who": "orrin", "title": "Dawn", "lines": ["The Spire rings once and falls quiet.", "Down in the Vale the crystals", "begin, softly, to sing."]},
+   {"who": "sable", "title": "Sable", "lines": ["Well lit, lamplighter.", "Hoo. Now go home and sleep."]},
+   {"who": "orrin", "title": "Orrin", "lines": ["Tonight I'll light the lamps", "a little early."]}]
+}
