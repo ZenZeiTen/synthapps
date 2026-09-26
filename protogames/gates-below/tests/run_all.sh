@@ -20,3 +20,8 @@ if echo "$out" | grep -qiE "script error|parse error"; then echo "$out" | grep -
 out=$(godot --headless --path godot --quit-after 200 -- --script=create,pearl:315:70,croll,caccept,cadd,pearl:135:70,croll,caccept,cbegin,fw,ov:inv,ov: 2>&1 || true)
 if echo "$out" | grep -qiE "script error|parse error"; then echo "$out" | grep -iE "script error|parse error"; exit 1; fi
 echo "no script errors (explore session and the creation screen)"
+echo "== mouse movement (pad, right-click zones, edge turns) from A = 1,1 facing east"
+got=$(godot --headless --path godot --quit-after 3000 -- --script=seed:5,dump,click:495:150,wait,wait,dump,rclick:50:50,wait,wait,dump,click:10:100,wait,wait,dump,rclick:224:250,wait,wait,dump,click:523:170,wait,wait,dump,rclick:400:50,wait,dump 2>&1 | grep -oE "pos=[0-9]+,[0-9]+ dir=[0-9]" | tr '\n' ' ')
+want="pos=1,1 dir=1 pos=2,1 dir=1 pos=2,1 dir=0 pos=2,1 dir=3 pos=2,1 dir=3 pos=2,0 dir=3 pos=2,0 dir=0 "
+if [ "$got" != "$want" ]; then echo "FAIL mouse movement"; echo " got:  $got"; echo " want: $want"; exit 1; fi
+echo "pad forward, zone turn left, edge turn left, zone back (door blocks), pad strafe right, zone turn right: all as expected"
