@@ -145,7 +145,67 @@ def _dead():
     return c
 
 
-UI = {"panel": lambda: [panel()], "slot": lambda: [slot()], "compass": lambda: [compass()], "cursor": lambda: [cursor()],
+def disc():
+    """The creation disc, 171x171, centre (85, 85), usable radius 75 (the original's
+    PERLA_MAXPOLOMER). Eight wedges, one per archetype profile of CHARGEN.C, counted
+    counter-clockwise from the east. Each wedge is tinted by its profile's strong
+    stats (red STR, blue MAG, green DEX, gold MOB), dithered, fading to plain stone at
+    the balanced centre."""
+    import math
+    from canvas import dither
+    size, cx, cy, R = 171, 85, 85, 75
+    tint = {"str": 27, "mag": 23, "dex": 19, "mob": 12}
+    corners = [("str", "mob"), ("mob", "mob"), ("mag", "mob"), ("mag", "mag"),
+               ("mag", "dex"), ("dex", "dex"), ("str", "dex"), ("str", "str")]
+    c = Canvas(size, size)
+    for y in range(size):
+        for x in range(size):
+            dx, dy = x - cx, cy - y            # y up, as the original measures the angle
+            d = math.hypot(dx, dy)
+            if d > R + 9:
+                continue
+            if d > R + 1:                      # rim: carved stone band
+                col = 5 if (dx + dy) < 0 else 3
+                if R + 4 <= d <= R + 5:
+                    col = 12
+                c.set(x, y, col)
+                continue
+            ang = math.degrees(math.atan2(dy, dx)) % 360
+            k = int(((ang + 22.5) % 360) // 45)
+            pair = corners[k]
+            base = 2
+            t_ = min(1.0, d / R) * 0.85
+            col = base
+            if dither(x, y, t_):
+                col = tint[pair[0]] if (x + y) % 2 == 0 or pair[0] == pair[1] else tint[pair[1]]
+            c.set(x, y, col)
+            # wedge borders and rings
+            if abs(((ang + 22.5) % 45) - 0.0) < 0.9 and d > 8:
+                c.set(x, y, 1)
+            if abs(d - R * 0.5) < 0.5 or abs(d - R) < 0.6:
+                c.set(x, y, 4)
+    # notches on the rim at each archetype
+    for i in range(8):
+        a = math.radians(i * 45)
+        for rr in range(R + 2, R + 8):
+            c.set(int(round(cx + math.cos(a) * rr)), int(round(cy - math.sin(a) * rr)), 30)
+    c.disc(cx, cy, 6, 3)
+    c.disc(cx, cy, 4, 5)
+    c.set(cx - 1, cy - 2, 7)
+    return c
+
+
+def pearl():
+    c = Canvas(11, 11)
+    c.disc(5, 5, 5, 6)
+    c.disc(5, 5, 4, 7)
+    c.disc(4, 4, 2.5, 8)
+    c.set(3, 3, 31)
+    c.outline(0)
+    return c
+
+
+UI = {"panel": lambda: [panel()], "disc": lambda: [disc()], "pearl": lambda: [pearl()], "slot": lambda: [slot()], "compass": lambda: [compass()], "cursor": lambda: [cursor()],
       "dead": lambda: [_dead()]}
 for _k, _rows in ICON_ROWS.items():
     UI["icon_" + _k] = (lambda rows=_rows: [_icon(rows, ICON_PAL)])

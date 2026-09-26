@@ -100,6 +100,8 @@ func _draw() -> void:
 	match String(m.screen):
 		"title":
 			draw_title()
+		"create":
+			draw_create()
 		_:
 			draw_game()
 	draw_cursor()
@@ -645,15 +647,127 @@ func draw_title() -> void:
 	draw_rect(Rect2(0, 0, 640, 360), c(0, 0.35))
 	font.center(self, 320, 40, "GATES BELOW", c(30), 5, true)
 	font.center(self, 320, 92, "a dungeon crawl on the mechanics of Gates of Skeldal", c(7), 1, true)
-	var items = [["New game", "new"], ["Continue", "continue"], ["Load game", "load_menu"], ["Controls", "help"], ["Quit", "quit"]]
+	var items = [["New game", "new"], ["Create party", "create"], ["Continue", "continue"], ["Load game", "load_menu"], ["Controls", "help"], ["Quit", "quit"]]
 	for i in items.size():
 		var enabled: bool = items[i][1] != "continue" or m.latest_slot() >= 0
-		button(Rect2(250, 140 + i * 26, 140, 20), items[i][0], {"kind": "title", "id": items[i][1]}, enabled)
+		button(Rect2(250, 128 + i * 24, 140, 20), items[i][0], {"kind": "title", "id": items[i][1]}, enabled)
 	font.center(self, 320, 340, "original art, words and music; Godot 4.7, Blender, Aseprite", c(4), 1, true)
 	if String(m.overlay) == "menu":
 		draw_menu()
 	elif String(m.overlay) == "help":
 		draw_help()
+
+
+# ------------------------------------------------------------------ character creation
+
+func draw_create() -> void:
+	var cr: Dictionary = m.create
+	if cr.is_empty():
+		return
+	draw_rect(Rect2(0, 0, 640, 360), c(0, 0.72))
+	panel(Rect2(4, 4, 632, 352), 1)
+	reg(Rect2(4, 4, 632, 352), {"kind": "none"})
+	font.center(self, 320, 10, "CREATE YOUR PARTY", c(30), 2, true)
+	var slots: Array = cr["slots"]
+	var cur: int = int(cr["cur"])
+	# party slots
+	for i in 6:
+		var r: Rect2 = Rect2(12 + i * 104, 32, 100, 58)
+		if i < slots.size():
+			var sl: Dictionary = slots[i]
+			draw_rect(r, c(3 if i == cur else 2))
+			draw_rect(r, c(30 if i == cur else (21 if sl["ready"] else 4)), false, 1.0)
+			draw_texture_rect(tex("portraits/" + String(sl["portrait"])), Rect2(r.position + Vector2(4, 4), Vector2(40, 48)), false)
+			text(r.position + Vector2(48, 6), String(sl["name"]).substr(0, 8), 8)
+			text(r.position + Vector2(48, 20), "ready" if sl["ready"] else ("rolled" if sl["stats"] != null else "..."), 21 if sl["ready"] else 6)
+			if sl["stats"] != null:
+				var ss: Dictionary = sl["stats"]
+				text(r.position + Vector2(48, 34), "S%d M%d" % [ss["str"], ss["mag"]], 5)
+				text(r.position + Vector2(48, 44), "B%d D%d" % [ss["mob"], ss["dex"]], 5)
+			reg(r, {"kind": "c_slot", "i": i})
+		elif i == slots.size():
+			var over: bool = r.has_point(mouse)
+			draw_rect(r, c(3 if over else 2))
+			draw_rect(r, c(4), false, 1.0)
+			font.center(self, r.position.x + 50, r.position.y + 14, "+", c(30), 2, true)
+			font.center(self, r.position.x + 50, r.position.y + 38, "add", c(6), 1, false)
+			reg(r, {"kind": "c_add"})
+		else:
+			draw_rect(r, c(1))
+	var s: Dictionary = slots[cur]
+	# the disc and its pearl
+	var ctr: Vector2 = m.DISC_CENTER
+	icon("ui/disc", ctr - Vector2(85, 85))
+	var pr: Vector2 = Vector2(cos(deg_to_rad(float(s["angle"]))), -sin(deg_to_rad(float(s["angle"])))) * float(s["radius"])
+	icon("ui/pearl", ctr + pr - Vector2(5, 5))
+	for k in 8:
+		var a: float = deg_to_rad(k * 45.0)
+		var lp: Vector2 = ctr + Vector2(cos(a), -sin(a)) * 97.0
+		var near: bool = int(round(float(s["angle"]) / 45.0)) % 8 == k and int(s["radius"]) >= 20
+		font.center(self, lp.x, lp.y - 4, m.CALLINGS[k], c(30 if near else 6), 1, true)
+	reg(Rect2(ctr - Vector2(84, 84), Vector2(168, 168)), {"kind": "c_disc"})
+	# right column: name, faces, ranges, roll
+	var x0: float = 262.0
+	text(Vector2(x0, 100), "Name", 6)
+	var nr: Rect2 = Rect2(x0 + 34, 97, 120, 14)
+	draw_rect(nr, c(0))
+	draw_rect(nr, c(12), false, 1.0)
+	var blink: String = "_" if int(Time.get_ticks_msec() / 400) % 2 == 0 else ""
+	text(nr.position + Vector2(4, 3), String(s["name"]) + blink, 31)
+	text(Vector2(x0 + 164, 100), m.calling_of(s), 30)
+	for i in m.FACES.size():
+		var face: String = m.FACES[i][0]
+		var fr: Rect2 = Rect2(x0 + i * 38, 116, 32, 38)
+		var used: bool = m.face_used(face, cur)
+		draw_texture_rect_region(tex("portraits/" + face), fr, Rect2(4, 2, 32, 38), Color(1, 1, 1, 0.3) if used else Color.WHITE)
+		if face == String(s["portrait"]):
+			draw_rect(fr, c(30), false, 1.0)
+		elif fr.has_point(mouse) and not used:
+			draw_rect(fr, c(7), false, 1.0)
+		if not used:
+			reg(fr, {"kind": "c_face", "face": face})
+	var ranges: Dictionary = m.Rules.disc_ranges(int(s["angle"]), int(s["radius"]))
+	var labels: Array = [["STR", "str", 28], ["MAG", "mag", 24], ["MOB", "mob", 30], ["DEX", "dex", 20]]
+	for i in 4:
+		var y: float = 164.0 + i * 14
+		var k2: String = labels[i][1]
+		var rg: Array = ranges[k2]
+		text(Vector2(x0, y), labels[i][0], 7)
+		var bar: Rect2 = Rect2(x0 + 30, y + 1, 150, 8)
+		draw_rect(bar, c(0))
+		draw_rect(Rect2(bar.position.x + int(rg[0]) * 5, bar.position.y, (int(rg[1]) - int(rg[0]) + 1) * 5, 8), c(int(labels[i][2]), 0.55))
+		text(Vector2(x0 + 186, y), "%2d-%2d" % [rg[0], rg[1]], 6)
+		if s["stats"] != null:
+			var v: int = int(s["stats"][k2])
+			draw_rect(Rect2(bar.position.x + v * 5, bar.position.y - 1, 5, 10), c(int(labels[i][2])))
+			text(Vector2(x0 + 224, y), "= %d" % v, 31)
+	var st = s["stats"]
+	if st == null:
+		var lo: Array = [int(ranges["str"][0]), int(ranges["mag"][0]), int(ranges["mob"][0]), int(ranges["dex"][0])]
+		var hi: Array = [int(ranges["str"][1]), int(ranges["mag"][1]), int(ranges["mob"][1]), int(ranges["dex"][1])]
+		text(Vector2(x0, 224), "HP %d-%d  Mana %d-%d  Stamina %d-%d" % [(3 * lo[0] + lo[2]) / 2, (3 * hi[0] + hi[2]) / 2, 2 * lo[1], 2 * hi[1], 2 * lo[3], 2 * hi[3]], 6)
+		text(Vector2(x0, 238), "Roll to see this character's stats and kit.", 5)
+	else:
+		text(Vector2(x0, 224), "HP %d   Mana %d   Stamina %d   AP %d" % [(3 * int(st["str"]) + int(st["mob"])) / 2, 2 * int(st["mag"]), 2 * int(st["dex"]), m.Rules.ap(int(st["mob"]))], 8)
+		var kit: Array = []
+		for it in m.g.starting_kit(st):
+			if it[0] == "quiver":
+				kit.append("%d arrows" % int(it[1]))
+			else:
+				kit.append(String(m.content["items"][it[1]]["name"]))
+		var lines: PackedStringArray = font.wrap("Kit: " + ", ".join(kit), 360)
+		for i in mini(lines.size(), 2):
+			text(Vector2(x0, 238 + i * 10), lines[i], 7)
+	button(Rect2(x0, 264, 80, 18), "Roll" if st == null else "Reroll", {"kind": "c_roll"})
+	button(Rect2(x0 + 88, 264, 80, 18), "Accept", {"kind": "c_accept"}, st != null and not s["ready"] and String(s["name"]).strip_edges() != "")
+	button(Rect2(x0 + 176, 264, 80, 18), "Remove", {"kind": "c_remove"}, slots.size() > 1)
+	var tips: PackedStringArray = font.wrap("Drag the pearl: its direction picks the calling, its distance from the centre how strongly. Moving it clears the roll. Type to rename.", 360)
+	for i in tips.size():
+		text(Vector2(x0, 292 + i * 10), tips[i], 5)
+	button(Rect2(12, 330, 80, 18), "Back", {"kind": "c_back"})
+	button(Rect2(470, 330, 156, 18), "Begin the descent", {"kind": "c_begin"}, m.party_ready())
+	if not m.party_ready():
+		font.center(self, 300, 335, "accept every character to begin", c(5), 1, false)
 
 
 func draw_cursor() -> void:

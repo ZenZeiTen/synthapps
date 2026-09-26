@@ -80,6 +80,8 @@ Checks:
   aseprite -b art/aseprite/mob_rat.aseprite --sheet rat.png --data rat.json --format json-array --sheet-type horizontal --list-tags
   ```
 
+The creation disc (`ui/disc`, 171 px, usable radius 75 as in the original) is drawn in `art_ui.py`. It has eight dithered wedges tinted by each profile's strong stats (red STR, blue MAG, green DEX, gold MOB), fading to plain stone at the balanced centre.
+
 The palette (`pipeline/aseprite/palette.py`) has 32 colours in hue-shifted ramps. Darks lean violet and lights lean warm. The ramps are stone, wood, skin, moss, water/cold and blood/fire, plus gold.
 
 ## Monster sprites: Blender to Aseprite

@@ -22,6 +22,59 @@ const HOUR := 360          # game ticks per hour (HODINA)
 const MAX_SLEEP := 4320    # 12 h sleep budget (MAX_SLEEP)
 
 
+## The creation disc (CHARGEN.C:104-115): eight archetype profiles 45 degrees apart,
+## counter-clockwise from the east, plus the balanced centre. Each is
+## [STR lo, STR hi, MAG lo, MAG hi, MOB lo, MOB hi, DEX lo, DEX hi].
+const DISC_CORNERS := [
+	[17, 22, 5, 10, 17, 22, 9, 14],
+	[13, 18, 10, 15, 20, 25, 5, 10],
+	[9, 14, 15, 20, 17, 22, 9, 14],
+	[5, 10, 20, 25, 13, 18, 13, 18],
+	[9, 14, 15, 20, 9, 14, 17, 22],
+	[13, 18, 10, 15, 5, 10, 20, 25],
+	[17, 22, 5, 10, 9, 14, 17, 22],
+	[20, 25, 0, 5, 13, 18, 13, 18],
+	[12, 17, 12, 17, 12, 17, 12, 17],
+]
+const DISC_RADIUS := 75   # PERLA_MAXPOLOMER
+
+
+## CALC_DIFF / CALC_DIFF2: x + round((y - x) * k / n) in the original's fixed point
+## (C division truncates toward zero, >> floors).
+static func _calc_diff(x: int, y: int, k: int, n: int) -> int:
+	var num: int = ((y - x) << 4) * (k << 4)
+	var q: int = num / (n << 4)   # 720 for the angle (45 << 4), 1200 for the radius
+	return x + ((q + 8) >> 4)
+
+
+## Stat ranges for a pearl at angle (degrees, counter-clockwise from east) and radius
+## (0..75): vypocet_vlastnosti, CHARGEN.C:340-374. Returns {"str": [lo, hi], ...}.
+static func disc_ranges(angle: int, radius: int) -> Dictionary:
+	angle = posmod(angle, 360)
+	radius = clampi(radius, 0, DISC_RADIUS)
+	var p: int = angle / 45
+	var rem: int = angle % 45
+	var low: Array = DISC_CORNERS[p]
+	var hi: Array = DISC_CORNERS[(p + 1) % 8]
+	var rim := []
+	for i in 8:
+		rim.append(_calc_diff(int(low[i]), int(hi[i]), rem, 45))
+	var centre: Array = DISC_CORNERS[8]
+	var v := []
+	for i in 8:
+		v.append(_calc_diff(int(centre[i]), int(rim[i]), radius, DISC_RADIUS))
+	return {"str": [v[0], v[1]], "mag": [v[2], v[3]], "mob": [v[4], v[5]], "dex": [v[6], v[7]]}
+
+
+## Roll each stat uniformly inside its range (generuj_postavu, CHARGEN.C:616-646).
+static func disc_roll(rng, ranges: Dictionary) -> Dictionary:
+	var out := {}
+	for k in ["str", "mag", "mob", "dex"]:
+		var r: Array = ranges[k]
+		out[k] = int(r[0]) + rng.rnd(int(r[1]) - int(r[0]) + 1)
+	return out
+
+
 static func blank_stats() -> Dictionary:
 	var d := {}
 	for s in STATS:

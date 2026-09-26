@@ -40,6 +40,7 @@ func _init() -> void:
 	test_levels(c)
 	test_mechanics(c)
 	test_save(c)
+	test_created(c)
 	test_playthrough(c, verbose)
 	print("%d passed, %d failed" % [passed, failed])
 	quit(1 if failed > 0 else 0)
@@ -85,6 +86,22 @@ func test_rules() -> void:
 	check("flee never at 0", not Rules.wants_to_flee(Rng.new(5), 0, 1, 100, 99, 1))
 	check("weight defect", Rules.weight_defect(4000, 10) == 1 and Rules.weight_defect(1000, 10) == 0)
 	check("sound volume", is_equal_approx(Rules.sound_volume(0), 1.0) and Rules.sound_volume(8) == 0.0)
+	# the creation disc (vypocet_vlastnosti): corners, centre, and interpolation with the
+	# original's fixed-point rounding (worked by hand from CALC_DIFF / CALC_DIFF2)
+	var d0 := Rules.disc_ranges(0, 75)
+	check("disc east rim = corner 0", d0 == {"str": [17, 22], "mag": [5, 10], "mob": [17, 22], "dex": [9, 14]}, str(d0))
+	check("disc centre = balanced", Rules.disc_ranges(123, 0) == {"str": [12, 17], "mag": [12, 17], "mob": [12, 17], "dex": [12, 17]})
+	check("disc 45 deg rim = corner 1", Rules.disc_ranges(45, 75)["mob"] == [20, 25])
+	var d22 := Rules.disc_ranges(22, 75)
+	check("disc 22 deg: STR 15-20, MAG 7-12, MOB 18-23", d22["str"] == [15, 20] and d22["mag"] == [7, 12] and d22["mob"] == [18, 23], str(d22))
+	check("disc half radius: STR lo 14", Rules.disc_ranges(0, 37)["str"][0] == 14, str(Rules.disc_ranges(0, 37)))
+	check("disc 359 deg: negative step floors (STR lo 17)", Rules.disc_ranges(359, 75)["str"][0] == 17, str(Rules.disc_ranges(359, 75)))
+	check("disc radius clamps at 75", Rules.disc_ranges(90, 200) == Rules.disc_ranges(90, 75))
+	# cases where the +8 rounding matters: MOB at 10 deg is 17 + round(3*10/45) = 18, not 17
+	check("disc 10 deg rim rounds MOB up to 18", Rules.disc_ranges(10, 75)["mob"] == [18, 23], str(Rules.disc_ranges(10, 75)))
+	check("disc 10 deg r50 rounds STR to 15", Rules.disc_ranges(10, 50)["str"] == [15, 20], str(Rules.disc_ranges(10, 50)))
+	var rolled := Rules.disc_roll(Rng.new(4), d22)
+	check("disc roll stays in range", rolled["str"] >= 15 and rolled["str"] <= 20 and rolled["mag"] >= 7 and rolled["mag"] <= 12)
 	var r1 := Rng.new(99)
 	var r2 := Rng.new(99)
 	var same := true
@@ -195,6 +212,53 @@ func test_mechanics(c: Dictionary) -> void:
 	g.raise_stat(0, "str")
 	check("STR +1 raises max HP by the floored 1.5x step", int(ch["base"]["hp_max"]) - hp1 == int(1.5 * (str0 + 1)) - int(1.5 * str0))
 	check("hidden gains raised HP", hp1 > hp0)
+
+
+## A party made on the disc: four builds from the four quarters of the disc.
+static func made_specs(seed_value: int) -> Array:
+	var rng := Rng.new(seed_value)
+	var out := []
+	var picks := [["Wren", "garrow", "m", 315, 70], ["Hale", "vesna", "f", 135, 70], ["Pell", "sefa", "f", 225, 60], ["Corin", "tobin", "m", 20, 50]]
+	for p in picks:
+		out.append({"name": p[0], "portrait": p[1], "sex": p[2], "stats": Rules.disc_roll(rng, Rules.disc_ranges(p[3], p[4]))})
+	return out
+
+
+func test_created(c: Dictionary) -> void:
+	var g := Game.new(c)
+	var specs := made_specs(11)
+	g.new_game_custom(5, specs)
+	check("created party size", g.s["party"].size() == 4)
+	var ok := true
+	for ch in g.s["party"]:
+		for slot in ch["equip"]:
+			if g.meets_req(ch, ch["equip"][slot]) != "":
+				ok = false
+				print("  ", ch["name"], " cannot use ", ch["equip"][slot]["id"])
+	check("every starting item meets its requirements", ok)
+	var mage: Dictionary = g.s["party"][1]
+	check("the mage build gets a staff", mage["equip"].get("hand_r", {"id": ""})["id"] == "staff", str(mage["equip"]))
+	var b0: Dictionary = g.s["party"][0]["base"]
+	check("creation formula for made characters", int(b0["hp_max"]) == (3 * int(specs[0]["stats"]["str"]) + int(specs[0]["stats"]["mob"])) / 2)
+	check("first three: +1 max attack when STR > 20", int(b0["atk_h"]) == (3 if int(specs[0]["stats"]["str"]) > 20 else 2))
+	var strong := {"name": "S", "portrait": "brann", "sex": "m", "stats": {"str": 24, "mag": 2, "mob": 15, "dex": 22}}
+	var g1 := Game.new(c)
+	g1.new_game_custom(5, [strong])
+	check("first slot: STR 24 gives max attack 3, DEX 22 gives max defence 3", int(g1.s["party"][0]["base"]["atk_h"]) == 3 and int(g1.s["party"][0]["base"]["def_h"]) == 3,
+		str([g1.s["party"][0]["base"]["atk_h"], g1.s["party"][0]["base"]["def_h"]]))
+	# the fourth character never gets the bonus, whatever the roll
+	var sp4 := {"name": "X", "portrait": "odo", "sex": "m", "stats": {"str": 25, "mag": 0, "mob": 15, "dex": 25}}
+	var g2 := Game.new(c)
+	g2.new_game_custom(5, [specs[0], specs[1], specs[2], sp4])
+	check("fourth character gets no creation bonus", int(g2.s["party"][3]["base"]["atk_h"]) == 2 and int(g2.s["party"][3]["base"]["def_h"]) == 2)
+	# a made party can win the whole game
+	var g3 := Game.new(c)
+	g3.new_game_custom(20260926, made_specs(3))
+	var b := Bot.new(g3)
+	var won: bool = Walk.play(b)
+	check("walkthrough wins with a party made on the disc", won, "mode=%s level=%s" % [g3.s["mode"], g3.s["level"]])
+	print("made-party playthrough: %d rounds, levels %s, dead %d" % [b.rounds, str(g3.s["party"].map(func(ch): return ch["level"])),
+		g3.s["party"].filter(func(ch): return ch["dead"]).size()])
 
 
 func test_save(c: Dictionary) -> void:

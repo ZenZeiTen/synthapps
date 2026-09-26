@@ -2,7 +2,7 @@
 
 *Gates Below* is a first-person, step-by-step party dungeon crawler. It is built on the mechanics of **Gates of Skeldal** (*Brány Skeldalu*, 1998), which were reverse-engineered from that game's C source.
 
-You lead four townsfolk of Harrowmoot down three levels of the Underkeep, to bring back the stolen Sealstone and set it in the Nether Gate.
+You lead four townsfolk of Harrowmoot down three levels of the Underkeep, to bring back the stolen Sealstone and set it in the Nether Gate. Or you make your own party of one to six on the original's **creation disc**.
 
 ![Exploring the Cellar Vaults](docs/screens/explore.png)
 
@@ -10,6 +10,7 @@ You lead four townsfolk of Harrowmoot down three levels of the Underkeep, to bri
 |---|---|
 | ![battle](docs/screens/battle.png) | ![inventory](docs/screens/inventory.png) |
 | ![cistern](docs/screens/cistern.png) | ![the Warden](docs/screens/warden.png) |
+| ![creating a party on the disc](docs/screens/create.png) | |
 
 **What is from the original, and what is new.**
 - **From the original:** the rules. The hit formula, action points, casting risk, XP table, square/face level model and monster AI order all follow the source. See **[docs/ANALYSIS.md](docs/ANALYSIS.md)** for how the original works.
@@ -37,6 +38,14 @@ See [docs/PIPELINE.md](docs/PIPELINE.md).
 |---|---|
 | Godot editor | open `godot/project.godot` in Godot 4.7 and press F5 |
 | Linux / Windows | `godot --headless --path godot --export-release "Linux" ../dist/linux/gates-below.x86_64` (or `"Windows Desktop"` and `../dist/windows/gates-below.exe`). This writes one self-contained file. It needs the 4.7.1 export templates |
+
+**Making a party.** Pick **Create party** on the title screen.
+- Drag the pearl on the disc. Its direction picks one of eight callings (Warrior, Sage, Rogue, …) and its distance from the centre sets how strongly.
+- The stat ranges update live as you drag.
+- Pick a face and type a name. **Roll** (or Enter) draws the stats inside the ranges; you can reroll. **Accept** the character, and add up to six.
+- **Begin the descent** starts the game.
+
+Each character's starting kit follows their strongest stat.
 
 **Controls**
 
@@ -98,18 +107,18 @@ The export check needs the export templates.
 
 | check | proves |
 |---|---|
-| `godot/tests/run_tests.gd` | the formulas against hand-computed values (hit, casting risk, action points, resistance stacking, XP); every level compiles, every square connects, every stair and pit target exists; doors, levers, plates, runes, illusions and equip requirements behave; saves round-trip and replay identically; and **a bot plays the whole game from the core API and wins** |
-| `godot/tests/balance.gd` | the same playthrough over many seeds: wins and deaths per seed |
-| `tests/mutation_core.py` | plants 8 faults in the rules core; the suite must catch each one |
+| `godot/tests/run_tests.gd` | the formulas against hand-computed values (hit, casting risk, action points, resistance stacking, XP, the creation disc's interpolation and rounding); every level compiles, every square connects, every stair and pit target exists; doors, levers, plates, runes, illusions and equip requirements behave; saves round-trip and replay identically; and **a bot plays the whole game from the core API and wins** |
+| `godot/tests/balance.gd` | the same playthrough over many seeds: wins and deaths per seed. `--made` uses random parties made on the disc |
+| `tests/mutation_core.py` | plants 10 faults in the rules core; the suite must catch each one |
 | `tests/verify_art.py` | every exported PNG equals its `.aseprite` source, pixel for pixel, on the 32-colour palette |
 | `tests/verify_audio.py` | every sound the core requests exists; every music loop seam is inaudible |
-| smoke test (in `run_all.sh`) | the real main scene runs 200 frames of scripted input without a script error |
+| smoke test (in `run_all.sh`) | the real main scene runs 200 frames of scripted input without a script error: an exploration session, then making a party on the creation screen |
 | `tests/verify_export.py` | the exported Linux build runs from an unrelated folder and renders the dungeon |
 
 Results on 2026-09-26, with Godot 4.7.1:
-- **Core suite:** 106 passed, 0 failed. The walkthrough wins with no deaths (party levels 5-6).
-- **Balance:** 12/12 seeds won, with an average of 0.8 deaths.
-- **Mutation check:** 8/8 mutants caught.
+- **Core suite:** 124 passed, 0 failed. The walkthrough wins with no deaths (party levels 5-6), both with the default party and with a party made on the disc.
+- **Balance:** 12/12 seeds won with the default party, averaging 0.8 deaths. With four characters at random disc positions, 14/16 seeds were won, averaging 1.1 deaths; both losses were at the Warden, with parties rolled without much magic.
+- **Mutation check:** 10/10 mutants caught.
 - **Art:** 88 `.aseprite` sources; 86,333 opaque pixels match their sources.
 - **Audio:** 33 effect names referenced and all present; 5 seamless music loops.
 - **Export:** a single 80 MB Linux binary runs from an unrelated folder. The Windows `.exe` (116 MB) exports too, but was not run here (no Windows machine).
@@ -123,4 +132,3 @@ These were checked by the tests or by screenshot, but not by a person playing:
 
 Also not done:
 - **Dropped original features:** the world map, flute puzzles, boats and lava, party splitting, demon form and haggling. See [docs/DESIGN.md](docs/DESIGN.md).
-- **Character creation:** there is no creation screen yet. The party is fixed; the original's stat disc is described in ANALYSIS.md.

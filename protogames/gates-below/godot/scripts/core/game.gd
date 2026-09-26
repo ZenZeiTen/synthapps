@@ -56,6 +56,88 @@ func new_game(seed_value: int = 20260926) -> void:
 	enter_level(first, "", -1)
 
 
+## A new game with a party made on the creation disc. specs: [{name, portrait, sex,
+## stats: {str, mag, mob, dex}}], 1..MAX_PARTY of them, already rolled.
+func new_game_custom(seed_value: int, specs: Array) -> void:
+	new_game(seed_value)
+	s["party"] = []
+	for i in specs.size():
+		s["party"].append(make_created(i, specs[i]))
+	# enter_level already ran with the default party; nothing in it depends on who is in it
+	events = events.filter(func(e): return e["t"] != "autosave")
+
+
+## Build a created character: the original's creation formulas, 5 bonus points, and a
+## starting kit chosen by the build (every item's requirements are met). The first
+## three characters get +1 maximum attack with STR > 20 and +1 maximum defence with
+## DEX > 20 (CHARGEN.C, end of enter_generator).
+func make_created(i: int, spec: Dictionary) -> Dictionary:
+	var st: Dictionary = spec["stats"]
+	var ch := {"id": "made%d" % i, "name": spec["name"], "portrait": spec["portrait"], "sex": spec.get("sex", "m"),
+		"base": Rules.creation_stats(int(st["str"]), int(st["mag"]), int(st["mob"]), int(st["dex"])),
+		"level": 1, "xp": 0, "points": 5, "skill": {}, "skill_hits": {}, "equip": {}, "pack": [],
+		"quiver": 0, "effects": [], "dead": false, "hp": 0, "mp": 0, "st": 0, "food": 0, "water": 0}
+	for k in PACK_SIZE:
+		ch["pack"].append(null)
+	if i < 3:
+		if int(st["str"]) > 20:
+			ch["base"]["atk_h"] = int(ch["base"]["atk_h"]) + 1
+		if int(st["dex"]) > 20:
+			ch["base"]["def_h"] = int(ch["base"]["def_h"]) + 1
+	for slot_item in starting_kit(st):
+		if slot_item[0] == "quiver":
+			ch["quiver"] = int(slot_item[1])
+		elif slot_item[0] == "pack":
+			pack_add(ch, {"id": slot_item[1]})
+		else:
+			ch["equip"][slot_item[0]] = {"id": slot_item[1]}
+	var cur := stats(ch)
+	ch["hp"] = cur["hp_max"]
+	ch["mp"] = cur["mp_max"]
+	ch["st"] = cur["st_max"]
+	ch["food"] = Rules.food_max(cur["hp_max"])
+	ch["water"] = Rules.water_max(cur["hp_max"])
+	return ch
+
+
+## Kit by the strongest stat (Magic counts double: a mage wants a staff even when
+## middling). Returns [[slot, item id or amount], ...]; slot "pack" = backpack.
+func starting_kit(st: Dictionary) -> Array:
+	var strv := int(st["str"])
+	var magv := int(st["mag"])
+	var dexv := int(st["dex"])
+	var mobv := int(st["mob"])
+	var kit := []
+	var best := "str"
+	var score := strv
+	for k in [["mag", magv + 4], ["dex", dexv], ["mob", mobv - 2]]:
+		if int(k[1]) > score:
+			best = k[0]
+			score = int(k[1])
+	match best:
+		"str":
+			kit.append(["hand_r", "mace" if strv >= 13 else "dagger"])
+			if strv >= 10:
+				kit.append(["hand_l", "shield"])
+			kit.append(["body", "leather"])
+		"mag":
+			kit.append(["hand_r", "staff"] if magv >= 8 else ["hand_r", "dagger"])
+			kit.append(["pack", "potion_blue"])
+		"dex":
+			if dexv >= 12:
+				kit.append(["hand_r", "bow"])
+				kit.append(["quiver", 24])
+				kit.append(["pack", "dagger"])
+			else:
+				kit.append(["hand_r", "dagger"])
+		"mob":
+			kit.append(["hand_r", "sword"] if strv >= 12 else ["hand_r", "dagger"])
+			kit.append(["body", "leather"])
+	kit.append(["pack", "bread"])
+	kit.append(["pack", "potion_red"])
+	return kit
+
+
 func make_character(cid: String) -> Dictionary:
 	var d: Dictionary = content["party"]["characters"][cid]
 	var ch = {"id": cid, "name": d["name"], "portrait": d["portrait"], "sex": d.get("sex", "m"),

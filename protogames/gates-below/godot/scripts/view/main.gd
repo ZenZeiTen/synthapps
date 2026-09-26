@@ -15,7 +15,17 @@ const SAVE_DIR := "user://saves/"
 const MOVE_KEYS := {KEY_W: 0, KEY_UP: 0, KEY_S: 2, KEY_DOWN: 2, KEY_A: 3, KEY_D: 1}
 const TURN_KEYS := {KEY_Q: -1, KEY_LEFT: -1, KEY_E: 1, KEY_RIGHT: 1}
 
+const Rules = preload("res://scripts/core/rules.gd")
+const Rng = preload("res://scripts/core/rng.gd")
+## Faces offered on the creation screen (Maren's is kept for Maren), with default names.
+const FACES := [["garrow", "Garrow", "m"], ["vesna", "Vesna", "f"], ["sefa", "Sefa", "f"], ["brann", "Brann", "m"],
+	["ilsa", "Ilsa", "f"], ["odo", "Odo", "m"], ["tobin", "Tobin", "m"]]
+## The eight disc profiles, counter-clockwise from the east.
+const CALLINGS := ["Strider", "Runner", "Seer", "Sage", "Adept", "Rogue", "Duelist", "Warrior"]
+const DISC_CENTER := Vector2(130, 196)
+
 var content: Dictionary
+var create: Dictionary = {}   # the creation screen: {slots, cur, rng, drag}
 var g
 var A
 var dungeon
@@ -172,6 +182,151 @@ func _save_settings() -> void:
 	cf.save("user://settings.cfg")
 
 
+# ------------------------------------------------------------------ creation screen
+
+func open_create() -> void:
+	screen = "create"
+	overlay = ""
+	create = {"slots": [], "cur": 0, "rng": Rng.new(int(Time.get_unix_time_from_system()) & 0x7FFFFFFF), "drag": false}
+	add_slot()
+
+
+func face_used(face: String, except: int) -> bool:
+	for i in create["slots"].size():
+		if i != except and String(create["slots"][i]["portrait"]) == face:
+			return true
+	return false
+
+
+func add_slot() -> void:
+	if create["slots"].size() >= 6:
+		return
+	var idx: int = create["slots"].size()
+	var face: Array = FACES[0]
+	for f in FACES:
+		if not face_used(f[0], -1):
+			face = f
+			break
+	create["slots"].append({"name": face[1], "portrait": face[0], "sex": face[2], "angle": 0, "radius": 0, "stats": null, "ready": false})
+	create["cur"] = idx
+
+
+func cur_slot() -> Dictionary:
+	return create["slots"][int(create["cur"])]
+
+
+func calling_of(slot: Dictionary) -> String:
+	if int(slot["radius"]) < 20:
+		return "Balanced"
+	var k: int = int(round(float(slot["angle"]) / 45.0)) % 8
+	return ("Leaning " if int(slot["radius"]) < 50 else "") + CALLINGS[k]
+
+
+func set_pearl(p: Vector2) -> void:
+	var s: Dictionary = cur_slot()
+	var d: Vector2 = p - DISC_CENTER
+	var ang: int = int(round(rad_to_deg(atan2(-d.y, d.x))))
+	if ang < 0:
+		ang += 360
+	ang %= 360
+	var r: int = mini(int(d.length()), Rules.DISC_RADIUS)
+	if ang != int(s["angle"]) or r != int(s["radius"]):
+		s["angle"] = ang
+		s["radius"] = r
+		s["stats"] = null     # moving the pearl re-opens the roll
+		s["ready"] = false
+
+
+func create_action(info: Dictionary) -> void:
+	var s: Dictionary = cur_slot()
+	match String(info["kind"]):
+		"c_slot":
+			create["cur"] = int(info["i"])
+		"c_add":
+			add_slot()
+		"c_face":
+			if not face_used(String(info["face"]), int(create["cur"])):
+				var old_default := ""
+				for f in FACES:
+					if f[0] == s["portrait"]:
+						old_default = f[1]
+				for f in FACES:
+					if f[0] == info["face"]:
+						s["portrait"] = f[0]
+						s["sex"] = f[2]
+						if String(s["name"]) == old_default or String(s["name"]) == "":
+							s["name"] = f[1]
+				s["ready"] = false
+		"c_roll":
+			s["stats"] = Rules.disc_roll(create["rng"], Rules.disc_ranges(int(s["angle"]), int(s["radius"])))
+			s["ready"] = false
+			audio.play("rune")
+		"c_accept":
+			if s["stats"] != null and String(s["name"]).strip_edges() != "":
+				s["ready"] = true
+				audio.play("levelup")
+				for i in create["slots"].size():
+					if not create["slots"][i]["ready"]:
+						create["cur"] = i
+						break
+		"c_remove":
+			if create["slots"].size() > 1:
+				create["slots"].remove_at(int(create["cur"]))
+				create["cur"] = mini(int(create["cur"]), create["slots"].size() - 1)
+		"c_disc":
+			create["drag"] = true
+			set_pearl(ui.get_global_mouse_position())
+		"c_begin":
+			begin_created()
+		"c_back":
+			screen = "title"
+			create = {}
+
+
+func party_ready() -> bool:
+	if create.is_empty():
+		return false
+	for s in create["slots"]:
+		if not s["ready"]:
+			return false
+	return true
+
+
+func begin_created() -> void:
+	if not party_ready():
+		return
+	var specs := []
+	for s in create["slots"]:
+		specs.append({"name": String(s["name"]).strip_edges(), "portrait": s["portrait"], "sex": s["sex"], "stats": s["stats"]})
+	g = Game.new(content)
+	g.new_game_custom(int(create["rng"].next()), specs)
+	create = {}
+	_begin()
+
+
+func _create_key(e: InputEventKey) -> void:
+	var s: Dictionary = cur_slot()
+	if e.keycode == KEY_ESCAPE:
+		create_action({"kind": "c_back"})
+	elif e.keycode == KEY_BACKSPACE:
+		s["name"] = String(s["name"]).substr(0, maxi(0, String(s["name"]).length() - 1))
+		s["ready"] = false
+	elif e.keycode == KEY_ENTER or e.keycode == KEY_KP_ENTER:
+		if party_ready():
+			begin_created()
+		elif s["stats"] == null:
+			create_action({"kind": "c_roll"})
+		else:
+			create_action({"kind": "c_accept"})
+	elif e.keycode == KEY_TAB:
+		create["cur"] = (int(create["cur"]) + 1) % create["slots"].size()
+	elif e.unicode >= 32 and e.unicode < 127 and String(s["name"]).length() < 12:
+		var ch: String = char(e.unicode)
+		if ch.is_valid_identifier() or ch == " " or ch == "'" or ch == "-" or ch.is_valid_int():
+			s["name"] = String(s["name"]) + ch
+			s["ready"] = false
+
+
 # ------------------------------------------------------------------ frame loop
 
 func paused() -> bool:
@@ -194,6 +349,11 @@ func _process(delta: float) -> void:
 			var mv = queued_move
 			queued_move = -99
 			_do_move(mv)
+	if screen == "create" and not create.is_empty() and bool(create["drag"]):
+		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			set_pearl(ui.get_global_mouse_position())
+		else:
+			create["drag"] = false
 	for k in card_flash.keys():
 		card_flash[k] = maxf(0.0, float(card_flash[k]) - delta * 2.5)
 	dungeon.update(delta)
@@ -294,6 +454,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _key(e: InputEventKey) -> void:
 	var k = e.keycode
+	if screen == "create":
+		_create_key(e)
+		return
 	if screen == "title":
 		if k == KEY_ESCAPE and overlay != "":
 			overlay = ""
@@ -401,10 +564,14 @@ func _click(e: InputEventMouseButton) -> void:
 	var right = e.button_index == MOUSE_BUTTON_RIGHT
 	if e.button_index != MOUSE_BUTTON_LEFT and not right:
 		return
+	if String(h.get("kind", "")).begins_with("c_"):
+		create_action(h)
+		return
 	match String(h.get("kind", "")):
 		"title":
 			match String(h["id"]):
 				"new": new_game()
+				"create": open_create()
 				"continue": load_slot(latest_slot())
 				"load_menu":
 					overlay = "menu"
@@ -664,4 +831,12 @@ func _run_cmd(cmd: String) -> void:
 			for b in parts.slice(1):
 				g.add_book(b)
 			overlay = "book"
+		"create": open_create()
+		"pearl":
+			set_pearl(DISC_CENTER + Vector2(cos(deg_to_rad(float(parts[1]))), -sin(deg_to_rad(float(parts[1])))) * float(parts[2]))
+		"cface": create_action({"kind": "c_face", "face": parts[1]})
+		"croll": create_action({"kind": "c_roll"})
+		"caccept": create_action({"kind": "c_accept"})
+		"cadd": create_action({"kind": "c_add"})
+		"cbegin": begin_created()
 		"dump": print("DUMP seen=", g.ls["seen"], " pos=", g.s["x"], ",", g.s["y"], " level=", g.s["level"])

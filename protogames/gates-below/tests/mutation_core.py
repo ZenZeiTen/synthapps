@@ -19,6 +19,8 @@ MUTANTS = [
     ("illusion walls are solid", "game.gd", "\t\t\"open\", \"secret\":\n\t\t\treturn true", "\t\t\"open\":\n\t\t\treturn true"),
     ("runes are not learned", "game.gd", "\t\t\tif not r in s[\"runes\"]:\n\t\t\t\ts[\"runes\"].append(r)", "\t\t\tpass"),
     ("STR point raises HP by 2", "game.gd", "b[\"hp_max\"] = int(b[\"hp_max\"]) + int(1.5 * n) - int(1.5 * o)", "b[\"hp_max\"] = int(b[\"hp_max\"]) + 2"),
+    ("disc interpolation loses its rounding", "rules.gd", "return x + ((q + 8) >> 4)", "return x + (q >> 4)"),
+    ("created characters skip the STR>20 bonus", "game.gd", "\t\tif int(st[\"str\"]) > 20:\n\t\t\tch[\"base\"][\"atk_h\"] = int(ch[\"base\"][\"atk_h\"]) + 1", "\t\tif false:\n\t\t\tpass"),
     ("doors open instantly and never block", "game.gd", "\t\t\"door\", \"gate\":\n\t\t\treturn float(door_state(fi)[\"p\"]) >= 1.0", "\t\t\"door\", \"gate\":\n\t\t\treturn true"),
 ]
 

@@ -33,6 +33,7 @@ Maren, a thief left behind by the robbers, can join as a fifth.
 | round-based battle: plan actions, shuffled initiative | **kept.** Each living character plans an action and repeats it once per action point (`AP = max(1, MOB/15)`). Tokens are shuffled uniformly. **Adapted:** the party moves as one group; a move or flee takes the whole party's round, since party splitting is dropped |
 | hit formula, stamina costs, surprise, monsters hit a random character | **kept exactly** (`vypocet_zasahu`). A party that isn't facing the monster that engages loses round 1 |
 | 24-slot stat block for characters and monsters | **kept**: the same slots (STR, MAG, MOB, DEX, max HP/stamina/mana, attack and defence ranges, 5 resistances, 3 regenerations, magic damage, damage bonus, effect flags) |
+| character creation on a disc between 8 archetype profiles (`vypocet_vlastnosti`, `generuj_postavu`) | **kept**. The creation screen offers 1-6 characters, a face, a name and the pearl. Its angle and distance reproduce the original's interpolation, including its fixed-point rounding. Each stat is rolled uniformly in its range, the creation formulas apply, and the first three characters get +1 max attack if STR > 20 and +1 max defence if DEX > 20. **Adapted:** you may reroll freely (the original rolled once, and a redo meant starting that character over). Regeneration keeps this remake's formulas rather than the disc's 1-4 values, for balance. The kit follows the strongest stat and always meets the item requirements. "New game" still starts with the four townsfolk |
 | derived stats, resistance stacking `(a+b)/(1+ab/8100)`, item requirements, encumbrance | **kept** |
 | XP table, +5 points per level, hidden level gains, XP from damage share + kill bonus + mana cast | **kept** (table to level 40) |
 | weapon skills in 7 families | **kept** (20, 40, 80… hits per level, +1 damage per level) |
@@ -50,6 +51,20 @@ Maren, a thief left behind by the robbers, can join as a fifth.
 | positional sound `32000 − 64000·d/(8+d)` | **kept** as a volume curve on Manhattan distance |
 | step zoom and turn slide | **modernised**: the camera glides between squares and turns smoothly in real 3D |
 | world map, flute puzzles, boats, lava, party splitting, demon form, haggling | **dropped** for scope |
+
+**The disc's eight callings** are this remake's own names, counter-clockwise from the east:
+
+| angle | calling | strong in (original ranges) |
+|---|---|---|
+| 0° | Strider | STR and MOB 17-22 |
+| 45° | Runner | MOB 20-25 |
+| 90° | Seer | MAG 15-20, MOB 17-22 |
+| 135° | Sage | MAG 20-25 |
+| 180° | Adept | MAG 15-20, DEX 17-22 |
+| 225° | Rogue | DEX 20-25 |
+| 270° | Duelist | STR and DEX 17-22 |
+| 315° | Warrior | STR 20-25 |
+| centre | Balanced | 12-17 in everything |
 
 ## Presentation
 

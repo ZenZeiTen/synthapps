@@ -1,12 +1,15 @@
 ## Balance probe: the scripted playthrough over several seeds. Not a pass/fail test;
 ## it prints wins, deaths and party levels per seed.
-##   godot --headless --path godot --script res://tests/balance.gd -- [seeds]
+##   godot --headless --path godot --script res://tests/balance.gd -- [seeds] [--made]
+## --made plays with four characters rolled at random pearl positions on the disc.
 extends SceneTree
 
 const Content = preload("res://scripts/core/content.gd")
 const Game = preload("res://scripts/core/game.gd")
 const Bot = preload("res://tests/bot.gd")
 const Walk = preload("res://tests/walkthrough.gd")
+const Rules = preload("res://scripts/core/rules.gd")
+const Rng = preload("res://scripts/core/rng.gd")
 
 
 func _init() -> void:
@@ -19,7 +22,18 @@ func _init() -> void:
 	var deaths := 0
 	for i in n:
 		var g := Game.new(c)
-		g.new_game(1000 + (i + int(OS.get_environment("SEED_OFFSET") if OS.get_environment("SEED_OFFSET") != "" else "0")) * 7919)
+		var seed_value: int = 1000 + (i + int(OS.get_environment("SEED_OFFSET") if OS.get_environment("SEED_OFFSET") != "" else "0")) * 7919
+		if "--made" in OS.get_cmdline_user_args():
+			# four characters with random pearl positions on the creation disc
+			var r := Rng.new(seed_value)
+			var specs := []
+			var faces := ["garrow", "vesna", "sefa", "brann"]
+			for k in 4:
+				var ranges: Dictionary = Rules.disc_ranges(r.rnd(360), 30 + r.rnd(46))
+				specs.append({"name": faces[k].capitalize(), "portrait": faces[k], "sex": "m", "stats": Rules.disc_roll(r, ranges)})
+			g.new_game_custom(seed_value, specs)
+		else:
+			g.new_game(seed_value)
 		var b := Bot.new(g)
 		var won: bool = Walk.play(b)
 		var dead: int = g.s["party"].filter(func(ch): return ch["dead"]).size()
