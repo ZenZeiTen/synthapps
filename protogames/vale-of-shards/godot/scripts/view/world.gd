@@ -562,7 +562,8 @@ func _hero(p, pos: Vector2) -> void:
 			D.ST_PLATFORM:
 				tag = "squat" if g.dy1 > 0 else ("stand_" + ("r" if p.xd > 0 else "l") if p.xd != 0 else "front")
 			D.ST_STILL:
-				tag = "front"
+				# a hold that began in mid-air falls in profile, then faces the scene
+				tag = "fall_" + face if p.yd > 0 else "front"
 	A.draw_at(self, "hero", A.frame("hero", tag, n), pos, false, mod)
 	if p.counter > 0 and p.state == D.ST_STAND:
 		A.draw_frame(self, "dust", A.frame("dust", "puff", 2 - p.counter / 2), pos + Vector2(4, 32))

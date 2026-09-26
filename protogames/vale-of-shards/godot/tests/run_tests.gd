@@ -50,6 +50,8 @@ func _init() -> void:
 	test_walk_off_edge()
 	test_levels_parse()
 	test_save_roundtrip()
+	test_map_gate_off_row()
+	test_still_in_air_lands()
 	print("%d passed, %d failed" % [passed, failed])
 	quit(1 if failed else 0)
 
@@ -235,3 +237,55 @@ func test_save_roundtrip() -> void:
 		g.step(inp)
 		g2.step(inp)
 	eq(var_to_str(g2.save_state()), var_to_str(g.save_state()), "a loaded game replays identically")
+
+func vale() -> Game:
+	var g := Game.new()
+	g.new_game()
+	g.pl["level"] = 0
+	g.load_level("vale")
+	g.init_inv()
+	g.p_reenter(false)
+	g.modal = {}
+	for i in 41:
+		g.step({})
+	g.modal = {}
+	return g
+
+## Player report: "hitting an invisible barrier after opening the gates". The gates stand in
+## one-cell gaps through the river and the rocks; a walker 4 px off the path's row (it moves
+## 4 px a step) was stopped by the banks beside the open gate.
+func test_map_gate_off_row() -> void:
+	for off in [4, 8, 12, -4]:
+		var g := vale()
+		g.addinv(D.INV_GATEKEY)
+		var p = g.player()
+		p.x = 26 * 16
+		p.y = 17 * 16 + off
+		g.setorigin()                  # objects off the screen do not touch
+		run(g, {"dx": 1}, 40)
+		check(p.x >= 32 * 16, "the walker %+d px off the row passes the river gate (x %d)" % [off, p.x])
+	var g := vale()
+	for s in [D.INV_SIGIL1, D.INV_SIGIL2, D.INV_SIGIL3]:
+		g.addinv(s)
+	var p = g.player()
+	p.x = 43 * 16 + 8
+	p.y = 13 * 16
+	g.setorigin()
+	run(g, {"dy": -1}, 24)             # (a few more steps reach the Spire's marker)
+	check(p.y <= 8 * 16, "the walker 8 px off the column goes up through the Spire gate (y %d)" % p.y)
+
+## Player report: "the screen freezes for a while after defeating the final boss when
+## shooting mid-air". The Regent's and the heart crystal's blasts hold Orrin still for 60
+## steps; a hold that began in mid-air left him hanging there, deaf to every button.
+func test_still_in_air_lands() -> void:
+	var g := fixture()
+	var p = g.player()
+	var floor_y: int = p.y
+	p.y = floor_y - 40
+	p.yd = -6
+	p.state = D.ST_STILL
+	run(g, {"dx": 1, "fire1": true, "fire2": true}, 20)
+	eq(p.y, floor_y, "a hold that starts in mid-air falls to the floor")
+	eq(p.state, D.ST_STILL, "and keeps holding")
+	eq(p.x, 64, "without moving sideways")
+
