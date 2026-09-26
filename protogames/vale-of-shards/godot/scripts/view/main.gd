@@ -28,6 +28,8 @@ var mode := "title"
 var cur := 0                 # menu cursor
 var sub := ""                # sub-mode (slots: "save"/"load"; pages)
 var back_to := "title"
+var slot_rows: Array = []    # [text, date] per save slot, read when the slot menu opens
+var fit_queue: Array = []    # harness `fitall`: windows still to draw, one per frame
 var acc := 0.0
 var options := {"relaxed": false, "music": 0.8, "sfx": 0.9, "fullscreen": false}
 var latch := {"jump": false, "fire": false}
@@ -78,6 +80,7 @@ func _ready() -> void:
 		elif a.begins_with("--script="):
 			script_cmds = Array(a.substr(9).split(","))
 			harness = true
+			ui.audit = true
 	to_title()
 
 
@@ -452,18 +455,22 @@ func show_pages(key: String, ret: String) -> void:
 
 
 func show_controls(ret: String) -> void:
-	page_list = [{"title": "Controls", "who": "", "lines": [
-		"               KEYBOARD          GAMEPAD",
-		"Move / climb   arrows, WASD      D-pad, left stick",
-		"Jump           Z  Alt  Ctrl  K   A (south)",
-		"Fire           X  Shift Space J  X or B",
-		"Items          I  Enter          Y (north)",
-		"Tolly's pack   B                 Back / Select",
-		"Menu           Esc  P            Start",
-		"Menus: confirm Enter/Z or A, back Esc or B"]}]
+	page_list = [{"title": "Controls", "who": "", "lines": controls_lines()}]
 	page = 0
 	back_to = ret
 	mode = "pages"
+
+
+func controls_lines() -> Array:
+	return [
+		"              KEYBOARD         GAMEPAD",
+		"Move, climb   arrows, WASD     D-pad, stick",
+		"Jump          Z Alt Ctrl K     A (south)",
+		"Fire          X Shift Space J  X or B",
+		"Items         I Enter          Y (north)",
+		"Tolly's pack  B                Back/Select",
+		"Menu          Esc P            Start",
+		"Menus: confirm Enter/Z or A, back Esc or B"]
 
 
 func option_change(i: int, d: int) -> void:
@@ -508,19 +515,40 @@ func save_options() -> void:
 
 
 # ------------------------------------------------------------------ saves
+## Harness runs keep their saves apart from the player's.
+func save_dir() -> String:
+	return SAVE_DIR + ("_harness" if harness else "")
+
+
 func open_slots(kind: String, ret: String) -> void:
 	sub = kind
 	back_to = ret
 	mode = "slots"
 	cur = 0
+	slot_rows = []
+	for i in SLOTS:
+		slot_rows.append(slot_row(i))
 
 
-func slot_label(i) -> String:
-	var path := "%s/slot_%s.save" % [SAVE_DIR, str(i)]
+## A slot's row in the menu: "5 of 6 stages  23588 pts" and its date. Both come from the
+## saved state and the date that ends the label, so saves from older builds (whose labels
+## held all of it in one string) show the same way.
+func slot_row(i) -> Array:
+	var path := "%s/slot_%s.save" % [save_dir(), str(i)]
 	if not FileAccess.file_exists(path):
-		return "- empty -"
+		return ["- empty -", ""]
 	var d = str_to_var(FileAccess.get_file_as_string(path))
-	return d.get("label", "?") if d is Dictionary else "?"
+	if not d is Dictionary:
+		return ["?", ""]
+	var label: String = d.get("label", "")
+	var date := ""
+	var m := RegEx.create_from_string("\\d\\d-\\d\\d \\d\\d:\\d\\d$").search(label)
+	if m != null:
+		date = m.get_string()
+	var s = d.get("state")
+	if s is Dictionary and s.has("done") and s.has("pl"):
+		return ["%d of 6 stages  %d pts" % [s["done"].size(), s["pl"].get("score", 0)], date]
+	return [label.trim_suffix(date).strip_edges(), date]
 
 
 func slot_choose(i: int) -> void:
@@ -538,15 +566,15 @@ func slot_choose(i: int) -> void:
 
 
 func write_slot(name: String, label: String) -> void:
-	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
-	var f := FileAccess.open("%s/slot_%s.save" % [SAVE_DIR, name], FileAccess.WRITE)
+	DirAccess.make_dir_recursive_absolute(save_dir())
+	var f := FileAccess.open("%s/slot_%s.save" % [save_dir(), name], FileAccess.WRITE)
 	if f:
 		f.store_string(var_to_str({"label": label + "  " + Time.get_datetime_string_from_system().substr(5, 11).replace("T", " "),
 			"state": g.save_state()}))
 
 
 func load_slot(name: String) -> bool:
-	var path := "%s/slot_%s.save" % [SAVE_DIR, name]
+	var path := "%s/slot_%s.save" % [save_dir(), name]
 	if not FileAccess.file_exists(path):
 		return false
 	var d = str_to_var(FileAccess.get_file_as_string(path))
@@ -743,6 +771,9 @@ func draw_ui(u: UI) -> void:
 			u.message(g, "The Vale")
 		if not g.modal.is_empty() and mode == "play":
 			draw_modal(u)
+	if not fit_queue.is_empty():
+		var w: Array = fit_queue.pop_front()
+		u.text_window(w[0], w[1], w[2], ">")
 	match mode:
 		"title":
 			u.menu("", title_items(), cur, 74, 120, [], 10)
@@ -756,9 +787,11 @@ func draw_ui(u: UI) -> void:
 			draw_shop(u)
 		"slots":
 			var labels: Array = []
-			for i in SLOTS:
-				labels.append("%d  %s" % [i + 1, slot_label(i)])
-			u.menu("Save Game" if sub == "save" else "Load Game", labels, cur, 30, 250)
+			var dates: Array = []
+			for i in slot_rows.size():
+				labels.append("%d  %s" % [i + 1, slot_rows[i][0]])
+				dates.append(slot_rows[i][1])
+			u.menu("Save Game" if sub == "save" else "Load Game", labels, cur, 30, 250, dates)
 		"options":
 			u.menu("Options", ["Relaxed speed", "Music volume", "Sound volume", "Fullscreen", "Done"], cur, 40, 200,
 				["on" if options["relaxed"] else "off", str(int(round(options["music"] * 10))),
@@ -930,6 +963,33 @@ func run_harness() -> void:
 			get_tree().quit()
 		"assets":
 			check_assets()
+		"set":
+			# state shortcuts for setting up a check (the step under test still uses buttons)
+			match a[1]:
+				"score":
+					g.pl["score"] = int(a[2])
+				"done":
+					g.done_stages = range(1, int(a[2]) + 1)
+				_:
+					print("HARNESS unknown command: ", cmd)
+		"fitall":
+			# draw every window of text.json and the Controls page, one per frame, then `fit`
+			var t: Dictionary = g.text if g != null else Game.new().text
+			for k in t:
+				for w in (t[k] if t[k] is Array else [t[k]]):
+					if w is Dictionary:
+						fit_queue.append([w.get("title", ""), w.get("lines", []), w.get("who", "")])
+			fit_queue.append(["Controls", controls_lines(), ""])
+			script_cmds.push_front("fitwait")
+		"fitwait":
+			if not fit_queue.is_empty():
+				script_cmds.push_front(cmd)
+		"fit":
+			# every text drawn since the last `fit` stayed inside its frame
+			var over: Array = ui.overflows.keys()
+			over.sort()
+			print("FIT ok" if over.is_empty() else "FIT %d: %s" % [over.size(), " / ".join(over)])
+			ui.overflows.clear()
 		_:
 			print("HARNESS unknown command: ", cmd)
 
@@ -957,8 +1017,15 @@ func dump() -> void:
 	if mode == "ending":
 		print("DUMP mode=ending phase=%s page=%d" % [ending["phase"], ending["page"]])
 		return
+	if mode == "slots":
+		var rows: Array = []
+		for r in slot_rows:
+			rows.append("%s @ %s" % r if r[1] != "" else r[0])
+		print("DUMP mode=slots %s" % " | ".join(rows))
+		return
 	if g == null:
-		print("DUMP mode=%s" % mode)
+		var at := " title=%s" % page_list[page].get("title", "") if mode == "pages" and page < page_list.size() else ""
+		print("DUMP mode=%s%s" % [mode, at])
 		return
 	var p = g.player()
 	var md: String = g.modal.get("type", "none")

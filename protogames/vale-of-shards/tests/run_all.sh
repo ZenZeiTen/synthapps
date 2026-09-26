@@ -41,15 +41,15 @@ waitmodal,wait:20,dump,ptap:a,wait:20,ptap:a,\
 waitmodal,wait:20,dump,ptap:a,wait:20,dump,ptap:a,wait:20,dump,ptap:a,\
 waitmodal,ptap:x,ptap:x,ptap:x,wait:30,dump,wait:34,ptap:x,ptap:x,wait:40,dump,\
 ptap:a,wait:60,ptap:a,wait:60,ptap:a,wait:60,dump,\
-pad:a,wait:600,padup:a,wait:10,dump,ptap:a,wait:10,ptap:start,wait:10,ptap:a,wait:10,dump,quit"
+pad:a,wait:600,padup:a,wait:10,dump,ptap:a,wait:10,ptap:start,wait:10,ptap:a,wait:10,dump,fit,quit"
 out=$(timeout 600 godot --headless --path godot --quit-after 90000 -- --script="$spire_script" 2>&1) \
   || { echo "$out" | tail -20; echo "FAIL godot exited non-zero: the Spire and the ending"; exit 1; }
-got=$(echo "$out" | grep -E "^REPLAY|^DUMP|^HARNESS|SCRIPT ERROR" | sed -E 's/ level=[a-z]+ pos=.* modal=/ modal=/; s/ inv=.*//' | tr '\n' ';')
+got=$(echo "$out" | grep -E "^REPLAY|^DUMP|^HARNESS|^FIT|SCRIPT ERROR" | sed -E 's/ level=[a-z]+ pos=.* modal=/ modal=/; s/ inv=.*//' | tr '\n' ';')
 want="DUMP mode=play modal=dialog:sable;DUMP mode=play modal=dialog:regent;DUMP mode=play modal=dialog:orrin;\
 DUMP mode=play modal=dialog:regent;REPLAY spire ok steps=[0-9]+;\
 HARNESS waitmodal: the replay ended without another dialog;DUMP mode=ending phase=white page=0;\
 DUMP mode=ending phase=pages page=0;DUMP mode=ending phase=credits page=3;DUMP mode=ending phase=end page=3;\
-DUMP mode=title;"
+DUMP mode=title;FIT ok;"
 if ! echo "$got" | grep -qxE "$want"; then echo "FAIL the Spire and the ending"; echo " got:  $got"; echo " want: $want"; exit 1; fi
 echo "Sable speaks, the Regent meets Orrin before the fight, the crystal falls, the ending and credits play, the title returns"
 
@@ -60,6 +60,37 @@ got=$(timeout 120 godot --headless --path godot --quit-after 900 -- \
 want="DUMP mode=title|DUMP mode=play level=vale modal=dialog|DUMP mode=play level=vale modal=none|DUMP mode=pause level=vale modal=none|DUMP mode=items level=vale modal=none|DUMP mode=play level=vale modal=none|DUMP mode=play level=vale modal=none|"
 if [ "$got" != "$want" ]; then echo "FAIL gamepad menus"; echo " got:  $got"; echo " want: $want"; exit 1; fi
 echo "A starts a new game, A pages the story, Start pauses, down+A opens items, B closes, Back is refused on the map"
+
+echo "== text stays inside its frame"
+# The UI records every text drawn outside its panel (or the screen), clipped or wrapped to fit;
+# `fit` prints them. A player's Load Game row once ran past the menu's right edge, and the
+# story, help and Controls pages ran off the screen.
+fitrun() {  # fitrun <name> <script>: every FIT line must be "FIT ok"
+  local out
+  out=$(timeout 200 godot --headless --path godot --quit-after 6000 -- --script="$2" 2>&1) \
+    || { echo "$out" | tail -20; echo "FAIL godot exited non-zero: $1"; exit 1; }
+  local report bad
+  report=$(grep -E "^FIT|SCRIPT ERROR|HARNESS" <<< "$out" || true)
+  bad=$(grep -vx "FIT ok" <<< "$report" || true)
+  if [ -n "$bad" ]; then echo "$bad"; echo "FAIL text outside its frame: $1"; exit 1; fi
+  [ -n "$report" ] || { echo "FAIL no fit report: $1"; exit 1; }
+  echo "$(grep -c . <<< "$report") screens fit: $1"
+}
+fitrun "every window in text.json and the Controls page" "fitall,fit,quit"
+fitrun "the three story pages of a new game, by pad" \
+  "ptap:a,wait:60,fit,ptap:a,wait:60,fit,ptap:a,wait:60,fit,quit"
+fitrun "How to Play and Controls from the title, by pad" \
+  "ptap:down,wait:10,ptap:down,wait:10,ptap:down,wait:10,ptap:down,wait:10,ptap:a,wait:60,fit,ptap:a,wait:60,\
+ptap:down,wait:10,ptap:a,wait:60,fit,quit"
+# the widest save row: 6 stages and a 7-digit score, saved from the pause menu, then Load Game
+out=$(timeout 200 godot --headless --path godot --quit-after 6000 -- --script="ptap:a,wait:60,ptap:a,wait:60,\
+ptap:a,wait:60,ptap:a,wait:60,set:done:6,set:score:9999999,ptap:start,wait:5,ptap:down,wait:5,ptap:down,wait:5,\
+ptap:down,wait:5,ptap:a,wait:5,ptap:a,wait:10,ptap:start,wait:5,ptap:down,wait:5,ptap:down,wait:5,ptap:down,wait:5,\
+ptap:down,wait:5,ptap:a,wait:10,dump,fit,quit" 2>&1) || { echo "$out" | tail -20; echo "FAIL godot exited non-zero: save rows"; exit 1; }
+got=$( (grep -E "^DUMP|^FIT|SCRIPT ERROR|HARNESS" <<< "$out" || true) | tr '\n' ';')
+want="^DUMP mode=slots 6 of 6 stages  9999999 pts @ [0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2} \\| .*;FIT ok;$"
+if ! grep -qE "$want" <<< "$got"; then echo "FAIL save rows"; echo " got:  $got"; echo " want: $want"; exit 1; fi
+echo "$got"
 
 echo "== menus with the keyboard: pause, options, relaxed speed toggles"
 got=$(timeout 120 godot --headless --path godot --quit-after 900 -- \

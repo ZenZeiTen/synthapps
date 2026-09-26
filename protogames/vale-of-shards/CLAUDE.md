@@ -51,11 +51,19 @@ Harness commands (in `main.gd run_harness`), one every 6 frames:
 | `replay:STAGE:kb` or `:pad` | play a recorded route through device events |
 | `replay:STAGE:pad:talk` | the same, but each dialog stays open until the script pages it (`ptap:a`) |
 | `waitmodal` | wait for the next dialog of a talk replay (prints `HARNESS waitmodal: ...` if the replay ends first) |
-| `dump` | print the state (in a dialog: `modal=dialog:<speaker>`; in the ending: `phase=` and `page=`) |
+| `dump` | print the state (in a dialog: `modal=dialog:<speaker>`; in the ending: `phase=` and `page=`; in the slot menu: each row and its date; on a title page: `title=`) |
+| `set:score:N`, `set:done:N` | state shortcuts for setting up a check: the score, and N stages done |
+| `fit` | print `FIT ok`, or every text drawn outside its frame since the last `fit` (`over:`, or `clip:`/`wrap:` when a menu or window had to cut it to fit) |
+| `fitall` | draw every window in `text.json` and the Controls page, one per frame (follow it with `fit`) |
 | `close` | close a text window |
 | `quit` | quit (a script otherwise runs until `--quit-after`) |
 
-An unknown command prints `HARNESS unknown`, and `run_all.sh` fails on it.
+An unknown command prints `HARNESS unknown`, and `run_all.sh` fails on it. Harness runs keep
+their saves in `user://saves_harness`, apart from the player's.
+
+- **Text must fit its frame.** Menus grow to fit their items (up to 316 px), and a window line
+  wider than the widest window is wrapped, but both are only guards: `fit` reports them, and
+  `run_all.sh` fails. With a portrait, a window line holds 40 characters; without, 47.
 
 - Wrap every Godot run in `timeout`. A SceneTree script whose `_init` fails never quits.
 - Screenshots only work under `xvfb-run`.
@@ -84,6 +92,7 @@ An unknown command prints `HARNESS unknown`, and `run_all.sh` fails on it.
 | the game's manifest copy went stale | `godot/content/data/manifest.json` was copied by hand once | `pipeline/manifest.py` writes both copies | re-running the pipeline |
 | closing a dialog with A (jump) made Orrin jump as the game resumed | the press was latched for the next step, and the still-held button read as a fresh jump | the button that closes a window is ignored by the game until it is released (`main.gd _swallow_held`) | the Spire check's talk replay, which desyncs if a jump leaks |
 | the playthrough lost the Mines after the jump change | recorded inputs assume the recording's random numbers; in the playthrough a stone bounced differently and the run drifted. The old routes had passed by luck | each replayed segment must reach its goal from the level's `route:` line, or is searched again live from the real state | `playthrough.gd` prints how many segments were re-searched |
+| **player report:** a Load Game row ran past the menu's right edge | the label "5 of 6 stages  23588 pts  09-27 05:35" (40 characters, 240 px) sat in a 250 px menu that starts text 18 px in. The story page 2, How to Play and Controls windows also ran off the screen, every dialog's page prompt sat on the bottom border, the space glyph's placeholder pixel showed as a dot in double spaces, and a lowercase p looked like a capital P | the slot menu shows the stages and score on the left and the date in its own column, built from each save's state (so old saves show the same way); menus grow to fit, long window lines wrap; the long lines were rewritten; the prompt moved up; spaces are not drawn; p and q were redrawn at letter height | the UI's fit audit: `run_all.sh` checks every text.json window, the story, help and Controls pages, the widest save row (6 stages, 7-digit score) and the Spire and ending |
 | a new image could be left out of the export unnoticed | the export check only played stage 1 | the `assets` harness command loads every manifest sprite and music track; `verify_export.py` runs it inside the exported build | `verify_export.py` |
 
 ## Delivering a playable build

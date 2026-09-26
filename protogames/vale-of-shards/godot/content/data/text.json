@@ -60,7 +60,7 @@
    "Crates hide useful things.", "Shoot one to break it open."]},
 
  "sigil_root": {"title": "The Sigil of Root", "who": "orrin", "lines": [
-   "A knot of living green, warm in the hand.", "The first of the three sigils.",
+   "A knot of living green, warm in my hand.", "The first of the three sigils.",
    "Two more wait beyond the Vale path."]},
  "sigil_tide": {"title": "The Sigil of Tide", "who": "orrin", "lines": [
    "It ripples like water held still.", "The second sigil.", "Only the Sigil of Ember remains."]},
@@ -71,16 +71,16 @@
  "help": {"title": "How to Play", "who": "sable", "lines": [
    "Move: arrows, WASD, D-pad or left stick", "Jump: Z, Alt, Ctrl or K  (pad A)",
    "Fire: X, Shift, Space or J  (pad X or B)", "Climb vines and look: UP / DOWN",
-   "Items: I or Enter (pad Y)   Pack: B (pad Back)", "Menu: Esc or P (pad Start)"]},
+   "Items: I or Enter  (pad Y)", "Tolly's pack: B  (pad Back)", "Menu: Esc or P (pad Start)"]},
  "story": [
    {"who": "orrin", "title": "The Vale", "lines": [
-     "Every night I light the lamps of the Vale.", "Every morning the crystals sing them out.",
+     "Each night I light the Vale's lamps.", "Each morning the crystals sing them out.",
      "Last night the singing stopped."]},
    {"who": "sable", "title": "Sable", "lines": [
-     "The Glass Regent has taken the three sigils,", "Root, Tide and Ember, into his Spire.",
-     "Without them the Vale will set like glass."]},
+     "The Glass Regent took the three sigils,", "Root, Tide and Ember, into his Spire.",
+     "Without them, the Vale sets like glass."]},
    {"who": "sable", "title": "Sable", "lines": [
-     "Walk the Vale path, lamplighter.", "Find the sigils. Break the Spire's heart.",
+     "Walk the Vale path, lamplighter.", "Find the sigils.", "Break the Spire's heart.",
      "I will find you on the way."]}],
 
  "owl_hollow": [

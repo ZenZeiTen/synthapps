@@ -17,6 +17,13 @@ const MSG_COL := {2: Color(0.45, 0.85, 0.45), 3: GOLD, 5: Color(0.95, 0.5, 0.45)
 var A
 var F: PixFont
 var main          # main.gd: tells what to draw
+# Fit audit (on in harness runs): every text drawn outside its frame, or clipped or wrapped to
+# stay inside it, is recorded here. The frame of a text is the last panel drawn this pass
+# that holds its start (a text is drawn after its own panel), else the screen. The harness
+# command `fit` reports and clears it.
+var audit := false
+var overflows := {}
+var _panels: Array[Rect2] = []
 
 
 func setup(assets) -> void:
@@ -25,12 +32,14 @@ func setup(assets) -> void:
 
 
 func _draw() -> void:
+	_panels.clear()
 	if main != null:
 		main.draw_ui(self)
 
 
 # ------------------------------------------------------------------ primitives
 func panel(r: Rect2, dark: float = 0.92) -> void:
+	_panels.append(r)
 	var t: Texture2D = A.sprite("panel")
 	if t == null:
 		draw_rect(r, Color(INK, dark))
@@ -54,11 +63,35 @@ func panel(r: Rect2, dark: float = 0.92) -> void:
 
 
 func text(pos: Vector2, s: String, col: Color = WHITE) -> void:
+	if audit:
+		_check_fit(pos, s)
 	F.draw(self, pos, s, col)
 
 
 func center(cx: float, y: float, s: String, col: Color = WHITE) -> void:
-	F.draw_center(self, cx, y, s, col)
+	text(Vector2(int(cx - F.width(s) / 2.0), y), s, col)
+
+
+## The ink of a text must lie inside its frame: 5 px in from a panel's edge (the border
+## art), or across the screen (text outside panels may scroll off the top or bottom, as
+## the credits do).
+func _check_fit(pos: Vector2, s: String) -> void:
+	var inked := s.strip_edges(false, true)
+	var lead := inked.length() - inked.strip_edges(true, false).length()
+	if inked.strip_edges() == "":
+		return
+	var ink := Rect2(pos.x + lead * F.CW, pos.y, F.width(inked) - lead * F.CW, F.CH)
+	var frame := Rect2(0, ink.position.y, 320, F.CH)
+	for r in _panels:
+		if r.has_point(pos):
+			frame = r.grow(-5)
+	if not frame.encloses(ink):
+		note_fit("over", s)
+
+
+func note_fit(kind: String, s: String) -> void:
+	if audit:
+		overflows["%s: %s" % [kind, s.strip_edges()]] = true
 
 
 func portrait(pos: Vector2, who: String) -> void:
@@ -119,12 +152,22 @@ func message(g, title: String) -> void:
 ## at_bottom: spoken dialog in play sits over the status bar, clear of the characters (the
 ## camera keeps Orrin's feet above canvas y 120)
 func text_window(title: String, lines: Array, who: String, prompt: String, at_bottom: bool = false) -> void:
+	var has_face := who != ""
+	# a line too long for the widest window is wrapped (and noted: the text should be shortened)
+	var room := 308 - 24 - (40 if has_face else 0)
+	var fitted: Array = []
+	for l in lines:
+		if F.width(l) > room:
+			note_fit("wrap", l)
+			fitted.append_array(F.wrap(l, room))
+		else:
+			fitted.append(l)
+	lines = fitted
 	var wide := 0
 	for l in lines:
 		wide = maxi(wide, F.width(l))
-	var has_face := who != ""
 	var w := clampi(wide + 24 + (40 if has_face else 0), 160, 308)
-	var h := 30 + lines.size() * 10 + (0 if lines.size() > 1 or not has_face else 10)
+	var h := 32 + lines.size() * 10 + (0 if lines.size() > 1 or not has_face else 10)
 	h = maxi(h, 56 if has_face else 40)
 	var r := Rect2(160 - w / 2, (180 - h - 3) if at_bottom else (74 - h / 2), w, h)
 	panel(r)
@@ -136,21 +179,35 @@ func text_window(title: String, lines: Array, who: String, prompt: String, at_bo
 	for i in lines.size():
 		text(Vector2(x0, r.position.y + 20 + i * 10), lines[i], WHITE)
 	if prompt != "":
-		text(Vector2(r.end.x - F.width(prompt) - 8, r.end.y - 11), prompt, DIM)
+		text(Vector2(r.end.x - F.width(prompt) - 8, r.end.y - 13), prompt, DIM)
 
 
+## w is the smallest width; the menu grows to fit its title and each item with its value.
 func menu(title: String, items: Array, cur: int, y: int = 40, w: int = 180, values: Array = [], row: int = 11) -> Rect2:
 	var top := 20 if title != "" else 8
 	var h := top + 6 + items.size() * row
+	w = maxi(w, F.width(title) + 20)
+	for i in items.size():
+		w = maxi(w, 18 + F.width(items[i]) + _value_room(values, i) + 12)
+	w = mini(w, 316)
 	var r := Rect2(160 - w / 2, y, w, h)
 	panel(r)
 	center(160, y + 7, title, GOLD)
 	for i in items.size():
 		var yy := y + top + i * row
 		var col := WHITE if i == cur else DIM
-		text(Vector2(r.position.x + 18, yy), items[i], col)
+		var s: String = items[i]
+		var room: int = w - 18 - _value_room(values, i) - 12
+		if F.width(s) > room:
+			note_fit("clip", s)
+			s = s.left(room / F.CW)
+		text(Vector2(r.position.x + 18, yy), s, col)
 		if i < values.size() and values[i] != "":
 			text(Vector2(r.end.x - 12 - F.width(values[i]), yy), values[i], TEAL if i == cur else DIM)
 		if i == cur:
 			A.draw_frame(self, "cursor", A.frame("cursor", "blink", Time.get_ticks_msec() / 300), Vector2(r.position.x + 7, yy))
 	return r
+
+
+func _value_room(values: Array, i: int) -> int:
+	return F.width(values[i]) + 12 if i < values.size() and values[i] != "" else 0

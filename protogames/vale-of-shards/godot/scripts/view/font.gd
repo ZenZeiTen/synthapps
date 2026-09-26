@@ -25,6 +25,9 @@ func draw(ci: CanvasItem, pos: Vector2, text: String, col: Color = Color.WHITE) 
 		if code < 32 or code > 127:
 			code = 63
 		var k := code - 32
+		if k == 0:
+			x += CW
+			continue    # the space glyph holds one placeholder pixel (see art_ui.py font())
 		ci.draw_texture_rect_region(t, Rect2(x, int(pos.y), CW, CH), Rect2(k * CW, 0, CW, CH), col)
 		x += CW
 
