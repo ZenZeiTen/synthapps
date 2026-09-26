@@ -205,7 +205,67 @@ def pearl():
     return c
 
 
+ARROW_UP = [
+    "................",
+    "................",
+    ".......AA.......",
+    "......AAAA......",
+    ".....AAAAAA.....",
+    "....AAAAAAAA....",
+    "...AAAAAAAAAA...",
+    "......AAAA......",
+    "......AAAA......",
+    "......AAAA......",
+    "......AAAA......",
+    "......AAAA......",
+    "......AAAA......",
+    "................",
+    "................",
+    "................",
+]
+ARROW_TURN_LEFT = [
+    "................",
+    "................",
+    "....A...........",
+    "...AA...........",
+    "..AAAAAAAAAA....",
+    ".AAAAAAAAAAAA...",
+    "..AAAAAAAAAAAA..",
+    "...AA......AAA..",
+    "....A.......AA..",
+    "............AA..",
+    "............AA..",
+    "............AA..",
+    "............AA..",
+    "................",
+    "................",
+    "................",
+]
+
+
+def _arrow(rows, rot=0, flip=False):
+    """rot: quarter turns clockwise; flip: mirror left-right."""
+    grid = [list(r) for r in rows]
+    for _ in range(rot % 4):
+        grid = [list(r) for r in zip(*grid[::-1])]
+    if flip:
+        grid = [r[::-1] for r in grid]
+    c = Canvas(16, 16)
+    for y, r in enumerate(grid):
+        for x, ch in enumerate(r):
+            if ch == "A":
+                c.set(x, y, 7)
+    c.outline(0)
+    return c
+
+
 UI = {"panel": lambda: [panel()], "disc": lambda: [disc()], "pearl": lambda: [pearl()], "slot": lambda: [slot()], "compass": lambda: [compass()], "cursor": lambda: [cursor()],
       "dead": lambda: [_dead()]}
 for _k, _rows in ICON_ROWS.items():
     UI["icon_" + _k] = (lambda rows=_rows: [_icon(rows, ICON_PAL)])
+# the movement pad (the original's six-arrow pad) and the turn cursors
+UI.update({
+    "move_fwd": lambda: [_arrow(ARROW_UP)], "move_back": lambda: [_arrow(ARROW_UP, 2)],
+    "move_left": lambda: [_arrow(ARROW_UP, 3)], "move_right": lambda: [_arrow(ARROW_UP, 1)],
+    "turn_left": lambda: [_arrow(ARROW_TURN_LEFT)], "turn_right": lambda: [_arrow(ARROW_TURN_LEFT, 0, True)],
+})

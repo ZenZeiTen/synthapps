@@ -88,6 +88,7 @@ Maren, a thief left behind by the robbers, can join as a fifth.
 | A, D | strafe left / right |
 | Q / ←, E / → | turn left / right |
 | Space | use the wall ahead (lever, button, door, keyhole, fountain, niche) |
+| mouse, to move | the six-arrow pad in the right panel (the original's movement pad); a click on the view's left or right edge turns; right-click in the view moves by zone, as in the original (`CLK_MAP.C:155`): top half turn left / forward / turn right, bottom half strafe left / back / strafe right |
 | mouse in the view | click walls to use them, click floor items to pick them up, click with an item held to drop it (or throw it in battle), click NPCs to talk |
 | I / 1-6 | inventory of the selected or numbered character |
 | C | cast (rune picker) |

@@ -11,6 +11,7 @@ const UI = preload("res://scripts/view/ui.gd")
 const Audio = preload("res://scripts/view/audio.gd")
 const PixFont = preload("res://scripts/view/pixfont.gd")
 const TICK := 0.1
+const TURN_EDGE := 34.0   # px of the 3D view's left and right edges that turn on click
 const SAVE_DIR := "user://saves/"
 const MOVE_KEYS := {KEY_W: 0, KEY_UP: 0, KEY_S: 2, KEY_DOWN: 2, KEY_A: 3, KEY_D: 1}
 const TURN_KEYS := {KEY_Q: -1, KEY_LEFT: -1, KEY_E: 1, KEY_RIGHT: 1}
@@ -139,20 +140,39 @@ func load_slot(i: int) -> bool:
 func save_slot(i: int) -> void:
 	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
 	var f = FileAccess.open(SAVE_DIR + "slot%d.sav" % i, FileAccess.WRITE)
-	var label = "%s, %s" % [g.lv.data["name"], Time.get_datetime_string_from_system(false, true)]
+	var when = Time.get_datetime_string_from_system(false, true).substr(5, 11)   # "MM-DD HH:MM"
+	var label = "%s  %s" % [_short_level_name(String(g.s["level"])), when]
 	f.store_string(var_to_str({"label": label, "state": g.to_save()}))
 	f.close()
+	_labels.erase(i)
 
 
+var _labels = {}
+
+
+func _short_level_name(id: String) -> String:
+	var n = String(content["levels"].get(id, {}).get("name", id))
+	return n.substr(4) if n.begins_with("The ") else n
+
+
+## A slot's label, e.g. "Cellar Vaults  09-26 13:22". Cached: reading a save means
+## parsing the whole game state, which the menu must not do every frame. Older saves
+## carried a long label; theirs is rebuilt from the saved level and the file's time.
 func slot_label(i: int) -> String:
+	if _labels.has(i):
+		return _labels[i]
 	var path = SAVE_DIR + "slot%d.sav" % i
-	if not FileAccess.file_exists(path):
-		return "empty"
-	var f = FileAccess.open(path, FileAccess.READ)
-	var head = f.get_as_text()
-	f.close()
-	var d = str_to_var(head)
-	return String(d.get("label", "?")) if d is Dictionary else "?"
+	var label = "empty"
+	if FileAccess.file_exists(path):
+		var d = str_to_var(FileAccess.get_file_as_string(path))
+		label = "?"
+		if d is Dictionary and d.has("state"):
+			var when = Time.get_datetime_string_from_unix_time(FileAccess.get_modified_time(path) + int(Time.get_time_zone_from_system()["bias"]) * 60, true).substr(5, 11)
+			label = "%s  %s" % [_short_level_name(String(d["state"].get("level", ""))), when]
+			if String(d.get("label", "")).length() <= 26 and String(d.get("label", "")) != "":
+				label = String(d["label"])
+	_labels[i] = label
+	return label
 
 
 func latest_slot() -> int:
@@ -246,7 +266,7 @@ func create_action(info: Dictionary) -> void:
 			add_slot()
 		"c_face":
 			if not face_used(String(info["face"]), int(create["cur"])):
-				var old_default := ""
+				var old_default = ""
 				for f in FACES:
 					if f[0] == s["portrait"]:
 						old_default = f[1]
@@ -295,7 +315,7 @@ func party_ready() -> bool:
 func begin_created() -> void:
 	if not party_ready():
 		return
-	var specs := []
+	var specs = []
 	for s in create["slots"]:
 		specs.append({"name": String(s["name"]).strip_edges(), "portrait": s["portrait"], "sex": s["sex"], "stats": s["stats"]})
 	g = Game.new(content)
@@ -345,6 +365,9 @@ func _process(delta: float) -> void:
 			tick_acc = 0.0
 		_battle_flow(delta)
 		process_events()
+		# An open shop blocks movement (game.step), so it must never outlive its screen.
+		if not g.shop.is_empty() and not overlay in ["shop", "dialog"]:
+			g.close_shop()
 		if queued_move != -99 and not dungeon.busy():
 			var mv = queued_move
 			queued_move = -99
@@ -559,15 +582,20 @@ func _do_move(mv: int) -> void:
 
 
 func _click(e: InputEventMouseButton) -> void:
-	var p = ui.get_global_mouse_position()
-	var h: Dictionary = ui.hit(p)
-	var right = e.button_index == MOUSE_BUTTON_RIGHT
-	if e.button_index != MOUSE_BUTTON_LEFT and not right:
+	if e.button_index != MOUSE_BUTTON_LEFT and e.button_index != MOUSE_BUTTON_RIGHT:
 		return
+	_click_at(ui.get_global_mouse_position(), e.button_index == MOUSE_BUTTON_RIGHT)
+
+
+func _click_at(p: Vector2, right: bool) -> void:
+	var h: Dictionary = ui.hit(p)
 	if String(h.get("kind", "")).begins_with("c_"):
 		create_action(h)
 		return
 	match String(h.get("kind", "")):
+		"pad":
+			if overlay == "" and screen == "game":
+				queued_move = int(h["move"])
 		"title":
 			match String(h["id"]):
 				"new": new_game()
@@ -579,6 +607,9 @@ func _click(e: InputEventMouseButton) -> void:
 				"help": overlay = "help"
 				"quit": get_tree().quit()
 		"button":
+			if overlay == "shop":
+				g.close_shop()
+				overlay = ""
 			match String(h["id"]):
 				"inv": overlay = "" if overlay == "inv" else "inv"
 				"cast": overlay = "" if overlay == "cast" else "cast"
@@ -592,7 +623,7 @@ func _click(e: InputEventMouseButton) -> void:
 			var ci = int(h["i"])
 			if cast_pending != "":
 				_finish_cast(ci)
-			elif right or g.s["held"] != null and not right and overlay == "":
+			elif right or (g.s["held"] != null and overlay in ["", "shop"]):
 				if g.s["held"] != null:
 					g.give_held(ci)
 				else:
@@ -663,8 +694,38 @@ func _click(e: InputEventMouseButton) -> void:
 			load_slot(int(h["i"]))
 
 
+## Left edge / right edge of the 3D view: a click there turns (the cursor shows it).
+func turn_edge(p: Vector2) -> int:
+	if screen != "game" or overlay != "" or g == null or g.s["mode"] in ["dead", "won"]:
+		return 0
+	if p.y < 0 or p.y > 272:
+		return 0
+	if p.x >= 0 and p.x < TURN_EDGE:
+		return -1
+	if p.x > 448 - TURN_EDGE and p.x < 448:
+		return 1
+	return 0
+
+
+## Right-click in the view moves by zone, as in the original (CLK_MAP.C:155):
+## top row turn left / forward / turn right, bottom row strafe left / back / strafe right.
+static func zone_move(p: Vector2) -> int:
+	var col = clampi(int(p.x / (448.0 / 3.0)), 0, 2)
+	var top = p.y < 272.0 * 0.5   # the original splits at half height (yr>180 of 360)
+	if top:
+		return [9, 0, 11][col]
+	return [3, 2, 1][col]
+
+
 func _view_click(p: Vector2, right: bool) -> void:
 	if g.s["mode"] in ["dead", "won"]:
+		return
+	if right:
+		queued_move = zone_move(p)
+		return
+	var edge = turn_edge(p)
+	if edge != 0:
+		queued_move = 10 + edge
 		return
 	var t: Dictionary = dungeon.pick(p)
 	var kind = String(t.get("kind", ""))
@@ -839,4 +900,28 @@ func _run_cmd(cmd: String) -> void:
 		"caccept": create_action({"kind": "c_accept"})
 		"cadd": create_action({"kind": "c_add"})
 		"cbegin": begin_created()
-		"dump": print("DUMP seen=", g.ls["seen"], " pos=", g.s["x"], ",", g.s["y"], " level=", g.s["level"])
+		"click":
+			_click_at(Vector2(float(parts[1]), float(parts[2])), false)
+		"rclick":
+			_click_at(Vector2(float(parts[1]), float(parts[2])), true)
+		"dump":
+			var packs = []
+			for ch in g.s["party"]:
+				packs.append(ch["pack"].filter(func(x): return x != null).size())
+			var held = "none" if g.s["held"] == null else String(g.s["held"]["id"])
+			print("DUMP pos=", g.s["x"], ",", g.s["y"], " dir=", g.s["dir"], " level=", g.s["level"], " seen=", g.ls["seen"].size(),
+				" overlay=", "none" if overlay == "" else overlay, " held=", held, " packs=", ",".join(packs.map(func(n): return str(n))), " gold=", g.s["gold"])
+		"save": save_slot(int(parts[1]))
+		"menusub":
+			overlay = "menu"
+			menu_sub = parts[1]
+		"legacysave":
+			# a save written by the first release: long label, as players have on disk
+			DirAccess.make_dir_recursive_absolute(SAVE_DIR)
+			var f = FileAccess.open(SAVE_DIR + "slot%d.sav" % int(parts[1]), FileAccess.WRITE)
+			f.store_string(var_to_str({"label": "The Cellar Vaults, 2026-09-26 13:22:24", "state": g.to_save()}))
+			f.close()
+			_labels.erase(int(parts[1]))
+		_:
+			# a typo in a test script must fail the test, not silently do nothing
+			print("HARNESS unknown command: ", cmd)

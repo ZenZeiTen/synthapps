@@ -55,7 +55,8 @@ Each character's starting kit follows their strongest stat.
 | A, D | strafe |
 | Q / ←, E / → | turn |
 | Space | use the wall ahead (lever, door, keyhole, niche, fountain) |
-| mouse | click walls, floor items and people in the view. An item you pick up rides on the cursor; click a portrait to stow it |
+| mouse, to move | the six-arrow pad in the right panel (turn, forward, strafe, back); a click on the 3D view's left or right edge turns (the cursor shows an arrow there); **right-click** in the view moves by zone, as in the original: top half turn left / forward / turn right, bottom half strafe left / back / strafe right |
+| mouse, to act | click walls, floor items and people in the view. An item you pick up or buy rides on the cursor; click a portrait to stow it (this works in the peddler's shop too) |
 | I or 1-6 | inventory |
 | C | cast (rune picker) |
 | M / Tab | map |
@@ -108,11 +109,11 @@ The export check needs the export templates.
 | check | proves |
 |---|---|
 | `godot/tests/run_tests.gd` | the formulas against hand-computed values (hit, casting risk, action points, resistance stacking, XP, the creation disc's interpolation and rounding); every level compiles, every square connects, every stair and pit target exists; doors, levers, plates, runes, illusions and equip requirements behave; saves round-trip and replay identically; and **a bot plays the whole game from the core API and wins** |
-| `godot/tests/balance.gd` | the same playthrough over many seeds: wins and deaths per seed. `--made` uses random parties made on the disc |
+| `godot/tests/balance.gd` | the same playthrough over many seeds: wins and deaths per seed. `--made` uses random parties made on the disc. `run_all.sh` requires at least 12 of 12 wins, and at least 12 of 16 with made parties |
 | `tests/mutation_core.py` | plants 10 faults in the rules core; the suite must catch each one |
 | `tests/verify_art.py` | every exported PNG equals its `.aseprite` source, pixel for pixel, on the 32-colour palette |
 | `tests/verify_audio.py` | every sound the core requests exists; every music loop seam is inaudible |
-| smoke test (in `run_all.sh`) | the real main scene runs 200 frames of scripted input without a script error: an exploration session, then making a party on the creation screen |
+| smoke test (in `run_all.sh`) | the real main scene runs scripted input without a script error or an unknown harness command, and must reach its closing `dump`: an exploration session, then making a party on the creation screen. A third run moves only with the mouse (pad, right-click zones, edge turns) and checks every resulting position and facing. A fourth talks to the peddler, buys bread, stows it by clicking a portrait and again from the inventory, then checks the party can still walk |
 | `tests/verify_export.py` | the exported Linux build runs from an unrelated folder and renders the dungeon |
 
 Results on 2026-09-26, with Godot 4.7.1:

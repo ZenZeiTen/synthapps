@@ -13,6 +13,9 @@ const EQUIP_LAYOUT := {"head": Vector2(186, 30), "neck": Vector2(222, 30), "body
 	"hand_l": Vector2(222, 84), "legs": Vector2(186, 102), "feet": Vector2(186, 138), "ring1": Vector2(150, 138),
 	"ring2": Vector2(222, 138), "quiver": Vector2(150, 30)}
 const DIR_LETTER := ["N", "E", "S", "W"]
+## Movement pad: [icon, move code (main.gd: 0-3 step, 9 turn left, 11 turn right), tooltip]
+const PAD := [["turn_left", 9, "Turn left (Q)"], ["move_fwd", 0, "Forward (W)"], ["turn_right", 11, "Turn right (E)"],
+	["move_left", 3, "Strafe left (A)"], ["move_back", 2, "Back (S)"], ["move_right", 1, "Strafe right (D)"]]
 const ACT_ICON := {"attack": "icon_attack", "cast": "icon_cast", "guard": "icon_guard", "throw": "icon_throw", "use": "icon_bag"}
 
 var m                  # main.gd
@@ -69,6 +72,9 @@ func text(p: Vector2, s: String, col: int = 8, scale: int = 1, shadow: bool = tr
 
 func button(r: Rect2, label: String, info: Dictionary, enabled: bool = true) -> void:
 	var over: bool = r.has_point(mouse) and enabled
+	var fit: int = maxi(1, int((r.size.x - 6) / font.cell.x))
+	if label.length() > fit:
+		label = label.substr(0, fit - 2) + ".."
 	draw_rect(r, c(4 if over else 3))
 	draw_rect(r, c(12 if over else 1), false, 1.0)
 	font.center(self, r.position.x + r.size.x / 2.0, r.position.y + (r.size.y - 9) / 2.0, label, c(8 if enabled else 5), 1, true)
@@ -173,19 +179,29 @@ func draw_right_panel() -> void:
 	if g.s["held"] != null:
 		text(Vector2(504, 50), g.item_name(g.s["held"]).substr(0, 21), 25)
 	# mini-map
-	var mm = Rect2(454, 64, 180, 96)
+	var mm = Rect2(454, 64, 180, 72)
 	draw_rect(mm, c(0))
 	draw_automap(mm, false)
 	draw_rect(mm, c(3), false, 1.0)
-	# buttons
-	var btn = [["icon_bag", "inv", "I"], ["icon_cast", "cast", "C"], ["icon_map", "map", "M"], ["icon_book", "book", "B"],
-		["icon_rest", "rest", "R"], ["icon_menu", "menu", "Esc"]]
-	for i in btn.size():
-		var r = Rect2(456 + i * 30, 166, 24, 22)
+	# movement pad (the original's six arrows): turn / forward / turn, strafe / back / strafe
+	for i in PAD.size():
+		var r = Rect2(454 + (i % 3) * 28, 140 + (i / 3) * 22, 26, 20)
 		var over = r.has_point(mouse)
 		draw_rect(r, c(4 if over else 2))
 		draw_rect(r, c(12 if over else 0), false, 1.0)
-		icon("ui/" + btn[i][0], r.position + Vector2(4, 3))
+		icon("ui/" + String(PAD[i][0]), r.position + Vector2(5, 2))
+		reg(r, {"kind": "pad", "move": PAD[i][1]})
+		if over:
+			hover_info = {"text": String(PAD[i][2])}
+	# action buttons
+	var btn = [["icon_bag", "inv", "I"], ["icon_cast", "cast", "C"], ["icon_map", "map", "M"], ["icon_book", "book", "B"],
+		["icon_rest", "rest", "R"], ["icon_menu", "menu", "Esc"]]
+	for i in btn.size():
+		var r = Rect2(546 + (i % 3) * 28, 140 + (i / 3) * 22, 26, 20)
+		var over = r.has_point(mouse)
+		draw_rect(r, c(4 if over else 2))
+		draw_rect(r, c(12 if over else 0), false, 1.0)
+		icon("ui/" + btn[i][0], r.position + Vector2(5, 2))
 		reg(r, {"kind": "button", "id": btn[i][1]})
 		if over:
 			hover_info = {"text": {"inv": "Inventory (I)", "cast": "Cast (C)", "map": "Map (M)", "book": "Book (B)", "rest": "Rest (R)", "menu": "Menu (Esc)"}[btn[i][1]]}
@@ -202,7 +218,7 @@ func draw_right_panel() -> void:
 		lines.remove_at(0)
 	for i in lines.size():
 		var fade: float = 0.55 + 0.45 * float(i + 1) / lines.size()
-		font.draw(self, Vector2(456, 194 + i * 10), lines[i], c(7, fade), 1, true)
+		font.draw(self, Vector2(456, 188 + i * 10), lines[i], c(7, fade), 1, true)
 	if hover_info.has("text"):
 		var w: int = font.width(hover_info["text"]) + 8
 		draw_rect(Rect2(mouse.x - w, mouse.y - 16, w, 12), c(0, 0.85))
@@ -578,8 +594,8 @@ func draw_shop() -> void:
 
 
 func draw_menu() -> void:
-	panel(Rect2(104, 16, 240, 240), 2)
-	reg(Rect2(104, 16, 240, 240), {"kind": "none"})
+	panel(Rect2(84, 16, 280, 240), 2)
+	reg(Rect2(84, 16, 280, 240), {"kind": "none"})
 	font.center(self, 224, 26, "GATES BELOW", c(30), 2, true)
 	var sub = String(m.menu_sub)
 	if sub == "":
@@ -593,7 +609,7 @@ func draw_menu() -> void:
 		for i in 10:
 			var info: String = m.slot_label(i)
 			var enabled = sub == "save" and i != 9 or info != "empty"
-			button(Rect2(124, 60 + i * 18, 200, 16), "%d  %s" % [i, info], {"kind": "slot", "i": i}, enabled)
+			button(Rect2(98, 60 + i * 18, 252, 16), "%d%s  %s" % [i, " auto" if i == 9 else "", info], {"kind": "slot", "i": i}, enabled)
 		button(Rect2(184, 242, 80, 12), "back", {"kind": "menu", "id": "back"})
 
 
@@ -605,19 +621,20 @@ func draw_help() -> void:
 		["W / Up        step forward     S / Down   step back", 8],
 		["A, D          strafe           Q, E / Left, Right   turn", 8],
 		["Space         use the wall ahead: lever, door, niche, fountain", 8],
-		["Mouse         click walls, floor items and people in the view", 8],
+		["Mouse moves   arrow pad (right panel); click the view's left or", 8],
+		["              right edge to turn; RIGHT-click the view: top half", 8],
+		["              turn/forward/turn, bottom half strafe/back/strafe", 8],
+		["Mouse acts    click walls, floor items and people in the view;", 8],
 		["              click a portrait with an item in hand to stow it", 8],
 		["I / 1-6       inventory        C  cast (rune magic)", 8],
 		["M / Tab       map              B  book       R  rest", 8],
 		["F5 / F9       quick save / quick load      Esc  menu", 8],
-		["", 8],
 		["IN BATTLE", 30],
 		["Each character plans an action; then everyone acts in a", 7],
 		["random order. A attack, C cast, G guard (rest a little),", 7],
 		["T throw the item in hand. Enter: all attack. A movement", 7],
 		["key moves the whole party instead. Face your enemy:", 7],
 		["attacks only reach the square straight ahead.", 7],
-		["", 8],
 		["Picking up a rune teaches it to the whole party.", 21],
 	]
 	for i in lines.size():
@@ -774,5 +791,7 @@ func draw_cursor() -> void:
 	var g = m.g
 	if g != null and m.screen == "game" and g.s["held"] != null:
 		item_icon(g.s["held"], mouse - Vector2(12, 12))
+	elif m.turn_edge(mouse) != 0:
+		icon("ui/turn_left" if m.turn_edge(mouse) < 0 else "ui/turn_right", mouse - Vector2(8, 8))
 	else:
 		icon("ui/cursor", mouse)
