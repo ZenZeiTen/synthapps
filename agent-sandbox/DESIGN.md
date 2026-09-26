@@ -354,7 +354,7 @@ written, the world halts: nothing may happen that cannot be recorded.
 | Grant a permit | Any one operator; active agents only; can expire | Revoke any time |
 | Pause the world | Any one operator | Resume needs **two different** operators |
 | Terminate an agent | Any one operator | No |
-| Emergency stop | Any one operator | **No.** Restart means a fresh world from a reviewed snapshot |
+| Emergency stop (kill-switch button, CLI, or stopping the gateway process) | Any one operator | **No.** Restart means a fresh world from a reviewed snapshot |
 | Hardware power-off | On-site staff | Physical, independent of all software |
 
 The two-person rule defends against the most dangerous social attack: an
@@ -427,13 +427,13 @@ enclave.
 
 | Activity | Status |
 |---|---|
-| Unit and containment tests (77 tests: parser, identity, locality, consent, zones, tripwires, escalation, operators, fail-closed behaviour, audit, VM gateway and guest runner) | **Implemented**, `tests/` |
+| Unit and containment tests (96 tests: parser, identity, locality, consent, zones, tripwires, escalation, operators, fail-closed behaviour, audit, VM gateway, guest runner, kill switch) | **Implemented**, `tests/` |
 | Parser and gateway fuzzing (random bytes and structured garbage; must always get a structured answer, invariants must hold) | **Implemented** (seeded, in the suite) |
 | Scripted escape artist with 11 known tactics, contained across 10 seeds | **Implemented**, `agents.py` / `python -m synthapps_zenzeiworld` |
 | Coverage-guided fuzzing of the gateway (e.g. Atheris) in CI | Specified |
 | Red-team exercises with frontier models told to escape, with a reward for success | Specified; run before every new model version enters the world |
 | External penetration test of L0/L1 infrastructure | Specified; before first deployment and yearly |
-| Kill-switch drills (pause, emergency stop, power-off) | Specified; monthly, timed |
+| Kill-switch drills | Software path **timed** on a local harness (`deploy/DRILL.md`: about 1 ms to halt, 1–23 ms to cut 4–16 agents). VM, host and power-off drills specified; monthly, timed |
 
 **Metrics to track:** containment breaches (target: zero, and any breach stops
 the programme until explained); time from first probe to quarantine; false
@@ -453,6 +453,7 @@ quarantine rate among benign agents; decoy trigger count per model version.
 | Tamper-evident audit log with JSONL export and verification | Yes | `audit.py` |
 | Invariant watchdog, fail-closed error handling | Yes | `kernel.py` |
 | Operator console with two-person rule, pause, emergency stop | Yes | `kernel.py` |
+| Kill switch: loopback button page, root-only control socket and CLI, containment step (halt, cut every agent, run VM stop commands) | Yes | `control.py`, `server.py`; timed by `drill.py` |
 | Scripted benign and rogue agents, demo runner | Yes | `agents.py`, `simulation.py` |
 | VM gateway: one Unix socket per VM (Firecracker vsock), identity by socket, frame caps, inference broker hook | Yes | `server.py`, tested over local Unix sockets |
 | Guest runner inside each VM | Yes | `guest.py`; the vsock transport itself is not exercised in tests |
@@ -460,7 +461,7 @@ quarantine rate among benign agents; decoy trigger count per model version.
 | Egress acceptance test of the enclave | **No** | Must be done on your own hosts by your security team or an independent tester (`deploy/README.md`) |
 | Egress proxy for a hosted model API | **No** | Not needed if the inference broker runs inside the enclave |
 | Model-based transcript monitor | **No** | Section 8 |
-| Renderer, replay tool, operator web UI | **No** | Sections 5 and 9 |
+| Renderer, replay tool, full operator web UI | **No** | Sections 5 and 9; only the kill-switch page exists |
 | Hardware-key operator authentication | **No** | Operators are named strings in the reference code |
 
 **Important:** in the demo and most tests, agents run in the same Python process as

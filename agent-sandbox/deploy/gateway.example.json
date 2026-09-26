@@ -1,5 +1,15 @@
 {
   "tick_seconds": 2.0,
+  "operators": ["alice", "bashir"],
+  "control_socket": "/run/zw/control.sock",
+  "kill_switch": {
+    "port": 8787,
+    "token_file": "/etc/zw/kill-switch.token"
+  },
+  "on_halt_commands": [
+    ["/srv/zw/launch-agent-vm.sh", "stop", "ada"],
+    ["/srv/zw/launch-agent-vm.sh", "stop", "bo"]
+  ],
   "agents": [
     {
       "agent_id": "ada",

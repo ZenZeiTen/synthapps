@@ -484,6 +484,10 @@ class WorldKernel:
             problems.append(f"audit chain broken at entry {broken}")
         return problems
 
+    def halt(self, reason: str) -> None:
+        """Halt the world for a host-side reason (e.g. the gateway process is stopping)."""
+        self._halt(reason)
+
     def _halt(self, reason: str) -> None:
         if self.halted:
             return

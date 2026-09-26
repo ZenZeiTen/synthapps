@@ -20,6 +20,7 @@ What *is* implemented and tested is the software both ends run:
 |---|---|---|
 | Host gateway (one socket per VM, identity by socket, frame caps, inference budget) | `synthapps_zenzeiworld/server.py` | Yes, over local Unix sockets (`tests/test_server.py`) |
 | Guest runner (observe → model → one JSON action → submit) | `synthapps_zenzeiworld/guest.py` | Yes, same tests; the vsock transport itself is not exercised |
+| Kill switch: button, control socket and CLI, containment step | `synthapps_zenzeiworld/control.py`, `server.py` | Yes, `tests/test_control.py`, including the real gateway process; timed in [DRILL.md](DRILL.md) |
 
 ## Files
 
@@ -132,16 +133,41 @@ sudo firecracker/launch-agent-vm.sh start ada 10001
 sudo firecracker/launch-agent-vm.sh start bo  10002
 ```
 
-Stop one VM with `launch-agent-vm.sh stop <id>` (cgroup v2 kill). Stop
-everything by stopping the gateway: with no gateway, every guest runner
-loses its connection and exits, and each VM stops.
+The gateway config (`gateway.example.json`) also sets the operators, the
+control socket, the kill-switch button and the stop commands. Install
+`launch-agent-vm.sh` at the path the stop commands use.
+
+## Kill switch
+
+Every way of stopping ends in the same containment step, in this order:
+
+1. the world halts (recorded in the audit log)
+2. every agent connection is cut, and the agent sockets stop listening
+3. the `on_halt_commands` run in parallel: one `launch-agent-vm.sh stop <id>`
+   per VM, which kills the VM's whole cgroup
+
+Guest runners also exit on their own the moment their connection is cut, and
+a VM stops when its runner exits. So VMs stop even if a stop command fails.
+
+| How | Who | Notes |
+|---|---|---|
+| **Button**: web page on the gateway host, `127.0.0.1:<port>` | Any registered operator with the kill-switch token | Reach it through an SSH tunnel: `ssh -L 8787:127.0.0.1:8787 gateway-host`, then open `http://127.0.0.1:8787`. Keep the same local port number: the page refuses other `Host` headers. The token is in the root-only `token_file` (created on first start) and is never shown on the page |
+| **CLI**: `python -m synthapps_zenzeiworld.control --socket /run/zw/control.sock stop --operator alice --reason "..."` | Root on the gateway host | Also `status`, `pause`, `quarantine <agent>` |
+| **Stop the gateway process** (`SIGTERM` or Ctrl-C) | Root on the gateway host | Runs the same containment before exiting |
+| **Automatic**: the watchdog halts the world | Nobody | Same containment, no press needed |
+| **Stop one VM**: `launch-agent-vm.sh stop <id>` | Root on the VM host | Just that agent |
+| **Power off** | On-site staff | Independent of all software |
+
+![The kill-switch page before and after a press, at phone width](kill-switch.png)
+
+One operator can stop the world. Nothing in these tools can restart a halted
+world: a restart means a fresh world from a reviewed snapshot.
+
+Measured times for the software part are in [DRILL.md](DRILL.md): about 1 ms
+to halt, and 1 to 23 ms to cut every agent (4 to 16 agents).
 
 ## Not yet built
 
-- **Operator console over the network.** `OperatorConsole` exists in the
-  kernel, but the gateway process does not expose it. Until it does, the
-  controls are: stop the gateway process, stop VMs with the launch script, or
-  power off the host.
 - **Audit shipping.** The gateway appends the hash-chained log to a local file
   and fsyncs each entry. Shipping it to the write-once store is left to your
   log agent.
@@ -158,4 +184,6 @@ Do not run any model in this world until these are done and signed off:
 3. **Your security team, or an independent penetration tester, has tested the
    enclave's isolation and egress controls on your own hosts, and signed off
    the result.** This repository does not include that test.
-4. The kill-switch drill (stop gateway, stop VM, power off) has been timed.
+4. The kill-switch drill has been run on the real enclave and recorded in
+   [DRILL.md](DRILL.md): button to every VM gone, gateway killed outright,
+   host power-off, and alert-to-button time for the on-call operator.
