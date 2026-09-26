@@ -1,0 +1,188 @@
+{
+ "room": "kitchen",
+ "size": [
+  320,
+  168
+ ],
+ "pixel_aspect_y": 1.2,
+ "near": 8.99,
+ "far": 21.110000381469728,
+ "camera": {
+  "loc": [
+   0.0,
+   -14.0,
+   6.199999809265137
+  ],
+  "rot": [
+   1.2793396711349487,
+   -0.0,
+   0.0
+  ],
+  "lens": 40.0
+ },
+ "points": {
+  "from_hall": [
+   63.93,
+   105.37,
+   16.3
+  ],
+  "door": [
+   59.84,
+   105.37,
+   16.3
+  ],
+  "stove": [
+   117.86,
+   93.94,
+   18.4
+  ],
+  "table": [
+   166.59,
+   113.52,
+   15.05
+  ],
+  "pantry": [
+   228.84,
+   91.56,
+   18.9
+  ],
+  "trapdoor": [
+   83.78,
+   132.17,
+   12.75
+  ],
+  "from_cellar": [
+   83.25,
+   133.11,
+   12.65
+  ]
+ },
+ "zones": {
+  "door_west": {
+   "poly": [
+    [
+     1.76,
+     110.46
+    ],
+    [
+     44.53,
+     110.46
+    ],
+    [
+     54.28,
+     100.72
+    ],
+    [
+     15.12,
+     100.72
+    ]
+   ],
+   "target": [
+    41.44,
+    105.37
+   ]
+  },
+  "trapdoor": {
+   "poly": [
+    [
+     73.93,
+     125.9
+    ],
+    [
+     100.6,
+     125.9
+    ],
+    [
+     104.58,
+     117.13
+    ],
+    [
+     79.7,
+     117.13
+    ]
+   ],
+   "target": [
+    89.78,
+    121.36
+   ]
+  }
+ },
+ "markers": {
+  "bubbles": [
+   116.14,
+   67.07,
+   19.35
+  ],
+  "biscuits": [
+   222.62,
+   67.99,
+   20.45
+  ],
+  "candle": [
+   162.09,
+   90.6,
+   16.15
+  ]
+ },
+ "probes": {
+  "behind_table": [
+   167.26,
+   92.98,
+   true
+  ],
+  "just_behind_table": [
+   167.75,
+   99.62,
+   true
+  ],
+  "under_table": [
+   168.2,
+   105.68,
+   false
+  ]
+ },
+ "groups": {
+  "beyond_l": 1,
+  "cauldron": 2,
+  "cleaver": 3,
+  "floor": 4,
+  "frame_l": 5,
+  "jars": 6,
+  "lantern": 7,
+  "lantern_chain": 8,
+  "pantry_door": 9,
+  "pantry_frame": 10,
+  "pantry_inside": 11,
+  "pit": 12,
+  "pots": 13,
+  "shelf": 14,
+  "stew": 15,
+  "stove": 16,
+  "stove_door": 17,
+  "stove_fire": 18,
+  "stovepipe": 19,
+  "table": 20,
+  "trapdoor": 21,
+  "walls": 22,
+  "window": 23,
+  "window_glass": 24
+ },
+ "states": {
+  "pantry_open": {
+   "base": null
+  },
+  "trapdoor_open": {
+   "base": null
+  }
+ },
+ "shade": {},
+ "sky": false,
+ "erode": [
+  3,
+  0
+ ],
+ "glow_ids": [
+  7,
+  18
+ ]
+}

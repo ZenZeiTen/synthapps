@@ -1,0 +1,5259 @@
+{
+ "meta": {
+  "title": "The House on Crowmere Hill",
+  "subtitle": "A Gus Pickett Misadventure",
+  "version": "0.1.0",
+  "maxScore": 80
+ },
+ "start": {
+  "room": "gate",
+  "point": "spawn",
+  "face": "up",
+  "inventory": [
+   "newspaper"
+  ]
+ },
+ "reach": {
+  "rx": 36,
+  "ry": 18
+ },
+ "intro": [
+  "It is a dark and stormy night on Crowmere Hill. (It usually is.)",
+  "Gus Pickett, paperboy, age twelve and three-quarters, has one newspaper left and a very bad feeling about it.",
+  "His dog Crumpet has just chased a crow straight through the gate of the old Crowmere house: the house nobody delivers to, the house nobody goes near.",
+  "From somewhere inside, Crumpet barks. Gus tugs his cap down and squelches up the path.",
+  "Walk with the ARROW KEYS. Type what you want to do and press ENTER. Type HELP if you get stuck."
+ ],
+ "text": {
+  "unknown_word": "I don't know the word \"{word}\".",
+  "no_verb": "Try starting with a verb, like LOOK or TAKE.",
+  "what": "What do you want to {verb}?",
+  "not_here": "You don't see that here.",
+  "not_close": "You're not close enough.",
+  "cant_take": "You can't take that.",
+  "already_have": "You already have it.",
+  "taken": "Taken.",
+  "dont_have": "You don't have that.",
+  "cant_drop": "You'd better hang on to that.",
+  "cant_go": "You can't go that way.",
+  "cant_do": "You can't do that.",
+  "examine_default": "You see nothing special about it.",
+  "inventory": "You are carrying {items}.",
+  "inventory_empty": "Your pockets are empty. Your stomach, too.",
+  "score": "Your score is {score} of {max}.",
+  "wait": "Time passes. Somewhere, a clock doesn't tick.",
+  "help": "Walk Gus around with the ARROW KEYS. Type commands and press ENTER: LOOK, LOOK AT CLOCK, TAKE KEY, OPEN DOOR, UNLOCK DOOR WITH KEY, INVENTORY. Some things you have to be standing close to; GO TO CLOCK walks you there. Type HINT if you're stuck. F5 saves, F7 restores, F9 restarts.",
+  "pronoun_unknown": "I'm not sure what you mean by \"{word}\"."
+ },
+ "vocab": {
+  "fillers": [
+   "the",
+   "a",
+   "an",
+   "some",
+   "this",
+   "that",
+   "these",
+   "those",
+   "please",
+   "my",
+   "your",
+   "its",
+   "his",
+   "their",
+   "now",
+   "again",
+   "then",
+   "just",
+   "around",
+   "quickly",
+   "carefully",
+   "gently",
+   "very",
+   "all",
+   "of",
+   "and",
+   "there",
+   "here"
+  ],
+  "pronouns": [
+   "it",
+   "them",
+   "him",
+   "her"
+  ],
+  "preps": [
+   "with",
+   "to",
+   "on",
+   "onto",
+   "in",
+   "into",
+   "at",
+   "from",
+   "under",
+   "underneath",
+   "beneath",
+   "behind",
+   "inside",
+   "through",
+   "for",
+   "about",
+   "using",
+   "toward",
+   "towards",
+   "near",
+   "by"
+  ],
+  "dirs": {
+   "north": [
+    "north",
+    "n",
+    "forward",
+    "forwards"
+   ],
+   "south": [
+    "south",
+    "s",
+    "back",
+    "backward",
+    "backwards"
+   ],
+   "east": [
+    "east",
+    "e",
+    "right"
+   ],
+   "west": [
+    "west",
+    "w",
+    "left"
+   ],
+   "up": [
+    "up",
+    "u",
+    "upstairs",
+    "upward",
+    "upwards"
+   ],
+   "down": [
+    "down",
+    "d",
+    "downstairs",
+    "downward",
+    "downwards"
+   ],
+   "in": [
+    "in",
+    "inside",
+    "indoors"
+   ],
+   "out": [
+    "out",
+    "outside",
+    "outdoors"
+   ]
+  },
+  "verbs": {
+   "look": {
+    "words": [
+     "look",
+     "l",
+     "look around"
+    ],
+    "noun": "optional"
+   },
+   "examine": {
+    "words": [
+     "examine",
+     "x",
+     "inspect",
+     "look at",
+     "check",
+     "study",
+     "observe",
+     "describe",
+     "look closely at"
+    ],
+    "noun": "required"
+   },
+   "search": {
+    "words": [
+     "search",
+     "look in",
+     "look inside",
+     "look through",
+     "rummage",
+     "rummage in",
+     "rummage through",
+     "explore"
+    ],
+    "noun": "required",
+    "default": "You find nothing of interest."
+   },
+   "lookunder": {
+    "words": [
+     "look under",
+     "look beneath",
+     "look underneath",
+     "search under",
+     "peek under",
+     "check under",
+     "look behind",
+     "search behind",
+     "peek behind"
+    ],
+    "noun": "required",
+    "default": "There's nothing under there. Probably."
+   },
+   "take": {
+    "words": [
+     "take",
+     "get",
+     "grab",
+     "pick up",
+     "pick",
+     "steal",
+     "collect",
+     "snatch",
+     "carry",
+     "hold"
+    ],
+    "noun": "required"
+   },
+   "drop": {
+    "words": [
+     "drop",
+     "put down",
+     "discard",
+     "throw away",
+     "abandon"
+    ],
+    "noun": "required"
+   },
+   "inventory": {
+    "words": [
+     "inventory",
+     "i",
+     "inv",
+     "items",
+     "pockets"
+    ],
+    "noun": "none"
+   },
+   "open": {
+    "words": [
+     "open",
+     "pry open",
+     "unlatch"
+    ],
+    "noun": "required",
+    "default": "You can't open that."
+   },
+   "close": {
+    "words": [
+     "close",
+     "shut",
+     "slam"
+    ],
+    "noun": "required",
+    "default": "You can't close that."
+   },
+   "unlock": {
+    "words": [
+     "unlock"
+    ],
+    "noun": "required",
+    "default": "You can't unlock that."
+   },
+   "lock": {
+    "words": [
+     "lock"
+    ],
+    "noun": "required",
+    "default": "You don't need to lock anything. You need to get OUT."
+   },
+   "move": {
+    "words": [
+     "move",
+     "lift",
+     "raise",
+     "shift",
+     "flip",
+     "turn over",
+     "slide",
+     "roll"
+    ],
+    "noun": "required",
+    "default": "It won't budge."
+   },
+   "push": {
+    "words": [
+     "push",
+     "press",
+     "shove"
+    ],
+    "noun": "required",
+    "default": "Nothing happens."
+   },
+   "pull": {
+    "words": [
+     "pull",
+     "tug",
+     "yank",
+     "drag"
+    ],
+    "noun": "required",
+    "default": "Nothing happens."
+   },
+   "turn": {
+    "words": [
+     "turn",
+     "spin",
+     "rotate",
+     "twist",
+     "wind",
+     "wind up"
+    ],
+    "noun": "required",
+    "default": "It doesn't turn."
+   },
+   "go": {
+    "words": [
+     "go",
+     "walk",
+     "run",
+     "head",
+     "travel",
+     "go to",
+     "walk to",
+     "run to",
+     "head to",
+     "approach",
+     "stand by"
+    ],
+    "noun": "optional"
+   },
+   "climb": {
+    "words": [
+     "climb",
+     "scale",
+     "clamber",
+     "climb up",
+     "climb on",
+     "climb onto",
+     "climb into",
+     "climb in",
+     "climb out",
+     "climb out of",
+     "climb through",
+     "crawl",
+     "crawl through",
+     "crawl out"
+    ],
+    "noun": "optional",
+    "default": "You can't climb that."
+   },
+   "enter": {
+    "words": [
+     "enter",
+     "go in",
+     "go into",
+     "go inside",
+     "get in",
+     "get into",
+     "step in",
+     "step into",
+     "go through",
+     "walk through",
+     "walk into",
+     "walk in"
+    ],
+    "noun": "optional"
+   },
+   "exit": {
+    "words": [
+     "exit",
+     "leave",
+     "go out",
+     "get out",
+     "escape",
+     "go outside",
+     "go home",
+     "flee"
+    ],
+    "noun": "optional"
+   },
+   "eat": {
+    "words": [
+     "eat",
+     "taste",
+     "bite",
+     "lick",
+     "chew",
+     "nibble",
+     "devour"
+    ],
+    "noun": "required",
+    "default": "That's not food. Even by this house's standards."
+   },
+   "drink": {
+    "words": [
+     "drink",
+     "sip",
+     "swig",
+     "gulp",
+     "slurp"
+    ],
+    "noun": "required",
+    "default": "You can't drink that."
+   },
+   "read": {
+    "words": [
+     "read",
+     "skim"
+    ],
+    "noun": "required",
+    "default": "There's nothing to read on it."
+   },
+   "give": {
+    "words": [
+     "give",
+     "offer",
+     "hand"
+    ],
+    "noun": "required",
+    "default": "Nobody here seems interested."
+   },
+   "feed": {
+    "words": [
+     "feed"
+    ],
+    "noun": "required",
+    "default": "That doesn't need feeding."
+   },
+   "show": {
+    "words": [
+     "show",
+     "wave"
+    ],
+    "noun": "required",
+    "default": "Nobody seems impressed."
+   },
+   "put": {
+    "words": [
+     "put",
+     "place",
+     "insert",
+     "stick",
+     "slip",
+     "set",
+     "tuck",
+     "deliver"
+    ],
+    "noun": "required",
+    "default": "You can't put that there."
+   },
+   "call": {
+    "words": [
+     "call",
+     "shout",
+     "yell",
+     "holler",
+     "call for",
+     "whistle",
+     "whistle for",
+     "shout for",
+     "yell for",
+     "call out",
+     "bark"
+    ],
+    "noun": "optional"
+   },
+   "blow": {
+    "words": [
+     "blow",
+     "blow on",
+     "toot",
+     "play",
+     "sound"
+    ],
+    "noun": "required",
+    "default": "You blow on it. Nothing happens."
+   },
+   "light": {
+    "words": [
+     "light",
+     "ignite",
+     "burn",
+     "strike",
+     "kindle",
+     "set fire to"
+    ],
+    "noun": "required",
+    "default": "You can't light that."
+   },
+   "extinguish": {
+    "words": [
+     "extinguish",
+     "blow out",
+     "put out",
+     "snuff",
+     "snuff out",
+     "douse"
+    ],
+    "noun": "required",
+    "default": "It isn't burning."
+   },
+   "dig": {
+    "words": [
+     "dig",
+     "dig in",
+     "dig up",
+     "excavate",
+     "shovel"
+    ],
+    "noun": "optional"
+   },
+   "knock": {
+    "words": [
+     "knock",
+     "knock on",
+     "bang",
+     "bang on",
+     "rap",
+     "rap on",
+     "pound",
+     "pound on"
+    ],
+    "noun": "optional",
+    "default": "Knock knock. Nobody's there. Hopefully."
+   },
+   "talk": {
+    "words": [
+     "talk",
+     "talk to",
+     "speak",
+     "speak to",
+     "ask",
+     "chat",
+     "chat with",
+     "greet"
+    ],
+    "noun": "required",
+    "default": "It doesn't have much to say."
+   },
+   "hello": {
+    "words": [
+     "hello",
+     "hi",
+     "hey",
+     "yoohoo",
+     "anybody home",
+     "anyone home"
+    ],
+    "noun": "none"
+   },
+   "sit": {
+    "words": [
+     "sit",
+     "sit on",
+     "sit in",
+     "sit down"
+    ],
+    "noun": "optional",
+    "default": "You'd rather not sit on that."
+   },
+   "sleep": {
+    "words": [
+     "sleep",
+     "lie",
+     "lie on",
+     "lie in",
+     "lie down",
+     "nap",
+     "rest",
+     "get in bed"
+    ],
+    "noun": "optional"
+   },
+   "jump": {
+    "words": [
+     "jump",
+     "leap",
+     "hop",
+     "jump out",
+     "jump off",
+     "jump on",
+     "jump out of",
+     "jump from"
+    ],
+    "noun": "optional"
+   },
+   "attack": {
+    "words": [
+     "attack",
+     "hit",
+     "kill",
+     "punch",
+     "kick",
+     "fight",
+     "smash",
+     "break",
+     "slap",
+     "stab",
+     "whack"
+    ],
+    "noun": "optional",
+    "default": "Violence won't help. It rarely does in haunted houses."
+   },
+   "throw": {
+    "words": [
+     "throw",
+     "toss",
+     "chuck",
+     "hurl",
+     "fling"
+    ],
+    "noun": "required",
+    "default": "Better hang on to that."
+   },
+   "touch": {
+    "words": [
+     "touch",
+     "feel",
+     "rub",
+     "pat",
+     "pet",
+     "stroke",
+     "poke",
+     "tickle",
+     "scratch"
+    ],
+    "noun": "required",
+    "default": "It feels about how you'd expect."
+   },
+   "wait": {
+    "words": [
+     "wait",
+     "z",
+     "stay",
+     "idle"
+    ],
+    "noun": "none"
+   },
+   "score": {
+    "words": [
+     "score",
+     "points"
+    ],
+    "noun": "none"
+   },
+   "help": {
+    "words": [
+     "help",
+     "instructions",
+     "commands",
+     "controls"
+    ],
+    "noun": "none"
+   },
+   "hint": {
+    "words": [
+     "hint",
+     "hints",
+     "clue",
+     "clues",
+     "stuck"
+    ],
+    "noun": "none"
+   },
+   "save": {
+    "words": [
+     "save",
+     "save game"
+    ],
+    "noun": "none"
+   },
+   "restore": {
+    "words": [
+     "restore",
+     "load",
+     "restore game",
+     "load game"
+    ],
+    "noun": "none"
+   },
+   "restart": {
+    "words": [
+     "restart",
+     "start over",
+     "new game",
+     "reset"
+    ],
+    "noun": "none"
+   },
+   "quit": {
+    "words": [
+     "quit",
+     "q",
+     "exit game"
+    ],
+    "noun": "none"
+   },
+   "use": {
+    "words": [
+     "use",
+     "apply",
+     "utilize",
+     "employ",
+     "try"
+    ],
+    "noun": "required",
+    "default": "Try being more specific. What do you want to do with it?"
+   },
+   "wear": {
+    "words": [
+     "wear",
+     "put on",
+     "don"
+    ],
+    "noun": "required",
+    "default": "That's not really your style."
+   },
+   "smell": {
+    "words": [
+     "smell",
+     "sniff"
+    ],
+    "noun": "optional"
+   },
+   "listen": {
+    "words": [
+     "listen",
+     "listen to",
+     "hear"
+    ],
+    "noun": "optional"
+   },
+   "wake": {
+    "words": [
+     "wake",
+     "wake up",
+     "rouse"
+    ],
+    "noun": "optional",
+    "default": "It doesn't wake up. Probably for the best."
+   },
+   "stir": {
+    "words": [
+     "stir",
+     "mix"
+    ],
+    "noun": "required",
+    "default": "There's nothing to stir."
+   },
+   "shake": {
+    "words": [
+     "shake",
+     "rattle"
+    ],
+    "noun": "required",
+    "default": "You give it a shake. Nothing interesting happens."
+   },
+   "xyzzy": {
+    "words": [
+     "xyzzy",
+     "plugh",
+     "abracadabra",
+     "hocus pocus"
+    ],
+    "noun": "none"
+   },
+   "sing": {
+    "words": [
+     "sing",
+     "hum"
+    ],
+    "noun": "none"
+   },
+   "dance": {
+    "words": [
+     "dance",
+     "boogie"
+    ],
+    "noun": "none"
+   },
+   "swear": {
+    "words": [
+     "darn",
+     "heck",
+     "crud",
+     "dang",
+     "drat",
+     "rats",
+     "blast"
+    ],
+    "noun": "none"
+   }
+  }
+ },
+ "objects": {
+  "newspaper": {
+   "name": "a damp newspaper",
+   "start": "inv",
+   "words": [
+    "newspaper",
+    "paper",
+    "clarion",
+    "news",
+    "headline"
+   ],
+   "look": [
+    "Tonight's edition of the Crowmere Clarion, the last one on your route. It's a little damp."
+   ],
+   "verbs": {
+    "read": "The headline says LOCAL BOY ENTERS CROWMERE HOUSE, NEVER SEEN AGAIN. It's dated tomorrow. You decide not to read the rest.",
+    "drop": "You're a professional. You deliver it or die trying. Preferably the first one.",
+    "throw": "You're a professional. You deliver it or die trying. Preferably the first one.",
+    "eat": "Newsprint is not a food group.",
+    "wear": "You're not making a paper hat. Not in this house."
+   }
+  },
+  "brass_key": {
+   "name": "a brass key",
+   "start": null,
+   "at": "doormat",
+   "score": 5,
+   "words": [
+    "key",
+    "brass key",
+    "brass",
+    "spare key"
+   ],
+   "take": "You pick up the brass key. It's cold, and heavier than it looks.",
+   "look": [
+    "An old brass key, green around the edges."
+   ]
+  },
+  "matches": {
+   "name": "a box of matches",
+   "start": null,
+   "at": "clock",
+   "score": 5,
+   "words": [
+    "matches",
+    "match",
+    "matchbox",
+    "box of matches"
+   ],
+   "take": "You pocket the box of matches. Rattle, rattle.",
+   "look": [
+    "A little cardboard box of matches. About half full."
+   ],
+   "verbs": {
+    "light": "You strike a match. It flares, sputters, and dies. Better save them for something that needs lighting."
+   }
+  },
+  "whistle": {
+   "name": "a silver whistle",
+   "start": null,
+   "at": "desk",
+   "score": 5,
+   "words": [
+    "whistle",
+    "silver whistle",
+    "dog whistle"
+   ],
+   "take": "You pick up the silver whistle. Engraved on the side: FOR DOGS. HUMANS WILL HEAR NOTHING.",
+   "look": [
+    "A small silver whistle. Engraved on the side: FOR DOGS. HUMANS WILL HEAR NOTHING."
+   ]
+  },
+  "candle": {
+   "name": "a candle",
+   "start": "kitchen",
+   "at": "table",
+   "score": 5,
+   "words": [
+    "candle",
+    "stub",
+    "candle stub",
+    "flame"
+   ],
+   "take": "You take the candle. It's a stubby little thing, but it will do.",
+   "look": [
+    {
+     "if": [
+      {
+       "flag": "candle_lit"
+      }
+     ],
+     "text": "A stubby candle burning with a small, brave flame."
+    },
+    {
+     "if": [
+      {
+       "not": "candle_lit"
+      }
+     ],
+     "text": "A stubby white candle. It isn't lit."
+    }
+   ]
+  },
+  "biscuits": {
+   "name": "a box of dog biscuits",
+   "start": null,
+   "at": "pantry",
+   "score": 5,
+   "words": [
+    "biscuits",
+    "biscuit",
+    "dog biscuits",
+    "crunchy bones",
+    "box of biscuits",
+    "treats",
+    "treat",
+    "snack",
+    "snacks"
+   ],
+   "take": "You grab the box of Crunchy Bones. If anything can coax Crumpet out of hiding, it's these.",
+   "look": [
+    "A box of CRUNCHY BONES dog biscuits. Crumpet would do anything for one of these. He has, in the past, done several regrettable things for one of these."
+   ],
+   "verbs": {
+    "eat": "You're not that hungry. Yet."
+   }
+  },
+  "collar": {
+   "name": "Crumpet's collar",
+   "start": "bedroom",
+   "at": "collar",
+   "score": 5,
+   "words": [
+    "collar",
+    "red collar",
+    "dog collar",
+    "tag",
+    "something red",
+    "something small"
+   ],
+   "take": "You pick up Crumpet's red collar. The tag says CRUMPET. IF FOUND, HE IS PROBABLY EATING SOMETHING.",
+   "look": [
+    "Crumpet's red collar. It's gritty with black coal soot. He must have wriggled out of it... and somewhere in this house, there's coal."
+   ],
+   "verbs": {
+    "wear": "It doesn't fit you. It barely fits Crumpet."
+   }
+  },
+  "iron_key": {
+   "name": "an iron key",
+   "start": "bedroom",
+   "at": "window",
+   "words": [
+    "key",
+    "iron key",
+    "iron",
+    "big key",
+    "heavy key",
+    "shiny thing",
+    "something shiny"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "has": "iron_key"
+      }
+     ],
+     "text": "A big, heavy iron key, the kind that opens something serious."
+    },
+    {
+     "if": [
+      {
+       "hasnt": "iron_key"
+      }
+     ],
+     "text": "Something shiny glints in the crow's nest outside the window."
+    }
+   ]
+  }
+ },
+ "scenery": {
+  "gus": {
+   "room": "*",
+   "words": [
+    "me",
+    "myself",
+    "self",
+    "gus",
+    "gus pickett",
+    "yourself"
+   ],
+   "look": [
+    "You're Gus Pickett: paperboy, dog owner, and, as of tonight, reluctant ghost hunter. Your rain slicker is soaked through."
+   ]
+  },
+  "floor": {
+   "room": "*",
+   "words": [
+    "floor",
+    "ground",
+    "floorboards",
+    "boards"
+   ],
+   "look": [
+    "The floor. It's doing its best."
+   ]
+  },
+  "walls": {
+   "room": [
+    "hall",
+    "library",
+    "kitchen",
+    "bedroom",
+    "cellar"
+   ],
+   "words": [
+    "wall",
+    "walls",
+    "wallpaper"
+   ],
+   "look": [
+    "The wallpaper is peeling off in long strips, as if the house is trying to take off its coat."
+   ]
+  },
+  "ceiling": {
+   "room": [
+    "hall",
+    "library",
+    "kitchen",
+    "bedroom",
+    "cellar"
+   ],
+   "words": [
+    "ceiling",
+    "cobwebs",
+    "cobweb",
+    "webs"
+   ],
+   "look": [
+    "Cobwebs, cracks, and one suspicious stain shaped like a face."
+   ]
+  },
+  "house": {
+   "room": "gate",
+   "words": [
+    "house",
+    "mansion",
+    "crowmere house",
+    "building",
+    "home"
+   ],
+   "look": [
+    "Three stories of peeling paint and bad decisions. One loose shutter bangs in the wind, applauding nothing in particular."
+   ]
+  },
+  "gate_windows": {
+   "room": "gate",
+   "words": [
+    "windows",
+    "window",
+    "lights",
+    "light",
+    "shutter"
+   ],
+   "look": [
+    "Two lit windows on the top floor. Someone, or something, is home."
+   ]
+  },
+  "fence": {
+   "room": "gate",
+   "words": [
+    "fence",
+    "gate",
+    "iron fence",
+    "railing",
+    "railings"
+   ],
+   "look": [
+    "A rusty iron fence with a gate that squeals on its hinges. It's the only thing on this hill that seems pleased to see you."
+   ],
+   "verbs": {
+    "climb": "You're not leaving without Crumpet.",
+    "open": "It's already open. It's been open ever since Crumpet went through it.",
+    "close": "You leave it open. You may want to leave in a hurry."
+   }
+  },
+  "gravestones": {
+   "room": "gate",
+   "at": "graves",
+   "words": [
+    "gravestones",
+    "gravestone",
+    "graves",
+    "grave",
+    "tombstones",
+    "tombstone",
+    "headstones",
+    "headstone",
+    "stones",
+    "inscription",
+    "inscriptions"
+   ],
+   "look": [
+    "Two crooked gravestones. The inscriptions are worn almost smooth. One might say HERE LIES. The other might say NOT YET."
+   ],
+   "verbs": {
+    "read": "One might say HERE LIES. The other might say NOT YET. You'd rather not find out which."
+   }
+  },
+  "porch": {
+   "room": "gate",
+   "at": "door",
+   "words": [
+    "porch",
+    "steps",
+    "stairs",
+    "veranda"
+   ],
+   "look": [
+    "The porch sags in the middle like an old mattress. The steps creak even when nobody's standing on them."
+   ]
+  },
+  "front_door": {
+   "room": "gate",
+   "at": "door",
+   "words": [
+    "door",
+    "front door",
+    "oak door",
+    "entrance"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "front_open"
+      }
+     ],
+     "text": "A heavy oak door with a brass knocker shaped like a crow's head."
+    },
+    {
+     "if": [
+      {
+       "flag": "front_open"
+      }
+     ],
+     "text": "The front door stands open. The dark inside waits politely."
+    }
+   ]
+  },
+  "knocker": {
+   "room": "gate",
+   "at": "door",
+   "words": [
+    "knocker",
+    "crow head",
+    "crow's head",
+    "brass crow",
+    "beak"
+   ],
+   "look": [
+    "A brass knocker shaped like a crow's head. Its beak does the knocking."
+   ]
+  },
+  "doormat": {
+   "room": "gate",
+   "at": "doormat",
+   "words": [
+    "doormat",
+    "mat",
+    "welcome mat",
+    "lump"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "mat_lifted"
+      }
+     ],
+     "text": "A doormat that says GO AWAY. There's a suspicious lump under it."
+    },
+    {
+     "if": [
+      {
+       "flag": "mat_lifted"
+      }
+     ],
+     "text": "A doormat that says GO AWAY, flipped over. You got the message."
+    }
+   ],
+   "verbs": {
+    "read": "It says GO AWAY. Friendly."
+   }
+  },
+  "tree": {
+   "room": "gate",
+   "at": "tree",
+   "words": [
+    "tree",
+    "dead tree",
+    "branches",
+    "branch",
+    "trunk"
+   ],
+   "look": [
+    "A dead tree clawing at the sky. It looks like it wants a word with you."
+   ],
+   "verbs": {
+    "climb": "The branches look like they'd snap if you so much as thought about climbing them. You stop thinking about it.",
+    "shake": "The tree rattles. Something up in the branches rattles back."
+   }
+  },
+  "mailbox": {
+   "room": "gate",
+   "at": "mailbox",
+   "words": [
+    "mailbox",
+    "mail box",
+    "letterbox",
+    "postbox"
+   ],
+   "look": [
+    "The mailbox is stuffed with years of soggy, unread newspapers. You recognize some of your own work."
+   ],
+   "verbs": {
+    "open": "It's jammed full of old newspapers.",
+    "search": "Newspapers, newspapers, and a very old postcard that just says WISH YOU WEREN'T HERE."
+   }
+  },
+  "path": {
+   "room": "gate",
+   "words": [
+    "path",
+    "yard",
+    "lawn",
+    "grass",
+    "weeds",
+    "mud",
+    "puddles",
+    "puddle"
+   ],
+   "look": [
+    "Weeds, mud and puddles. Mostly puddles."
+   ]
+  },
+  "sky": {
+   "room": "gate",
+   "words": [
+    "sky",
+    "storm",
+    "rain",
+    "clouds",
+    "cloud",
+    "moon",
+    "lightning",
+    "thunder"
+   ],
+   "look": [
+    "Rain, wind, thunder and lightning. The full haunted house package."
+   ]
+  },
+  "hall_stairs": {
+   "room": "hall",
+   "at": "stairs",
+   "words": [
+    "stairs",
+    "staircase",
+    "stairway",
+    "steps",
+    "banister",
+    "upstairs",
+    "bedroom"
+   ],
+   "look": [
+    "A grand staircase climbing into the dark. The banister is draped with cobwebs like streamers for a very sad party."
+   ]
+  },
+  "clock": {
+   "room": "hall",
+   "at": "clock",
+   "words": [
+    "clock",
+    "grandfather clock",
+    "case",
+    "pendulum",
+    "clock door",
+    "glass door",
+    "hands"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "clock_open"
+      }
+     ],
+     "text": "A tall grandfather clock with a little glass door in its case. Its hands are stuck at a quarter to midnight."
+    },
+    {
+     "if": [
+      {
+       "flag": "clock_open"
+      },
+      {
+       "at": [
+        "matches",
+        "hall"
+       ]
+      }
+     ],
+     "text": "The clock's little door hangs open. There's a box of matches tucked behind the pendulum."
+    },
+    {
+     "if": [
+      {
+       "flag": "clock_open"
+      },
+      {
+       "notat": [
+        "matches",
+        "hall"
+       ]
+      }
+     ],
+     "text": "The clock's little door hangs open. Just the pendulum in there now, hanging very still."
+    }
+   ],
+   "verbs": {
+    "turn": "You wind the clock. It ticks once, very loudly, and stops. You get the feeling it was trying to tell you something."
+   }
+  },
+  "portrait": {
+   "room": "hall",
+   "at": "portrait",
+   "words": [
+    "portrait",
+    "painting",
+    "picture",
+    "woman",
+    "old woman",
+    "mrs crowmere",
+    "crowmere",
+    "frame",
+    "eyes",
+    "plate"
+   ],
+   "look": [
+    "A portrait of old Mrs. Crowmere. The brass plate says NO VISITORS. Her painted eyes follow you around the room, which you'd like it on record that you find rude."
+   ],
+   "verbs": {
+    "take": "It's bolted to the wall. So, you suspect, is Mrs. Crowmere.",
+    "talk": "'Nice house,' you tell the portrait. Its eyes narrow.",
+    "read": "The brass plate says NO VISITORS."
+   }
+  },
+  "armor": {
+   "room": "hall",
+   "at": "armor",
+   "words": [
+    "armor",
+    "armour",
+    "suit",
+    "suit of armor",
+    "suit of armour",
+    "knight",
+    "visor",
+    "helmet"
+   ],
+   "look": [
+    "A suit of armor gripping a very sharp axe. The visor is closed. You get the distinct impression that it's awake."
+   ],
+   "verbs": {
+    "talk": "'Hello?' you say. The armor says nothing. Loudly.",
+    "open": "You'd rather not know who's in there. Or what. Or whether."
+   }
+  },
+  "axe": {
+   "room": "hall",
+   "at": "armor",
+   "words": [
+    "axe",
+    "ax",
+    "blade",
+    "weapon"
+   ],
+   "look": [
+    "The axe is polished to a mirror shine. Somebody around here cares about this axe a great deal."
+   ]
+  },
+  "chandelier": {
+   "room": "hall",
+   "words": [
+    "chandelier",
+    "crystal",
+    "crystals"
+   ],
+   "look": [
+    "A chandelier heavy with dusty crystal and very old spiders."
+   ],
+   "verbs": {
+    "climb": "You'd need to be nine feet taller and a lot less sensible.",
+    "take": "It's well out of reach. Thankfully."
+   }
+  },
+  "hall_rug": {
+   "room": "hall",
+   "words": [
+    "rug",
+    "carpet",
+    "runner"
+   ],
+   "look": [
+    "A long, threadbare rug. Something has worn a path in it, back and forth, back and forth, between the stairs and the portrait."
+   ],
+   "verbs": {
+    "lookunder": "Just dust, and one very flat spider.",
+    "take": "It's too big to carry, and whatever's been pacing on it might want it back."
+   }
+  },
+  "hall_front_door": {
+   "room": "hall",
+   "at": "front",
+   "words": [
+    "door",
+    "front door",
+    "handle"
+   ],
+   "look": [
+    "The front door is shut tight. It slammed behind you, and it isn't taking questions."
+   ],
+   "verbs": {
+    "open": "It won't budge. Something doesn't want you to leave, and it isn't taking questions either.",
+    "unlock": "There's no keyhole on this side. Just a lot of scratches.",
+    "pull": "It won't budge. Something doesn't want you to leave, and it isn't taking questions either.",
+    "push": "It won't budge. Something doesn't want you to leave, and it isn't taking questions either.",
+    "knock": "You knock on the inside of the front door. That's a new one, even for this house."
+   }
+  },
+  "hall_west_door": {
+   "room": "hall",
+   "at": "west_door",
+   "words": [
+    "west doorway",
+    "west door",
+    "left doorway",
+    "library",
+    "study"
+   ],
+   "look": [
+    "A doorway leading west, into what looks like a library."
+   ]
+  },
+  "hall_east_door": {
+   "room": "hall",
+   "at": "east_door",
+   "words": [
+    "east doorway",
+    "east door",
+    "right doorway",
+    "kitchen"
+   ],
+   "look": [
+    "A doorway leading east. Something in there smells like soup. Suspicious soup."
+   ]
+  },
+  "shelves": {
+   "room": "library",
+   "at": "shelves",
+   "words": [
+    "shelves",
+    "shelf",
+    "bookshelf",
+    "bookshelves",
+    "bookcase",
+    "bookcases",
+    "books",
+    "titles",
+    "top shelf"
+   ],
+   "look": [
+    "Titles like GARDENING FOR THE DECEASED and SO YOU'VE BEEN CURSED. Nothing about finding lost dogs."
+   ],
+   "verbs": {
+    "read": "You skim a few spines: GARDENING FOR THE DECEASED, SO YOU'VE BEEN CURSED, and a slim volume called THE FUN SIDE OF MOLD.",
+    "take": "They crumble when you touch them. These books have been read to death."
+   }
+  },
+  "skeleton": {
+   "room": "library",
+   "at": "skeleton",
+   "words": [
+    "skeleton",
+    "bones",
+    "reader",
+    "man",
+    "skull"
+   ],
+   "look": [
+    "He looks very relaxed. He's been relaxed for about a hundred years. He's reading a book."
+   ],
+   "verbs": {
+    "talk": "'Good book?' you ask. The skeleton doesn't look up. It must be at a good part.",
+    "take": "He looks comfortable. Let him be.",
+    "touch": "He's cold, dry and a little dusty. Also, rude.",
+    "wake": "He's not asleep. He's reading.",
+    "move": "He looks comfortable. Let him be."
+   }
+  },
+  "book": {
+   "room": "library",
+   "at": "skeleton",
+   "words": [
+    "book",
+    "field guide",
+    "guide",
+    "page",
+    "pages",
+    "birds"
+   ],
+   "look": [
+    "The skeleton is holding a book called BIRDS OF CROWMERE HILL. He's about halfway through."
+   ],
+   "verbs": {
+    "take": "The skeleton's grip is surprisingly firm for someone with no muscles."
+   }
+  },
+  "fireplace": {
+   "room": "library",
+   "at": "fireplace",
+   "words": [
+    "fireplace",
+    "fire",
+    "hearth",
+    "ashes",
+    "ash",
+    "chimney",
+    "grate",
+    "mantel",
+    "mantelpiece"
+   ],
+   "look": [
+    "A cold fireplace full of old ashes, breathing out a draft that smells of secrets. There's a single sock in the ashes."
+   ],
+   "verbs": {
+    "search": "Nothing but ashes and one very old sock.",
+    "enter": "You'd get stuck. People in stories always get stuck."
+   }
+  },
+  "sock": {
+   "room": "library",
+   "at": "fireplace",
+   "words": [
+    "sock"
+   ],
+   "look": [
+    "A single sock, stiff with age. Its partner is long gone. You know how it feels."
+   ],
+   "verbs": {
+    "take": "It's crunchy. You put it back.",
+    "wear": "Absolutely not.",
+    "smell": "You regret this immediately."
+   }
+  },
+  "desk": {
+   "room": "library",
+   "at": "desk",
+   "words": [
+    "desk",
+    "writing desk",
+    "table"
+   ],
+   "look": [
+    "An old writing desk with a single drawer.",
+    {
+     "if": [
+      {
+       "flag": "drawer_open"
+      },
+      {
+       "at": [
+        "whistle",
+        "library"
+       ]
+      }
+     ],
+     "text": "The drawer is open, and something silver glints inside."
+    },
+    {
+     "if": [
+      {
+       "flag": "drawer_open"
+      },
+      {
+       "notat": [
+        "whistle",
+        "library"
+       ]
+      }
+     ],
+     "text": "The drawer is open."
+    }
+   ]
+  },
+  "drawer": {
+   "room": "library",
+   "at": "desk",
+   "words": [
+    "drawer"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "drawer_open"
+      }
+     ],
+     "text": "A single desk drawer, shut."
+    },
+    {
+     "if": [
+      {
+       "flag": "drawer_open"
+      },
+      {
+       "at": [
+        "whistle",
+        "library"
+       ]
+      }
+     ],
+     "text": "The open drawer holds a small silver whistle."
+    },
+    {
+     "if": [
+      {
+       "flag": "drawer_open"
+      },
+      {
+       "notat": [
+        "whistle",
+        "library"
+       ]
+      }
+     ],
+     "text": "The open drawer is empty now."
+    }
+   ]
+  },
+  "library_window": {
+   "room": "library",
+   "at": "desk",
+   "words": [
+    "window",
+    "glass"
+   ],
+   "look": [
+    "Rain streaks the glass. Out in the dark, something big and black flaps past."
+   ],
+   "verbs": {
+    "open": "It's painted shut. Whoever lived here was not a fresh-air person."
+   }
+  },
+  "armchair": {
+   "room": "library",
+   "at": "skeleton",
+   "words": [
+    "armchair",
+    "chair",
+    "seat"
+   ],
+   "look": [
+    "A high-backed armchair. It's taken."
+   ],
+   "verbs": {
+    "sit": "The chair is taken. The skeleton has been saving it for a century."
+   }
+  },
+  "globe": {
+   "room": "library",
+   "at": "desk",
+   "words": [
+    "globe",
+    "world"
+   ],
+   "look": [
+    "An old globe covered in countries you've never heard of."
+   ],
+   "verbs": {
+    "turn": "You spin the globe. It stops on a country that doesn't exist anymore. Probably for the best."
+   }
+  },
+  "library_door": {
+   "room": "library",
+   "at": "door",
+   "words": [
+    "doorway",
+    "door",
+    "hall",
+    "arch"
+   ],
+   "look": [
+    "A doorway leading back east to the hall."
+   ]
+  },
+  "stove": {
+   "room": "kitchen",
+   "at": "stove",
+   "words": [
+    "stove",
+    "oven",
+    "range",
+    "iron stove"
+   ],
+   "look": [
+    "A black iron stove, warm to the touch. Nobody seems to be tending it. Nobody you can see, anyway."
+   ],
+   "verbs": {
+    "open": "You open the oven door. Inside is a pie. The pie looks at you. You close the oven door.",
+    "touch": "Hot! Somebody is definitely cooking. Somebody you haven't met."
+   }
+  },
+  "cauldron": {
+   "room": "kitchen",
+   "at": "stove",
+   "words": [
+    "cauldron",
+    "stew",
+    "soup",
+    "green stew",
+    "bubbles",
+    "kettle"
+   ],
+   "look": [
+    "Green stew, bubbling away. Every so often, something in it waves."
+   ],
+   "verbs": {
+    "take": "Too hot, too heavy, and a little bit alive.",
+    "stir": "You stir the stew. The stew stirs back."
+   }
+  },
+  "kitchen_table": {
+   "room": "kitchen",
+   "at": "table",
+   "words": [
+    "table",
+    "chopping table",
+    "counter",
+    "chopping block"
+   ],
+   "look": [
+    "A heavy table scarred by a century of chopping.",
+    {
+     "if": [
+      {
+       "at": [
+        "candle",
+        "kitchen"
+       ]
+      }
+     ],
+     "text": "A candle stands on it."
+    }
+   ]
+  },
+  "pantry": {
+   "room": "kitchen",
+   "at": "pantry",
+   "words": [
+    "pantry",
+    "pantry door",
+    "door",
+    "cupboard",
+    "larder",
+    "shelf"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "pantry_open"
+      }
+     ],
+     "text": "A narrow pantry door, shut."
+    },
+    {
+     "if": [
+      {
+       "flag": "pantry_open"
+      },
+      {
+       "at": [
+        "biscuits",
+        "kitchen"
+       ]
+      }
+     ],
+     "text": "The pantry holds cobwebs, a jar of something murky, and a box of dog biscuits."
+    },
+    {
+     "if": [
+      {
+       "flag": "pantry_open"
+      },
+      {
+       "notat": [
+        "biscuits",
+        "kitchen"
+       ]
+      }
+     ],
+     "text": "The pantry holds cobwebs and a jar of something murky."
+    }
+   ]
+  },
+  "jar": {
+   "room": "kitchen",
+   "at": "pantry",
+   "if": [
+    {
+     "flag": "pantry_open"
+    }
+   ],
+   "words": [
+    "jar",
+    "murky jar",
+    "something murky"
+   ],
+   "look": [
+    "A jar of something murky. It's staring at you."
+   ],
+   "verbs": {
+    "take": "You'd rather not. It's still staring.",
+    "open": "Absolutely not.",
+    "eat": "Absolutely not.",
+    "drink": "Absolutely not."
+   }
+  },
+  "trapdoor": {
+   "room": "kitchen",
+   "at": "trapdoor",
+   "words": [
+    "trapdoor",
+    "trap door",
+    "hatch",
+    "ring",
+    "iron ring",
+    "cellar",
+    "steps"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "trapdoor_open"
+      }
+     ],
+     "text": "A wooden trapdoor with an iron ring. A cold draft whistles up through the cracks."
+    },
+    {
+     "if": [
+      {
+       "flag": "trapdoor_open"
+      }
+     ],
+     "text": "The trapdoor is open. Stone steps lead down into the dark."
+    }
+   ]
+  },
+  "pots": {
+   "room": "kitchen",
+   "words": [
+    "pots",
+    "pans",
+    "copper pots",
+    "hooks",
+    "pot"
+   ],
+   "look": [
+    "Copper pots hang from hooks, clinking gently. There's no wind."
+   ],
+   "verbs": {
+    "take": "They're hung too high, and frankly you don't want to know what's been cooked in them."
+   }
+  },
+  "kitchen_door": {
+   "room": "kitchen",
+   "at": "door",
+   "words": [
+    "doorway",
+    "hall",
+    "arch"
+   ],
+   "look": [
+    "A doorway leading back west to the hall."
+   ]
+  },
+  "bed": {
+   "room": "bedroom",
+   "at": "bed",
+   "words": [
+    "bed",
+    "four poster",
+    "four poster bed",
+    "mattress",
+    "canopy",
+    "pillow",
+    "blanket"
+   ],
+   "look": [
+    "A four-poster bed under a moth-eaten canopy. The mattress sags in the middle. Something underneath it is breathing."
+   ]
+  },
+  "wardrobe": {
+   "room": "bedroom",
+   "at": "wardrobe",
+   "words": [
+    "wardrobe",
+    "closet",
+    "armoire",
+    "cupboard"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "wardrobe_open"
+      }
+     ],
+     "text": "A towering wardrobe with doors that don't quite shut."
+    },
+    {
+     "if": [
+      {
+       "flag": "wardrobe_open"
+      }
+     ],
+     "text": "The wardrobe hangs open, empty. The moths left, and they took the coat."
+    }
+   ],
+   "verbs": {
+    "enter": "You're not climbing into a wardrobe. That never ends normally."
+   }
+  },
+  "rocking_chair": {
+   "room": "bedroom",
+   "at": "chair",
+   "words": [
+    "chair",
+    "rocking chair",
+    "rocker"
+   ],
+   "look": [
+    "An old rocking chair, rocking gently back and forth with nobody in it. You decide that's the chair's business."
+   ],
+   "verbs": {
+    "sit": "You sit in the rocking chair. It stops rocking. Then it starts rocking faster. You get up.",
+    "touch": "You stop the chair. The moment you let go, it starts again.",
+    "push": "You stop the chair. The moment you let go, it starts again."
+   }
+  },
+  "bedroom_window": {
+   "room": "bedroom",
+   "at": "window",
+   "words": [
+    "window",
+    "glass",
+    "ledge",
+    "sill",
+    "windowsill"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "crow_gone"
+      }
+     ],
+     "text": "Rain streams down the glass. On the ledge outside, a big black crow sits on a nest, glaring in at you."
+    },
+    {
+     "if": [
+      {
+       "flag": "crow_gone"
+      },
+      {
+       "not": "window_open"
+      }
+     ],
+     "text": "Rain streams down the glass. The crow's nest sits abandoned on the ledge outside."
+    },
+    {
+     "if": [
+      {
+       "flag": "window_open"
+      }
+     ],
+     "text": "The window is open. Rain blows in over the sill, and the nest sits on the ledge within reach."
+    }
+   ]
+  },
+  "crow": {
+   "room": "bedroom",
+   "at": "window",
+   "if": [
+    {
+     "not": "crow_gone"
+    }
+   ],
+   "words": [
+    "crow",
+    "bird",
+    "raven",
+    "blackbird"
+   ],
+   "look": [
+    "A crow the size of a small dog, with a beak like a letter opener. It's sitting on its nest, glaring at you through the glass. Something shiny glints underneath it."
+   ],
+   "verbs": {
+    "talk": "'Nice bird,' you say. The crow's eye says: not to you.",
+    "attack": "You'd never hurt an animal. Not even a mean one. Especially not one with that beak.",
+    "touch": "There's a window in the way. You're grateful for the window."
+   }
+  },
+  "nest": {
+   "room": "bedroom",
+   "at": "window",
+   "words": [
+    "nest",
+    "twigs",
+    "twig"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "crow_gone"
+      }
+     ],
+     "text": "A nest of twigs, string and stolen shiny things. The crow is sitting on it."
+    },
+    {
+     "if": [
+      {
+       "flag": "crow_gone"
+      },
+      {
+       "at": [
+        "iron_key",
+        "bedroom"
+       ]
+      }
+     ],
+     "text": "A nest of twigs, string and stolen shiny things. A heavy iron key lies at the bottom."
+    },
+    {
+     "if": [
+      {
+       "flag": "crow_gone"
+      },
+      {
+       "notat": [
+        "iron_key",
+        "bedroom"
+       ]
+      }
+     ],
+     "text": "Just twigs and string now."
+    }
+   ]
+  },
+  "bedroom_stairs": {
+   "room": "bedroom",
+   "at": "stairs",
+   "words": [
+    "stairs",
+    "staircase",
+    "steps",
+    "downstairs",
+    "hall"
+   ],
+   "look": [
+    "The stairs lead back down to the hall."
+   ]
+  },
+  "crumpet": {
+   "room": "cellar",
+   "at": "crates",
+   "words": [
+    "crumpet",
+    "dog",
+    "puppy",
+    "pup",
+    "terrier",
+    "eyes"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "crumpet_follows"
+      }
+     ],
+     "text": "Crumpet! Your scruffy little dog is huddled behind the crates, shivering. When he sees you, his tail thumps once, but he's too scared to come out."
+    },
+    {
+     "if": [
+      {
+       "flag": "crumpet_follows"
+      }
+     ],
+     "text": "Crumpet sticks close to your boots, tail going like a windshield wiper. He's covered in coal dust and looks extremely pleased with himself."
+    }
+   ]
+  },
+  "coal": {
+   "room": "cellar",
+   "at": "chute",
+   "words": [
+    "coal",
+    "coal pile",
+    "pile",
+    "heap",
+    "lump"
+   ],
+   "look": [
+    "A heap of coal. A trail of small paw prints leads through it to the crates."
+   ],
+   "verbs": {
+    "take": "You grab a lump of coal. Now your hands are black and you still don't have anything useful. You drop it."
+   }
+  },
+  "chute_door": {
+   "room": "cellar",
+   "at": "chute",
+   "words": [
+    "door",
+    "chute",
+    "coal chute",
+    "iron door",
+    "little door",
+    "hatch",
+    "chute door"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "chute_open"
+      }
+     ],
+     "text": "A small iron door at the top of the coal heap: the coal chute! It's held shut with a heavy iron padlock."
+    },
+    {
+     "if": [
+      {
+       "flag": "chute_open"
+      }
+     ],
+     "text": "The coal chute door hangs open. Cold, rainy air blows in."
+    }
+   ]
+  },
+  "padlock": {
+   "room": "cellar",
+   "at": "chute",
+   "words": [
+    "padlock",
+    "lock"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "chute_open"
+      }
+     ],
+     "text": "A heavy iron padlock, rusty but solid."
+    },
+    {
+     "if": [
+      {
+       "flag": "chute_open"
+      }
+     ],
+     "text": "The padlock lies open on the coal."
+    }
+   ]
+  },
+  "crates": {
+   "room": "cellar",
+   "at": "crates",
+   "words": [
+    "crates",
+    "crate",
+    "boxes",
+    "stack"
+   ],
+   "look": [
+    {
+     "if": [
+      {
+       "not": "crumpet_follows"
+      }
+     ],
+     "text": "A stack of old crates. Someone small and furry is hiding behind them."
+    },
+    {
+     "if": [
+      {
+       "flag": "crumpet_follows"
+      }
+     ],
+     "text": "A stack of old crates. Nobody's hiding behind them anymore."
+    }
+   ],
+   "verbs": {
+    "move": "They're too heavy. Whoever's behind them is going to have to come out on his own.",
+    "push": "They're too heavy. Whoever's behind them is going to have to come out on his own."
+   }
+  },
+  "racks": {
+   "room": "cellar",
+   "at": "racks",
+   "words": [
+    "racks",
+    "rack",
+    "bottles",
+    "wine",
+    "wine racks",
+    "barrels",
+    "barrel"
+   ],
+   "look": [
+    "Racks of dusty bottles and a few old barrels. One bottle is labeled NOT WINE."
+   ]
+  },
+  "bottle": {
+   "room": "cellar",
+   "at": "racks",
+   "words": [
+    "bottle",
+    "not wine",
+    "label"
+   ],
+   "look": [
+    "A dusty bottle labeled NOT WINE in shaky handwriting."
+   ],
+   "verbs": {
+    "take": "You'd rather not carry it around. Or be anywhere near it.",
+    "read": "NOT WINE. Underlined twice."
+   }
+  },
+  "cellar_stairs": {
+   "room": "cellar",
+   "at": "stairs",
+   "words": [
+    "stairs",
+    "steps",
+    "staircase",
+    "upstairs",
+    "kitchen"
+   ],
+   "look": [
+    "Stone steps lead back up to the kitchen."
+   ]
+  }
+ },
+ "rooms": {
+  "gate": {
+   "name": "Crowmere Gate",
+   "look": [
+    "The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late.",
+    "A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds.",
+    {
+     "if": [
+      {
+       "not": "front_open"
+      }
+     ],
+     "text": "Rickety steps lead up to the porch and a heavy front door."
+    },
+    {
+     "if": [
+      {
+       "flag": "front_open"
+      }
+     ],
+     "text": "Rickety steps lead up to the porch, where the front door stands open."
+    },
+    {
+     "if": [
+      {
+       "at": [
+        "brass_key",
+        "gate"
+       ]
+      }
+     ],
+     "text": "A brass key glints on the porch where the doormat used to be."
+    }
+   ],
+   "smell": "Wet leaves, old stone, and a whiff of wet dog from somewhere up ahead.",
+   "listen": "Rain, thunder, and from inside the house, very faintly, a dog barking.",
+   "exits": {
+    "x_front_door": {
+     "zone": "front_door",
+     "dir": [
+      "north",
+      "in"
+     ],
+     "nouns": [
+      "front_door",
+      "house"
+     ],
+     "to": "hall",
+     "at": "from_gate",
+     "face": "up",
+     "when": [
+      {
+       "flag": "front_open"
+      }
+     ],
+     "blocked": "The front door is closed."
+    },
+    "x_leave": {
+     "zone": "leave",
+     "dir": [
+      "south",
+      "out"
+     ],
+     "nouns": [
+      "fence"
+     ],
+     "to": "gate",
+     "at": "spawn",
+     "face": "up",
+     "when": [
+      {
+       "flag": "never"
+      }
+     ],
+     "blocked": "You can't go home without Crumpet. He's in there somewhere, probably eating something he shouldn't."
+    }
+   },
+   "overlays": {
+    "front_open": [
+     {
+      "flag": "front_open"
+     }
+    ],
+    "mat_lifted": [
+     {
+      "flag": "mat_lifted"
+     }
+    ],
+    "brass_key": [
+     {
+      "at": [
+       "brass_key",
+       "gate"
+      ]
+     }
+    ]
+   }
+  },
+  "hall": {
+   "name": "Entrance Hall",
+   "look": [
+    "A grand entrance hall gone badly to seed. A staircase climbs into darkness, its banister draped in cobwebs, and a suit of armor stands guard at the bottom.",
+    "From a gilded frame, a portrait of a stern old woman glares at everyone. A tall grandfather clock leans against the wall.",
+    {
+     "if": [
+      {
+       "flag": "clock_open"
+      },
+      {
+       "at": [
+        "matches",
+        "hall"
+       ]
+      }
+     ],
+     "text": "The clock's little door hangs open, and there's a box of matches inside."
+    },
+    "Doorways lead west and east. The front door behind you is shut tight."
+   ],
+   "smell": "Dust, candle wax, and something that might be soup.",
+   "listen": "Creaks. Drips. A clock that isn't ticking. And from far below, a tiny whimper.",
+   "exits": {
+    "x_hall_west": {
+     "zone": "door_west",
+     "dir": [
+      "west"
+     ],
+     "nouns": [
+      "hall_west_door"
+     ],
+     "to": "library",
+     "at": "from_hall",
+     "face": "left"
+    },
+    "x_hall_east": {
+     "zone": "door_east",
+     "dir": [
+      "east"
+     ],
+     "nouns": [
+      "hall_east_door"
+     ],
+     "to": "kitchen",
+     "at": "from_hall",
+     "face": "right"
+    },
+    "x_hall_up": {
+     "zone": "stairs",
+     "dir": [
+      "up",
+      "north"
+     ],
+     "nouns": [
+      "hall_stairs"
+     ],
+     "to": "bedroom",
+     "at": "from_hall",
+     "face": "right"
+    },
+    "x_hall_front": {
+     "zone": "front",
+     "dir": [
+      "south",
+      "out"
+     ],
+     "nouns": [
+      "hall_front_door"
+     ],
+     "to": "gate",
+     "at": "spawn",
+     "face": "up",
+     "when": [
+      {
+       "flag": "never"
+      }
+     ],
+     "blocked": "The front door won't budge. Something doesn't want you to leave, and it isn't taking questions."
+    }
+   },
+   "overlays": {
+    "clock_open": [
+     {
+      "flag": "clock_open"
+     }
+    ],
+    "matches": [
+     {
+      "flag": "clock_open"
+     },
+     {
+      "at": [
+       "matches",
+       "hall"
+      ]
+     }
+    ]
+   }
+  },
+  "library": {
+   "name": "Library",
+   "look": [
+    "Shelves of crumbling books climb all the way to the ceiling, and a cold fireplace yawns in one wall.",
+    "In a high-backed armchair sits a skeleton, reading a book. It must be a real page-turner; he's been at it for about a hundred years.",
+    "An old writing desk stands beneath the window.",
+    {
+     "if": [
+      {
+       "flag": "drawer_open"
+      },
+      {
+       "at": [
+        "whistle",
+        "library"
+       ]
+      }
+     ],
+     "text": "Its drawer is open, and something silver glints inside."
+    },
+    "A doorway leads back east to the hall."
+   ],
+   "smell": "Old paper, older dust, and a hint of mothballs.",
+   "listen": "Rain on the window, and every so often, a page turning.",
+   "exits": {
+    "x_library_east": {
+     "zone": "door_east",
+     "dir": [
+      "east",
+      "out"
+     ],
+     "nouns": [
+      "library_door"
+     ],
+     "to": "hall",
+     "at": "from_library",
+     "face": "right"
+    }
+   },
+   "overlays": {
+    "drawer_open": [
+     {
+      "flag": "drawer_open"
+     }
+    ],
+    "whistle": [
+     {
+      "flag": "drawer_open"
+     },
+     {
+      "at": [
+       "whistle",
+       "library"
+      ]
+     }
+    ]
+   }
+  },
+  "kitchen": {
+   "name": "Kitchen",
+   "look": [
+    "A cavernous kitchen that hasn't seen a health inspector since before health inspectors were invented. Something green bubbles in a cauldron on the old iron stove.",
+    {
+     "if": [
+      {
+       "at": [
+        "candle",
+        "kitchen"
+       ]
+      }
+     ],
+     "text": "A lone candle stands on the chopping table."
+    },
+    {
+     "if": [
+      {
+       "not": "pantry_open"
+      }
+     ],
+     "text": "A narrow pantry door stands in the corner."
+    },
+    {
+     "if": [
+      {
+       "flag": "pantry_open"
+      },
+      {
+       "at": [
+        "biscuits",
+        "kitchen"
+       ]
+      }
+     ],
+     "text": "The pantry stands open, and there's a box of dog biscuits on its shelf."
+    },
+    {
+     "if": [
+      {
+       "flag": "pantry_open"
+      },
+      {
+       "notat": [
+        "biscuits",
+        "kitchen"
+       ]
+      }
+     ],
+     "text": "The pantry stands open."
+    },
+    {
+     "if": [
+      {
+       "not": "trapdoor_open"
+      }
+     ],
+     "text": "A wooden trapdoor with an iron ring is set into the floor, and a cold draft whistles up through its cracks."
+    },
+    {
+     "if": [
+      {
+       "flag": "trapdoor_open"
+      }
+     ],
+     "text": "The trapdoor in the floor is open, and stone steps lead down into the dark."
+    },
+    "The hall is back to the west."
+   ],
+   "smell": "Onions, rust, and a stew that smells faintly of regret.",
+   "listen": "Bubbling, clinking, and from under the floor, a small familiar whimper.",
+   "exits": {
+    "x_kitchen_west": {
+     "zone": "door_west",
+     "dir": [
+      "west",
+      "out"
+     ],
+     "nouns": [
+      "kitchen_door"
+     ],
+     "to": "hall",
+     "at": "from_kitchen",
+     "face": "left"
+    },
+    "x_trapdoor": {
+     "zone": "trapdoor",
+     "dir": [
+      "down"
+     ],
+     "nouns": [
+      "trapdoor"
+     ],
+     "to": "cellar",
+     "at": "from_kitchen",
+     "face": "down",
+     "when": [
+      {
+       "flag": "trapdoor_open"
+      }
+     ],
+     "blocked": "The trapdoor is closed.",
+     "silent": true
+    }
+   },
+   "overlays": {
+    "candle": [
+     {
+      "at": [
+       "candle",
+       "kitchen"
+      ]
+     }
+    ],
+    "pantry_open": [
+     {
+      "flag": "pantry_open"
+     }
+    ],
+    "biscuits": [
+     {
+      "flag": "pantry_open"
+     },
+     {
+      "at": [
+       "biscuits",
+       "kitchen"
+      ]
+     }
+    ],
+    "trapdoor_open": [
+     {
+      "flag": "trapdoor_open"
+     }
+    ]
+   }
+  },
+  "bedroom": {
+   "name": "Master Bedroom",
+   "look": [
+    "A musty bedroom at the top of the stairs. A four-poster bed sags beneath a moth-eaten canopy, a tall wardrobe looms in the corner, and a rocking chair rocks gently all by itself.",
+    {
+     "if": [
+      {
+       "not": "crow_gone"
+      }
+     ],
+     "text": "Rain lashes the big window. On the ledge outside, a fat black crow sits on a nest of twigs, glaring at you."
+    },
+    {
+     "if": [
+      {
+       "flag": "crow_gone"
+      }
+     ],
+     "text": "Rain lashes the big window. The crow's nest sits abandoned on the ledge outside."
+    },
+    {
+     "if": [
+      {
+       "at": [
+        "collar",
+        "bedroom"
+       ]
+      }
+     ],
+     "text": "Something small and red lies on the floor."
+    },
+    "The stairs lead back down."
+   ],
+   "smell": "Mothballs and damp feathers.",
+   "listen": "Creak, creak, creak goes the rocking chair. Rain rattles the window.",
+   "exits": {
+    "x_bedroom_down": {
+     "zone": "stairs",
+     "dir": [
+      "down",
+      "out"
+     ],
+     "nouns": [
+      "bedroom_stairs"
+     ],
+     "to": "hall",
+     "at": "from_bedroom",
+     "face": "down"
+    }
+   },
+   "overlays": {
+    "wardrobe_open": [
+     {
+      "flag": "wardrobe_open"
+     }
+    ],
+    "window_open": [
+     {
+      "flag": "window_open"
+     }
+    ],
+    "collar": [
+     {
+      "at": [
+       "collar",
+       "bedroom"
+      ]
+     }
+    ],
+    "iron_key": [
+     {
+      "flag": "crow_gone"
+     },
+     {
+      "at": [
+       "iron_key",
+       "bedroom"
+      ]
+     }
+    ]
+   }
+  },
+  "cellar": {
+   "name": "Cellar",
+   "dark": true,
+   "look": [
+    "A damp stone cellar. Your candle throws jittery shadows across racks of dusty bottles and old barrels.",
+    "In the far wall, a small iron door sits at the top of a heap of coal: a coal chute!",
+    {
+     "if": [
+      {
+       "not": "crumpet_follows"
+      }
+     ],
+     "text": "Behind a stack of crates, two worried eyes glint in the candlelight."
+    },
+    {
+     "if": [
+      {
+       "flag": "crumpet_follows"
+      }
+     ],
+     "text": "Crumpet is glued to your heels."
+    },
+    "Stone steps lead back up to the kitchen."
+   ],
+   "smell": "Coal dust and wet dog. Mostly wet dog.",
+   "listen": "Dripping water, and a small dog trying very hard to be brave.",
+   "exits": {
+    "x_cellar_up": {
+     "zone": "stairs",
+     "dir": [
+      "up"
+     ],
+     "nouns": [
+      "cellar_stairs"
+     ],
+     "to": "kitchen",
+     "at": "from_cellar",
+     "face": "up"
+    },
+    "x_chute": {
+     "zone": "chute",
+     "dir": [
+      "out",
+      "north"
+     ],
+     "nouns": [
+      "chute_door",
+      "coal"
+     ],
+     "to": "gate",
+     "at": "spawn",
+     "face": "down",
+     "when": [
+      {
+       "flag": "chute_open"
+      }
+     ],
+     "blocked": "The coal chute door is padlocked shut."
+    }
+   },
+   "overlays": {
+    "chute_open": [
+     {
+      "flag": "chute_open"
+     }
+    ]
+   }
+  }
+ },
+ "rules": [
+  {
+   "verb": "@enter",
+   "room": "hall",
+   "if": [
+    {
+     "not": "door_slammed"
+    }
+   ],
+   "do": [
+    {
+     "say": "BOOM! The front door slams shut behind you. You try the handle. It won't budge. Well. The only way out is through."
+    },
+    {
+     "set": "door_slammed"
+    },
+    {
+     "clear": "front_open"
+    },
+    {
+     "sound": "slam"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "lookunder",
+    "move",
+    "search",
+    "take",
+    "pull",
+    "push"
+   ],
+   "noun": "doormat",
+   "near": "doormat",
+   "if": [
+    {
+     "not": "mat_lifted"
+    }
+   ],
+   "do": [
+    {
+     "say": "You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are."
+    },
+    {
+     "set": "mat_lifted"
+    },
+    {
+     "move": [
+      "brass_key",
+      "gate"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": [
+    "lookunder",
+    "move",
+    "search",
+    "take",
+    "pull",
+    "push"
+   ],
+   "noun": "doormat",
+   "near": "doormat",
+   "do": [
+    {
+     "say": "Nothing else under there but a family of damp woodlice. They'd like their privacy back."
+    }
+   ]
+  },
+  {
+   "verb": "knock",
+   "noun": [
+    "front_door",
+    "knocker"
+   ],
+   "near": "front_door",
+   "do": [
+    {
+     "say": "You lift the brass crow and knock. Somewhere deep inside, something knocks back. Twice. You decide that's enough knocking for one night."
+    },
+    {
+     "sound": "knock"
+    }
+   ]
+  },
+  {
+   "verb": "knock",
+   "room": "gate",
+   "if": [
+    {
+     "near": "front_door"
+    }
+   ],
+   "do": [
+    {
+     "say": "You lift the brass crow and knock. Somewhere deep inside, something knocks back. Twice. You decide that's enough knocking for one night."
+    },
+    {
+     "sound": "knock"
+    }
+   ]
+  },
+  {
+   "verb": "unlock",
+   "noun": "front_door",
+   "noun2": "iron_key",
+   "do": [
+    {
+     "say": "The iron key is far too big for this lock."
+    }
+   ]
+  },
+  {
+   "verb": "unlock",
+   "noun": "front_door",
+   "if": [
+    {
+     "flag": "front_unlocked"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already unlocked."
+    }
+   ]
+  },
+  {
+   "verb": "unlock",
+   "noun": "front_door",
+   "if": [
+    {
+     "hasnt": "brass_key"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's locked, and you don't have the key. People who hate visitors still hide a spare one somewhere, though."
+    }
+   ]
+  },
+  {
+   "verb": "unlock",
+   "noun": "front_door",
+   "near": "front_door",
+   "do": [
+    {
+     "say": "The brass key turns with a heavy clunk. The door is unlocked."
+    },
+    {
+     "set": "front_unlocked"
+    },
+    {
+     "score": [
+      5,
+      "unlock_front"
+     ]
+    },
+    {
+     "sound": "clunk"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "use",
+    "put"
+   ],
+   "pair": [
+    "brass_key",
+    "front_door"
+   ],
+   "do": [
+    {
+     "redirect": [
+      "unlock",
+      "front_door"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "front_door",
+   "noun2": "brass_key",
+   "if": [
+    {
+     "not": "front_unlocked"
+    }
+   ],
+   "do": [
+    {
+     "redirect": [
+      "unlock",
+      "front_door"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "use",
+   "noun": [
+    "brass_key",
+    "iron_key"
+   ],
+   "room": "gate",
+   "do": [
+    {
+     "redirect": [
+      "unlock",
+      "front_door"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "front_door",
+   "if": [
+    {
+     "flag": "front_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already open. The dark inside is waiting patiently."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "open",
+    "push",
+    "pull"
+   ],
+   "noun": "front_door",
+   "near": "front_door",
+   "if": [
+    {
+     "not": "front_unlocked"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's locked. Of course it's locked."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "open",
+    "push",
+    "pull"
+   ],
+   "noun": "front_door",
+   "near": "front_door",
+   "do": [
+    {
+     "say": "You push the door. It swings inward with a long, slow creak, as if it's been waiting all night to make that noise."
+    },
+    {
+     "set": "front_open"
+    },
+    {
+     "sound": "creak"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "front_door",
+   "if": [
+    {
+     "flag": "front_open"
+    }
+   ],
+   "near": "front_door",
+   "do": [
+    {
+     "say": "You pull the door shut. It seems disappointed."
+    },
+    {
+     "clear": "front_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "front_door",
+   "do": [
+    {
+     "say": "It's already closed."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "dig",
+    "search",
+    "open",
+    "move",
+    "touch",
+    "lookunder"
+   ],
+   "noun": "gravestones",
+   "near": "gravestones",
+   "do": [
+    {
+     "die": "You scoop away a handful of wet earth. A bony hand shoots up, grabs your wrist, and pulls you down to meet the neighbors. They're very welcoming. Permanently."
+    }
+   ]
+  },
+  {
+   "verb": "dig",
+   "room": "gate",
+   "if": [
+    {
+     "near": "gravestones"
+    }
+   ],
+   "do": [
+    {
+     "die": "You scoop away a handful of wet earth. A bony hand shoots up, grabs your wrist, and pulls you down to meet the neighbors. They're very welcoming. Permanently."
+    }
+   ]
+  },
+  {
+   "verb": "dig",
+   "room": "gate",
+   "do": [
+    {
+     "say": "You dig at the mud with your fingers and find more mud. Riveting."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "put",
+    "give"
+   ],
+   "pair": [
+    "newspaper",
+    "mailbox"
+   ],
+   "do": [
+    {
+     "say": "You try to squeeze tonight's paper in. The mailbox refuses. There's simply no room for more bad news."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "take",
+    "move",
+    "pull",
+    "attack",
+    "touch",
+    "push"
+   ],
+   "noun": [
+    "axe",
+    "armor"
+   ],
+   "near": "armor",
+   "do": [
+    {
+     "die": "You reach for the axe. The armor, it turns out, is extremely against that. Clank. Swish. Oh dear."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "clock",
+   "if": [
+    {
+     "flag": "clock_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already open."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "clock",
+   "near": "clock",
+   "if": [
+    {
+     "not": "clock_searched"
+    }
+   ],
+   "do": [
+    {
+     "say": "You open the little glass door in the clock's case. Tucked behind the pendulum is a box of matches. Somebody's emergency supplies."
+    },
+    {
+     "set": "clock_open"
+    },
+    {
+     "set": "clock_searched"
+    },
+    {
+     "move": [
+      "matches",
+      "hall"
+     ]
+    },
+    {
+     "sound": "creak"
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "clock",
+   "near": "clock",
+   "do": [
+    {
+     "say": "You open the clock's little door."
+    },
+    {
+     "set": "clock_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "clock",
+   "if": [
+    {
+     "flag": "clock_open"
+    }
+   ],
+   "near": "clock",
+   "do": [
+    {
+     "say": "You close the clock's little door."
+    },
+    {
+     "clear": "clock_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "clock",
+   "do": [
+    {
+     "say": "It's already closed."
+    }
+   ]
+  },
+  {
+   "verb": "take",
+   "noun": "matches",
+   "if": [
+    {
+     "not": "clock_open"
+    },
+    {
+     "at": [
+      "matches",
+      "hall"
+     ]
+    }
+   ],
+   "do": [
+    {
+     "say": "The clock's little door is closed."
+    }
+   ]
+  },
+  {
+   "verb": "take",
+   "noun": "matches",
+   "if": [
+    {
+     "at": [
+      "matches",
+      "hall"
+     ]
+    }
+   ],
+   "near": "clock",
+   "do": [
+    {
+     "say": "You pocket the box of matches. Rattle, rattle."
+    },
+    {
+     "move": [
+      "matches",
+      "inv"
+     ]
+    },
+    {
+     "score": [
+      5,
+      "take_matches"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": [
+    "search",
+    "lookunder"
+   ],
+   "noun": "clock",
+   "if": [
+    {
+     "not": "clock_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "The clock's little door is closed."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "drawer",
+   "if": [
+    {
+     "flag": "drawer_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already open."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": [
+    "drawer",
+    "desk"
+   ],
+   "near": "desk",
+   "if": [
+    {
+     "not": "drawer_searched"
+    }
+   ],
+   "do": [
+    {
+     "say": "The drawer sticks, then shoots open. Inside lies a small silver whistle."
+    },
+    {
+     "set": "drawer_open"
+    },
+    {
+     "set": "drawer_searched"
+    },
+    {
+     "move": [
+      "whistle",
+      "library"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": [
+    "drawer",
+    "desk"
+   ],
+   "near": "desk",
+   "do": [
+    {
+     "say": "You slide the drawer open."
+    },
+    {
+     "set": "drawer_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": [
+    "drawer",
+    "desk"
+   ],
+   "if": [
+    {
+     "flag": "drawer_open"
+    }
+   ],
+   "near": "desk",
+   "do": [
+    {
+     "say": "You slide the drawer shut."
+    },
+    {
+     "clear": "drawer_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": [
+    "drawer",
+    "desk"
+   ],
+   "do": [
+    {
+     "say": "It's already closed."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "search",
+    "lookunder"
+   ],
+   "noun": [
+    "drawer",
+    "desk"
+   ],
+   "if": [
+    {
+     "not": "drawer_open"
+    }
+   ],
+   "do": [
+    {
+     "redirect": [
+      "open",
+      "drawer"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "take",
+   "noun": "whistle",
+   "if": [
+    {
+     "not": "drawer_open"
+    },
+    {
+     "at": [
+      "whistle",
+      "library"
+     ]
+    }
+   ],
+   "do": [
+    {
+     "say": "The drawer is closed."
+    }
+   ]
+  },
+  {
+   "verb": "take",
+   "noun": "whistle",
+   "if": [
+    {
+     "at": [
+      "whistle",
+      "library"
+     ]
+    }
+   ],
+   "near": "desk",
+   "do": [
+    {
+     "say": "You pick up the silver whistle. Engraved on the side: FOR DOGS. HUMANS WILL HEAR NOTHING."
+    },
+    {
+     "move": [
+      "whistle",
+      "inv"
+     ]
+    },
+    {
+     "score": [
+      5,
+      "take_whistle"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "read",
+   "noun": [
+    "book",
+    "skeleton"
+   ],
+   "near": "skeleton",
+   "do": [
+    {
+     "say": "You lean over the skeleton's bony shoulder. The book is BIRDS OF CROWMERE HILL, and one passage is underlined: THE CROWMERE CROW HOARDS SHINY THINGS, AND CANNOT ABIDE A SHRILL WHISTLE."
+    },
+    {
+     "say": "The skeleton turns the page. You decide you didn't see that."
+    },
+    {
+     "set": "read_book"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "give",
+    "put",
+    "show"
+   ],
+   "pair": [
+    "newspaper",
+    "skeleton"
+   ],
+   "near": "skeleton",
+   "do": [
+    {
+     "say": "You tuck the newspaper under the skeleton's arm. Now he'll have something to read when he finishes his book. Delivery complete!"
+    },
+    {
+     "move": [
+      "newspaper",
+      null
+     ]
+    },
+    {
+     "set": "paper_delivered"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "give",
+    "put",
+    "show"
+   ],
+   "pair": [
+    "newspaper",
+    "book"
+   ],
+   "near": "skeleton",
+   "do": [
+    {
+     "redirect": [
+      "give",
+      "newspaper",
+      "skeleton"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": [
+    "give",
+    "put",
+    "show"
+   ],
+   "pair": [
+    "newspaper",
+    "armchair"
+   ],
+   "near": "skeleton",
+   "do": [
+    {
+     "redirect": [
+      "give",
+      "newspaper",
+      "skeleton"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "climb",
+   "noun": "shelves",
+   "near": "shelves",
+   "do": [
+    {
+     "die": "You climb the bookshelf for a better look at the top row. The bookshelf decides it would rather be a floor. You are buried under several tons of literature. Critics call your ending flat."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "light"
+   ],
+   "noun": [
+    "fireplace",
+    "shelves",
+    "book"
+   ],
+   "if": [
+    {
+     "has": "matches"
+    }
+   ],
+   "do": [
+    {
+     "say": "The only fuel around here is the books, and the skeleton would never forgive you."
+    }
+   ]
+  },
+  {
+   "verb": "light",
+   "noun": "candle",
+   "if": [
+    {
+     "flag": "candle_lit"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already lit."
+    }
+   ]
+  },
+  {
+   "verb": "light",
+   "noun": "candle",
+   "if": [
+    {
+     "hasnt": "matches"
+    }
+   ],
+   "do": [
+    {
+     "say": "You don't have anything to light it with."
+    }
+   ]
+  },
+  {
+   "verb": "light",
+   "noun": "candle",
+   "if": [
+    {
+     "hasnt": "candle"
+    }
+   ],
+   "do": [
+    {
+     "say": "You'd better pick it up first."
+    }
+   ]
+  },
+  {
+   "verb": "light",
+   "noun": "candle",
+   "do": [
+    {
+     "say": "You strike a match and light the candle. A small, brave flame pushes back the dark."
+    },
+    {
+     "set": "candle_lit"
+    },
+    {
+     "score": [
+      5,
+      "light_candle"
+     ]
+    },
+    {
+     "sound": "match"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "light",
+    "use",
+    "put"
+   ],
+   "pair": [
+    "matches",
+    "candle"
+   ],
+   "do": [
+    {
+     "redirect": [
+      "light",
+      "candle"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "use",
+   "noun": [
+    "matches",
+    "candle"
+   ],
+   "do": [
+    {
+     "redirect": [
+      "light",
+      "candle"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "extinguish",
+   "noun": "candle",
+   "room": "cellar",
+   "do": [
+    {
+     "say": "Not down here! It's the only light you've got."
+    }
+   ]
+  },
+  {
+   "verb": "extinguish",
+   "noun": "candle",
+   "if": [
+    {
+     "flag": "candle_lit"
+    }
+   ],
+   "do": [
+    {
+     "say": "You blow out the candle."
+    },
+    {
+     "clear": "candle_lit"
+    }
+   ]
+  },
+  {
+   "verb": "blow",
+   "noun": "candle",
+   "if": [
+    {
+     "flag": "candle_lit"
+    }
+   ],
+   "do": [
+    {
+     "redirect": [
+      "extinguish",
+      "candle"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": [
+    "eat",
+    "drink"
+   ],
+   "noun": "cauldron",
+   "near": "cauldron",
+   "do": [
+    {
+     "die": "You take a sip. It tastes like chicken, specifically a chicken that was very angry about something. Your stomach files a formal complaint, then leaves. So do you."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "pantry",
+   "if": [
+    {
+     "flag": "pantry_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already open."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "pantry",
+   "near": "pantry",
+   "if": [
+    {
+     "not": "pantry_searched"
+    }
+   ],
+   "do": [
+    {
+     "say": "The pantry holds cobwebs, a jar of something murky, and a box of CRUNCHY BONES dog biscuits! Crumpet's favorite."
+    },
+    {
+     "set": "pantry_open"
+    },
+    {
+     "set": "pantry_searched"
+    },
+    {
+     "move": [
+      "biscuits",
+      "kitchen"
+     ]
+    },
+    {
+     "sound": "creak"
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "pantry",
+   "near": "pantry",
+   "do": [
+    {
+     "say": "You open the pantry."
+    },
+    {
+     "set": "pantry_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "pantry",
+   "if": [
+    {
+     "flag": "pantry_open"
+    }
+   ],
+   "near": "pantry",
+   "do": [
+    {
+     "say": "You shut the pantry door."
+    },
+    {
+     "clear": "pantry_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "pantry",
+   "do": [
+    {
+     "say": "It's already closed."
+    }
+   ]
+  },
+  {
+   "verb": "take",
+   "noun": "biscuits",
+   "if": [
+    {
+     "not": "pantry_open"
+    },
+    {
+     "at": [
+      "biscuits",
+      "kitchen"
+     ]
+    }
+   ],
+   "do": [
+    {
+     "say": "The pantry door is closed."
+    }
+   ]
+  },
+  {
+   "verb": "take",
+   "noun": "biscuits",
+   "if": [
+    {
+     "at": [
+      "biscuits",
+      "kitchen"
+     ]
+    }
+   ],
+   "near": "pantry",
+   "do": [
+    {
+     "say": "You grab the box of Crunchy Bones. If anything can coax Crumpet out of hiding, it's these."
+    },
+    {
+     "move": [
+      "biscuits",
+      "inv"
+     ]
+    },
+    {
+     "score": [
+      5,
+      "take_biscuits"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": [
+    "open",
+    "pull",
+    "move"
+   ],
+   "noun": "trapdoor",
+   "if": [
+    {
+     "flag": "trapdoor_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already open."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "open",
+    "pull",
+    "move"
+   ],
+   "noun": "trapdoor",
+   "near": "trapdoor",
+   "do": [
+    {
+     "say": "You heave the trapdoor open. Stone steps lead down into total darkness. From somewhere below comes a small, familiar whimper. Crumpet!"
+    },
+    {
+     "set": "trapdoor_open"
+    },
+    {
+     "sound": "creak"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "trapdoor",
+   "if": [
+    {
+     "flag": "trapdoor_open"
+    }
+   ],
+   "near": "trapdoor",
+   "do": [
+    {
+     "say": "You let the trapdoor drop shut. BOOM."
+    },
+    {
+     "clear": "trapdoor_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "trapdoor",
+   "do": [
+    {
+     "say": "It's already closed."
+    }
+   ]
+  },
+  {
+   "verb": "_exit",
+   "noun": "x_trapdoor",
+   "if": [
+    {
+     "not": "candle_lit"
+    }
+   ],
+   "do": [
+    {
+     "die": "You start down the steps in pitch darkness. The first step is fine. The second step is fine. There is no third step. Something at the bottom was delighted by this arrangement."
+    }
+   ]
+  },
+  {
+   "verb": "_exit",
+   "noun": "x_trapdoor",
+   "do": [
+    {
+     "score": [
+      5,
+      "reach_cellar"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": [
+    "lookunder",
+    "search"
+   ],
+   "noun": "bed",
+   "near": "bed",
+   "do": [
+    {
+     "die": "You kneel and peek under the bed. Two yellow eyes blink back at you. A long, hairy arm scoops you under. It's surprisingly cozy down there. You never come out."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "sleep",
+    "sit",
+    "enter"
+   ],
+   "noun": "bed",
+   "do": [
+    {
+     "say": "This is no time for a nap. Crumpet needs you. Also, the bed just growled."
+    }
+   ]
+  },
+  {
+   "verb": "sleep",
+   "do": [
+    {
+     "say": "This is no time for a nap. Crumpet needs you."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "wardrobe",
+   "if": [
+    {
+     "flag": "wardrobe_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already open."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "wardrobe",
+   "near": "wardrobe",
+   "do": [
+    {
+     "say": "You open the wardrobe. A cloud of moths bursts out, wearing what used to be a very nice coat. There's nothing else inside."
+    },
+    {
+     "set": "wardrobe_open"
+    },
+    {
+     "sound": "creak"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "wardrobe",
+   "if": [
+    {
+     "flag": "wardrobe_open"
+    }
+   ],
+   "near": "wardrobe",
+   "do": [
+    {
+     "say": "You shut the wardrobe."
+    },
+    {
+     "clear": "wardrobe_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "wardrobe",
+   "do": [
+    {
+     "say": "It's already closed. More or less."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "bedroom_window",
+   "if": [
+    {
+     "flag": "window_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already open."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "bedroom_window",
+   "near": "bedroom_window",
+   "if": [
+    {
+     "not": "crow_gone"
+    }
+   ],
+   "do": [
+    {
+     "say": "You open the window. The crow puffs up to twice its size and pecks your fingers. Ow! You slam the window shut. That bird means business."
+    },
+    {
+     "sound": "caw"
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": "bedroom_window",
+   "near": "bedroom_window",
+   "do": [
+    {
+     "say": "You heave the window open. Rain blows in over the sill. The crow's nest sits on the ledge, within reach."
+    },
+    {
+     "set": "window_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "bedroom_window",
+   "if": [
+    {
+     "flag": "window_open"
+    }
+   ],
+   "near": "bedroom_window",
+   "do": [
+    {
+     "say": "You shut the window."
+    },
+    {
+     "clear": "window_open"
+    }
+   ]
+  },
+  {
+   "verb": "close",
+   "noun": "bedroom_window",
+   "do": [
+    {
+     "say": "It's already closed."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "take",
+    "search"
+   ],
+   "noun": [
+    "iron_key",
+    "nest",
+    "crow"
+   ],
+   "if": [
+    {
+     "not": "crow_gone"
+    }
+   ],
+   "near": "bedroom_window",
+   "do": [
+    {
+     "say": "The crow jabs its beak at the glass. It isn't giving up its treasure without a fight. Or at least, not without a very good reason."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "take",
+    "search"
+   ],
+   "noun": [
+    "iron_key",
+    "nest"
+   ],
+   "if": [
+    {
+     "not": "window_open"
+    },
+    {
+     "at": [
+      "iron_key",
+      "bedroom"
+     ]
+    }
+   ],
+   "near": "bedroom_window",
+   "do": [
+    {
+     "say": "The window is closed."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "take",
+    "search"
+   ],
+   "noun": [
+    "iron_key",
+    "nest"
+   ],
+   "if": [
+    {
+     "at": [
+      "iron_key",
+      "bedroom"
+     ]
+    }
+   ],
+   "near": "bedroom_window",
+   "do": [
+    {
+     "say": "You reach out into the rain and fish around in the nest. Your fingers close on something cold and heavy: a big iron key!"
+    },
+    {
+     "move": [
+      "iron_key",
+      "inv"
+     ]
+    },
+    {
+     "score": [
+      5,
+      "take_iron_key"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": [
+    "take",
+    "search"
+   ],
+   "noun": "nest",
+   "do": [
+    {
+     "say": "Just twigs and string. The crow can keep it."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "throw",
+    "attack"
+   ],
+   "noun": "*",
+   "noun2": "crow",
+   "do": [
+    {
+     "say": "You'd never hurt an animal. Not even a mean one. Especially not one with that beak."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "jump",
+    "climb",
+    "exit",
+    "enter"
+   ],
+   "noun": "bedroom_window",
+   "if": [
+    {
+     "flag": "window_open"
+    }
+   ],
+   "near": "bedroom_window",
+   "do": [
+    {
+     "die": "You climb out onto the ledge for a better look around. The ledge is slippery. The ground is not. Gravity, as usual, has the final word."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "jump",
+    "climb",
+    "exit",
+    "enter"
+   ],
+   "noun": "bedroom_window",
+   "do": [
+    {
+     "say": "The window is closed. That's probably for the best."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "blow",
+    "use"
+   ],
+   "noun": "whistle",
+   "if": [
+    {
+     "hasnt": "whistle"
+    }
+   ],
+   "do": [
+    {
+     "say": "You don't have it."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "blow",
+    "use"
+   ],
+   "noun": "whistle",
+   "room": "bedroom",
+   "if": [
+    {
+     "not": "crow_gone"
+    }
+   ],
+   "do": [
+    {
+     "say": "You blow the silver whistle. You can't hear a thing, but the crow certainly can. It screeches, flaps, and flees into the storm, leaving its nest behind."
+    },
+    {
+     "set": "crow_gone"
+    },
+    {
+     "score": [
+      5,
+      "scare_crow"
+     ]
+    },
+    {
+     "sound": "whistle"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "blow",
+    "use"
+   ],
+   "noun": "whistle",
+   "room": "bedroom",
+   "do": [
+    {
+     "say": "Nothing happens. The crow is long gone, and it isn't coming back."
+    },
+    {
+     "sound": "whistle"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "blow",
+    "use"
+   ],
+   "noun": "whistle",
+   "room": "cellar",
+   "if": [
+    {
+     "not": "crumpet_follows"
+    }
+   ],
+   "do": [
+    {
+     "say": "Crumpet's ears shoot up at the whistle. He creeps out a little... then something drips in the dark, and he ducks back behind the crates. He needs a better reason to be brave."
+    },
+    {
+     "sound": "whistle"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "blow",
+    "use"
+   ],
+   "noun": "whistle",
+   "room": "cellar",
+   "do": [
+    {
+     "say": "Crumpet cocks his head at you. He's right here, you know."
+    },
+    {
+     "sound": "whistle"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "blow",
+    "use"
+   ],
+   "noun": "whistle",
+   "do": [
+    {
+     "say": "You blow the whistle. You can't hear a thing, but somewhere far below you, a dog yips!"
+    },
+    {
+     "sound": "whistle"
+    }
+   ]
+  },
+  {
+   "verb": "call",
+   "noun": "crumpet",
+   "absentOK": true,
+   "room": "gate",
+   "do": [
+    {
+     "say": "'Crumpet!' From deep inside the house comes one muffled bark... then silence. You really wish he hadn't stopped."
+    }
+   ]
+  },
+  {
+   "verb": "call",
+   "noun": "crumpet",
+   "absentOK": true,
+   "if": [
+    {
+     "notroom": "cellar"
+    }
+   ],
+   "do": [
+    {
+     "say": "'Crumpet!' A faint, echoing yip answers from somewhere below your feet."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "examine",
+    "look",
+    "search"
+   ],
+   "noun": "crumpet",
+   "absentOK": true,
+   "room": "gate",
+   "do": [
+    {
+     "say": "You can't see him, but you can hear him, somewhere inside the house."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "examine",
+    "look",
+    "search",
+    "touch",
+    "take",
+    "feed",
+    "give",
+    "talk",
+    "show"
+   ],
+   "noun": "crumpet",
+   "absentOK": true,
+   "if": [
+    {
+     "notroom": "cellar"
+    }
+   ],
+   "do": [
+    {
+     "say": "He isn't here. You can hear him, though, somewhere below your feet."
+    }
+   ]
+  },
+  {
+   "verb": "call",
+   "room": "gate",
+   "do": [
+    {
+     "say": "'Crumpet!' From deep inside the house comes one muffled bark... then silence. You really wish he hadn't stopped."
+    }
+   ]
+  },
+  {
+   "verb": "call",
+   "if": [
+    {
+     "notroom": "cellar"
+    }
+   ],
+   "do": [
+    {
+     "say": "'Crumpet!' A faint, echoing yip answers from somewhere below your feet."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "feed",
+    "give",
+    "show",
+    "use",
+    "shake",
+    "open"
+   ],
+   "noun": [
+    "crumpet",
+    "biscuits"
+   ],
+   "room": "cellar",
+   "if": [
+    {
+     "flag": "crumpet_follows"
+    },
+    {
+     "has": "biscuits"
+    }
+   ],
+   "do": [
+    {
+     "say": "Crumpet has had one already. You don't want him getting a tummy ache. Not down here."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "feed",
+    "give",
+    "show",
+    "use",
+    "shake",
+    "open"
+   ],
+   "noun": [
+    "crumpet",
+    "biscuits"
+   ],
+   "room": "cellar",
+   "if": [
+    {
+     "has": "biscuits"
+    }
+   ],
+   "do": [
+    {
+     "say": "You shake the box of Crunchy Bones. Crumpet's head pops up over the crates. Bravery, it turns out, can be bought for one biscuit."
+    },
+    {
+     "say": "He bounds out, crunches it happily, and plants himself at your feet. Good boy!"
+    },
+    {
+     "set": "crumpet_follows"
+    },
+    {
+     "score": [
+      10,
+      "rescue_crumpet"
+     ]
+    },
+    {
+     "sound": "bark"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "feed",
+    "give"
+   ],
+   "noun": "crumpet",
+   "room": "cellar",
+   "do": [
+    {
+     "say": "You don't have anything he'd want. And he wants something. Badly."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "put",
+    "give",
+    "use",
+    "wear"
+   ],
+   "pair": [
+    "collar",
+    "crumpet"
+   ],
+   "if": [
+    {
+     "flag": "crumpet_follows"
+    }
+   ],
+   "do": [
+    {
+     "say": "You buckle Crumpet's collar back on. He looks very dignified for a dog covered in coal dust."
+    },
+    {
+     "move": [
+      "collar",
+      null
+     ]
+    },
+    {
+     "set": "collar_on"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "put",
+    "give",
+    "use",
+    "wear"
+   ],
+   "pair": [
+    "collar",
+    "crumpet"
+   ],
+   "do": [
+    {
+     "say": "You'll have to get him out from behind those crates first."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "call",
+    "touch",
+    "take",
+    "talk"
+   ],
+   "noun": "crumpet",
+   "if": [
+    {
+     "not": "crumpet_follows"
+    }
+   ],
+   "do": [
+    {
+     "say": "Crumpet whimpers and wags, but he won't come out from behind the crates. He needs a better reason to be brave."
+    }
+   ]
+  },
+  {
+   "verb": "call",
+   "room": "cellar",
+   "if": [
+    {
+     "not": "crumpet_follows"
+    }
+   ],
+   "do": [
+    {
+     "say": "Crumpet whimpers and wags, but he won't come out from behind the crates. He needs a better reason to be brave."
+    }
+   ]
+  },
+  {
+   "verb": "touch",
+   "noun": "crumpet",
+   "do": [
+    {
+     "say": "You scratch Crumpet behind the ears. His back leg thumps happily."
+    }
+   ]
+  },
+  {
+   "verb": "take",
+   "noun": "crumpet",
+   "do": [
+    {
+     "say": "Crumpet squirms out of your arms. He'd rather walk, thank you."
+    }
+   ]
+  },
+  {
+   "verb": [
+    "call",
+    "talk"
+   ],
+   "noun": "*",
+   "room": "cellar",
+   "do": [
+    {
+     "say": "Crumpet wags. He's right here."
+    }
+   ]
+  },
+  {
+   "verb": "call",
+   "room": "cellar",
+   "do": [
+    {
+     "say": "Crumpet wags. He's right here."
+    }
+   ]
+  },
+  {
+   "verb": "unlock",
+   "noun": [
+    "chute_door",
+    "padlock"
+   ],
+   "noun2": "brass_key",
+   "do": [
+    {
+     "say": "The brass key is much too small for this padlock."
+    }
+   ]
+  },
+  {
+   "verb": "unlock",
+   "noun": [
+    "chute_door",
+    "padlock"
+   ],
+   "if": [
+    {
+     "flag": "chute_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's already open."
+    }
+   ]
+  },
+  {
+   "verb": "unlock",
+   "noun": [
+    "chute_door",
+    "padlock"
+   ],
+   "if": [
+    {
+     "hasnt": "iron_key"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's padlocked shut, and you don't have a key that fits."
+    }
+   ]
+  },
+  {
+   "verb": "unlock",
+   "noun": [
+    "chute_door",
+    "padlock"
+   ],
+   "near": "chute_door",
+   "do": [
+    {
+     "say": "The iron key grinds in the padlock... and clicks! The padlock falls away, and the little door swings open. Fresh, rainy air pours in."
+    },
+    {
+     "set": "chute_open"
+    },
+    {
+     "score": [
+      5,
+      "open_chute"
+     ]
+    },
+    {
+     "sound": "clunk"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "use",
+    "put"
+   ],
+   "pair": [
+    "iron_key",
+    "chute_door"
+   ],
+   "do": [
+    {
+     "redirect": [
+      "unlock",
+      "chute_door"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": [
+    "use",
+    "put"
+   ],
+   "pair": [
+    "iron_key",
+    "padlock"
+   ],
+   "do": [
+    {
+     "redirect": [
+      "unlock",
+      "chute_door"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": [
+    "chute_door",
+    "padlock"
+   ],
+   "noun2": "iron_key",
+   "if": [
+    {
+     "not": "chute_open"
+    }
+   ],
+   "do": [
+    {
+     "redirect": [
+      "unlock",
+      "chute_door"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": "use",
+   "noun": [
+    "brass_key",
+    "iron_key"
+   ],
+   "room": "cellar",
+   "do": [
+    {
+     "redirect": [
+      "unlock",
+      "chute_door"
+     ]
+    }
+   ]
+  },
+  {
+   "verb": [
+    "unlock",
+    "open"
+   ],
+   "noun": [
+    "brass_key",
+    "iron_key"
+   ],
+   "do": [
+    {
+     "say": "You'll need to say what you want to unlock. The key isn't the locked part."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": [
+    "chute_door",
+    "padlock"
+   ],
+   "if": [
+    {
+     "not": "chute_open"
+    }
+   ],
+   "do": [
+    {
+     "say": "It's padlocked shut."
+    }
+   ]
+  },
+  {
+   "verb": "open",
+   "noun": [
+    "chute_door",
+    "padlock"
+   ],
+   "do": [
+    {
+     "say": "It's already open. Freedom smells like wet grass."
+    }
+   ]
+  },
+  {
+   "verb": "_exit",
+   "noun": "x_chute",
+   "if": [
+    {
+     "not": "crumpet_follows"
+    }
+   ],
+   "do": [
+    {
+     "say": "You're not leaving without Crumpet!"
+    },
+    {
+     "stop": true
+    }
+   ]
+  },
+  {
+   "verb": "_exit",
+   "noun": "x_chute",
+   "do": [
+    {
+     "score": [
+      10,
+      "escape"
+     ]
+    },
+    {
+     "say": "You scramble up the coal heap and squeeze through the little door, Crumpet right behind you. You tumble out into the wet grass just as the storm breaks, and the first gray light of dawn creeps over Crowmere Hill."
+    },
+    {
+     "say": "Crumpet shakes himself off all over you. You don't even mind.",
+     "if": [
+      {
+       "not": "collar_on"
+      }
+     ]
+    },
+    {
+     "say": "Crumpet shakes himself off all over you, collar tag jingling. You don't even mind.",
+     "if": [
+      {
+       "flag": "collar_on"
+      }
+     ]
+    },
+    {
+     "say": "And somewhere inside, a skeleton is reading tomorrow's paper. Delivery: complete.",
+     "if": [
+      {
+       "flag": "paper_delivered"
+      }
+     ]
+    },
+    {
+     "win": "THE END"
+    }
+   ]
+  },
+  {
+   "verb": [
+    "drink",
+    "eat",
+    "open"
+   ],
+   "noun": [
+    "bottle",
+    "racks"
+   ],
+   "near": "racks",
+   "do": [
+    {
+     "die": "The label said NOT WINE. You should have listened. On the bright side, you can see ghosts now. On the less bright side, you are one."
+    }
+   ]
+  },
+  {
+   "verb": "drop",
+   "noun": "candle",
+   "room": "cellar",
+   "do": [
+    {
+     "say": "Better not. It's the only light down here."
+    }
+   ]
+  },
+  {
+   "verb": "xyzzy",
+   "do": [
+    {
+     "say": "A hollow voice says: wrong game."
+    }
+   ]
+  },
+  {
+   "verb": "hello",
+   "do": [
+    {
+     "say": "'Hello?' you call. The house echoes it back to you, then keeps echoing a little longer than it should."
+    }
+   ]
+  },
+  {
+   "verb": "sing",
+   "do": [
+    {
+     "say": "You hum a little tune to keep your spirits up. Something upstairs hums along. You stop humming."
+    }
+   ]
+  },
+  {
+   "verb": "dance",
+   "do": [
+    {
+     "say": "You do a little dance. Nobody sees. Hopefully."
+    }
+   ]
+  },
+  {
+   "verb": "swear",
+   "do": [
+    {
+     "say": "Your grandmother would wash your mouth out with soap. She's scarier than this house."
+    }
+   ]
+  },
+  {
+   "verb": "jump",
+   "do": [
+    {
+     "say": "You jump up and down. The floorboards groan. Something below groans back."
+    }
+   ]
+  },
+  {
+   "verb": "attack",
+   "do": [
+    {
+     "say": "You punch the air. The air wins on points."
+    }
+   ]
+  },
+  {
+   "verb": "knock",
+   "do": [
+    {
+     "say": "Knock knock. Nobody's there. Hopefully."
+    }
+   ]
+  },
+  {
+   "verb": "dig",
+   "do": [
+    {
+     "say": "The floor is in the way."
+    }
+   ]
+  },
+  {
+   "verb": "sit",
+   "do": [
+    {
+     "say": "This is no time to sit around."
+    }
+   ]
+  },
+  {
+   "verb": "wake",
+   "do": [
+    {
+     "say": "You're wide awake. Unfortunately."
+    }
+   ]
+  }
+ ],
+ "hints": [
+  {
+   "if": [
+    {
+     "room": "gate"
+    },
+    {
+     "not": "mat_lifted"
+    }
+   ],
+   "text": "People who hate visitors still hide a spare key. Check under things. The doormat, for instance."
+  },
+  {
+   "if": [
+    {
+     "at": [
+      "brass_key",
+      "gate"
+     ]
+    }
+   ],
+   "text": "The brass key is right there on the porch. TAKE KEY."
+  },
+  {
+   "if": [
+    {
+     "has": "brass_key"
+    },
+    {
+     "not": "front_unlocked"
+    }
+   ],
+   "text": "That brass key looks like it fits the front door. UNLOCK DOOR."
+  },
+  {
+   "if": [
+    {
+     "room": "gate"
+    },
+    {
+     "not": "front_open"
+    }
+   ],
+   "text": "Open the door and go inside. What's the worst that could happen?"
+  },
+  {
+   "if": [
+    {
+     "room": "gate"
+    }
+   ],
+   "text": "Walk through the open front door."
+  },
+  {
+   "if": [
+    {
+     "not": "clock_searched"
+    },
+    {
+     "hasnt": "matches"
+    }
+   ],
+   "text": "That old grandfather clock in the hall might be hiding more than the time."
+  },
+  {
+   "if": [
+    {
+     "hasnt": "candle"
+    }
+   ],
+   "text": "There's a candle on the kitchen table."
+  },
+  {
+   "if": [
+    {
+     "not": "candle_lit"
+    }
+   ],
+   "text": "Candles and matches go well together. LIGHT CANDLE."
+  },
+  {
+   "if": [
+    {
+     "not": "pantry_searched"
+    }
+   ],
+   "text": "Crumpet might need some encouragement. Maybe the kitchen pantry has something he likes."
+  },
+  {
+   "if": [
+    {
+     "hasnt": "biscuits"
+    },
+    {
+     "not": "crumpet_follows"
+    }
+   ],
+   "text": "Take the dog biscuits from the pantry."
+  },
+  {
+   "if": [
+    {
+     "not": "trapdoor_open"
+    },
+    {
+     "not": "crumpet_follows"
+    }
+   ],
+   "text": "That draft in the kitchen is coming from somewhere. Try the trapdoor."
+  },
+  {
+   "if": [
+    {
+     "not": "crumpet_follows"
+    }
+   ],
+   "text": "Crumpet is scared, and nothing beats fear like snacks. GIVE BISCUITS TO CRUMPET, down in the cellar."
+  },
+  {
+   "if": [
+    {
+     "not": "drawer_searched"
+    }
+   ],
+   "text": "The writing desk in the library has a drawer."
+  },
+  {
+   "if": [
+    {
+     "hasnt": "whistle"
+    }
+   ],
+   "text": "Take the whistle from the desk drawer."
+  },
+  {
+   "if": [
+    {
+     "not": "crow_gone"
+    },
+    {
+     "not": "read_book"
+    }
+   ],
+   "text": "The book in the skeleton's hands might tell you how to handle that crow upstairs."
+  },
+  {
+   "if": [
+    {
+     "not": "crow_gone"
+    }
+   ],
+   "text": "Crows can't stand a shrill whistle. BLOW WHISTLE in the bedroom."
+  },
+  {
+   "if": [
+    {
+     "hasnt": "iron_key"
+    },
+    {
+     "not": "window_open"
+    }
+   ],
+   "text": "With the crow gone, open the bedroom window."
+  },
+  {
+   "if": [
+    {
+     "hasnt": "iron_key"
+    }
+   ],
+   "text": "Search the nest on the window ledge."
+  },
+  {
+   "if": [
+    {
+     "not": "chute_open"
+    }
+   ],
+   "text": "The coal chute in the cellar is padlocked, and you have a big iron key. UNLOCK CHUTE."
+  },
+  {
+   "text": "Climb out through the coal chute, with Crumpet at your heels."
+  }
+ ]
+}

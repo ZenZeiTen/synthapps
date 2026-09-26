@@ -1,0 +1,133 @@
+# Parser behaviour: unknown words, missing nouns, pronouns, synonyms, prepositions,
+# directions, proximity from a known-far position, meta commands and the
+# walk-to-a-locked-exit rule.
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+>
+> xyzzy
+A hollow voice says: wrong game.
+> frobnicate the lantern
+I don't know the word "frobnicate".
+> the the the
+> key
+Try starting with a verb, like LOOK or TAKE.
+> take
+What do you want to take?
+> pick up
+What do you want to pick up?
+> take box
+You don't see that here.
+> look at the moon
+Rain, wind, thunder and lightning. The full haunted house package.
+> x house
+Three stories of peeling paint and bad decisions. One loose shutter bangs in the wind, applauding nothing in particular.
+> l
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> i
+You are carrying a damp newspaper.
+> look inventory
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> score
+Your score is 0 of 80.
+> help
+Walk Gus around with the ARROW KEYS. Type commands and press ENTER: LOOK, LOOK AT CLOCK, TAKE KEY, OPEN DOOR, UNLOCK DOOR WITH KEY, INVENTORY. Some things you have to be standing close to; GO TO CLOCK walks you there. Type HINT if you're stuck. F5 saves, F7 restores, F9 restarts.
+> hint
+People who hate visitors still hide a spare key. Check under things. The doormat, for instance.
+> read newspaper
+The headline says LOCAL BOY ENTERS CROWMERE HOUSE, NEVER SEEN AGAIN. It's dated tomorrow. You decide not to read the rest.
+> eat newspaper
+Newsprint is not a food group.
+> drop newspaper
+You're a professional. You deliver it or die trying. Preferably the first one.
+> take it
+You already have it.
+> read it
+The headline says LOCAL BOY ENTERS CROWMERE HOUSE, NEVER SEEN AGAIN. It's dated tomorrow. You decide not to read the rest.
+> examine me
+You're Gus Pickett: paperboy, dog owner, and, as of tonight, reluctant ghost hunter. Your rain slicker is soaked through.
+> look at wall
+You don't see that here.
+> take crumpet
+He isn't here. You can hear him, though, somewhere below your feet.
+> call crumpet
+'Crumpet!' From deep inside the house comes one muffled bark... then silence. You really wish he hadn't stopped.
+> whistle
+'Crumpet!' From deep inside the house comes one muffled bark... then silence. You really wish he hadn't stopped.
+> go south
+You can't go home without Crumpet. He's in there somewhere, probably eating something he shouldn't.
+> climb fence
+You're not leaving without Crumpet.
+> go to door
+[walk to door]
+> unlock door
+It's locked, and you don't have the key. People who hate visitors still hide a spare one somewhere, though.
+> take key
+You don't see that here.
+@at 0 0
+> look under the mat
+You're not close enough.
+@near doormat
+> look under the mat
+You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are.
+> take it
+Nothing else under there but a family of damp woodlice. They'd like their privacy back.
+> TAKE THE KEY!!!
+You pick up the brass key. It's cold, and heavier than it looks.
+[score +5 = 5]
+> unlock the door with the iron key
+You don't see that here.
+> use iron key
+You don't see that here.
+@at 0 0
+> use brass key
+You're not close enough.
+> knock
+Knock knock. Nobody's there. Hopefully.
+> knock on door
+You're not close enough.
+> go west
+You can't go that way.
+> go in
+The front door is closed.
+> save
+[meta save]
+> restore
+[meta restore]
+> restart
+[meta restart]
+> quit
+[meta quit]
+> jump
+You jump up and down. The floorboards groan. Something below groans back.
+> sing
+You hum a little tune to keep your spirits up. Something upstairs hums along. You stop humming.
+> dance
+You do a little dance. Nobody sees. Hopefully.
+> heck
+Your grandmother would wash your mouth out with soap. She's scarier than this house.
+> hello
+'Hello?' you call. The house echoes it back to you, then keeps echoing a little longer than it should.
+> smell
+Wet leaves, old stone, and a whiff of wet dog from somewhere up ahead.
+> listen
+Rain, thunder, and from inside the house, very faintly, a dog barking.
+> wait
+Time passes. Somewhere, a clock doesn't tick.
+> sleep
+This is no time for a nap. Crumpet needs you.
+> attack
+You punch the air. The air wins on points.
+> dig
+You dig at the mud with your fingers and find more mud. Riveting.
+> open fence
+It's already open. It's been open ever since Crumpet went through it.
+> climb tree
+The branches look like they'd snap if you so much as thought about climbing them. You stop thinking about it.
+> put newspaper in mailbox
+You try to squeeze tonight's paper in. The mailbox refuses. There's simply no room for more bad news.
+> go to mailbox
+[walk to mailbox]
+> search mailbox
+Newspapers, newspapers, and a very old postcard that just says WISH YOU WEREN'T HERE.
+> open mailbox
+It's jammed full of old newspapers.
