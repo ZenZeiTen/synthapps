@@ -85,6 +85,19 @@ class DirectoryPolicyTests(unittest.TestCase):
                         hits.append(f"{f.relative_to(CORE)}:{n}")
         self.assertEqual(hits, [])
 
+    def test_skills_read_no_environment_variables(self) -> None:
+        # A skill that reads the installer's environment ($PATH, ${TOKEN}, printenv) is held
+        # for credential review by the directory. $ARGUMENTS is the skill argument placeholder.
+        pattern = re.compile(
+            r"\$\{?(?!ARGUMENTS\b)[A-Z][A-Z0-9_]{2,}\}?(?![\w.])|\bprintenv\b|\bexport -p\b"
+        )
+        hits = []
+        for f in sorted(CORE.rglob("*.md")):
+            for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+                if pattern.search(line):
+                    hits.append(f"{f.relative_to(CORE)}:{n}: {line.strip()[:80]}")
+        self.assertEqual(hits, [])
+
 
 class ConnectorConfigTests(unittest.TestCase):
     def setUp(self) -> None:

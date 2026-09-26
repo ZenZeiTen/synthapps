@@ -306,7 +306,7 @@ function updateFade() {
 
 function drawFade() {
   if(fadeAlpha <= 0) return;
-  ctx.fillStyle = `rgba(0,0,0,${fadeAlpha})`;
+  ctx.fillStyle = 'rgba(0,0,0,' + fadeAlpha + ')';
   ctx.fillRect(0, 0, BASE_W, BASE_H);
 }
 // On level complete: fadingIn=false → when fadeAlpha===1 → load next level → fadingIn=true

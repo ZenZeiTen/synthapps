@@ -167,9 +167,12 @@ VGA default palette layout (`DOS.vgaDefault()`): 0-15 the EGA colours, 16-31 a g
 
 ## NATIVE mode: a real DOS program
 
-Verified toolchain (Sep 2026, in a Linux cloud container): Open Watcom v2 snapshot from GitHub releases (`open-watcom-v2/releases/download/Current-build/ow-snapshot.tar.xz`) and DOSBox 0.74 from apt. DJGPP also downloads, but its DPMI host (CWSDPMI) was not reachable from that container, so prefer Open Watcom 16-bit real mode.
+Verified toolchain (Sep 2026, in a Linux cloud container): Open Watcom v2 snapshot from GitHub releases (`open-watcom-v2/releases/download/Current-build/ow-snapshot.tar.xz`) and DOSBox 0.74 from apt. DJGPP also downloads, but its DPMI host (CWSDPMI) was not reachable from that container, so prefer Open Watcom 16-bit real mode. Ask the user before downloading either tool.
+
+Point the shell at the unpacked Open Watcom folder once per session: `WATCOM` names that
+folder (for example `/tmp/ow`), `INCLUDE` names its `h` subfolder, and its `binl64`
+subfolder goes at the front of the search path. Then:
 ```
-export WATCOM=/tmp/ow PATH=/tmp/ow/binl64:$PATH INCLUDE=/tmp/ow/h
 wcl -q -bt=dos -ml -ox -fe=GAME.EXE GAME.C
 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout 40 dosbox -c "mount c ." -c "c:" -c "GAME.EXE /T" -c "exit"
 ```
@@ -364,7 +367,7 @@ const DOS = (() => {
       if (dirty) { for (let i = 0; i < 256; i++) { const c = pal[i] || [0, 0, 0]; lut[i] = 0xFF000000 | (c[2] << 16) | (c[1] << 8) | c[0]; } dirty = false; }
       for (let i = 0; i < fb.length; i++) px[i] = lut[fb[i]];
       sctx.putImageData(img, 0, 0); ctx.drawImage(small, 0, 0, canvas.width, canvas.height);
-      if (S.scanlines > 0) { const sy = canvas.height / Hh; ctx.fillStyle = `rgba(0,0,0,${S.scanlines})`;
+      if (S.scanlines > 0) { const sy = canvas.height / Hh; ctx.fillStyle = 'rgba(0,0,0,' + S.scanlines + ')';
         for (let y = 0; y < Hh; y++) ctx.fillRect(0, Math.floor(y * sy + sy * 0.66), canvas.width, Math.max(1, Math.floor(sy / 3))); }
     };
     // mouse in framebuffer coordinates
