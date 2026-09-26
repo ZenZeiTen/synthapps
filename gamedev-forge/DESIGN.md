@@ -53,7 +53,7 @@ play, using Claude Code. The plugin should:
 | Browser 2D | multi-level console-style 2D | one HTML file | headless run and screenshots |
 | DOS-era | period-true PC games, or a real .EXE | HTML file or DOS program | bundled audit script, DOSBox |
 | three.js retro | 3D web with a period look | HTML plus modules | headless render checks |
-| HD-2D | pixel sprites in a lit 3D world | engine project or spec | engine-specific checks |
+| HD-2D | pixel sprites in a lit 3D world | engine project, three.js page or spec | failure-mode checklist; three.js module has a browser test |
 | Godot 4 | desktop builds, larger projects | Godot project and exports | headless engine, input harness, exported-build test |
 
 The director prefers the track that gives a playable result soonest and names the

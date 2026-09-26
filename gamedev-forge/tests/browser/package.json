@@ -1,0 +1,10 @@
+{
+  "name": "gamedev-forge-browser-tests",
+  "private": true,
+  "type": "module",
+  "description": "Headless-browser checks for gamedev-forge assets. Run through tests/test_hd2d_threejs.py.",
+  "devDependencies": {
+    "playwright-core": "1.63.0",
+    "three": "0.186.1"
+  }
+}
