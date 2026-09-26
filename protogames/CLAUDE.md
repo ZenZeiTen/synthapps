@@ -28,3 +28,28 @@ Rules shared by every project here:
   Godot exe that means 7z with the x86 BCJ filter and LZMA2 extreme (see
   `gates-below/CLAUDE.md`). Check that the archive unpacks byte-identical before
   sending it.
+
+## What players found after delivery (check these before the next handoff)
+
+Both games passed every check and still had bugs that players found in minutes. Each one
+came from a gap in what the checks covered, so each is now a standing rule:
+
+- **Cover every control the original had.** Gates Below shipped without the original's
+  mouse turning. Every entry in the source's input map needs a row in DESIGN.md: ported,
+  replaced, or dropped with a reason.
+- **Test the paths between screens.** Gates Below froze movement when the inventory
+  opened over the shop. Open each window from every place a player can open it, with the
+  real button.
+- **Measure how quick the controls feel.** Vale of Shards ported Xargon's jump exactly,
+  and the player found it late and stiff. Count the steps from a press to visible motion.
+  More than one step needs a DESIGN row that says why.
+- **Plan the story, not only the rules.** The player asked for a scene before the final
+  boss and for credits. List the opening, the boss meeting, the ending and the credits
+  in DESIGN.md, and give each a check.
+- **Play past the win.** Every replay stopped at "won", and the ending froze on a mode
+  nothing handled. The last check must reach the title screen again.
+- **Buttons carry over.** The button that closes a window, or a player still firing,
+  must not act on the next screen: swallow held buttons until release, and guard story
+  pages for a moment after they appear.
+- **Recorded inputs are fragile.** A replay that passes alone can drift in a full run
+  when the random numbers differ. Check each segment's goal, not only that it ended.
