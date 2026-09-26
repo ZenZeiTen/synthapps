@@ -70,8 +70,6 @@ func _ready() -> void:
 	add_child(ui)
 	ui.setup(A)
 	ui.main = self
-	load_options()
-	load_scores()
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
 			shot = a.substr(7)
@@ -81,6 +79,8 @@ func _ready() -> void:
 			script_cmds = Array(a.substr(9).split(","))
 			harness = true
 			ui.audit = true
+	load_options()
+	load_scores()
 	to_title()
 
 
@@ -499,9 +499,16 @@ func apply_options() -> void:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if options["fullscreen"] else DisplayServer.WINDOW_MODE_WINDOWED)
 
 
+## Harness runs start from the default options and an empty score table, and write their
+## own files, so a run neither depends on nor changes the player's (a full table of test
+## scores once turned the ending's name entry into a straight return to the title).
+func user_file(name: String) -> String:
+	return "user://" + (name.get_basename() + "_harness." + name.get_extension() if harness else name)
+
+
 func load_options() -> void:
 	var cf := ConfigFile.new()
-	if cf.load("user://options.cfg") == OK:
+	if not harness and cf.load(user_file("options.cfg")) == OK:
 		for k in options:
 			options[k] = cf.get_value("options", k, options[k])
 	apply_options()
@@ -511,7 +518,7 @@ func save_options() -> void:
 	var cf := ConfigFile.new()
 	for k in options:
 		cf.set_value("options", k, options[k])
-	cf.save("user://options.cfg")
+	cf.save(user_file("options.cfg"))
 
 
 # ------------------------------------------------------------------ saves
@@ -708,14 +715,14 @@ func _unhandled_input(e: InputEvent) -> void:
 
 
 func load_scores() -> void:
-	if FileAccess.file_exists("user://scores.json"):
-		var s = JSON.parse_string(FileAccess.get_file_as_string("user://scores.json"))
+	if not harness and FileAccess.file_exists(user_file("scores.json")):
+		var s = JSON.parse_string(FileAccess.get_file_as_string(user_file("scores.json")))
 		if s is Array:
 			scores = s
 
 
 func save_scores() -> void:
-	var f := FileAccess.open("user://scores.json", FileAccess.WRITE)
+	var f := FileAccess.open(user_file("scores.json"), FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(scores))
 

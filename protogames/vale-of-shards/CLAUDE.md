@@ -59,7 +59,9 @@ Harness commands (in `main.gd run_harness`), one every 6 frames:
 | `quit` | quit (a script otherwise runs until `--quit-after`) |
 
 An unknown command prints `HARNESS unknown`, and `run_all.sh` fails on it. Harness runs keep
-their saves in `user://saves_harness`, apart from the player's.
+their saves in `user://saves_harness`, start from the default options and an empty score
+table, and write `options_harness.cfg` and `scores_harness.json`: a run never reads or changes
+the player's files.
 
 - **Text must fit its frame.** Menus grow to fit their items (up to 316 px), and a window line
   wider than the widest window is wrapped, but both are only guards: `fit` reports them, and
@@ -95,6 +97,7 @@ their saves in `user://saves_harness`, apart from the player's.
 | **player report:** a Load Game row ran past the menu's right edge | the label "5 of 6 stages  23588 pts  09-27 05:35" (40 characters, 240 px) sat in a 250 px menu that starts text 18 px in. The story page 2, How to Play and Controls windows also ran off the screen, every dialog's page prompt sat on the bottom border, the space glyph's placeholder pixel showed as a dot in double spaces, and a lowercase p looked like a capital P | the slot menu shows the stages and score on the left and the date in its own column, built from each save's state (so old saves show the same way); menus grow to fit, long window lines wrap; the long lines were rewritten; the prompt moved up; spaces are not drawn; p and q were redrawn at letter height | the UI's fit audit: `run_all.sh` checks every text.json window, the story, help and Controls pages, the widest save row (6 stages, 7-digit score) and the Spire and ending |
 | **player report:** an invisible barrier after opening the gates | the gates stand in one-cell gaps through the river and the rocks. The map walker moves 4 px a step and only when its whole box is clear, so a walker a few pixels off the path's row (easy after turning a corner) stopped at the banks beside the open gate | the walker slides up to 12 px sideways toward an opening, and a blocked diagonal walks along the open side (DESIGN row 69) | `run_tests.gd test_map_gate_off_row` (fails on the old core) |
 | **player report:** the screen froze for a while after the final boss when shooting mid-air | the Regent's and the heart crystal's blasts hold Orrin still for 60 steps (3.3 s); the hold froze him wherever he was, so a killing shot fired mid-jump left him hanging in the air, deaf to every button | a hold that begins in mid-air falls to the floor in the falling pose, then holds (DESIGN row 68). The Spire route was re-recorded: its kill came mid-jump | `run_tests.gd test_still_in_air_lands` (fails on the old core); the Spire route and talk replay |
+| the Spire check passed in `run_all.sh` but not against the exported exe | harness runs shared the player's score table; ten test scores filled it, the next score no longer qualified, and the ending went straight to the title instead of the name entry the script expects | harness runs start with an empty table and write their own files | the Spire check, now the same on every machine |
 | a new image could be left out of the export unnoticed | the export check only played stage 1 | the `assets` harness command loads every manifest sprite and music track; `verify_export.py` runs it inside the exported build | `verify_export.py` |
 
 ## Delivering a playable build
