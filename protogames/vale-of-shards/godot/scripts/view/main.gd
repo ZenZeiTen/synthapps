@@ -31,6 +31,7 @@ var back_to := "title"
 var acc := 0.0
 var options := {"relaxed": false, "music": 0.8, "sfx": 0.9, "fullscreen": false}
 var latch := {"jump": false, "fire": false}
+var swallow := {}             # buttons that closed a window: ignored by the game until released
 var idle := 0.0
 var shop_msg := ""
 var modal_t := 0.0
@@ -41,6 +42,7 @@ var page_list: Array = []
 var page := 0
 var frames := 0
 var repeat_t := 0.0
+var ending := {}              # the ending: {"phase": "white"|"pages"|"credits"|"end", "t": seconds, ...}
 
 # harness
 var script_cmds: Array = []
@@ -130,8 +132,10 @@ func _process(delta: float) -> void:
 		idle += delta
 		if idle > 22.0 and not harness:
 			start_attract()
+	if mode == "ending":
+		run_ending(delta)
 	world.alpha = clampf(acc * step_hz(), 0.0, 1.0)
-	world.visible = g != null
+	world.visible = g != null and not (mode == "ending" and ending["phase"] != "white")
 	world.queue_redraw()
 	ui.queue_redraw()
 	if shot != "" and script_cmds.is_empty() and wait_frames <= 0 and frames >= maxi(shot_frame, 10):
@@ -146,14 +150,23 @@ func step_hz() -> float:
 
 
 func run_steps(delta: float) -> void:
-	if Input.is_action_just_pressed("jump"):
-		latch["jump"] = true
-	if Input.is_action_just_pressed("fire"):
-		latch["fire"] = true
 	if not g.modal.is_empty():
+		latch = {"jump": false, "fire": false}
 		modal_input(delta)
 		drain_events()
 		return
+	if not replay.is_empty() and replay.get("paused", false):
+		# a talk replay resumes once the buttons that paged the dialog are up again
+		if Input.is_action_pressed("jump") or Input.is_action_pressed("fire") or Input.is_action_pressed("accept"):
+			return
+		replay["paused"] = false
+	for a in swallow.keys():
+		if not Input.is_action_pressed(a):
+			swallow.erase(a)
+	if Input.is_action_just_pressed("jump") and not swallow.has("jump"):
+		latch["jump"] = true
+	if Input.is_action_just_pressed("fire") and not swallow.has("fire"):
+		latch["fire"] = true
 	acc += delta
 	var dt := 1.0 / step_hz()
 	var n := 0
@@ -171,13 +184,21 @@ func run_steps(delta: float) -> void:
 			inp = replay_input()
 			if replay["done"]:
 				return
+		if swallow.has("jump"):
+			inp["fire2"] = false
+		if swallow.has("fire"):
+			inp["fire1"] = false
 		if latch["jump"]:
 			inp["fire2"] = true
 		if latch["fire"]:
 			inp["fire1"] = true
 		latch = {"jump": false, "fire": false}
 		g.step(inp)
-		if mode == "attract" or not replay.is_empty():
+		if not replay.is_empty() and replay.get("talk", false) and g.modal.get("type", "") == "dialog":
+			release_all()                # the script pages the dialog; nothing stays held
+			replay["held"] = {}
+			replay["paused"] = true
+		elif mode == "attract" or not replay.is_empty():
 			while not g.modal.is_empty():
 				g.close_modal()
 		drain_events()
@@ -220,14 +241,26 @@ func drain_events() -> void:
 func modal_input(delta: float) -> void:
 	modal_t += delta
 	var m: Dictionary = g.modal
+	var pressed_any := Input.is_action_just_pressed("accept") or Input.is_action_just_pressed("jump") or Input.is_action_just_pressed("fire")
 	if m.get("type", "") == "intro":
-		if modal_t > 4.0 or (modal_t > 1.2 and (Input.is_action_just_pressed("accept") or Input.is_action_just_pressed("jump") or Input.is_action_just_pressed("fire"))):
+		if modal_t > 4.0 or (modal_t > 1.2 and pressed_any):
 			g.close_modal()
+			_swallow_held()
 		return
-	if modal_t > 0.25 and (Input.is_action_just_pressed("accept") or Input.is_action_just_pressed("fire") or Input.is_action_just_pressed("jump")):
+	if modal_t > 0.25 and pressed_any:
 		g.close_modal()
 		audio.play("select", 3)
 		modal_t = 0.0
+		if g.modal.is_empty():
+			_swallow_held()
+
+
+## The button that closes a window must not also jump or fire in the game (a player found
+## Orrin jumping as each dialog closed), so it is ignored until released.
+func _swallow_held() -> void:
+	for a in ["jump", "fire"]:
+		if Input.is_action_pressed(a):
+			swallow[a] = true
 
 
 # ------------------------------------------------------------------ menus
@@ -529,13 +562,69 @@ func load_slot(name: String) -> bool:
 
 
 # ------------------------------------------------------------------ ending and scores
+## The ending, after the heart crystal's blast: the Spire fades to white, the Vale comes up at
+## dawn, the ending pages play over it, then the credits roll. Only then does the game go on
+## to the high-score entry (if the score qualifies) and the title. Each page and the credits
+## ignore buttons for a moment, so a player still firing at the crystal does not skip them.
+const ENDING_WHITE := 1.6           # seconds of fade to white
+const ENDING_GUARD := 0.8           # seconds a page ignores buttons
+const CREDITS_SPEED := 16.0         # pixels per second; a held button runs them 4x faster
+const CREDITS_ROW := 12
+
 func finish_game() -> void:
 	audio.music("ending")
-	page_list = g.text.get("ending", [])
-	page = 0
-	back_to = "name_check"
-	mode = "pages"
+	ending = {"phase": "white", "t": 0.0, "page": 0, "scroll": 0.0,
+		"pages": g.text.get("ending", []), "credits": g.text.get("credits", [])}
+	mode = "ending"
 	g.gameover = 3
+
+
+func run_ending(delta: float) -> void:
+	ending["t"] += delta
+	var t: float = ending["t"]
+	var go := t > ENDING_GUARD and (pressed("accept") or pressed("jump") or pressed("fire"))
+	match ending["phase"]:
+		"white":
+			if t >= ENDING_WHITE:
+				_ending_phase("pages" if not ending["pages"].is_empty() else "credits")
+		"pages":
+			if go:
+				audio.play("menu", 2)
+				ending["page"] += 1
+				ending["t"] = 0.0
+				if ending["page"] >= ending["pages"].size():
+					_ending_phase("credits")
+		"credits":
+			var fast := Input.is_action_pressed("accept") or Input.is_action_pressed("jump") or Input.is_action_pressed("fire")
+			ending["scroll"] += delta * CREDITS_SPEED * (4.0 if fast and t > ENDING_GUARD else 1.0)
+			if ending["scroll"] >= credits_end():
+				ending["scroll"] = credits_end()
+				_ending_phase("end")
+		"end":
+			if go:
+				end_game()
+
+
+func _ending_phase(ph: String) -> void:
+	ending["phase"] = ph
+	ending["t"] = 0.0
+
+
+## The scroll at which the last credits line ("THE END") sits in the middle of the screen.
+func credits_end() -> float:
+	return 180.0 + (ending["credits"].size() - 1) * CREDITS_ROW - 86.0
+
+
+func end_game() -> void:
+	ending = {}
+	if qualifies(g.pl["score"]):
+		begin_name()
+	else:
+		back_to = "title"
+		mode = "scores"
+		g = null
+		world.g = null
+		audio.music("title")
 
 
 func quit_to_title() -> void:
@@ -639,6 +728,9 @@ func demo_input() -> Dictionary:
 
 # ------------------------------------------------------------------ drawing (called by ui.gd)
 func draw_ui(u: UI) -> void:
+	if mode == "ending":
+		draw_ending(u)
+		return
 	match mode:
 		"title", "slots", "options", "pages", "scores", "name":
 			if g == null or mode == "title" or back_to == "title":
@@ -688,6 +780,35 @@ func draw_ui(u: UI) -> void:
 				"       " + " ".repeat(name_entry["pos"]) + "^", "", "UP/DOWN letter, LEFT/RIGHT move,", "confirm to finish"], "orrin", "")
 
 
+func draw_ending(u: UI) -> void:
+	var t: float = ending["t"]
+	var white := Color(1.0, 0.97, 0.9)
+	match ending["phase"]:
+		"white":
+			u.draw_rect(Rect2(0, 0, 320, 180), Color(white, clampf(t / ENDING_WHITE, 0.0, 1.0)))
+		"pages":
+			A.draw_frame(u, "dawn", 0, Vector2.ZERO)
+			if ending["page"] == 0:
+				u.draw_rect(Rect2(0, 0, 320, 180), Color(white, clampf(1.0 - t / 1.2, 0.0, 1.0)))
+			var p: Dictionary = ending["pages"][ending["page"]]
+			u.text_window(p.get("title", ""), p.get("lines", []), p.get("who", ""), ">" if t > ENDING_GUARD else "")
+		"credits", "end":
+			A.draw_frame(u, "dawn", 0, Vector2.ZERO)
+			u.draw_rect(Rect2(0, 0, 320, 180), Color(u.INK, 0.55))
+			var lines: Array = ending["credits"]
+			for i in lines.size():
+				var y: float = 180.0 + i * CREDITS_ROW - ending["scroll"]
+				if y < -10 or y > 180:
+					continue
+				var s: String = lines[i]
+				if s.begins_with("# "):
+					u.center(160, y, s.substr(2), u.GOLD)
+				else:
+					u.center(160, y, s, u.WHITE)
+			if ending["phase"] == "end" and t > ENDING_GUARD and int(t * 2) % 2 == 0:
+				u.center(160, 164, "press a button", u.DIM)
+
+
 func draw_title(u: UI) -> void:
 	A.draw_frame(u, "title", 0, Vector2.ZERO)
 	A.draw_frame(u, "logo", 0, Vector2(32, 4))
@@ -702,7 +823,7 @@ func draw_modal(u: UI) -> void:
 			u.text_window(m.get("title", ""), m.get("lines", []), m.get("who", ""), ctl.label("accept"))
 		"dialog":
 			var p: Dictionary = m["pages"][m["page"]]
-			u.text_window(p.get("title", ""), p.get("lines", []), p.get("who", ""), ctl.label("accept"))
+			u.text_window(p.get("title", ""), p.get("lines", []), p.get("who", ""), ctl.label("accept"), true)
 
 
 func draw_items(u: UI) -> void:
@@ -761,7 +882,11 @@ func run_harness() -> void:
 			replay = {}
 			if script_cmds.is_empty() and shot == "":
 				get_tree().quit()
-		return
+			return
+		if not (replay.get("talk", false) and g != null and (not g.modal.is_empty() or replay.get("paused", false))):
+			return
+		# a "talk" replay waits on an open dialog (and then for its buttons to come up): the
+		# script's next commands page it and release them
 	if script_cmds.is_empty() or frames % 6 != 0:
 		return
 	var cmd: String = script_cmds.pop_front()
@@ -789,23 +914,58 @@ func run_harness() -> void:
 		"wait":
 			wait_frames = int(a[1]) if a.size() > 1 else 6
 		"replay":
-			begin_replay(a[1], a[2] if a.size() > 2 else "kb")
+			begin_replay(a[1], a[2] if a.size() > 2 else "kb", a.size() > 3 and a[3] == "talk")
+		"waitmodal":
+			# wait for the next dialog of a talk replay; give up once the replay has ended
+			if g != null and g.modal.is_empty() and not replay.is_empty() and not replay["done"]:
+				script_cmds.push_front(cmd)
+			elif g == null or g.modal.is_empty():
+				print("HARNESS waitmodal: the replay ended without another dialog")
 		"dump":
 			dump()
 		"close":
 			if g != null:
 				g.modal = {}
+		"quit":
+			get_tree().quit()
+		"assets":
+			check_assets()
 		_:
 			print("HARNESS unknown command: ", cmd)
 
 
+## Every sprite in the manifest and every music track must load (the export check runs this
+## inside the exported build, so a file left out of the pack is caught).
+func check_assets() -> void:
+	var missing: Array = []
+	var n := 0
+	for name in manifest.get("sprites", {}):
+		n += 1
+		if A.sprite(name) == null:
+			missing.append("sprites/" + name)
+	for t in ["title", "map", "hollow", "mines", "aqueduct", "canopy", "foundry", "spire", "clear", "ending"]:
+		n += 1
+		if A.sound("music/" + t) == null:
+			missing.append("music/" + t)
+	if missing.is_empty():
+		print("ASSETS ok %d" % n)
+	else:
+		print("ASSETS missing ", ", ".join(missing))
+
+
 func dump() -> void:
+	if mode == "ending":
+		print("DUMP mode=ending phase=%s page=%d" % [ending["phase"], ending["page"]])
+		return
 	if g == null:
 		print("DUMP mode=%s" % mode)
 		return
 	var p = g.player()
+	var md: String = g.modal.get("type", "none")
+	if md == "dialog":
+		md += ":" + str(g.modal["pages"][g.modal["page"]].get("who", ""))
 	print("DUMP mode=%s level=%s pos=%d,%d state=%d kind=%d health=%d shards=%d score=%d modal=%s inv=%s" % [mode, g.curlevel,
-		p.x, p.y, p.state, p.kind, g.pl["health"], g.pl["shards"], g.pl["score"], g.modal.get("type", "none"), str(g.pl["inv"])])
+		p.x, p.y, p.state, p.kind, g.pl["health"], g.pl["shards"], g.pl["score"], md, str(g.pl["inv"])])
 
 
 const KEYMAP := {"left": KEY_LEFT, "right": KEY_RIGHT, "up": KEY_UP, "down": KEY_DOWN, "z": KEY_Z, "x": KEY_X,
@@ -846,13 +1006,14 @@ func send_axis(name: String, v: float) -> void:
 ## Plays a route file through synthesized device events, so the whole path from device to
 ## InputMap to Controls.held() to the core is exercised. "kb" uses arrow keys, Z and X; "pad"
 ## uses the left stick for left/right, the D-pad for up/down, A to jump and X to fire.
-func begin_replay(level: String, device: String) -> void:
+func begin_replay(level: String, device: String, talk: bool = false) -> void:
 	var r = JSON.parse_string(FileAccess.get_file_as_string("res://content/routes/%s.json" % level))
 	start_stage(level, true)
 	for i in 41:
 		g.step({})
 	drain_events()
-	replay = {"level": level, "device": device, "inputs": r["inputs"], "i": 0, "done": false, "ok": false, "held": {}}
+	replay = {"level": level, "device": device, "inputs": r["inputs"], "i": 0, "done": false, "ok": false, "held": {},
+		"talk": talk}
 
 
 func replay_input() -> Dictionary:

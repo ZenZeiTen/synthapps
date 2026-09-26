@@ -116,7 +116,9 @@ func message(g, title: String) -> void:
 
 
 # ------------------------------------------------------------------ windows
-func text_window(title: String, lines: Array, who: String, prompt: String) -> void:
+## at_bottom: spoken dialog in play sits over the status bar, clear of the characters (the
+## camera keeps Orrin's feet above canvas y 120)
+func text_window(title: String, lines: Array, who: String, prompt: String, at_bottom: bool = false) -> void:
 	var wide := 0
 	for l in lines:
 		wide = maxi(wide, F.width(l))
@@ -124,7 +126,7 @@ func text_window(title: String, lines: Array, who: String, prompt: String) -> vo
 	var w := clampi(wide + 24 + (40 if has_face else 0), 160, 308)
 	var h := 30 + lines.size() * 10 + (0 if lines.size() > 1 or not has_face else 10)
 	h = maxi(h, 56 if has_face else 40)
-	var r := Rect2(160 - w / 2, 74 - h / 2, w, h)
+	var r := Rect2(160 - w / 2, (180 - h - 3) if at_bottom else (74 - h / 2), w, h)
 	panel(r)
 	var x0 := r.position.x + 10
 	if has_face:

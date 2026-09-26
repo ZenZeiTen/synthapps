@@ -70,6 +70,9 @@ var fidget_line := -1
 var text: Dictionary = {}      # content/data/text.json
 var content_root := "res://content"
 var god := false               # route checker / attract mode: creatures cannot hurt (hazard tiles still can)
+var focus_x := -1              # cutscenes: the camera pans to centre this x instead of following Orrin
+var jump_buffer := 0           # steps a jump pressed in the air is kept for the landing (adapted)
+var ledge_grace := 0           # steps a jump still works after walking off an edge (adapted)
 var in_hazard := false
 
 # ---------------------------------------------------------------- setup
@@ -541,6 +544,10 @@ func vp_max_y() -> int:
 
 func calc_scroll(peeky: int) -> void:
 	var p := player()
+	if focus_x >= 0:
+		# a cutscene holds the camera: pan at the normal scroll speed until focus_x is centred
+		scrollxd = clampi(clampi(focus_x - VIEW_W / 2, 0, vp_max_x()) - vpox, -8, 8)
+		return
 	var xs := 4 if p.xl == 10 else 8
 	if p.x < vpox + 116 and vpox >= 24:
 		scrollxd = -xs
@@ -873,7 +880,7 @@ func clone():
 	c.text = text
 	for f in ["w", "h", "curlevel", "fruit", "fruit_icon", "old_fruit", "gamecount", "rng_state", "dx1", "dy1",
 			"fire1", "fire2", "fire1off", "fire2off", "blink_phase", "vpox", "vpoy", "pvpox", "pvpoy", "botmsg",
-			"bottime", "newlevel", "gameover", "next_id", "ward_count", "ward_tick", "god", "levelcount"]:
+			"bottime", "newlevel", "gameover", "next_id", "ward_count", "ward_tick", "god", "levelcount", "focus_x", "jump_buffer", "ledge_grace"]:
 		c.set(f, get(f))
 	c.level = level
 	c.board = board
@@ -919,7 +926,8 @@ func save_state() -> Dictionary:
 	return {"version": 1, "world": snapshot_world(), "pl": pl.duplicate(true), "o_pl": o_pl.duplicate(true),
 		"fruit": fruit, "fruit_icon": fruit_icon, "old_fruit": old_fruit, "done": done_stages.duplicate(),
 		"seen": seen.duplicate(), "map": map_snapshot.duplicate(true), "rng": rng_state, "gamecount": gamecount,
-		"blink": blink_phase, "levelcount": levelcount, "ward": [ward_count, ward_tick], "next_id": next_id}
+		"blink": blink_phase, "levelcount": levelcount, "ward": [ward_count, ward_tick], "next_id": next_id,
+		"focus": focus_x, "jump": [jump_buffer, ledge_grace]}
 
 func load_state(s: Dictionary) -> void:
 	restore_snapshot(s["world"])
@@ -935,6 +943,9 @@ func load_state(s: Dictionary) -> void:
 	gamecount = s["gamecount"]
 	blink_phase = s["blink"]
 	levelcount = s.get("levelcount", 0)
+	focus_x = s.get("focus", -1)
+	jump_buffer = s.get("jump", [0, 0])[0]
+	ledge_grace = s.get("jump", [0, 0])[1]
 	ward_count = s["ward"][0]
 	ward_tick = s["ward"][1]
 	next_id = maxi(next_id, s["next_id"])

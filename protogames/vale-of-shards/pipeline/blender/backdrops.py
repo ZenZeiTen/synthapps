@@ -4,8 +4,8 @@ rendered with EEVEE through an orthographic camera.
     python3 pipeline/blender/backdrops.py [name ...]          # bpy as a Python module
     blender -b --factory-startup --python pipeline/blender/backdrops.py -- [name ...]
 
-Writes build/renders/bg_<theme>/far.png (480x148) and build/renders/title/scene.png
-(320x180), and saves each scene to art/blender/<name>.blend. Then
+Writes build/renders/bg_<theme>/far.png (480x148), build/renders/title/scene.png and
+build/renders/dawn/scene.png (320x180), and saves each scene to art/blender/<name>.blend. Then
 pipeline/aseprite/import_renders.py dithers them onto the palette.
 
 Rules the scenes follow:
@@ -305,7 +305,7 @@ def grade(path, haze, keep: float, cap: float, gain: float = 1.0):
 
 
 def out_path(name):
-    return os.path.join(kit.RENDERS, name, "scene.png" if name == "title" else "far.png")
+    return os.path.join(kit.RENDERS, name, "scene.png" if name in ("title", "dawn") else "far.png")
 
 
 def finish(name, haze, keep=0.8, cap=200, tile=True, gain=1.0):
@@ -657,33 +657,58 @@ def bg_spire():
     return finish("bg_spire", haze, keep=0.8, cap=180)
 
 
-def title():
-    """The title: the Vale at dusk, the glass spire on the horizon. The top 70 px stay calm
-    sky for the logo."""
+def vale(dawn: bool):
+    """The Vale seen from the village hill. At dusk (the title) the glass spire stands on the
+    horizon and the lamps are lit; at dawn (the ending) the spire is gone, a few shards
+    glint where it stood, and the sun is up. The top 70 px stay calm sky for the logo."""
     W, H, PPM = 320, 180, 12
-    haze = (104, 72, 120)
-    ww, hh = setup(W, H, haze, [(0.0, (180, 110, 110)), (0.36, (236, 150, 96)), (0.46, (200, 110, 110)),
-                                (0.6, (120, 70, 120)), (0.8, (70, 44, 104)), (1.0, (40, 30, 80))],
-                   (150, 120, 160), 1.0, ppm=PPM)
+    if dawn:
+        haze = (126, 118, 140)
+        stops = [(0.0, (236, 196, 150)), (0.36, (250, 214, 150)), (0.46, (226, 176, 150)),
+                 (0.6, (170, 150, 170)), (0.8, (120, 130, 176)), (1.0, (86, 104, 160))]
+        ambient = (190, 176, 186)
+    else:
+        haze = (104, 72, 120)
+        stops = [(0.0, (180, 110, 110)), (0.36, (236, 150, 96)), (0.46, (200, 110, 110)),
+                 (0.6, (120, 70, 120)), (0.8, (70, 44, 104)), (1.0, (40, 30, 80))]
+        ambient = (150, 120, 160)
+    ww, hh = setup(W, H, haze, stops, ambient, 1.0, ppm=PPM)
     rnd = random.Random("title")
-    sun((78, 0, 70), (255, 170, 130), 2.4)
     horizon = hh * 0.40   # about row 108
-    for i in range(4):   # a few early stars, clear of the logo's middle
+    if dawn:
+        sun((58, 0, -60), (255, 228, 190), 3.0)
+        # the rising sun, low over the far ridge, with a wide soft glow
+        solid("sphere", (-7.5, 110, horizon + 0.6), (1.5, 0.2, 1.5), "gold2", emit=2.0, segments=24, flat=False)
+        soft("halo", (-7.5, 105, horizon + 0.6), (9, 6), (255, 222, 160), 0.5)
+    else:
+        sun((78, 0, 70), (255, 170, 130), 2.4)
+    for i in range(4):   # a few early stars (dusk) or pale high clouds (dawn), clear of the logo
         x = rnd.choice([-11.5, -9.5, 9.8, 12]) + rnd.uniform(-0.5, 0.5)
-        solid("cube", (x, 130, hh - rnd.uniform(1.0, 2.6)), (0.085, 0.085, 0.085), "dawn0", emit=1.0)
-    # the glass spire, far away on the horizon
-    g = kit.empty("glassspire", (5.5, 100, horizon - 1.2))
-    solid("cyl", (0, 0, 2.2), (0.9, 0.9, 4.4), fog("shard2", 0.2), parent=g, segments=6, emit=0.3)
-    solid("cone", (0, 0, 5.0), (0.9, 0.9, 1.3), fog("shard3", 0.1), parent=g, segments=6, emit=0.6)
-    for sx, h in ((-0.55, 2.2), (0.6, 2.8), (-0.9, 1.2), (1.0, 1.4)):
-        solid("cyl", (sx, 0.3, h / 2), (0.45, 0.45, h), fog("violet2", 0.25), parent=g, segments=6)
-        solid("cone", (sx, 0.3, h + 0.3), (0.45, 0.45, 0.6), fog("violet3", 0.2), parent=g, segments=6)
+        zz = hh - rnd.uniform(1.0, 2.6)
+        if dawn:
+            soft("band", (x, 128, zz), (rnd.uniform(3, 5), 0.35), (250, 236, 226), 0.35)
+        else:
+            solid("cube", (x, 130, zz), (0.085, 0.085, 0.085), "dawn0", emit=1.0)
+    if dawn:
+        # where the spire stood: a low scatter of fallen glass catching the morning
+        g = kit.empty("fallen", (5.5, 100, horizon - 1.2))
+        for sx, h, tilt in ((-0.8, 0.9, -25), (-0.2, 1.4, 10), (0.5, 0.8, 35), (1.1, 0.6, -15), (0.1, 0.5, 60)):
+            solid("cone", (sx, 0, h / 2), (0.35, 0.35, h), fog("shard3", 0.15), rot=(0, tilt, 0), parent=g,
+                  segments=6, emit=0.8)
+    else:
+        # the glass spire, far away on the horizon
+        g = kit.empty("glassspire", (5.5, 100, horizon - 1.2))
+        solid("cyl", (0, 0, 2.2), (0.9, 0.9, 4.4), fog("shard2", 0.2), parent=g, segments=6, emit=0.3)
+        solid("cone", (0, 0, 5.0), (0.9, 0.9, 1.3), fog("shard3", 0.1), parent=g, segments=6, emit=0.6)
+        for sx, h in ((-0.55, 2.2), (0.6, 2.8), (-0.9, 1.2), (1.0, 1.4)):
+            solid("cyl", (sx, 0.3, h / 2), (0.45, 0.45, h), fog("violet2", 0.25), parent=g, segments=6)
+            solid("cone", (sx, 0.3, h + 0.3), (0.45, 0.45, 0.6), fog("violet3", 0.2), parent=g, segments=6)
     # far ridge (blue-violet), middle hills (dusky green), near hill with trees and a village
     for i in range(6):
         x = -14 + i * 5.6 + rnd.uniform(-1, 1)
         solid("sphere", (x, 80, horizon - 2.6), (rnd.uniform(7, 10), 3, rnd.uniform(4.6, 6.4)),
               fog("violet1", 0.4), segments=16, flat=False)
-    soft("band", (0, 70, horizon - 0.2), (ww + 2, 1.6), (220, 150, 130), 0.45)
+    soft("band", (0, 70, horizon - 0.2), (ww + 2, 1.6), (240, 214, 170) if dawn else (220, 150, 130), 0.45)
     for i in range(5):
         x = -14 + i * 7 + rnd.uniform(-1.5, 1.5)
         solid("sphere", (x, 55, horizon - 4.2), (rnd.uniform(9, 13), 3, rnd.uniform(4.5, 6)), fog("moss1", 0.25),
@@ -692,7 +717,7 @@ def title():
     for k in range(48):
         t = k / 47
         solid("cube", (-2 + math.sin(t * 5) * 2.5 + t * 3, 45 - t * 10, 0.9 + (1 - t) * 3.2),
-              (0.5 + t * 1.8, 0.2, 0.16 + t * 0.12), (214, 150, 140), emit=0.45)
+              (0.5 + t * 1.8, 0.2, 0.16 + t * 0.12), (236, 218, 190) if dawn else (214, 150, 140), emit=0.45)
     for i in range(4):
         x = -13 + i * 8.5 + rnd.uniform(-1, 1)
         solid("sphere", (x, 30, 0.2), (rnd.uniform(9, 12), 3, rnd.uniform(3.8, 5.2)), fog("moss1", 0.12),
@@ -703,20 +728,30 @@ def title():
             continue
         z = 1.6 + rnd.uniform(-0.4, 0.6)
         solid("cyl", (x, 25, z + 0.3), (0.18, 0.18, 0.8), fog("wood0", 0.3))
-        solid("ico", (x, 25, z + 1.0), (1.0, 0.8, 1.3), fog(rnd.choice(["moss0", "moss1"]), 0.1), subdiv=1)
-    # the village: cottages with lit windows and a line of street lamps
+        solid("ico", (x, 25, z + 1.0), (1.0, 0.8, 1.3), fog(rnd.choice(["moss1", "moss2"] if dawn else ["moss0", "moss1"]), 0.1),
+              subdiv=1)
+    # the village: cottages and a line of street lamps, lit at dusk and put out at dawn
     for (x, s) in ((-3.4, 1.0), (-2.0, 0.8), (-0.7, 0.9)):
         solid("cube", (x, 24, 1.3 + s * 0.35), (s, 0.8, s * 0.7), fog("wood2", 0.35))
         solid("cone", (x, 24, 1.3 + s * 0.95), (s * 1.3, 1.0, s * 0.6), fog("fire1", 0.4), rot=(0, 0, 45), segments=4)
-        solid("cube", (x + 0.1, 23.5, 1.35 + s * 0.35), (0.16, 0.1, 0.16), "gold2", emit=2.0)
+        solid("cube", (x + 0.1, 23.5, 1.35 + s * 0.35), (0.16, 0.1, 0.16), "wood0" if dawn else "gold2",
+              emit=0.0 if dawn else 2.0)
     for k in range(5):
         x = -6 + k * 1.3
         solid("cube", (x, 20, 1.0), (0.06, 0.06, 0.8), fog("stone0", 0.2))
-        solid("cube", (x, 19.9, 1.45), (0.14, 0.1, 0.14), "fire5", emit=2.0)
-        soft("halo", (x, 19.5, 1.45), (0.9, 0.9), "fire4", 0.45, emit=1.0)
-    solid("sphere", (0, 12, -1.6), (ww * 1.3, 3, 4.2), "moss0", segments=24, flat=False)
-    p = finish("title", haze, keep=0.92, cap=240, tile=False)
-    return p
+        solid("cube", (x, 19.9, 1.45), (0.14, 0.1, 0.14), "stone2" if dawn else "fire5", emit=0.0 if dawn else 2.0)
+        if not dawn:
+            soft("halo", (x, 19.5, 1.45), (0.9, 0.9), "fire4", 0.45, emit=1.0)
+    solid("sphere", (0, 12, -1.6), (ww * 1.3, 3, 4.2), "moss1" if dawn else "moss0", segments=24, flat=False)
+    return finish("dawn" if dawn else "title", haze, keep=0.92, cap=248 if dawn else 240, tile=False)
+
+
+def title():
+    return vale(False)
+
+
+def dawn():
+    return vale(True)
 
 
 BACKDROPS = {
@@ -727,6 +762,7 @@ BACKDROPS = {
     "bg_ember": bg_ember,
     "bg_spire": bg_spire,
     "title": title,
+    "dawn": dawn,
 }
 
 

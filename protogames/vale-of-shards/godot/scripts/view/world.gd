@@ -5,6 +5,7 @@ extends Node2D
 
 const T = preload("res://scripts/core/tiles.gd")
 const D = preload("res://scripts/core/defs.gd")
+const Kinds = preload("res://scripts/core/kinds.gd")
 
 const VIEW_W := 320
 const VIEW_H := 148
@@ -454,7 +455,12 @@ func _obj(o) -> void:
 		D.SIGIL:
 			A.draw_at(self, "sigil", o.state, pos + Vector2(0, [0, -1, -2, -1][(gc / 3) % 4]))
 		D.REGENT:
-			if o.statecount < 59:
+			if o.yd != 0:
+				# waiting: a faint shimmer in the glass; the meeting brings him into full form
+				var k := 0.0 if o.yd == 2 else clampf(float(o.statecount) / Kinds.MEET_APPEAR, 0.0, 1.0)
+				var a := lerpf(0.22 + 0.08 * sin(gc * 0.4), 1.0, k)
+				A.draw_at(self, "regent", A.frame("regent", "idle", gc / 6), pos, false, Color(1, 1, 1, a))
+			elif o.statecount < 59:
 				var tag := "idle"
 				if o.substate >= 50 or o.zaphold > 0:
 					tag = "hurt"
@@ -499,8 +505,8 @@ func _hero(p, pos: Vector2) -> void:
 	else:
 		match p.state:
 			D.ST_STAND:
-				if p.statecount < 0:
-					tag = "land"
+				if p.statecount < 0 or (p.counter >= 5 and p.xd == 0):
+					tag = "land_" + face      # the first steps after touching down
 				elif p.yd == 3:
 					tag = "squat"
 				elif p.yd == -3:
@@ -514,10 +520,17 @@ func _hero(p, pos: Vector2) -> void:
 						tag = "run_" + ("r" if p.xd > 0 else "l")
 						n = (p.substate & 7) / 2
 			D.ST_JUMPING:
-				if p.xd == 0:
-					tag = "jump_up" if p.yd <= 0 else "fall_down"
+				# the arc in profile, facing the way Orrin last moved: takeoff, rise, apex, fall
+				if p.xd != 0:
+					face = "r" if p.xd > 0 else "l"
+				if p.yd <= -12:
+					tag = "takeoff_" + face
+				elif p.yd < -2:
+					tag = "jump_" + face
+				elif p.yd <= 2:
+					tag = "apex_" + face
 				else:
-					tag = ("jump_" if p.yd <= 0 else "fall_") + ("r" if p.xd > 0 else "l")
+					tag = "fall_" + face
 			D.ST_CLIMBING:
 				tag = "climb"
 				n = [0, 0, 1, 2, 2, 1, 1][clampi(p.substate, 0, 6)]

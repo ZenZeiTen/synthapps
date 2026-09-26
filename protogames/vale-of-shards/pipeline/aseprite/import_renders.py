@@ -37,7 +37,7 @@ from sheet import save_sprite  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 RENDERS = os.path.join(ROOT, "build", "renders")
-BACKDROPS = {n for n in SPRITES if n.startswith("bg_")} | {"title"}
+BACKDROPS = {n for n in SPRITES if n.startswith("bg_")} | {"title", "dawn"}
 INK = N["ink"]
 
 # frame duration in ms by tag (default 100)

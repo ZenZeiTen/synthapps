@@ -36,6 +36,8 @@ Along the way:
 - The runes V-A-L-E, collected in order, are worth 4000 points.
 - There are no lives. A fall returns you to the stage start or to the last lantern post
   you lit.
+- The Regent meets you before the last fight. After the heart crystal, the Vale wakes at
+  dawn and the credits roll.
 
 ### Controls
 
@@ -67,7 +69,7 @@ map; the map also autosaves a Continue slot.
 |---|---|
 | **Godot 4.7** (Compatibility renderer) | the game |
 | **Aseprite format** | every sprite and tile sheet |
-| **Blender 5** (`bpy`) | the diving bell, the sentry, drone, turret, geode, the Glass Regent, the heart crystal, and the six parallax backdrops and the title scene |
+| **Blender 5** (`bpy`) | the diving bell, the sentry, drone, turret, geode, the Glass Regent, the heart crystal, the six parallax backdrops, the title scene and the dawn scene of the ending |
 | numpy synthesis | 53 sound effects and 10 music tracks |
 
 - **Godot:** a pure-GDScript rules core (`godot/scripts/core`) runs headless for the tests.
@@ -93,14 +95,15 @@ bash tests/run_all.sh --quick  # without the playthrough and the export
 
 | check | what it proves |
 |---|---|
-| `godot/tests/run_tests.gd` | the physics against hand-computed numbers from the source: a 56 px jump, 90 px with boots, the 2-step launch pause, 8 px run steps, the 4,0,0,6,4,4 climb, one-way ledges, walls, bolt limits; every level parses; saves round-trip and replay identically |
+| `godot/tests/run_tests.gd` | the physics against hand-computed numbers from the source: a 56 px jump, 90 px with boots, 8 px run steps, the 4,0,0,6,4,4 climb, one-way ledges, walls, bolt limits; the adapted jump feel (it rises on the press step, landings run on, an early press is buffered, a late press after an edge still jumps); every level parses; saves round-trip and replay identically |
 | `tests/route.gd` + `tests/make_routes.sh` | a search over real inputs finishes every stage (hazards still kill), and the inputs are recorded |
 | `godot/tests/replay_routes.gd` | the recorded routes still finish their stages |
 | `--script=replay:<stage>:kb` and `:pad` | a stage finished from synthesized keyboard or gamepad events, through the input map, as a player's input would arrive |
+| the Spire and ending check | from the gamepad: Sable's dialog, the meeting with the Regent before the fight, the boss and the heart crystal, then the ending (fire pressed during the fade must not skip it), the credits, and the return to the title |
 | gamepad and keyboard menu scripts | title, new game, story, pause, items and options driven by pad buttons and keys |
-| `godot/tests/playthrough.gd` | the whole game from New Game: the map walk and its gates, all six stages, both boss fights, the ending |
+| `godot/tests/playthrough.gd` | the whole game from New Game: the map walk and its gates, all six stages, both boss fights, the ending. Recorded segments that random events push off course are searched again from the real state |
 | `tests/verify_art.py`, `tests/verify_audio.py` | every asset matches its source and the palette; audio formats, levels and seamless loops |
-| `tests/verify_export.py` | the exported build runs from a temporary folder and finishes stage 1 from gamepad events |
+| `tests/verify_export.py` | the exported build runs from a temporary folder, loads every sprite and music track from its own pack, and finishes stage 1 from gamepad events |
 
 ## Folders
 

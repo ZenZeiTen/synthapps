@@ -421,6 +421,39 @@ def hero_fall(cx=15):
                 scarf=[(cx - 4, 21), (cx - 6, 16), (cx - 7, 12)])
 
 
+def hero_takeoff(cx=15):
+    """Leaving the floor: stretched tall, legs trailing, the near arm reaching up."""
+    return dict(cx=cx, by=-2,
+                leg_near=[(cx + 1, 31), (cx, 38), (cx - 1, 44)],
+                leg_far=[(cx - 1, 31), (cx - 3, 38), (cx - 5, 43)],
+                arm_near=[(cx + 1, 22), (cx + 6, 18), (cx + 9, 13)],
+                arm_far=[(cx - 1, 22), (cx - 4, 26), (cx - 7, 29)],
+                hem_back=(-2, 2), hem_front=(0, 1),
+                scarf=[(cx - 4, 19), (cx - 6, 24), (cx - 7, 29)])
+
+
+def hero_apex(cx=15):
+    """The top of the arc: knees tucked, arms out level, the scarf floating."""
+    return dict(cx=cx, by=-2,
+                leg_near=[(cx + 1, 31), (cx + 6, 34), (cx + 4, 39)],
+                leg_far=[(cx - 1, 31), (cx + 3, 35), (cx, 40)],
+                arm_near=[(cx, 22), (cx + 5, 22), (cx + 9, 21)],
+                arm_far=[(cx - 1, 22), (cx - 5, 22), (cx - 9, 21)],
+                hem_back=(-3, -2), hem_front=(2, -1),
+                scarf=[(cx - 4, 19), (cx - 8, 18), (cx - 12, 19)])
+
+
+def hero_land(cx=15):
+    """Touching down in profile: knees bent, hands out for balance, the coat settling."""
+    return dict(cx=cx, by=4, head=(1, 0),
+                leg_near=[(cx + 1, 37), (cx + 5, 40), (cx + 4, 44)],
+                leg_far=[(cx - 1, 37), (cx - 4, 40), (cx - 3, 44)],
+                arm_near=[(cx, 28), (cx + 4, 31), (cx + 7, 32)],
+                arm_far=[(cx - 1, 28), (cx - 4, 31), (cx - 6, 33)],
+                hem_back=(-2, 0), hem_front=(2, 0),
+                scarf=[(cx - 4, 25), (cx - 7, 28), (cx - 8, 32)])
+
+
 def hero_hurt(cx=15):
     return dict(cx=cx, by=1, head=(-2, 0), head_rows=HEAD_SIDE_HURT,
                 leg_near=[(cx + 1, 34), (cx + 4, 39), (cx + 7, 42)],
@@ -544,6 +577,9 @@ def hero_frames() -> list[Canvas]:
     out += [hr, hl]
     out += hero_ash(out[2])
     out += hero_warp(out[2])
+    # the jump in profile: takeoff, apex, landing (right, then left for each)
+    for pose in (hero_takeoff, hero_apex, hero_land):
+        out += list(side(pose(cx)))
     return out
 
 

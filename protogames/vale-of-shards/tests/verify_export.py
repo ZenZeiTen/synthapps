@@ -2,8 +2,9 @@
 
 Exports the Linux build, copies the single binary to an unrelated temporary folder,
 replays stage 1 in it through synthesized gamepad events under a virtual display and
-screenshots it. Passes when the build starts, finishes the stage (REPLAY ... ok), reports
-no script errors, and the screenshot is not blank. The Windows preset exports the same way.
+screenshots it. Passes when the build starts, loads every manifest sprite and music track from
+its own pack (ASSETS ok), finishes the stage (REPLAY ... ok), reports no script errors, and the
+screenshot is not blank. The Windows preset exports the same way.
 
     python3 tests/verify_export.py
 """
@@ -29,6 +30,13 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         exe = os.path.join(tmp, "vale-of-shards.x86_64")
         shutil.copy2(out, exe)
+        chk = subprocess.run([exe, "--headless", "--", "--script=assets,quit"], capture_output=True, text=True,
+                             timeout=120, cwd=tmp)
+        line = [l for l in (chk.stdout + chk.stderr).splitlines() if l.startswith("ASSETS")]
+        if not line or not line[0].startswith("ASSETS ok"):
+            print(line[0] if line else (chk.stdout + chk.stderr)[-2000:])
+            print("FAIL the exported build is missing content")
+            sys.exit(1)
         shot = os.path.join(tmp, "shot.png")
         run = subprocess.run(["xvfb-run", "-a", "-s", "-screen 0 1280x720x24", exe, "--rendering-driver", "opengl3",
                               "--resolution", "1280x720", "--", "--script=replay:hollow:pad",
@@ -46,7 +54,8 @@ def main():
         im = Image.open(shot).convert("RGB")
         colours = len(set(im.getdata()))
         size_mb = os.path.getsize(out) / 1e6
-        print(f"export {size_mb:.0f} MB; ran from {tmp}; stage 1 finished from gamepad events; screenshot {im.size}, {colours} colours")
+        print(f"export {size_mb:.0f} MB; ran from {tmp}; {line[0]}; stage 1 finished from gamepad events; "
+              f"screenshot {im.size}, {colours} colours")
         if colours < 20:
             print("FAIL the screenshot looks blank")
             sys.exit(1)
