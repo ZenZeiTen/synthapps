@@ -21,7 +21,7 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from typing import Any
 
@@ -30,7 +30,7 @@ from .audit import AuditEntry, AuditLog
 from .monitor import Level, MonitorConfig, RiskMonitor, Severity, Signal
 from .policy import PolicyConfig, PolicyContext, PolicyEngine, UsageMeter, can_enter
 from .security import AuthenticationError, Grants, SessionAuthority
-from .world import Avatar, Event, HumanoidSpec, Offer, World, Zone, ZoneKind
+from .world import Avatar, Event, HumanoidSpec, Offer, World, Zone, ZoneKind, world_to_dict
 
 
 class AgentStatus(StrEnum):
@@ -104,7 +104,10 @@ class WorldKernel:
         self._offer_seq = 0
         self.paused = False
         self.halted = False
-        self._log("world_started", None, {"run_id": self._sessions.run_id})
+        # Everything replay needs to rebuild this run: the map and the settings.
+        self._log("world_started", None, {"run_id": self._sessions.run_id,
+                                          "world": world_to_dict(world),
+                                          "config": asdict(self.config)})
 
     # --- lifecycle ------------------------------------------------------------
 
@@ -695,7 +698,7 @@ class OperatorConsole:
     def grant(self, operator: str, agent_id: str, scope: str,
               expires_tick: int | None = None) -> None:
         self._check(operator)
-        self._record(operator, "grant", agent=agent_id, scope=scope)
+        self._record(operator, "grant", agent=agent_id, scope=scope, expires_tick=expires_tick)
         self._kernel._op_grant(agent_id, scope, operator, expires_tick)
 
     def pause(self, operator: str) -> None:

@@ -84,6 +84,10 @@ function renderMap(state) {
     map.append(dot);
   }
   const placed = []; // label positions so far, to keep clustered names readable
+  const bodies = state.agents.filter((a) => a.x !== null).map((a) => ({ x: a.x, y: flip(a.y) }));
+  const clashes = (lx, ly) =>
+    placed.some((p) => Math.abs(p.x - lx) < 4 && Math.abs(p.y - ly) < 1.5) ||
+    bodies.some((b) => b.x > lx - 1 && b.x < lx + 4 && Math.abs(b.y - (ly - 0.5)) < 1.2);
   for (const agent of state.agents) {
     if (agent.x === null) continue;
     const classes = ["agent", agent.status];
@@ -94,9 +98,7 @@ function renderMap(state) {
     map.append(body);
     const labelX = agent.x + 1.1;
     let labelY = flip(agent.y) + 0.5;
-    while (placed.some((p) => Math.abs(p.x - labelX) < 4 && Math.abs(p.y - labelY) < 1.5)) {
-      labelY += 1.6;
-    }
+    for (let tries = 0; tries < 6 && clashes(labelX, labelY); tries++) labelY += 1.6;
     placed.push({ x: labelX, y: labelY });
     map.append(svg("text", { class: "agent-label", x: labelX, y: labelY }, agent.name));
   }
