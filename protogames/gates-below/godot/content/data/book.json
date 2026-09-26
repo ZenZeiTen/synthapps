@@ -1,0 +1,10 @@
+{
+ "_doc": "Book (journal) pages, added by text scrolls and by the 'book' script op.",
+ "intro":   {"title": "Harrowmoot", "text": "The Sealstone was taken from the Nether Gate three nights ago. Since then frost has climbed the cellar stairs of the old keep, and the dogs will not go near them. We four have agreed to go down, find the stone and set it back in its lock."},
+ "letter":  {"title": "The Mayor's Letter", "text": "To whoever goes down: the portcullis south of the cellar is raised by the lever on the west wall. Past the cellars lie the Cistern and the Gate Hall. The Gate has a hollow in its face the size of two hands. The Sealstone sits there. Bring it home and Harrowmoot will not forget you. - Aldous Venn, Mayor"},
+ "plates":  {"title": "A Mason's Scrap", "text": "Crypt gate hangs on the weight-stone. What rests on the stone keeps the gate raised; lift it and the gate falls. A bone will do as well as a boot."},
+ "robbers": {"title": "The Robbers' Tally", "text": "Rope 3. Oil 2 flasks. Tamsin robs us worse than we rob anyone. The stone is cold as a well. Girl says she can open the gold door in the Cistern if we let her go after. We will not. Pip swears the third stone in the south passage upstairs is hollow; he knocked on it."},
+ "hands":   {"title": "The Warden's Litany", "text": "Four hands keep the Hall: one to the north, one to the east, one to the south, one to the west. When all four hands are lowered in rest, the Warden's doors stand open. Raise any hand and they close."},
+ "cistern": {"title": "Notes on the Cistern", "text": "The water-lights are drawn to noise. The three pools of passage return the careless to where they began; the old sluice lever in the flooded chapel stills them."},
+ "ending":  {"title": "The Gate", "text": "The Sealstone slid home with a sound like a held breath let go. Frost ran back down the face of the Gate and the cold of the Hollow went quiet. Somewhere above, in Harrowmoot, the dogs began to bark again."}
+}
