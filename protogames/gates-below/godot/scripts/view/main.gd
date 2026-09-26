@@ -365,6 +365,9 @@ func _process(delta: float) -> void:
 			tick_acc = 0.0
 		_battle_flow(delta)
 		process_events()
+		# An open shop blocks movement (game.step), so it must never outlive its screen.
+		if not g.shop.is_empty() and not overlay in ["shop", "dialog"]:
+			g.close_shop()
 		if queued_move != -99 and not dungeon.busy():
 			var mv = queued_move
 			queued_move = -99
@@ -604,6 +607,9 @@ func _click_at(p: Vector2, right: bool) -> void:
 				"help": overlay = "help"
 				"quit": get_tree().quit()
 		"button":
+			if overlay == "shop":
+				g.close_shop()
+				overlay = ""
 			match String(h["id"]):
 				"inv": overlay = "" if overlay == "inv" else "inv"
 				"cast": overlay = "" if overlay == "cast" else "cast"
@@ -617,7 +623,7 @@ func _click_at(p: Vector2, right: bool) -> void:
 			var ci = int(h["i"])
 			if cast_pending != "":
 				_finish_cast(ci)
-			elif right or g.s["held"] != null and not right and overlay == "":
+			elif right or (g.s["held"] != null and overlay in ["", "shop"]):
 				if g.s["held"] != null:
 					g.give_held(ci)
 				else:
@@ -898,7 +904,13 @@ func _run_cmd(cmd: String) -> void:
 			_click_at(Vector2(float(parts[1]), float(parts[2])), false)
 		"rclick":
 			_click_at(Vector2(float(parts[1]), float(parts[2])), true)
-		"dump": print("DUMP pos=", g.s["x"], ",", g.s["y"], " dir=", g.s["dir"], " level=", g.s["level"], " seen=", g.ls["seen"].size())
+		"dump":
+			var packs = []
+			for ch in g.s["party"]:
+				packs.append(ch["pack"].filter(func(x): return x != null).size())
+			var held = "none" if g.s["held"] == null else String(g.s["held"]["id"])
+			print("DUMP pos=", g.s["x"], ",", g.s["y"], " dir=", g.s["dir"], " level=", g.s["level"], " seen=", g.ls["seen"].size(),
+				" overlay=", "none" if overlay == "" else overlay, " held=", held, " packs=", ",".join(packs.map(func(n): return str(n))), " gold=", g.s["gold"])
 		"save": save_slot(int(parts[1]))
 		"menusub":
 			overlay = "menu"

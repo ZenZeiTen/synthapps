@@ -25,3 +25,8 @@ got=$(godot --headless --path godot --quit-after 3000 -- --script=seed:5,dump,cl
 want="pos=1,1 dir=1 pos=2,1 dir=1 pos=2,1 dir=0 pos=2,1 dir=3 pos=2,1 dir=3 pos=2,0 dir=3 pos=2,0 dir=0 "
 if [ "$got" != "$want" ]; then echo "FAIL mouse movement"; echo " got:  $got"; echo " want: $want"; exit 1; fi
 echo "pad forward, zone turn left, edge turn left, zone back (door blocks), pad strafe right, zone turn right: all as expected"
+echo "== peddler: talk, buy, stow by portrait and by inventory, then walk on"
+got=$(godot --headless --path godot --quit-after 3000 -- --script=seed:5,dialog:tamsin,wait,click:100:94,wait,wait,dump,click:100:120,wait,dump,click:264:310,wait,dump,click:100:120,wait,click:560:150,wait,click:404:140,wait,dump,click:560:150,wait,click:495:150,wait,wait,dump 2>&1 | grep -oE "pos=[0-9]+,[0-9]+ .* overlay=[a-z]+ held=[a-z_]+ packs=[0-9,]+" | sed -E 's/ level=[a-z]+ seen=[0-9]+//' | tr '\n' '|')
+want="pos=1,1 dir=1 overlay=shop held=none packs=1,1,2,1|pos=1,1 dir=1 overlay=shop held=bread packs=1,1,2,1|pos=1,1 dir=1 overlay=shop held=none packs=1,1,3,1|pos=1,1 dir=1 overlay=inv held=none packs=2,1,3,1|pos=2,1 dir=1 overlay=none held=none packs=2,1,3,1|"
+if [ "$got" != "$want" ]; then echo "FAIL peddler"; echo " got:  $got"; echo " want: $want"; exit 1; fi
+echo "bread bought, stowed by clicking a portrait in the shop, second loaf stowed from the inventory, party walks on"
