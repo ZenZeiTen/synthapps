@@ -7,6 +7,10 @@ Each game lives in its own folder with its own README, docs, pipeline and tests:
 - `gates-below/`: a Godot 4.7 party dungeon crawler. Read `gates-below/CLAUDE.md`
   first. It holds the commands, the automation harness, and the bugs players found
   after delivery.
+- `vale-of-shards/`: a Godot 4.7 platformer with keyboard and gamepad controls. Read
+  `vale-of-shards/CLAUDE.md` first. It holds the commands, the harness (which can drive
+  the game through synthesized key and pad events), the route checker that proves every
+  stage can be finished, and the level bugs it caught.
 
 Rules shared by every project here:
 
