@@ -230,8 +230,36 @@ export type TriggerAction =
   | { kind: "emit"; type: EventType; data?: Record<string, unknown> }
   | { kind: "intent"; text: string };
 
-/** Executes a trigger action. `task`/`text` have {{path}}, {{agentId}}, {{summary}} placeholders already filled. */
+/**
+ * Executes a trigger action. `task`/`text` have {{path}}, {{agentId}}, {{summary}} placeholders already filled.
+ * Only run_agent and intent actions reach the executor; emit actions are published by the engine itself.
+ * The event passed in is a copy whose data carries TriggerContext (triggeredBy = "rule:<id>", triggerDepth = depth of the new run).
+ */
 export type TriggerExecutor = (action: TriggerAction, event: KernelEvent, rule: TriggerRule) => Promise<void>;
+
+/**
+ * Chain fields. The executor receives them on event.data; agent.finished / agent.failed events for a triggered
+ * run MUST echo them back (plus agentId, path, summary) or the chain stops and the depth limit cannot work.
+ */
+export interface TriggerContext {
+  triggeredBy: string;
+  triggerDepth: number;
+  path?: string;
+}
+
+/** data of agent.finished and agent.failed. */
+export interface AgentFinishedData {
+  instanceId: string;
+  agentId: string;
+  workspaceId?: string;
+  success: boolean;
+  durationMs: number;
+  summary: string;
+  path?: string;
+  triggeredBy?: string;
+  triggerDepth?: number;
+  error?: string;
+}
 
 export interface TriggerEngine {
   rules(): TriggerRule[];
@@ -540,7 +568,7 @@ export interface AgentBudget {
   maxToolCalls: number;
   maxTurns: number;
   maxWallMs: number;
-  /** Abort when the same tool is called with identical input this many times in one run. */
+  /** Abort when the same tool is called with identical input more than this many times in one run. */
   maxRepeatCalls: number;
 }
 
