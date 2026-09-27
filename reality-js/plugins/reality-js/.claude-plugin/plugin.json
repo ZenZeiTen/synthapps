@@ -1,0 +1,14 @@
+{
+  "name": "reality-js",
+  "displayName": "reality.js",
+  "version": "0.1.0",
+  "description": "Write, check, render and speed up reality.js scenes: photoreal stills and film-like video from a few lines of .real text, with a physical sky, a physical camera and exact motion blur. Includes a GPU-free scene checker with render-time estimates, tested scene templates and a property cheat sheet.",
+  "author": {
+    "name": "ZenZeiTen",
+    "url": "https://github.com/ZenZeiTen"
+  },
+  "homepage": "https://github.com/ZenZeiTen/synthapps/tree/main/reality-js",
+  "repository": "https://github.com/ZenZeiTen/synthapps",
+  "license": "MIT",
+  "keywords": ["path-tracing", "rendering", "photoreal", "scene-language", "creative-coding", "video", "webgl2"]
+}

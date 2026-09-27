@@ -1,0 +1,32 @@
+# Sunbeams in a dusty barn: sunlight falls through gaps between roof
+# boards and lights up the air. The dust scatters light mostly forward
+# (anisotropy), so the shafts glow brightest when you look toward the sun.
+# Volumetric light is noisy at low sample counts: give it a few hundred.
+
+camera { position: [0, 1.7, 5.8], look_at: [0, 2.0, -3], lens: 24mm }
+
+sky { sun_elevation: 50, sun_azimuth: 105 }
+fog { density: 0.035, anisotropy: 0.6, height: 5m, color: #f2eee6 }
+film { bloom: 0.04, grain: 0.1 }
+render { samples: 1024 }
+
+let wood = matte { color: #5a4634, pattern: wood, color2: #463626, pattern_scale: 0.6 }
+
+ground { material: matte { color: #7a6a55, pattern: noise, color2: #5e5242, pattern_scale: 1.5 } }
+
+# Walls: back, left, right. The front stays open behind the camera.
+box { position: [0, 2.5, -7], size: [12, 5, 0.3], material: wood }
+box { position: [-6, 2.5, -1], size: [0.3, 5, 12], material: wood }
+box { position: [6, 2.5, -1], size: [0.3, 5, 12], material: wood }
+
+# Roof boards running front to back, with gaps between them.
+repeat i in 0..14 {
+  box { position: [-6 + i * 0.85, 5.1, -1], size: [0.62, 0.12, 12.4], material: wood }
+}
+
+# Posts and a few crates.
+repeat i in 0..3 {
+  box { position: [-3 + i * 3, 2.5, -3.5], size: [0.3, 5, 0.3], material: wood }
+}
+box { position: [-2.2, 0.4, -4.6], size: 0.8, rotate: [0, 20, 0], material: wood }
+box { position: [-1.4, 0.3, -4.2], size: 0.6, rotate: [0, -10, 0], material: wood }

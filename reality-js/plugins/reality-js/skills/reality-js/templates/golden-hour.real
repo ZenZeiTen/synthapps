@@ -1,0 +1,22 @@
+# Exterior at golden hour: low sun, long shadows, warm key, blue sky fill.
+# sun_elevation 2-12 is golden hour, 20-50 is day, 0 is sunset.
+
+let sun_height = 8
+let sun_direction = 250   # the sun is behind-left of the camera at 180-270
+
+camera {
+  position: [0.8, 1.4, 6.4]
+  look_at: [0, 0.6, 0]
+  lens: 50mm
+  aperture: f/2.8
+}
+
+sky { sun_elevation: sun_height, sun_azimuth: sun_direction, haze: 1.5 }
+film { bloom: 0.06, grain: 0.12, halation: 0.2 }
+render { samples: 512 }
+
+ground { material: matte { color: #b9ad9c, pattern: noise, color2: #a3968a, pattern_scale: 3 } }
+
+sphere { position: [-1.2, 0.6, 0], radius: 0.6, material: metal { color: gold, roughness: 0.12 } }
+sphere { position: [0.1, 0.5, 0.8], radius: 0.5, material: glass { } }
+box { position: [1.2, 0.4, -0.4], size: 0.8, rotate: [0, 30, 0], material: matte { color: #e8e2d8 } }

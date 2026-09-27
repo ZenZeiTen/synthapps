@@ -1,0 +1,5 @@
+node_modules/
+# Renders written next to scenes by tools/render.mjs
+examples/*.png
+examples/*.webm
+examples/*-frames/

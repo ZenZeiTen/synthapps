@@ -1,0 +1,22 @@
+{
+  "name": "reality.js",
+  "version": "0.1.0",
+  "description": "A scene language and physically based path tracer for photoreal stills and motion video in the browser.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": ["src", "examples", "playground", "tools", "README.md", "LANGUAGE.md", "DESIGN.md"],
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:browser": "node --test tests/browser/render.test.mjs",
+    "serve": "node tools/serve.mjs",
+    "render": "node tools/render.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["path-tracing", "webgl2", "rendering", "photoreal", "scene-language", "creative-coding"],
+  "license": "MIT"
+}
