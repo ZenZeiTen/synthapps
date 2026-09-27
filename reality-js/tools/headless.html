@@ -113,6 +113,7 @@
     for (let i = 0; i < px.length; i += 4) sum += px[i] + px[i + 1] + px[i + 2];
     return { lostSeen, replaced: reality.renderer !== old, statuses, mean: sum / (px.length / 4) / 3 };
   };
+  window.probeShaders = async (features) => { await reality.probeShaders(features); return reality.shaderProbe; };
   window.diagnostics = () => JSON.parse(JSON.stringify(reality.diagnostics()));
   window.ready = true;
 </script>

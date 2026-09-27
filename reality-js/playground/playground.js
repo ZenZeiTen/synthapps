@@ -38,21 +38,24 @@ reality.onStatus = (message) => {
 // can be diagnosed. It holds no scene content and nothing personal beyond
 // the browser and GPU names.
 const dbReady = window.claude?.use ? window.claude.use('db').catch(() => null) : Promise.resolve(null);
-let reportSaved = false;
-async function saveReport(reason) {
-  if (reportSaved) return;
+let reportSaved = false, reportId = null;
+// `force` rewrites this visit's report (after the shader probe finishes).
+async function saveReport(reason, force = false) {
+  if (reportSaved && !force) return;
   const db = await dbReady;
   if (!db) return;
+  const first = !reportSaved;
   reportSaved = true;
   try {
     const report = { reason, example: $('example').value || 'edited', ...reality.diagnostics() };
-    const id = report.time.replace(/[^0-9]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 8);
-    await db.doc(`diagnostics/${id}`).set(report);
-    $('gpu').textContent += ' · report saved';
+    reportId ??= report.time.replace(/[^0-9]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 8);
+    await db.doc(`diagnostics/${reportId}`).set(report);
+    if (first) $('gpu').textContent += ' · report saved';
   } catch (err) {
     console.warn('diagnostics not saved', err);
   }
 }
+reality.onProbe = (results, done) => { if (done) saveReport('trace-failed', true); };
 setTimeout(() => saveReport('timer'), 15000);
 
 // ------------------------------------------------------------ storage

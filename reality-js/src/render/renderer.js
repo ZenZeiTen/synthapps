@@ -83,11 +83,12 @@ export class Renderer {
       return s;
     };
     const p = gl.createProgram();
+    const fs = compile(gl.FRAGMENT_SHADER, fragment);
     gl.attachShader(p, compile(gl.VERTEX_SHADER, FULLSCREEN_VERTEX));
-    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fragment));
+    gl.attachShader(p, fs);
     gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(`${name} program failed to link:\n${gl.getProgramInfoLog(p)}`);
-    return { handle: p, locations: new Map(), units: new Map() };
+    return { handle: p, fs, locations: new Map(), units: new Map() };
   }
 
   // The path tracer compiled with only the features a scene needs.
@@ -291,14 +292,11 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
-  // Add `passes` samples per pixel.
-  trace(passes = 1) {
-    if (!this.frameUniforms || !this.env || this.lost) return;
+  // Uniforms of the trace pass, reading the previous accumulation `src`.
+  traceUniforms(src, accumulate) {
     const f = this.frameUniforms;
     const env = this.env;
-    for (let i = 0; i < passes; i++) {
-      const src = this.accum[this.current], dst = this.accum[1 - this.current];
-      this.use(this.programs.trace, {
+    return {
         uPrevColor: src.textures[0], uPrevAux: src.textures[1], uPrevAlbedo: src.textures[2],
         uObjects: this.data.objects, uMaterials: this.data.materials, uLights: this.data.lights,
         uBvh: this.data.bvh, uTris: this.data.tris,
@@ -307,7 +305,7 @@ export class Renderer {
         uObjectCount: { int: this.objectCount }, uLightCount: { int: this.lightCount },
         uFrame: { int: this.frameIndex++ }, uMaxBounces: { int: f.bounces },
         uNeeStrategies: { int: this.lightCount > 0 ? 3 : 2 },
-        uAccumulate: { int: this.samples > 0 ? 1 : 0 },
+        uAccumulate: { int: accumulate ? 1 : 0 },
         uResolution: [this.width, this.height],
         uEnvSize: { ivec2: [env.width, env.height] },
         uEnvRotation: env.rotation ?? 0, uEnvVisible: env.visible ?? true,
@@ -326,7 +324,15 @@ export class Renderer {
         uFog: f.fog ? [f.fog.density, f.fog.anisotropy, f.fog.height, 1] : [0, 0, 0, 0],
         uFogAlbedo: f.fog ? f.fog.color : [1, 1, 1],
         uClamp: f.clamp,
-      });
+    };
+  }
+
+  // Add `passes` samples per pixel.
+  trace(passes = 1) {
+    if (!this.frameUniforms || !this.env || this.lost) return;
+    for (let i = 0; i < passes; i++) {
+      const src = this.accum[this.current], dst = this.accum[1 - this.current];
+      this.use(this.programs.trace, this.traceUniforms(src, this.samples > 0));
       this.draw(dst);
       this.current = 1 - this.current;
       this.samples++;
@@ -510,6 +516,86 @@ export class Renderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
+  // Find out which shader variants this GPU driver accepts: compile each,
+  // draw one pixel, and record the GL error and the driver's log. Some
+  // drivers (Direct3D through ANGLE) only compile for real at the first
+  // draw, so a failure shows up here and not at link time. When the
+  // translated shader source is available, keep the lines the log names.
+  async probeVariants(variants, onEach) {
+    const gl = this.gl;
+    const px = () => this.texture(1, 1, gl.RGBA32F, gl.RGBA, gl.FLOAT);
+    const a = this.framebuffer([px(), px(), px()]);
+    const b = this.framebuffer([px(), px(), px()]);
+    const dbg = gl.getExtension('WEBGL_debug_shaders');
+    const results = [];
+
+    // Baseline: a trivial shader writing the same three float targets. If
+    // this fails, the render targets are the problem, not the path tracer.
+    {
+      const r = { features: 'mrt-baseline', ok: false };
+      try {
+        const base = this.program(`#version 300 es
+precision highp float;
+layout(location = 0) out vec4 o0;
+layout(location = 1) out vec4 o1;
+layout(location = 2) out vec4 o2;
+uniform sampler2D uPrev;
+void main() { vec4 p = texelFetch(uPrev, ivec2(0), 0); o0 = vec4(0.5, 0.5, 0.5, 1.0) + p * 0.0; o1 = vec4(1.0); o2 = vec4(1.0); }
+`, 'baseline');
+        this.use(base, { uPrev: a.textures[0] });
+        this.draw(b);
+        const out = new Float32Array(4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, b.fb);
+        gl.readBuffer(gl.COLOR_ATTACHMENT0);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, out);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        const code = gl.getError();
+        r.ok = code === 0 && out[0] === 0.5;
+        r.error = code ? '0x' + code.toString(16) : null;
+        r.value = Array.from(out);
+        gl.deleteProgram(base.handle);
+      } catch (err) {
+        r.error = 'compile';
+        r.log = String(err.message ?? err).slice(0, 2000);
+      }
+      results.push(r);
+      onEach?.(results);
+    }
+
+    for (const features of variants) {
+      const key = [...features].sort().join(',') || 'none';
+      const r = { features: key, ok: false };
+      const t0 = performance.now();
+      try {
+        const prog = this.traceProgram(features);
+        this.use(prog, { ...this.traceUniforms(a, false), uResolution: [1, 1] });
+        this.draw(b);
+        const px = new Float32Array(4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, b.fb);
+        gl.readBuffer(gl.COLOR_ATTACHMENT0);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, px);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        const code = gl.getError();
+        r.ok = code === 0 && px[3] === 1;
+        r.error = code ? '0x' + code.toString(16) : null;
+        r.alpha = px[3];
+        r.log = String(gl.getProgramInfoLog(prog.handle) ?? '').slice(0, 4000);
+        if (!r.ok && dbg && !results.some((x) => x.hlsl)) r.hlsl = sourceExcerpt(dbg.getTranslatedShaderSource(prog.fs), r.log);
+      } catch (err) {
+        r.error = 'compile';
+        r.log = String(err.message ?? err).slice(0, 4000);
+      }
+      r.ms = Math.round(performance.now() - t0);
+      results.push(r);
+      onEach?.(results);
+      await new Promise((res) => setTimeout(res, 0));
+    }
+    for (const t of [...a.textures, ...b.textures]) gl.deleteTexture(t);
+    gl.deleteFramebuffer(a.fb);
+    gl.deleteFramebuffer(b.fb);
+    return results;
+  }
+
   // Current canvas contents as 8-bit RGBA, top row first.
   readPixels() {
     const gl = this.gl;
@@ -528,4 +614,20 @@ function halfToFloat(h) {
   if (e === 0) return s * m * 2 ** -24;
   if (e === 31) return m ? NaN : s * Infinity;
   return s * (1 + m / 1024) * 2 ** (e - 15);
+}
+
+// The lines of translated shader source that a compiler log points at
+// ("(line,col)" or "line N"), with a little context, plus its size.
+function sourceExcerpt(src, log) {
+  if (!src) return null;
+  const lines = src.split('\n');
+  const refs = new Set();
+  for (const m of String(log).matchAll(/\((\d+),\d+/g)) refs.add(+m[1]);
+  for (const m of String(log).matchAll(/line (\d+)/gi)) refs.add(+m[1]);
+  const out = [];
+  for (const n of [...refs].slice(0, 6)) {
+    for (let i = Math.max(1, n - 3); i <= Math.min(lines.length, n + 3); i++) out.push(`${i}: ${lines[i - 1]}`);
+    out.push('---');
+  }
+  return { lines: lines.length, chars: src.length, excerpt: out.join('\n').slice(0, 6000), head: src.slice(0, 400) };
 }

@@ -51,7 +51,8 @@ export class Reality {
       this.onStatus?.('The graphics driver reset and the renderer lost its GPU context. Waiting for the browser to restore it…');
     };
     r.onTraceFailed = (gpu, variant) => {
-      this.onStatus?.(`The graphics driver refused to run the path-tracing shader (${gpu}; features: ${variant || 'none'}). Nothing can be drawn on this GPU until that is fixed; please report it.`);
+      this.onStatus?.(`The graphics driver refused to run the path-tracing shader (${gpu}; features: ${variant || 'none'}). Testing which parts it accepts…`);
+      this.probeShaders(variant ? variant.split(',') : []);
     };
     r.onRestored = async () => {
       r.onLost = r.onRestored = r.onTraceFailed = null;
@@ -69,6 +70,23 @@ export class Reality {
         this.onStatus?.(`Could not recover after the GPU reset: ${err.message}`);
       }
     };
+  }
+
+  // Compile and draw each shader variant once to find what this driver
+  // rejects. Results go to `this.shaderProbe` and `onProbe`.
+  async probeShaders(current) {
+    if (this.probing) return;
+    this.probing = true;
+    const all = ['HAS_MESH', 'HAS_FOG', 'HAS_LIGHTS', 'HAS_TEXTURES', 'HAS_PATTERNS'];
+    const variants = [[], ...all.map((f) => [f]), current];
+    try {
+      this.shaderProbe = await this.renderer.probeVariants(variants, (partial) => { this.shaderProbe = partial; this.onProbe?.(partial, false); });
+      this.onProbe?.(this.shaderProbe, true);
+      const ok = this.shaderProbe.filter((r) => r.ok).map((r) => r.features);
+      this.onStatus?.(`The graphics driver refused to run the path-tracing shader (${this.renderer.info().renderer}). Variants it accepted: ${ok.join('; ') || 'none'}. A report with the driver's log was saved for diagnosis.`);
+    } finally {
+      this.probing = false;
+    }
   }
 
   // ------------------------------------------------------------ files
@@ -298,6 +316,7 @@ export class Reality {
       meterLog: this.meterLog ?? [],
       contextRestores: this.contextRestores ?? 0,
       scene: this.scene ? { objects: this.scene.objects.length, environment: this.scene.environmentKind } : null,
+      shaderProbe: this.shaderProbe ?? null,
       film: this.film ? { tonemap: this.film.tonemap, denoise: this.film.denoise, bloom: this.film.bloom } : null,
     };
     if (!r.lost && r.samples > 0) {

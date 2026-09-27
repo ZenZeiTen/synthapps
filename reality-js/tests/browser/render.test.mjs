@@ -125,3 +125,12 @@ test('the renderer recovers after the GPU context is lost', async (t) => {
   assert.equal(r.statuses.at(-1), null);
   assert.ok(r.mean > 30, `image after recovery, mean ${r.mean}`);
 });
+
+test('the shader probe accepts every variant on a working GPU', async (t) => {
+  if (skip) return t.skip(skip);
+  await still({ source: 'sky {}\nground {}\nsphere { position: [0, 1, 0] }', samples: 1 });
+  const results = await b.page.evaluate(() => window.probeShaders(['HAS_MESH', 'HAS_FOG']));
+  assert.equal(results[0].features, 'mrt-baseline');
+  assert.equal(results.length, 8);
+  for (const r of results) assert.equal(r.ok, true, `${r.features}: ${r.error} ${r.log ?? ''}`);
+});

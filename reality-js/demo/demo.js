@@ -265,18 +265,21 @@ $('bench').addEventListener('click', async () => {
 // beyond browser and GPU names.
 const dbReady = window.claude?.use ? window.claude.use('db').catch(() => null) : Promise.resolve(null);
 const stamp = () => new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 8);
-let reportSaved = false;
-async function saveReport(reason) {
-  if (reportSaved) return;
+let reportSaved = false, reportId = null;
+// `force` rewrites this visit's report (after the shader probe finishes).
+async function saveReport(reason, force = false) {
+  if (reportSaved && !force) return;
   reportSaved = true;
   const db = await dbReady;
   if (!db) return;
+  reportId ??= stamp();
   try {
-    await db.doc(`diagnostics/${stamp()}`).set({ page: 'live', reason, state: { ...state }, fps: +fpsEma.toFixed(1), pathsPerSecond: Math.round(pathsEma), ...reality.diagnostics() });
+    await db.doc(`diagnostics/${reportId}`).set({ page: 'live', reason, state: { ...state }, fps: +fpsEma.toFixed(1), pathsPerSecond: Math.round(pathsEma), ...reality.diagnostics() });
   } catch (err) {
     console.warn('report not saved', err);
   }
 }
+reality.onProbe = (results, done) => { if (done) saveReport('trace-failed', true); };
 setTimeout(() => saveReport('timer'), 15000);
 
 async function saveResult(result) {
