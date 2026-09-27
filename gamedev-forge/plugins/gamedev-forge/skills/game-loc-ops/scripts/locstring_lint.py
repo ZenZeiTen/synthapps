@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 locstring_lint.py — offline structural linter for game localization string sets.
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 pseudoloc.py — offline pseudo-localization generator for game string sets.
 

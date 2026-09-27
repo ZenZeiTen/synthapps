@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 palette_lut.py — turn a palette into an N x 1 PNG LUT for shader-side quantization.
 

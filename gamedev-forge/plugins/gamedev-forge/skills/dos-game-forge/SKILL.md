@@ -50,7 +50,7 @@ Use the Era table to fill it. When the user gives nothing, default by genre (Gen
 
 ### 3. Build (BUILD / EXTEND / RESKIN)
 1. If the host has a page-design or artifact skill (for example `artifact-design`), load it first (page contract). The page shell in Appendix A already meets it: title is the game's name, colour tokens with light/dark, pixelated 4:3 canvas, phone gutter, touch pad under `pointer:coarse`.
-2. Write the files: shell (Appendix A), engine (Appendix B) inlined into the first `<script>`, raycaster add-on (Appendix C) only if the genre needs it, then the game script. One self-contained HTML file; Google Fonts is the only allowed external request, and the engine needs none.
+2. Write the files: shell (Appendix A), engine (Appendix B) inlined into the first `<script>`, raycaster add-on (Appendix C) only if the genre needs it, then the game script. One self-contained HTML file with no external requests at all; the engine and its 8x8 font need none.
 3. Game code rules:
    - All drawing goes through the indexed framebuffer (`S.rect`, `S.blit`, `S.text`, `S.con`). Never draw on the canvas context directly: that bypasses the palette and breaks the audit.
    - HUD and menus live INSIDE the framebuffer in the 8x8 font (a status bar, a text box, a panel), as they did. Keep the HTML bar for a short controls hint only.
@@ -174,8 +174,10 @@ folder (for example `/tmp/ow`), `INCLUDE` names its `h` subfolder, and its `binl
 subfolder goes at the front of the search path. Then:
 ```
 wcl -q -bt=dos -ml -ox -fe=GAME.EXE GAME.C
-SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout 40 dosbox -c "mount c ." -c "c:" -c "GAME.EXE /T" -c "exit"
+timeout 40 dosbox -c "mount c ." -c "c:" -c "GAME.EXE /T" -c "exit"
 ```
+On a machine with no display or sound device, give DOSBox SDL's dummy video and audio
+drivers (the `SDL_VIDEODRIVER` and `SDL_AUDIODRIVER` settings, value `dummy`).
 The skeleton (Appendix F) sets mode 13h, programs the DAC, draws into a far back buffer, flips on vsync, beeps through the PIT, and with `/T` dumps `FRAME.RAW` (64000 indices + 768 palette bytes) so you can convert it to PNG on the host and look at it. Deliver the .C source, the .EXE, and a README with the DOSBox command. Running the .EXE inside a browser page (js-dos) was not tested; say so if asked.
 
 ## Appendix A: page shell (`game.html`)
@@ -578,7 +580,6 @@ DOS.gridMap = rows => ({ w: rows[0].length, h: rows.length, at(x, y) { const r =
 ## Appendix D: audit (`dos_check.py`, needs Playwright)
 Keys: comma list; `Name*5` presses five times, `Name*hold900` holds for 900 ms. Games must expose `window.__game = DOS.run(...)` so the audit can count frames.
 ```python
-#!/usr/bin/env python3
 """dos_check.py — static + live audit of a DOS FORGE game page.
 usage: python3 dos_check.py game.html [--keys "Space,ArrowRight*30,Space"] [--shot out.png] [--wait 1500]
 Exit code 1 if any FAIL."""
@@ -593,7 +594,7 @@ def static(html):
     for tm in TRADEMARKS:
         if re.search(re.escape(tm), html, re.I): out.append(('WARN', f'trademark/brand "{tm}" appears - use generic labels in-game (PC Speaker, FM Synth card, Digital card)'))
     for src in re.findall(r'(?:src|href)=["\'](https?://[^"\']+)', html):
-        if not re.match(r'https://fonts\.(googleapis|gstatic)\.com', src): out.append(('FAIL', f'external asset {src} - keep the game one self-contained file'))
+        out.append(('FAIL', f'external asset {src} - keep the game one self-contained file'))
     if 'image-rendering:pixelated' not in html.replace(' ', ''): out.append(('FAIL', 'canvas lacks image-rendering: pixelated'))
     if re.search(r'localStorage\.(get|set)Item', html.replace('DOS FORGE', '')) and 'dosforge:' not in html: out.append(('WARN', 'raw localStorage use - go through DOS.save/DOS.load (try/catch)'))
     if '<title>' not in html: out.append(('FAIL', 'missing <title>'))
@@ -645,7 +646,6 @@ if __name__ == '__main__':
 ## Appendix E: art converter (`dos_palette.py`, needs Pillow + numpy)
 `python3 dos_palette.py art.png title --mode vga --dither bayer` writes `title.json` (load with `DOS.unpack(json)`; for VGA also `S.setPalette(pic.pal)`) and `title_preview.png`. `--size 32x32` for sprites, `--dither fs` for photos, `--reserve 16` keeps the EGA colours at 0-15 in VGA palettes. A full 320x200 image is about 85 KB of base64: fine for a few scenes, too much for dozens.
 ```python
-#!/usr/bin/env python3
 """dos_palette.py — convert art to a DOS video mode's real palette and pixel grid.
 usage: python3 dos_palette.py in.png out_prefix --mode ega [--size 320x200] [--dither bayer|fs|none] [--cga 1] [--reserve 16]
 writes out_prefix.json ({w,h,pal,data} for DOS.unpack) and out_prefix_preview.png (4:3 corrected, 4x)."""

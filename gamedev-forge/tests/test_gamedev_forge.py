@@ -90,9 +90,11 @@ class DirectoryPolicyTests(unittest.TestCase):
         # for credential review by the directory. $ARGUMENTS is the skill argument placeholder.
         pattern = re.compile(
             r"\$\{?(?!ARGUMENTS\b)[A-Z][A-Z0-9_]{2,}\}?(?![\w.])|\bprintenv\b|\bexport -p\b"
+            r"|/usr/bin/env\b|^[A-Z][A-Z0-9_]+=\S+ [a-z]"
         )
         hits = []
-        for f in sorted(CORE.rglob("*.md")):
+        files = sorted(CORE.rglob("*.md")) + sorted(CORE.rglob("*.py"))
+        for f in files:
             for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
                 if pattern.search(line):
                     hits.append(f"{f.relative_to(CORE)}:{n}: {line.strip()[:80]}")

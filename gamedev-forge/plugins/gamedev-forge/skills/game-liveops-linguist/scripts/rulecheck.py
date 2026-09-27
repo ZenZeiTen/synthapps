@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 rulecheck.py — numeric, unit, placeholder and rule-component integrity for bilingual
 game strings.
