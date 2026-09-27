@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NeuralOS Agents and Radial OS</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Instrument+Serif&amp;display=swap">
+<style>
+body{margin:0;background:#0C0E11;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#E9E6DF}
+*{box-sizing:border-box}
+a{color:#E8A547}a:hover{color:#F3C27D}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1360px; padding: 56px 64px; display: flex; flex-direction: column; gap: 32px; background: #111317; color: #E9E6DF; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 48px">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #E8A547">Parts 5 · 6 · 7 · 8</span>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 52px; font-weight: 400; line-height: 1.05">Agents and the radial OS</h1>
+</div>
+<p style="margin: 0; max-width: 520px; font-size: 15px; line-height: 1.55; color: #A9ADB5">Every agent shares one interface, so the orchestrator can summon, combine and retire any of them. One click anywhere opens a radial menu that fits the node under the pointer.</p>
+</div>
+
+<div style="display: flex; gap: 24px; align-items: stretch">
+<div style="width: 360px; flex-shrink: 0; padding: 18px 20px; border-radius: 12px; border: 1px solid #2A2F38; background: #0C0E11; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8A909A">Agent interface</h2>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; line-height: 1.75; color: #D6D8DC; white-space: pre">{{yaml}}</div>
+<span style="font-size: 12.5px; line-height: 1.45; color: #8A909A">One contract for system, engineering, creative and business agents alike.</span>
+</div>
+<div style="flex-grow: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<sc-for list="{{catalog}}" as="c" hint-placeholder-count="4">
+<div style="padding: 18px 18px; border-radius: 12px; border: 1px solid {{c.border}}; background: {{c.bg}}; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 16px; font-weight: 600">{{c.name}}</span>
+<span style="font-size: 12px; color: #8A909A">{{c.note}}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{c.agents}}" as="a" hint-placeholder-count="5">
+<span style="display: flex; align-items: center; gap: 10px; font-size: 13.5px"><span style="width: 9px; height: 9px; flex-shrink: 0; transform: rotate(45deg); border: 1.5px solid #E8A547"></span>{{a}}</span>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8A909A">Agent lifecycle</h2>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px">
+<sc-for list="{{stages}}" as="s" hint-placeholder-count="6">
+<div style="padding: 12px 14px; border-radius: 10px; border: 1px solid {{s.border}}; background: {{s.bg}}; display: flex; flex-direction: column; gap: 4px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{s.numColor}}">{{s.n}}</span>
+<span style="font-size: 14.5px; font-weight: 600">{{s.name}}</span>
+<span style="font-size: 12px; line-height: 1.4; color: #8A909A">{{s.note}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8A909A">Radial menus</h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<sc-for list="{{radials}}" as="r" hint-placeholder-count="4">
+<div style="border-radius: 12px; border: 1px solid #2A2F38; background: #16191E; padding: 12px 0 16px; display: flex; flex-direction: column; align-items: center; gap: 4px">
+<div style="position: relative; width: 296px; height: 296px">
+<div style="position: absolute; left: 18px; top: 18px; width: 260px; height: 260px; border-radius: 50%; border: 1px dashed #3A414D"></div>
+<div style="position: absolute; left: 148px; top: 148px; transform: translate(-50%, -50%); width: 96px; height: 96px; border-radius: 50%; border: 1.5px solid {{r.color}}; background: #111317; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: {{r.color}}">{{r.kind}}</span>
+<span style="font-size: 12.5px; font-weight: 600; line-height: 1.2; padding: 0 6px">{{r.title}}</span>
+</div>
+<sc-for list="{{r.opts}}" as="o" hint-placeholder-count="6">
+<span style="position: absolute; left: {{o.x}}px; top: {{o.y}}px; transform: translate(-50%, -50%); height: 30px; display: inline-flex; align-items: center; padding: 0 11px; border-radius: 15px; border: 1px solid #3A414D; background: #1C2027; font-size: 12px; white-space: nowrap">{{o.label}}</span>
+</sc-for>
+</div>
+<span style="font-size: 12.5px; color: #8A909A">{{r.caption}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+<sc-for list="{{workspaces}}" as="w" hint-placeholder-count="2">
+<div style="padding: 18px 20px; border-radius: 12px; border: 1px solid #2A2F38; background: #16191E; display: flex; flex-direction: column; gap: 10px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Intent → workspace</span>
+<span style="font-size: 16px; font-weight: 600">“{{w.intent}}”</span>
+<div style="display: flex; flex-direction: column; gap: 5px; padding-left: 4px; border-left: 1px solid #3A414D">
+<sc-for list="{{w.items}}" as="i" hint-placeholder-count="5">
+<span style="display: flex; align-items: center; gap: 10px; font-size: 13.5px; padding-left: 12px"><span style="width: 8px; height: 8px; flex-shrink: 0; transform: rotate(45deg); border: 1.5px solid {{i.color}}"></span>{{i.name}}</span>
+</sc-for>
+</div>
+</div>
+</sc-for>
+<div style="padding: 18px 20px; border-radius: 12px; border: 1px solid #2E4461; background: #16191E; display: flex; flex-direction: column; gap: 12px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #6FA8E8">MCP · every external system is a tool node</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+<span style="height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #2E4461; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px">read</span>
+<span style="height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #2E4461; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px">write</span>
+<span style="height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #2E4461; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px">search</span>
+<span style="height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #2E4461; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px">execute</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{mcps}}" as="m" hint-placeholder-count="11">
+<span style="display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid #3A414D; font-size: 12.5px"><span style="width: 9px; height: 10px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: #6FA8E8"></span>{{m}}</span>
+</sc-for>
+</div>
+<span style="font-size: 12.5px; color: #8A909A">Claude discovers what each server can do at run time.</span>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1360}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const yaml = 'agent:\n  id:\n  name:\n  role:\n  goals:\n  tools:\n  memory:\n  constraints:';
+    const catalog = [
+      ['System', 'Always available', ['Commander Agent', 'Memory Agent', 'Security Agent', 'Scheduler Agent', 'UX Agent'], true],
+      ['Engineering', 'Summoned by intent', ['Systems Architect', 'Gameplay Architect', 'Fullstack Engineer', 'QA Engineer', 'Code Reviewer', 'DevOps Engineer'], false],
+      ['Creative', 'Summoned by intent', ['Writer', 'Designer', 'Researcher', 'Localization Expert', 'Narrative Designer'], false],
+      ['Business', 'Summoned by intent', ['Finance', 'Legal', 'Marketing', 'Operations'], false]
+    ].map(([name, note, agents, sys]) => ({ name, note, agents, border: sys ? '#6B5230' : '#2A2F38', bg: sys ? '#1F1A12' : '#16191E' }));
+    const stages = [
+      ['Dormant', 'Defined, not loaded'],
+      ['Summoned', 'Chosen for an intent'],
+      ['Active', 'Working its task'],
+      ['Collaborating', 'Sharing via Commander'],
+      ['Completed', 'Output merged'],
+      ['Archived', 'Stored with its history']
+    ].map(([name, note], i) => ({
+      n: String(i + 1).padStart(2, '0'), name, note,
+      border: i === 2 || i === 3 ? '#6B5230' : '#2A2F38',
+      bg: i === 2 || i === 3 ? '#1F1A12' : '#16191E',
+      numColor: i === 2 || i === 3 ? '#E8A547' : '#8A909A'
+    }));
+    const ring = (labels) => labels.map((label, i) => {
+      const a = (-90 + i * 360 / labels.length) * Math.PI / 180;
+      return { label, x: Math.round(148 + 112 * Math.cos(a)), y: Math.round(148 + 112 * Math.sin(a)) };
+    });
+    const radials = [
+      { kind: 'Root', title: 'Anywhere', color: '#A9ADB5', caption: 'Click empty canvas', opts: ring(['Search', 'Files', 'Agents', 'Projects', 'Apps', 'Memory', 'Settings']) },
+      { kind: 'Agent', title: 'Code Reviewer', color: '#E8A547', caption: 'Click an agent node', opts: ring(['Review', 'Explain', 'Compare', 'Improve', 'Test', 'Collaborate', 'Replace']) },
+      { kind: 'File', title: 'battle_system.ts', color: '#C9C4BA', caption: 'Click a file node', opts: ring(['Open', 'Summarize', 'Translate', 'Refactor', 'Analyze', 'Attach Agent']) },
+      { kind: 'Project', title: 'Breath of Fire IV', color: '#C9C4BA', caption: 'Click a project node', opts: ring(['Open Workspace', 'Launch Swarm', 'Review Status', 'Memory', 'Deploy', 'Archive']) }
+    ];
+    const agentItem = (name) => ({ name, color: '#E8A547' });
+    const workspaces = [
+      { intent: 'Build inventory feature', items: ['Planner', 'Architect', 'Engineer', 'QA', 'Documentation'].map(agentItem) },
+      { intent: 'Localize this website to Indonesian', items: ['Brand Analyst', 'Translator', 'Localization QA', 'SEO Reviewer'].map(agentItem).concat([{ name: 'Style Guide', color: '#C9C4BA' }]) }
+    ];
+    const mcps = ['GitHub', 'Postgres', 'Supabase', 'Jira', 'Notion', 'Slack', 'Discord', 'Docker', 'Blender', 'Figma', 'Google Drive'];
+    return { yaml, catalog, stages, radials, workspaces, mcps };
+  }
+}
+</script>
+</body>
+</html>

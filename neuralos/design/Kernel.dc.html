@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NeuralOS Kernel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Instrument+Serif&amp;display=swap">
+<style>
+body{margin:0;background:#0C0E11;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#E9E6DF}
+*{box-sizing:border-box}
+a{color:#E8A547}a:hover{color:#F3C27D}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; padding: 56px 64px; display: flex; flex-direction: column; gap: 36px; background: #111317; color: #E9E6DF; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 48px">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #E8A547">Claude Code master prompt · kernel</span>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 60px; font-weight: 400; line-height: 1.02; max-width: 820px">The user expresses intent. NeuralOS does the thinking.</h1>
+</div>
+<p style="margin: 0; max-width: 430px; font-size: 15px; line-height: 1.55; color: #A9ADB5">Claude runs as the Cognitive Operating System kernel: it turns each intention into a workspace of agents, tools, memory and knowledge. Navigation, app management and workflow setup are the kernel's job, not the user's.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<div style="padding: 22px 24px; border-radius: 14px; border: 1px solid #2A2F38; background: #16191E; display: flex; flex-direction: column; gap: 14px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Traditional operating system</span>
+<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px">
+<span style="padding: 8px 14px; border-radius: 8px; border: 1px solid #3A414D">User</span>
+<span style="color: #5A616C">→</span>
+<span style="padding: 8px 14px; border-radius: 8px; border: 1px solid #3A414D">Application</span>
+<span style="color: #5A616C">→</span>
+<span style="padding: 8px 14px; border-radius: 8px; border: 1px solid #3A414D">File</span>
+<span style="color: #5A616C">→</span>
+<span style="padding: 8px 14px; border-radius: 8px; border: 1px solid #3A414D">Action</span>
+</div>
+<span style="font-size: 13px; color: #8A909A">The user navigates, opens and configures every step.</span>
+</div>
+<div style="padding: 22px 24px; border-radius: 14px; border: 1px solid #6B5230; background: #1F1A12; display: flex; flex-direction: column; gap: 14px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #E8A547">NeuralOS</span>
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px">
+<span style="padding: 8px 12px; border-radius: 8px; border: 1px solid #6B5230">User</span>
+<span style="color: #8A6A3A">→</span>
+<span style="padding: 8px 12px; border-radius: 8px; border: 1px solid #E8A547; color: #F3C27D">Intent</span>
+<span style="color: #8A6A3A">→</span>
+<span style="padding: 8px 12px; border-radius: 8px; border: 1px solid #6B5230">Claude Orchestrator</span>
+<span style="color: #8A6A3A">→</span>
+<span style="padding: 8px 12px; border-radius: 8px; border: 1px solid #6B5230">Agent Swarm</span>
+<span style="color: #8A6A3A">→</span>
+<span style="padding: 8px 12px; border-radius: 8px; border: 1px solid #6B5230">Workspace</span>
+<span style="color: #8A6A3A">→</span>
+<span style="padding: 8px 12px; border-radius: 8px; border: 1px solid #E8A547; color: #F3C27D">Outcome</span>
+</div>
+<span style="font-size: 13px; color: #A9ADB5">Apps are temporary forms of intent. Files are nodes. Agents are the userspace processes.</span>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8A909A">Core principles</h2>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px">
+<sc-for list="{{principles}}" as="p" hint-placeholder-count="10">
+<div style="padding: 16px 16px 18px; border-radius: 12px; border: 1px solid #2A2F38; background: #16191E; display: flex; flex-direction: column; gap: 8px; min-height: 132px">
+<div style="display: flex; align-items: baseline; gap: 10px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #E8A547">{{p.n}}</span>
+<span style="font-size: 15px; font-weight: 600">{{p.title}}</span>
+</div>
+<span style="font-size: 13px; line-height: 1.45; color: #A9ADB5">{{p.body}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8A909A">Execution template — shown before any substantial work</h2>
+<span style="font-size: 13px; color: #8A909A">Example: “Translate contract”</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-radius: 12px; border: 1px solid #2A2F38; overflow: hidden">
+<sc-for list="{{template}}" as="t" hint-placeholder-count="6">
+<div style="padding: 14px 16px; background: #16191E; border-right: 1px solid #2A2F38; display: flex; flex-direction: column; gap: 6px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #E8A547">{{t.k}}</span>
+<span style="font-size: 13px; line-height: 1.45; color: #D6D8DC">{{t.v}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const principles = [
+      ['Intent first', 'Find the goal before choosing any tool. Never think in applications.'],
+      ['Workspace first', 'Build a working context around the goal instead of opening isolated files.'],
+      ['Agent first', 'Decide which specialists take part and form a temporary swarm.'],
+      ['Graph native', 'Files, agents, repos, memories, MCPs, prompts and tasks are all nodes.'],
+      ['Minimal friction', 'No folder navigation, tool picking or workflow setup when intent can decide.'],
+      ['Persistent memory', 'Keep decisions, standards, architecture records and preferences current.'],
+      ['Explain planning', 'Before big work, show intent, workspace, agents, tools and plan.'],
+      ['Dynamic swarms', 'Spawn specialists as needed. The Commander merges their outputs.'],
+      ['Radical automation', 'When safe: discovery, dependencies, tests, docs, organization, task breakdown.'],
+      ['Visual thinking', 'Show systems as graphs, node networks, workflows and dependency diagrams.']
+    ].map(([title, body], i) => ({ n: String(i + 1).padStart(2, '0'), title, body }));
+    const template = [
+      ['Intent', 'legal_translation'],
+      ['Workspace', 'Source File, Glossary, Output Folder'],
+      ['Agents', 'Legal Agent, Translation Agent, QA Reviewer'],
+      ['Tools', 'Google Drive, Filesystem'],
+      ['Plan', 'Mark terms → translate → QA → write out'],
+      ['Output', 'Translated contract in Output Folder']
+    ].map(([k, v]) => ({ k, v }));
+    return { principles, template };
+  }
+}
+</script>
+</body>
+</html>
