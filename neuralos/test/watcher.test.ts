@@ -35,7 +35,7 @@ function createFakeIndex(): SemanticIndex & { files: Set<string>; calls: string[
     files,
     calls,
     hasFile: (p) => files.has(p),
-    kindOf: (p) => (files.has(p) ? "code" : undefined),
+    kindOf: () => undefined, // fall back to the watcher's own kind detection
     indexAll: async () => ({ files: files.size, ms: 0 }),
     async indexFile(p) {
       calls.push(`index:${p}`);
