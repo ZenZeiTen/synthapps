@@ -20,6 +20,7 @@ render { samples: 512 }
 ground { material: matte { color: #333, roughness: 0.6 } }
 
 # Subject lit by one nearby lamp.
+cylinder { position: [0, 0.425, 0], radius: 0.05, height: 0.85, material: metal { color: iron, roughness: 0.5 } }   # stand
 sphere { position: [0, 1.0, 0], radius: 0.15, material: plastic { color: #d8c8b0, roughness: 0.35 } }
 bulb { position: [0.9, 1.7, 1.0], power: 800lm, temperature: 2700K }
 
