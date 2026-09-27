@@ -4,8 +4,6 @@ import {
   BackgroundVariant,
   Controls,
   Handle,
-  MiniMap,
-  Panel,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -20,7 +18,7 @@ import {
 } from "@xyflow/react";
 import type { AgentState, GraphEdge, GraphNode, GraphSlice } from "../types";
 import { ANCHOR, layoutGraph, shapeOf, type ShapeKind } from "../layout";
-import { IconAlert, IconMenu, IconRefresh } from "./Icons";
+import { IconAlert, IconRefresh } from "./Icons";
 
 export interface CanvasNodeData extends Record<string, unknown> {
   node: GraphNode;
@@ -47,26 +45,6 @@ function extOf(node: GraphNode): string {
   return m ? m[1].toLowerCase() : node.type === "folder" ? "dir" : "";
 }
 
-function FileGlyph({ stroke, fill, ext, output }: { stroke: string; fill: string; ext: string; output?: boolean }) {
-  return (
-    <svg width="46" height="56" viewBox="0 0 46 56" aria-hidden="true" focusable="false">
-      <path d="M1.5 1.5H31L44.5 15V54.5H1.5Z" fill={fill} stroke={stroke} strokeWidth="1.5" strokeDasharray={output ? "4 3" : undefined} />
-      <path d="M31 1.5V15H44.5" fill="none" stroke={stroke} strokeWidth="1.5" />
-      <text x="23" y="45" textAnchor="middle" fontFamily="'IBM Plex Mono', monospace" fontSize="10.5" fill="#A9ADB5">
-        {ext}
-      </text>
-    </svg>
-  );
-}
-
-function FolderGlyph({ stroke }: { stroke: string }) {
-  return (
-    <svg width="54" height="44" viewBox="0 0 54 44" aria-hidden="true" focusable="false">
-      <path d="M1.5 5.5a3 3 0 013-3h14l5 5h26a3 3 0 013 3v29a3 3 0 01-3 3h-45a3 3 0 01-3-3z" fill="#1C2027" stroke={stroke} strokeWidth="1.5" />
-    </svg>
-  );
-}
-
 const TYPE_WORD: Record<string, string> = {
   mcp: "MCP server",
   workflow: "workflow",
@@ -79,76 +57,13 @@ const TYPE_WORD: Record<string, string> = {
   output: "output",
 };
 
+/** A graph node in the Field: a glowing dot with a tiny letter-spaced label. */
 const CanvasNodeView = memo(function CanvasNodeView({ id, data }: NodeProps<CanvasNode>) {
   const activate = useContext(ActivateContext);
-  const { node, shape, sub, ext, state, active, focused, dim } = data;
+  const { node, shape, sub, state, active, focused, dim } = data;
   const anchor = ANCHOR[shape];
   const busy = state ? BUSY.includes(state) : false;
   const aria = `${node.name}, ${TYPE_WORD[node.type] ?? node.type}${sub ? `, ${sub}` : ""}. Open actions`;
-
-  let body;
-  switch (shape) {
-    case "project":
-      body = (
-        <>
-          <span className="cn-kind">Project</span>
-          <span className="cn-project-name">{node.name}</span>
-        </>
-      );
-      break;
-    case "workspace":
-      body = (
-        <>
-          <span className="cn-kind cn-amber">Workspace</span>
-          <span className="cn-ws-label">{node.name}</span>
-          <span className="cn-mono">{sub}</span>
-        </>
-      );
-      break;
-    case "concept":
-      body = <span className="cn-concept-name">{node.name}</span>;
-      break;
-    default: {
-      let glyph;
-      if (shape === "file" || shape === "output") {
-        glyph = (
-          <FileGlyph
-            stroke={focused ? "#FFFFFF" : shape === "output" ? "#E8A547" : active ? "#C9C4BA" : "#6A717C"}
-            fill="#1C2027"
-            ext={ext ?? ""}
-            output={shape === "output"}
-          />
-        );
-      } else if (shape === "folder") {
-        glyph = <FolderGlyph stroke={focused ? "#FFFFFF" : "#6A717C"} />;
-      } else if (shape === "agent") {
-        glyph = <span className="cn-diamond" />;
-      } else if (shape === "mcp") {
-        glyph = (
-          <span className="cn-hex">
-            <span className="cn-hex-in" />
-          </span>
-        );
-      } else if (shape === "workflow") {
-        glyph = (
-          <span className="cn-flathex">
-            <span className="cn-flathex-in" />
-          </span>
-        );
-      } else {
-        glyph = <span className="cn-generic-glyph">{node.type.slice(0, 1).toUpperCase()}</span>;
-      }
-      body = (
-        <>
-          <span className="cn-shape">{glyph}</span>
-          <span className="cn-label" title={node.name}>
-            {node.name}
-          </span>
-          {sub ? <span className={`cn-sub${busy ? " cn-amber" : ""}`}>{sub}</span> : null}
-        </>
-      );
-    }
-  }
 
   const cls = [
     "cn",
@@ -168,7 +83,11 @@ const CanvasNodeView = memo(function CanvasNodeView({ id, data }: NodeProps<Canv
       <Handle type="target" id="t" position={Position.Top} isConnectable={false} className="cn-handle" style={handleStyle} />
       <Handle type="source" id="s" position={Position.Top} isConnectable={false} className="cn-handle" style={handleStyle} />
       <button type="button" className={cls} aria-label={aria} onClick={(e) => activate(node, e.currentTarget)}>
-        {body}
+        <span className="cn-dot" aria-hidden="true" />
+        <span className="cn-label" title={node.name}>
+          {node.name}
+        </span>
+        {sub ? <span className="cn-sub">{sub}</span> : null}
       </button>
     </div>
   );
@@ -183,25 +102,27 @@ interface EdgeLook {
   opacity: number;
 }
 
+const CYAN = "#5fcfe0";
+const VIOLET = "#9d8bff";
 const EDGE_LOOK: Record<GraphEdge["kind"], EdgeLook> = {
-  uses_tool: { stroke: "#6FA8E8", width: 2, dash: "7 5", opacity: 0.8 },
-  imports: { stroke: "#C9C4BA", width: 1.6, opacity: 0.45 },
-  references: { stroke: "#C9C4BA", width: 1.2, dash: "2 4", opacity: 0.45 },
-  member_of: { stroke: "#C9C4BA", width: 1.5, dash: "6 5", opacity: 0.5 },
-  assigned_to: { stroke: "#E8A547", width: 2, opacity: 0.45 },
-  produced: { stroke: "#E8A547", width: 1.5, dash: "4 4", opacity: 0.6 },
-  contains: { stroke: "#4A515C", width: 1.5, dash: "5 5", opacity: 0.9 },
-  about: { stroke: "#5A616C", width: 1.2, dash: "1 4", opacity: 0.9 },
-  relates_to: { stroke: "#5A616C", width: 1.2, dash: "3 4", opacity: 0.8 },
-  depends_on: { stroke: "#9AA1AC", width: 1.4, dash: "6 3", opacity: 0.6 },
-  triggered: { stroke: "#E8A547", width: 1.2, dash: "2 3", opacity: 0.6 },
+  uses_tool: { stroke: "#6fb6ff", width: 1, dash: "4 4", opacity: 0.45 },
+  imports: { stroke: CYAN, width: 1, opacity: 0.28 },
+  references: { stroke: CYAN, width: 0.8, dash: "2 4", opacity: 0.25 },
+  member_of: { stroke: CYAN, width: 1, dash: "4 4", opacity: 0.3 },
+  assigned_to: { stroke: VIOLET, width: 1.1, opacity: 0.4 },
+  produced: { stroke: "#f0c27a", width: 1, dash: "3 3", opacity: 0.4 },
+  contains: { stroke: CYAN, width: 0.9, opacity: 0.18 },
+  about: { stroke: CYAN, width: 0.8, dash: "1 4", opacity: 0.2 },
+  relates_to: { stroke: CYAN, width: 0.8, dash: "3 4", opacity: 0.2 },
+  depends_on: { stroke: CYAN, width: 0.9, dash: "6 3", opacity: 0.28 },
+  triggered: { stroke: "#f0c27a", width: 0.9, dash: "2 3", opacity: 0.35 },
 };
 
-/** Fit padding that keeps nodes clear of the legend (top) and the intent bar (bottom). */
-const PAD = { top: 70, bottom: 180, left: 40, right: 40 } as const;
+/** Fit padding that keeps nodes clear of the HUD (top) and the edges. */
+const PAD = { top: 110, bottom: 60, left: 40, right: 40 } as const;
 const FIT_PADDING = { top: `${PAD.top}px`, bottom: `${PAD.bottom}px`, left: `${PAD.left}px`, right: `${PAD.right}px` } as const;
 /** Below this zoom node labels are unreadable; the first view of a large graph starts here instead of fitting all. */
-const READABLE_ZOOM = 0.55;
+const READABLE_ZOOM = 0.72;
 const FIT_ALL = { padding: FIT_PADDING, duration: 400 };
 
 const WS_KINDS = new Set<GraphEdge["kind"]>(["uses_tool", "assigned_to", "member_of", "produced"]);
@@ -374,14 +295,16 @@ function CanvasInner(props: CanvasProps) {
     void rf.fitView({ nodes: target, padding: FIT_PADDING, maxZoom: 1, minZoom: 0.2, duration: first ? 0 : 450 });
   }, [initialized, graph, positions, nodes.length, selectedWorkspaceNodeId, rf, paneWidth, paneHeight]);
 
-  // Search / file tree focus.
+  // Focus a node (Projects panel, search): also when the Field opens with a focus already set.
+  const focusedFor = useRef<number | null>(null);
   useEffect(() => {
-    if (!focus) return;
+    if (!focus || !initialized || focusedFor.current === focus.n) return;
     const n = rf.getNode(focus.id);
     if (!n) return;
+    focusedFor.current = focus.n;
     const a = ANCHOR[n.data.shape];
     void rf.setCenter(n.position.x + a.x, n.position.y + a.y, { zoom: 1.1, duration: 450 });
-  }, [focus, rf]);
+  }, [focus, rf, initialized, nodes.length]);
 
   const activate = useMemo<Activate>(
     () => (node, el) => {
@@ -403,6 +326,7 @@ function CanvasInner(props: CanvasProps) {
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         colorMode="dark"
+        proOptions={{ hideAttribution: true }}
         nodesDraggable={false}
         nodesConnectable={false}
         nodesFocusable={false}
@@ -415,31 +339,7 @@ function CanvasInner(props: CanvasProps) {
         onPaneClick={(e) => onPaneActivate({ x: e.clientX, y: e.clientY })}
         ariaLabelConfig={{ "controls.ariaLabel": "Canvas zoom controls", "minimap.ariaLabel": "Canvas overview" }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1.3} color="#272C35" bgColor="#111317" />
-        <Panel position="top-left" className="canvas-top-left">
-          <Legend />
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm canvas-menu-btn"
-            onClick={(e) => {
-              const box = (e.currentTarget.closest(".react-flow") as HTMLElement | null)?.getBoundingClientRect();
-              onPaneActivate(box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 - 60 } : { x: 400, y: 300 });
-            }}
-          >
-            <IconMenu size={15} /> Open menu
-          </button>
-        </Panel>
-        <MiniMap
-          position="top-right"
-          pannable
-          zoomable
-          bgColor="#0C0E11"
-          maskColor="rgba(12, 14, 17, 0.72)"
-          nodeColor={(n) => MINIMAP_COLOR[(n.data as CanvasNodeData).node.type] ?? "#5A616C"}
-          nodeStrokeWidth={0}
-          nodeBorderRadius={3}
-          style={{ width: 180, height: 120 }}
-        />
+        <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="rgba(95, 207, 224, 0.12)" bgColor="transparent" />
         <Controls position="bottom-left" showInteractive={false} fitViewOptions={FIT_ALL} />
       </ReactFlow>
       {props.loading && !graph ? (
@@ -458,67 +358,16 @@ function CanvasInner(props: CanvasProps) {
       ) : null}
       {graph && graph.nodes.length === 0 ? (
         <div className="canvas-state" role="status">
-          The graph is empty. State an intent below to generate the first workspace.
+          The field is empty. State an intent to generate the first workspace.
         </div>
       ) : null}
     </ActivateContext.Provider>
   );
 }
 
-const MINIMAP_COLOR: Partial<Record<GraphNode["type"], string>> = {
-  agent: "#E8A547",
-  workspace: "#E8A547",
-  mcp: "#6FA8E8",
-  project: "#C9C4BA",
-  file: "#8A909A",
-  folder: "#6A717C",
-  concept: "#5A616C",
-  workflow: "#9AA1AC",
-  output: "#C98A34",
-};
-
-function Legend() {
-  return (
-    <div className="legend" aria-label="Legend" role="group">
-      <span className="lg">
-        <span className="lg-project" />
-        Project
-      </span>
-      <span className="lg">
-        <span className="lg-file" />
-        File
-      </span>
-      <span className="lg">
-        <span className="lg-agent" />
-        Agent
-      </span>
-      <span className="lg">
-        <span className="lg-mcp" />
-        MCP tool
-      </span>
-      <span className="lg">
-        <span className="lg-workflow" />
-        Workflow
-      </span>
-      <span className="lg">
-        <span className="lg-ws" />
-        Workspace
-      </span>
-      <span className="lg">
-        <span className="lg-edge lg-edge-tool" />
-        uses tool
-      </span>
-      <span className="lg">
-        <span className="lg-edge lg-edge-assigned" />
-        assigned
-      </span>
-    </div>
-  );
-}
-
 export function Canvas(props: CanvasProps) {
   return (
-    <div className="canvas" aria-label="Neural canvas">
+    <div className="canvas field" aria-label="Knowledge field">
       <ReactFlowProvider>
         <CanvasInner {...props} />
       </ReactFlowProvider>

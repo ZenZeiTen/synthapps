@@ -6,15 +6,24 @@ export const EVENT_CAP = 300;
 
 type Listener = (ev: KernelEvent) => void;
 
-/** Live kernel events over SSE. `events` is newest first, capped at EVENT_CAP. */
+/**
+ * Live kernel events over SSE. `events` is newest first, capped at EVENT_CAP. `reconnect()` drops the current stream
+ * and reconnects at once, resuming after the last event seen (the Retry button uses it after an outage).
+ */
 export function useKernelEvents() {
   const [events, setEvents] = useState<KernelEvent[]>([]);
   const [connection, setConnection] = useState<ConnectionState>("connecting");
+  const [generation, setGeneration] = useState(0);
   const listeners = useRef(new Set<Listener>());
+  const lastSeq = useRef(0);
 
   useEffect(() => {
     const stop = subscribeEvents(
       (ev) => {
+        if (typeof ev.seq === "number") {
+          if (ev.seq <= lastSeq.current) return;
+          lastSeq.current = ev.seq;
+        }
         setEvents((prev) => [ev, ...prev].slice(0, EVENT_CAP));
         for (const l of listeners.current) {
           try {
@@ -25,9 +34,10 @@ export function useKernelEvents() {
         }
       },
       setConnection,
+      { since: lastSeq.current },
     );
     return stop;
-  }, []);
+  }, [generation]);
 
   const onEvent = useCallback((l: Listener) => {
     listeners.current.add(l);
@@ -36,7 +46,9 @@ export function useKernelEvents() {
     };
   }, []);
 
-  return { events, connection, onEvent };
+  const reconnect = useCallback(() => setGeneration((g) => g + 1), []);
+
+  return { events, connection, onEvent, reconnect };
 }
 
 /** Calls fn at most once per `ms` after the last trigger. */
@@ -102,19 +114,36 @@ export function useGraph(onEvent: (l: Listener) => () => void) {
   return { graph, error, loading, reload: load };
 }
 
-/** Escape-to-close for overlays. */
-export function useEscape(active: boolean, onEscape: () => void) {
+/**
+ * Escape for overlays when nothing is focused (focus fell back to <body>, e.g. after an action removed the focused
+ * control). Overlays register in the order they open; Escape closes the most recent one only. An overlay that holds
+ * focus handles Escape itself in its own onKeyDown.
+ */
+const escapeStack: { fn: () => void }[] = [];
+let escapeBound = false;
+function onEscapeKey(e: KeyboardEvent) {
+  if (e.key !== "Escape" || e.defaultPrevented) return;
+  const active = document.activeElement;
+  if (active && active !== document.body && active !== document.documentElement) return;
+  const top = escapeStack[escapeStack.length - 1];
+  if (!top) return;
+  e.preventDefault();
+  top.fn();
+}
+
+export function useEscapeLayer(onEscape: () => void) {
   const ref = useRef(onEscape);
   ref.current = onEscape;
   useEffect(() => {
-    if (!active) return;
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        ref.current();
-      }
+    const entry = { fn: () => ref.current() };
+    escapeStack.push(entry);
+    if (!escapeBound) {
+      window.addEventListener("keydown", onEscapeKey);
+      escapeBound = true;
+    }
+    return () => {
+      const i = escapeStack.indexOf(entry);
+      if (i >= 0) escapeStack.splice(i, 1);
     };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [active]);
+  }, []);
 }

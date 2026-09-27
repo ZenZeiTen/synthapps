@@ -19,7 +19,11 @@ function preview(input: Record<string, unknown>): string {
   return s.length > 180 ? `${s.slice(0, 177)}...` : s;
 }
 
-export function ApprovalsBar({ approvals, onResolved, onToast }: Props) {
+/**
+ * A tool call waiting for the human, above the intent bar. It always shows what will actually happen (the tool's own
+ * `detail`, e.g. the exact command), the reversibility class and the principal chain before Approve / Deny.
+ */
+export function ApprovalCard({ approvals, onResolved, onToast }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   if (!approvals.length) return null;
 
@@ -37,12 +41,12 @@ export function ApprovalsBar({ approvals, onResolved, onToast }: Props) {
   };
 
   return (
-    <section className="approvals" aria-labelledby="approvals-title" role="region">
-      <h2 id="approvals-title" className="approvals-title">
-        <IconShield size={15} />
-        {approvals.length} pending approval{approvals.length === 1 ? "" : "s"}
+    <section className="approval-card" aria-labelledby="approval-title" role="region">
+      <h2 id="approval-title" className="approval-title">
+        <IconShield size={13} />
+        {approvals.length === 1 ? "Approval needed" : `${approvals.length} approvals needed`}
       </h2>
-      <ul className="approvals-list">
+      <ul className="approval-list">
         {approvals.map((a) => (
           <li key={a.id} className="approval" data-approval-id={a.id}>
             <div className="approval-main">
@@ -50,23 +54,25 @@ export function ApprovalsBar({ approvals, onResolved, onToast }: Props) {
               <span className={`rev rev-${a.reversibility}`}>{a.reversibility}</span>
               <span className="badge">{a.action}</span>
               <span className="badge">scope: {a.scope}</span>
-              <span className="approval-chain mono" title="Principal chain">
-                {a.principal.chain.join(" > ")}
-              </span>
             </div>
-            <div className="approval-what">
-              {a.detail ? <pre className="approval-detail">{a.detail}</pre> : null}
+            {a.detail ? <pre className="approval-detail">{a.detail}</pre> : null}
+            {Object.keys(a.input ?? {}).length ? (
               <code className="approval-input" title={preview(a.input)}>
                 {preview(a.input)}
               </code>
-            </div>
-            <div className="approval-actions">
-              <button type="button" className="btn btn-sm btn-approve" disabled={busy === a.id} onClick={() => void resolve(a, true)} aria-label={`Approve ${a.tool}`}>
-                <IconCheck size={14} /> Approve
-              </button>
-              <button type="button" className="btn btn-sm btn-deny" disabled={busy === a.id} onClick={() => void resolve(a, false)} aria-label={`Deny ${a.tool}`}>
-                <IconClose size={14} /> Deny
-              </button>
+            ) : null}
+            <div className="approval-foot">
+              <span className="approval-chain mono" title="Principal chain: who is asking, from you down to the agent">
+                {a.principal.chain.join(" > ")}
+              </span>
+              <span className="approval-actions">
+                <button type="button" className="btn btn-sm btn-deny" disabled={busy === a.id} onClick={() => void resolve(a, false)} aria-label={`Deny ${a.tool}`}>
+                  <IconClose size={13} /> Deny
+                </button>
+                <button type="button" className="btn btn-sm btn-approve" disabled={busy === a.id} onClick={() => void resolve(a, true)} aria-label={`Approve ${a.tool}`}>
+                  <IconCheck size={13} /> Approve
+                </button>
+              </span>
             </div>
           </li>
         ))}

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEscapeLayer } from "../hooks";
 import { IconClose } from "./Icons";
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
   wide?: boolean;
 }
 
-/** Drawer over the left side of the canvas. Escape closes it. */
+/** Glass panel on the left of the core. Escape closes it. */
 export function SidePanel({ title, subtitle, onClose, children, wide }: Props) {
   const id = useId();
   const ref = useRef<HTMLElement>(null);
@@ -18,23 +19,12 @@ export function SidePanel({ title, subtitle, onClose, children, wide }: Props) {
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>("input, select, textarea")?.focus() ?? ref.current?.querySelector<HTMLElement>("button")?.focus();
   }, []);
-  // Escape inside the panel is handled below. When an action re-renders the panel and removes the focused control
-  // (Confirm on a memory record, for example), focus falls back to <body>: Escape must still close the panel.
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
-      const active = document.activeElement;
-      if (active && active !== document.body && active !== document.documentElement) return;
-      e.preventDefault();
-      closeRef.current();
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, []);
+  // Escape inside the panel is handled below; with focus on <body> the escape stack closes the newest overlay.
+  useEscapeLayer(() => closeRef.current());
   return (
     <aside
       ref={ref}
-      className={`side-panel${wide ? " wide" : ""}`}
+      className={`side-panel glass${wide ? " wide" : ""}`}
       aria-labelledby={`${id}-t`}
       role="dialog"
       aria-modal="false"
@@ -47,7 +37,7 @@ export function SidePanel({ title, subtitle, onClose, children, wide }: Props) {
     >
       <header className="side-panel-head">
         <div>
-          <h2 id={`${id}-t`} className="serif-title">
+          <h2 id={`${id}-t`} className="panel-title">
             {title}
           </h2>
           {subtitle ? <p className="muted side-panel-sub">{subtitle}</p> : null}

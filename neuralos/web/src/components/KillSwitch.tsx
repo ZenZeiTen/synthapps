@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { BRAND } from "../brand";
 import type { KernelStatus } from "../types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { IconPlay, IconStop } from "./Icons";
@@ -11,7 +12,7 @@ interface Props {
   onToast: (message: string, tone?: "ok" | "error") => void;
 }
 
-/** "Halt all agents" in the top bar. The halt reaches the kernel through the human-facing API only. */
+/** "Halt" in the HUD. The halt reaches the kernel through the human-facing API only. */
 export function KillSwitch({ halted, disabled, onStatus, onToast }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState("");
@@ -20,8 +21,8 @@ export function KillSwitch({ halted, disabled, onStatus, onToast }: Props) {
   const halt = async () => {
     setBusy(true);
     try {
-      onStatus(await api.halt(reason.trim() || "Halted from the canvas"));
-      onToast("Kernel halted: agents terminated, non-read tools denied, triggers paused", "error");
+      onStatus(await api.halt(reason.trim() || `Halted from the ${BRAND} core`));
+      onToast("Halted: agents terminated, non-read tools denied, triggers paused", "error");
       setConfirming(false);
       setReason("");
     } catch (err) {
@@ -34,8 +35,8 @@ export function KillSwitch({ halted, disabled, onStatus, onToast }: Props) {
   if (halted) return null;
   return (
     <>
-      <button type="button" className="btn btn-sm btn-halt" disabled={disabled} onClick={() => setConfirming(true)}>
-        <IconStop size={15} /> Halt all agents
+      <button type="button" className="hud-btn btn-halt" disabled={disabled} onClick={() => setConfirming(true)} aria-label="Halt all agents">
+        <IconStop size={13} /> Halt
       </button>
       {confirming ? (
         <ConfirmDialog
@@ -60,13 +61,14 @@ export function KillSwitch({ halted, disabled, onStatus, onToast }: Props) {
   );
 }
 
-export function HaltBanner({ onStatus, onToast }: { onStatus: (s: KernelStatus) => void; onToast: Props["onToast"] }) {
+/** Shown under the ember core while the kernel is halted. */
+export function ResumeButton({ onStatus, onToast }: { onStatus: (s: KernelStatus) => void; onToast: Props["onToast"] }) {
   const [busy, setBusy] = useState(false);
   const resume = async () => {
     setBusy(true);
     try {
       onStatus(await api.resume());
-      onToast("Kernel resumed");
+      onToast(`${BRAND} resumed`);
     } catch (err) {
       onToast(`Resume failed: ${(err as Error).message}`, "error");
     } finally {
@@ -74,14 +76,8 @@ export function HaltBanner({ onStatus, onToast }: { onStatus: (s: KernelStatus) 
     }
   };
   return (
-    <div className="halt-banner" role="alert">
-      <IconStop size={18} />
-      <span>
-        <strong>Kernel halted.</strong> All agents are stopped, non-read tools are denied and triggers are paused.
-      </span>
-      <button type="button" className="btn btn-sm btn-resume" disabled={busy} onClick={() => void resume()}>
-        <IconPlay size={14} /> {busy ? "Resuming..." : "Resume"}
-      </button>
-    </div>
+    <button type="button" className="core-btn btn-resume" disabled={busy} onClick={() => void resume()}>
+      <IconPlay size={12} /> {busy ? "Resuming..." : "Resume"}
+    </button>
   );
 }

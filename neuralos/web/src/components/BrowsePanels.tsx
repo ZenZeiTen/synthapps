@@ -1,8 +1,9 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { api } from "../api";
 import type { AgentDefinition, AgentInstance, GraphNode, GraphSlice, Workspace } from "../types";
+import { BRAND } from "../brand";
 import { SidePanel } from "./SidePanel";
-import { IconAgent, IconChevron, IconFile, IconFolder, IconProject } from "./Icons";
+import { IconAgent, IconChevron, IconField, IconFile, IconFolder, IconMenu, IconProject } from "./Icons";
 
 // ---------------------------------------------------------------------------------------------------------
 // Files: a tree built from file nodes (folders are optional; paths come first).
@@ -39,21 +40,28 @@ function buildTree(nodes: GraphNode[]): TreeDir {
   return root;
 }
 
-function Dir({ dir, depth, onOpen }: { dir: TreeDir; depth: number; onOpen: (path: string, nodeId: string) => void }) {
+type FileHandler = (path: string, nodeId: string) => void;
+
+function Dir({ dir, depth, onOpen, onActions }: { dir: TreeDir; depth: number; onOpen: FileHandler; onActions: FileHandler }) {
   const [open, setOpen] = useState(depth < 3);
   const dirs = [...dir.dirs.values()].sort((a, b) => a.name.localeCompare(b.name));
   const files = [...dir.files].sort((a, b) => a.name.localeCompare(b.name));
   const body = (
     <ul className="tree" role={depth === 0 ? "tree" : "group"} aria-label={depth === 0 ? "Project files" : undefined}>
       {dirs.map((d) => (
-        <Dir key={d.path} dir={d} depth={depth + 1} onOpen={onOpen} />
+        <Dir key={d.path} dir={d} depth={depth + 1} onOpen={onOpen} onActions={onActions} />
       ))}
       {files.map((f) => (
         <li key={f.path} role="treeitem" aria-selected={false}>
-          <button type="button" className="tree-btn" onClick={() => onOpen(f.path, f.nodeId)} style={{ paddingLeft: 8 + depth * 14 }}>
-            <IconFile size={14} />
-            <span className="mono">{f.name}</span>
-          </button>
+          <div className="tree-row">
+            <button type="button" className="tree-btn" onClick={() => onOpen(f.path, f.nodeId)} style={{ paddingLeft: 8 + depth * 14 }}>
+              <IconFile size={14} />
+              <span className="mono">{f.name}</span>
+            </button>
+            <button type="button" className="tree-act" aria-label={`Actions for ${f.name}`} title="Actions" onClick={() => onActions(f.path, f.nodeId)}>
+              <IconMenu size={14} />
+            </button>
+          </div>
         </li>
       ))}
     </ul>
@@ -71,12 +79,27 @@ function Dir({ dir, depth, onOpen }: { dir: TreeDir; depth: number; onOpen: (pat
   );
 }
 
-export function FilesPanel({ graph, onClose, onOpen }: { graph: GraphSlice | null; onClose: () => void; onOpen: (path: string, nodeId: string) => void }) {
+export function FilesPanel({
+  graph,
+  onClose,
+  onOpen,
+  onActions,
+  onField,
+}: {
+  graph: GraphSlice | null;
+  onClose: () => void;
+  onOpen: FileHandler;
+  onActions: FileHandler;
+  onField: () => void;
+}) {
   const tree = useMemo(() => buildTree(graph?.nodes ?? []), [graph]);
   const count = graph?.nodes.filter((n) => n.type === "file").length ?? 0;
   return (
-    <SidePanel title="Files" subtitle={`${count} indexed files. Folders are optional; open a file or search by meaning.`} onClose={onClose}>
-      {!graph ? <p className="muted">Loading...</p> : count === 0 ? <p className="muted">No files indexed yet.</p> : <Dir dir={tree} depth={0} onOpen={onOpen} />}
+    <SidePanel title="Files" subtitle={`${count} indexed files. Open a file, or use its actions to summarize, translate or analyze it.`} onClose={onClose}>
+      <button type="button" className="btn btn-sm field-link" onClick={onField}>
+        <IconField size={14} /> Show the knowledge field
+      </button>
+      {!graph ? <p className="muted">Loading...</p> : count === 0 ? <p className="muted">No files indexed yet.</p> : <Dir dir={tree} depth={0} onOpen={onOpen} onActions={onActions} />}
     </SidePanel>
   );
 }
@@ -97,7 +120,7 @@ export function AgentsPanel({
   agents: AgentDefinition[] | null;
   instances: AgentInstance[];
   onClose: () => void;
-  onFocus: (nodeId: string) => void;
+  onFocus: (agentId: string) => void;
   onToast: (m: string, tone?: "ok" | "error") => void;
   halted: boolean;
 }) {
@@ -123,7 +146,7 @@ export function AgentsPanel({
   };
 
   return (
-    <SidePanel title="Agents" subtitle="Specialists NeuralOS can summon into a swarm." onClose={onClose}>
+    <SidePanel title="Agents" subtitle={`Specialists ${BRAND} can summon into a swarm.`} onClose={onClose}>
       {!agents ? <p className="muted">Loading the agent catalog...</p> : null}
       {agents && agents.length === 0 ? <p className="muted">The catalog is empty.</p> : null}
       {GROUPS.map((g) => {
@@ -136,8 +159,8 @@ export function AgentsPanel({
               {list.map((a) => (
                 <li key={a.id} className="agent-card">
                   <div className="agent-card-top">
-                    <IconAgent size={14} className="amber" />
-                    <button type="button" className="link-btn agent-name" onClick={() => onFocus(`agent:${a.id}`)} aria-label={`Show ${a.name} on the canvas`}>
+                    <IconAgent size={14} className="accent" />
+                    <button type="button" className="link-btn agent-name" onClick={() => onFocus(a.id)} aria-label={`${a.name}: open agent actions`}>
                       {a.name}
                     </button>
                     {running(a.id) ? <span className="badge badge-amber">{running(a.id)} running</span> : null}
@@ -178,10 +201,11 @@ export function AgentsPanel({
 
 // ---------------------------------------------------------------------------------------------------------
 
+/** Projects open in the Field view, focused on their node. */
 export function ProjectsPanel({ graph, onClose, onFocus }: { graph: GraphSlice | null; onClose: () => void; onFocus: (nodeId: string) => void }) {
   const projects = (graph?.nodes ?? []).filter((n) => n.type === "project" || n.type === "repository");
   return (
-    <SidePanel title="Projects" subtitle="Projects and repositories in the knowledge graph." onClose={onClose}>
+    <SidePanel title="Projects" subtitle="Projects and repositories in the knowledge graph. Choose one to see it in the field." onClose={onClose}>
       {!graph ? <p className="muted">Loading...</p> : null}
       {graph && projects.length === 0 ? <p className="muted">No projects in the graph.</p> : null}
       <ul className="plain-list">
@@ -212,7 +236,7 @@ export function AppsPanel({
 }) {
   const list = [...(workspaces ?? [])].reverse();
   return (
-    <SidePanel title="Apps" subtitle="Workspaces: temporary manifestations of intent." onClose={onClose}>
+    <SidePanel title="Apps" subtitle="Workspaces: temporary manifestations of intent. Choose one to see its results." onClose={onClose}>
       {!workspaces ? <p className="muted">Loading...</p> : null}
       {workspaces && workspaces.length === 0 ? <p className="muted">No workspaces yet. State an intent to create one.</p> : null}
       <ul className="plain-list">

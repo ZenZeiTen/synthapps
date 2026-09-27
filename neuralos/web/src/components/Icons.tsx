@@ -139,3 +139,23 @@ export const IconShield = (p: IconProps) => (
     <path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z" />
   </Svg>
 );
+export const IconReturn = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M19 5v7.5a2 2 0 01-2 2H6" />
+    <path d="M9.5 11L6 14.5 9.5 18" />
+  </Svg>
+);
+export const IconField = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="5.5" cy="7" r="1.6" />
+    <circle cx="17.5" cy="5.5" r="1.6" />
+    <circle cx="12" cy="17.5" r="1.6" />
+    <circle cx="19" cy="15" r="1.2" />
+    <path d="M7 7.3l9-1.4M6.5 8.4l4.6 7.7M13.4 16.8l4.3-1.3M17.6 7l1.2 6.6" />
+  </Svg>
+);
+export const IconEvents = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 12h4l2.5-6 5 12 2.5-6h4" />
+  </Svg>
+);

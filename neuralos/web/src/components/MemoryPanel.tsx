@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { MEMORY_CATEGORIES, MEMORY_CATEGORY_LABEL } from "../labels";
 import type { KernelEvent, MemoryCategory, MemoryRecord } from "../types";
+import { BRAND } from "../brand";
 import { SidePanel } from "./SidePanel";
 import { IconCheck, IconClose, IconRefresh } from "./Icons";
 
@@ -106,7 +107,7 @@ export function MemoryPanel({ onClose, onToast, onEvent }: Props) {
   );
 
   return (
-    <SidePanel title="Memory" subtitle="What NeuralOS remembers. Agent-written records stay proposed until you confirm them." onClose={onClose}>
+    <SidePanel title="Memory" subtitle={`What ${BRAND} remembers. Agent-written records stay proposed until you confirm them.`} onClose={onClose}>
       <div className="row gap">
         <label htmlFor="mem-cat" className="field-label">
           Category

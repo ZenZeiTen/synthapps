@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
 import type { AuditEntry, GovernorSnapshot, KernelEvent, KernelStatus, McpServerStatus, ToolPolicy, TriggerRule } from "../types";
 import { SidePanel } from "./SidePanel";
-import { IconRefresh, IconShield } from "./Icons";
+import { IconEvents, IconRefresh, IconShield } from "./Icons";
 
 interface Props {
   status: KernelStatus | null;
@@ -10,6 +10,7 @@ interface Props {
   onToast: (message: string, tone?: "ok" | "error") => void;
   onEvent: (l: (ev: KernelEvent) => void) => () => void;
   onStatusChanged: () => void;
+  onOpenEvents: () => void;
 }
 
 const POLICY_HELP: Record<ToolPolicy["mode"], string> = {
@@ -18,7 +19,7 @@ const POLICY_HELP: Record<ToolPolicy["mode"], string> = {
   readonly: "Only reversible read and search tools run.",
 };
 
-export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChanged }: Props) {
+export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChanged, onOpenEvents }: Props) {
   const [policy, setPolicy] = useState<ToolPolicy | null>(null);
   const [mcp, setMcp] = useState<McpServerStatus[] | null>(null);
   const [triggers, setTriggers] = useState<TriggerRule[] | null>(null);
@@ -133,11 +134,14 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
             <IconRefresh size={15} />
           </button>
         </div>
+        <button type="button" className="btn btn-sm events-link" onClick={onOpenEvents}>
+          <IconEvents size={14} /> Open the event log
+        </button>
         {status ? (
           <dl className="kv">
             <dt>Mode</dt>
             <dd>
-              <span className={`badge ${status.mode === "claude" ? "badge-amber" : ""}`}>{status.mode}</span>
+              <span className={`badge ${status.mode === "claude" ? "badge-accent" : ""}`}>{status.mode}</span>
             </dd>
             <dt>Model</dt>
             <dd className="mono">{status.model}</dd>

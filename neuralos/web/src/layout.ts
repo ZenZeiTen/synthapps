@@ -28,18 +28,22 @@ export function shapeOf(type: NodeType): ShapeKind {
   }
 }
 
-/** Offset from a node's top-left corner to the centre of its shape (where edges attach). Matches styles.css. */
+/**
+ * Offset from a node's top-left corner to the centre of its dot (where edges attach). In the Field every node is a
+ * 160 px wide button with its dot centred 14 px from the top. Matches `.cn` / `.cn-dot` in styles.css.
+ */
+const DOT = { x: 80, y: 14 };
 export const ANCHOR: Record<ShapeKind, { x: number; y: number }> = {
-  project: { x: 56, y: 56 },
-  file: { x: 80, y: 32 },
-  folder: { x: 80, y: 32 },
-  agent: { x: 80, y: 32 },
-  mcp: { x: 70, y: 29 },
-  workflow: { x: 80, y: 32 },
-  workspace: { x: 120, y: 44 },
-  concept: { x: 80, y: 16 },
-  output: { x: 80, y: 32 },
-  generic: { x: 80, y: 32 },
+  project: DOT,
+  file: DOT,
+  folder: DOT,
+  agent: DOT,
+  mcp: DOT,
+  workflow: DOT,
+  workspace: DOT,
+  concept: DOT,
+  output: DOT,
+  generic: DOT,
 };
 
 export interface Point {

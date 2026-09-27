@@ -1,59 +1,80 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { api } from "../api";
+import { BRAND } from "../brand";
 import type { GraphNode, RadialAction, RadialMenu as RadialMenuData, RadialResult } from "../types";
 import { IconClose, IconRefresh } from "./Icons";
 
 export interface RadialTarget {
-  /** "root" for the empty canvas. */
+  /** "root" for the core's own menu. */
   nodeId: string;
   node?: GraphNode;
-  /** Client coordinates of the click. */
-  at: { x: number; y: number };
+  /** Display name when there is no graph node (an agent satellite, a file row). */
+  title?: string;
+  /** Viewport coordinates of the ring's centre (the core, or a node in the Field view). */
+  center: { x: number; y: number };
+  /** Ring radius in px. */
+  radius: number;
+  /** Keep the ring on the core while the stage settles (panels opening or closing move it): ring radius = orb radius + pad. */
+  followCore?: { pad: number };
 }
 
 interface Props {
   target: RadialTarget;
-  /** The element the menu is drawn in (the canvas area). */
-  container: HTMLElement | null;
   onClose: () => void;
   onClientAction: (action: RadialAction, target: RadialTarget) => void;
   onResult: (result: RadialResult, action: RadialAction, target: RadialTarget) => void;
 }
 
-const RING = 440;
-const RADIUS = 160;
-
-const KIND_STYLE: Record<string, { label: string; color: string; pill: string }> = {
-  root: { label: "Root menu", color: "#A9ADB5", pill: "#3A414D" },
-  agent: { label: "Agent", color: "#E8A547", pill: "#6B5230" },
-  file: { label: "File", color: "#C9C4BA", pill: "#3A414D" },
-  folder: { label: "Folder", color: "#C9C4BA", pill: "#3A414D" },
-  project: { label: "Project", color: "#C9C4BA", pill: "#3A414D" },
-  workspace: { label: "Workspace", color: "#E8A547", pill: "#6B5230" },
-  mcp: { label: "MCP tool", color: "#6FA8E8", pill: "#2E4461" },
-  workflow: { label: "Workflow", color: "#C9C4BA", pill: "#3A414D" },
-  concept: { label: "Concept", color: "#C9C4BA", pill: "#3A414D" },
-  output: { label: "Output", color: "#E8A547", pill: "#6B5230" },
+const KIND_LABEL: Record<string, string> = {
+  root: BRAND,
+  agent: "Agent",
+  file: "File",
+  folder: "Folder",
+  project: "Project",
+  workspace: "Workspace",
+  mcp: "MCP tool",
+  workflow: "Workflow",
+  concept: "Concept",
+  output: "Output",
 };
 
-export function RadialMenu({ target, container, onClose, onClientAction, onResult }: Props) {
+/** Glass pills on a ring around the core (or a Field node). Arrow keys move between options; Escape closes. */
+export function RadialMenu({ target, onClose, onClientAction, onResult }: Props) {
   const [menu, setMenu] = useState<RadialMenuData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const returnFocus = useRef<Element | null>(null);
-  const [box, setBox] = useState<DOMRect | null>(null);
-  /** Container-relative y where the intent bar starts; the ring stays above it when there is room. */
-  const [floor, setFloor] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     returnFocus.current = document.activeElement;
-    const b = container?.getBoundingClientRect() ?? null;
-    setBox(b);
-    const bar = container?.querySelector(".intent-bar")?.getBoundingClientRect();
-    setFloor(b && bar ? bar.top - b.top - 8 : null);
-  }, [container]);
+    const onResize = () => setSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Follow the core while the stage moves.
+  const [live, setLive] = useState<{ center: { x: number; y: number }; radius: number } | null>(null);
+  useEffect(() => {
+    const follow = target.followCore;
+    if (!follow) return;
+    let raf = 0;
+    const until = performance.now() + 900;
+    const step = () => {
+      const b = document.querySelector<HTMLElement>(".core-orb")?.getBoundingClientRect();
+      if (b && b.width > 0) {
+        const next = { center: { x: b.left + b.width / 2, y: b.top + b.height / 2 }, radius: b.width / 2 + follow.pad };
+        setLive((cur) =>
+          cur && Math.abs(cur.center.x - next.center.x) < 0.5 && Math.abs(cur.center.y - next.center.y) < 0.5 && Math.abs(cur.radius - next.radius) < 0.5 ? cur : next,
+        );
+      }
+      if (performance.now() < until) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target.followCore, size]);
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -123,33 +144,27 @@ export function RadialMenu({ target, container, onClose, onClientAction, onResul
     }
   };
 
-  // Position relative to the container, clamped so the ring stays inside it.
-  const w = box?.width ?? window.innerWidth;
-  const h = box?.height ?? window.innerHeight;
-  const half = RING / 2 + 6;
-  const rawX = target.at.x - (box?.left ?? 0);
-  const rawY = target.at.y - (box?.top ?? 0);
-  const cx = w > RING + 12 ? Math.min(w - half, Math.max(half, rawX)) : w / 2;
-  const bottom = floor !== null && floor > RING + 12 ? floor : h;
-  const cy = bottom > RING + 12 ? Math.min(bottom - half, Math.max(half, rawY)) : h / 2;
+  // Keep the ring and its pills inside the viewport.
+  const geo = live ?? target;
+  const R = Math.max(120, Math.min(geo.radius, size.h / 2 - 70, size.w / 2 - 90));
+  const half = R + 70;
+  const cx = Math.min(size.w - half, Math.max(half, geo.center.x));
+  const cy = Math.min(size.h - R - 40, Math.max(R + 96, geo.center.y));
 
   const kind = menu?.kind ?? (target.nodeId === "root" ? "root" : target.node?.type ?? "root");
-  const look = KIND_STYLE[kind] ?? KIND_STYLE.root;
-  const title = target.nodeId === "root" ? "NeuralOS" : target.node?.name ?? target.nodeId;
+  const title = target.nodeId === "root" ? "Neural Core" : target.title ?? target.node?.name ?? target.nodeId;
 
   return (
     <div
-      className="radial-layer"
+      className={`radial-layer radial-${kind}`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}
       onKeyDown={onKeyDown}
     >
-      <div className="radial-ring" style={{ left: cx - RING / 2, top: cy - RING / 2, width: RING, height: RING }} aria-hidden="true" />
-      <div className="radial-center" style={{ left: cx, top: cy }}>
-        <span className="radial-kind" style={{ color: look.color }}>
-          {look.label}
-        </span>
+      <div className="radial-ring" style={{ left: cx - R, top: cy - R, width: R * 2, height: R * 2 }} aria-hidden="true" />
+      <div className="radial-head" style={{ left: cx, top: cy - R - 58 }}>
+        <span className="radial-kind">{KIND_LABEL[kind] ?? kind}</span>
         <span className="radial-title">{title}</span>
         {!menu && !error ? (
           <span className="radial-note" role="status">
@@ -164,15 +179,15 @@ export function RadialMenu({ target, container, onClose, onClientAction, onResul
             </button>
           </span>
         ) : null}
-        <button type="button" className="radial-close" aria-label="Close menu" onClick={close}>
-          <IconClose size={14} />
-        </button>
       </div>
+      <button type="button" className="radial-close" style={{ left: cx + R * 0.72, top: cy - R * 0.9 }} aria-label="Close menu" onClick={close}>
+        <IconClose size={13} />
+      </button>
       <div role="menu" aria-label={`${title} actions`} className="radial-options">
         {actions.map((a, i) => {
           const ang = ((-90 + (i * 360) / actions.length) * Math.PI) / 180;
-          const x = cx + RADIUS * Math.cos(ang);
-          const y = cy + RADIUS * Math.sin(ang);
+          const x = cx + R * Math.cos(ang);
+          const y = cy + R * Math.sin(ang);
           return (
             <button
               key={a.id}
@@ -182,7 +197,7 @@ export function RadialMenu({ target, container, onClose, onClientAction, onResul
               type="button"
               role="menuitem"
               className={`radial-opt${a.enabled ? "" : " is-disabled"}${busy === a.id ? " is-busy" : ""}`}
-              style={{ left: x, top: y, borderColor: a.enabled ? look.pill : undefined }}
+              style={{ left: x, top: y, animationDelay: `${i * 28}ms` }}
               aria-disabled={!a.enabled || undefined}
               aria-label={a.enabled ? a.label : `${a.label} (unavailable${a.hint ? `: ${a.hint}` : ""})`}
               title={a.hint}

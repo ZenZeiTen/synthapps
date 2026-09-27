@@ -1,23 +1,26 @@
 /**
- * End-to-end test: the Neural Canvas UI against the REAL kernel (no mock).
+ * End-to-end test: the Nalara core UI against the REAL kernel (no mock).
  *
  *   npm run test:e2e        (node --import tsx test/e2e/run.ts)
+ *   NEURALOS_DOCS_SHOTS=1 npm run test:e2e    also refreshes docs/screenshots/core-*.png (256-colour, see png.ts)
  *
  * - builds the UI (vite) when web/dist is missing or older than web/src;
  * - copies demo/breath-of-fire-iv-remake to a fresh temp dir (without .neuralos);
  * - starts createKernel + createHttpServer in-process on a free port: offline, policy "ask", watch and triggers on;
- * - drives headless Chromium (playwright-core, /opt/pw-browsers) through the checks below;
+ * - drives headless Chromium (playwright-core, /opt/pw-browsers) at 1886x901 (the design reference's size);
  * - prints PASS/FAIL per check, writes screenshots to test/e2e/screenshots/, exits 1 on any FAIL.
  */
 import { execFileSync } from "node:child_process";
-import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { createKernel, type NeuralKernel } from "../../src/kernel/kernel";
-import type { AgentInstance, ApprovalRequest, MemoryRecord, ToolPolicy } from "../../src/kernel/types";
+import type { AgentDefinition, AgentInstance, ApprovalRequest, GraphNode, MemoryRecord, ToolPolicy } from "../../src/kernel/types";
 import { createHttpServer, type NeuralHttpServer } from "../../src/server/http";
+import { BRAND, INTENT_CHIPS } from "../../web/src/brand";
+import { shrinkPng } from "./png";
 
 /** Page-side global used inside page.evaluate callbacks; this project compiles without the DOM lib. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,7 +32,9 @@ const WEB_DIST = join(ROOT, "web", "dist");
 const WEB_SRC = join(ROOT, "web", "src");
 const DEMO = join(ROOT, "demo", "breath-of-fire-iv-remake");
 const SHOTS = join(HERE, "screenshots");
-const VIEWPORT = { width: 1440, height: 900 };
+const DOCS_SHOTS = join(ROOT, "docs", "screenshots");
+const DOCS = process.env.NEURALOS_DOCS_SHOTS === "1";
+const VIEWPORT = { width: 1886, height: 901 };
 
 // ---------------------------------------------------------------------------------------------------------------
 // Harness
@@ -80,7 +85,7 @@ function newestMtime(dir: string): number {
 
 function ensureUiBuilt(): string {
   const index = join(WEB_DIST, "index.html");
-  const stale = existsSync(index) && newestMtime(WEB_SRC) > statSync(index).mtimeMs;
+  const stale = existsSync(index) && Math.max(newestMtime(WEB_SRC), statSync(join(ROOT, "web", "index.html")).mtimeMs) > statSync(index).mtimeMs;
   if (existsSync(index) && !stale) return "web/dist up to date";
   console.log(stale ? "web/src is newer than web/dist: rebuilding the UI..." : "web/dist is missing: building the UI...");
   execFileSync("npx", ["vite", "build", "--config", "web/vite.config.ts"], { cwd: ROOT, stdio: "inherit" });
@@ -108,51 +113,17 @@ async function until<T>(what: string, fn: () => Promise<T | undefined | null | f
 // Page helpers (evaluate bodies avoid named inner functions: tsx would wrap them in __name(), absent in the page)
 // ---------------------------------------------------------------------------------------------------------------
 
-/** A point inside the canvas where the pane (not a node or overlay) is on top. */
-async function emptyPanePoint(page: Page): Promise<{ x: number; y: number }> {
-  const pt = await page.evaluate(() => {
-    const area = document.querySelector(".canvas-area")!.getBoundingClientRect();
-    for (let y = area.top + 170; y < area.bottom - 200; y += 23) {
-      for (let x = area.left + 250; x < area.right - 230; x += 29) {
-        let clear = true;
-        for (const [dx, dy] of [[0, 0], [-30, 0], [30, 0], [0, -30], [0, 30]]) {
-          const o = document.elementFromPoint(x + dx, y + dy);
-          if (!o || !o.classList.contains("react-flow__pane")) clear = false;
-        }
-        if (clear) return { x, y };
-      }
-    }
-    return null;
-  });
-  assert(pt, "no empty pane point found");
-  return pt;
+async function shot(page: Page, name: string, docsName?: string) {
+  const path = join(SHOTS, name);
+  await page.screenshot({ path });
+  if (DOCS && docsName) {
+    copyFileSync(path, join(DOCS_SHOTS, docsName));
+    shrinkPng(join(DOCS_SHOTS, docsName));
+  }
 }
 
-/** A node button of the given graph type fully inside the visible canvas and not covered by an overlay. */
-async function visibleNode(page: Page, type: string, nameMatch?: string): Promise<{ x: number; y: number; name: string; id: string }> {
-  const pt = await page.evaluate(
-    ([t, match]) => {
-      const area = document.querySelector(".canvas-area")!.getBoundingClientRect();
-      const bar = document.querySelector(".intent-bar")?.getBoundingClientRect();
-      for (const wrap of document.querySelectorAll(`[data-node-type="${t}"]`)) {
-        const btn = wrap.querySelector("button");
-        if (!btn) continue;
-        const label = btn.getAttribute("aria-label") ?? "";
-        if (match && !label.includes(match)) continue;
-        const r = btn.getBoundingClientRect();
-        const x = r.left + r.width / 2;
-        const y = r.top + Math.min(20, r.height / 2);
-        if (x < area.left + 20 || x > area.right - 200 || y < area.top + 140 || y > area.bottom - 20) continue;
-        if (bar && y > bar.top - 10) continue;
-        const hit = document.elementFromPoint(x, y);
-        if (hit && btn.contains(hit)) return { x, y, name: label, id: wrap.getAttribute("data-node-id") ?? "" };
-      }
-      return null;
-    },
-    [type, nameMatch ?? ""] as const,
-  );
-  assert(pt, `no visible ${type} node${nameMatch ? ` matching "${nameMatch}"` : ""}`);
-  return pt;
+async function coreStatus(page: Page): Promise<string> {
+  return ((await page.textContent(".core-status")) ?? "").trim();
 }
 
 async function closeRadial(page: Page) {
@@ -167,23 +138,21 @@ async function radialLabels(page: Page): Promise<string[]> {
   return page.$$eval(".radial-opt", (els) => els.map((e) => (e.textContent ?? "").trim()));
 }
 
-async function openPanel(page: Page, id: string) {
-  await closeRadial(page);
-  if (await page.$(".side-panel")) {
-    await page.keyboard.press("Escape");
-    await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
-  }
-  await page.click(".canvas-menu-btn");
-  await radialLabels(page);
-  await page.click(`.radial-opt[data-action-id="${id}"]`);
-  await page.waitForSelector(".side-panel", { timeout: 3000 });
-}
-
 async function closePanel(page: Page) {
   if (await page.$(".side-panel")) {
     await page.keyboard.press("Escape");
     await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
   }
+}
+
+/** Root radial from the core, then one of its panels. */
+async function openPanel(page: Page, id: string) {
+  await closeRadial(page);
+  await closePanel(page);
+  await page.click(".core-orb");
+  await radialLabels(page);
+  await page.click(`.radial-opt[data-action-id="${id}"]`);
+  await page.waitForSelector(".side-panel", { timeout: 3000 });
 }
 
 async function toastsAfter(page: Page, count: number, pattern: RegExp, ms = 8000): Promise<string> {
@@ -199,12 +168,19 @@ async function toastsAfter(page: Page, count: number, pattern: RegExp, ms = 8000
   return (await handle.jsonValue()) as string;
 }
 
+async function satellites(page: Page): Promise<{ agent: string; state: string; name: string }[]> {
+  return page.$$eval(".satellite:not(.leaving)", (els) =>
+    els.map((e) => ({ agent: e.getAttribute("data-agent-id") ?? "", state: e.getAttribute("data-state") ?? "", name: (e.querySelector(".sat-name")?.textContent ?? "").trim() })),
+  );
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------------------------------------------
 
 async function main() {
   mkdirSync(SHOTS, { recursive: true });
+  if (DOCS) mkdirSync(DOCS_SHOTS, { recursive: true });
   for (const f of readdirSync(SHOTS)) if (f.endsWith(".png")) rmSync(join(SHOTS, f));
   const built = ensureUiBuilt();
 
@@ -292,13 +268,49 @@ async function main() {
     });
 
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector(".react-flow__node", { timeout: 20000 });
-    await page.waitForTimeout(1200); // fit view + fonts
+    await page.waitForSelector(".core-orb", { timeout: 20000 });
     await page.evaluate(() => document.fonts.ready);
-    await page.waitForFunction(() => document.querySelector(".conn")?.textContent?.includes("live"), undefined, { timeout: 10000 }).catch(() => undefined);
+    await page.waitForFunction(() => /AGENTS? RESTING/.test(document.querySelector(".hud-left")?.textContent ?? ""), undefined, { timeout: 10000 });
+    await page.waitForTimeout(1500); // particles settle into their orbits, fonts
 
     // ---- a ---------------------------------------------------------------------------------------------------
-    await check("a. canvas shows project, file, agent, mcp, workflow and concept nodes from the real graph", async () => {
+    await check("a. idle core: live HUD strings from the kernel, clock, intent bar and chips; the Field view shows the real graph", async () => {
+      const catalog = await api<AgentDefinition[]>("GET", "/api/agents");
+      const running = (await api<AgentInstance[]>("GET", "/api/agents/instances")).filter((i) => ["summoned", "active", "collaborating"].includes(i.state));
+      const system = catalog.filter((a) => a.group === "system").map((a) => a.id);
+      const resting = system.filter((id) => !running.some((i) => i.agentId === id)).length;
+      const left = ((await page.textContent(".hud-left")) ?? "").trim();
+      const wantLeft = `${BRAND.toUpperCase()} · CORE IDLE · ${resting} ${resting === 1 ? "AGENT" : "AGENTS"} RESTING`;
+      assert(left === wantLeft, `top left "${left}", expected "${wantLeft}"`);
+      const field = ((await page.textContent(".hud-field")) ?? "").trim();
+      assert(field === "FIELD STABLE · 0 AGENTS", `field "${field}"`);
+      const clock = ((await page.textContent(".hud-clock")) ?? "").trim();
+      assert(/^\d{1,2}:\d{2}(\s?[AP]M)?$/i.test(clock), `clock "${clock}"`);
+      const status = await coreStatus(page);
+      assert(status === "BREATHING · AWAITING INTENT", `core status "${status}"`);
+      const title = ((await page.textContent(".core-title")) ?? "").trim();
+      assert(title === "Neural Core", `title "${title}"`);
+      const placeholder = await page.getAttribute("#nos-intent", "placeholder");
+      assert(placeholder === "Tell the OS what you intend...", `placeholder "${placeholder}"`);
+      const label = ((await page.textContent('label[for="nos-intent"]')) ?? "").trim();
+      assert(label.length > 0, "the intent input has no label");
+      const chips = await page.$$eval(".dock-chip", (els) => els.map((e) => (e.textContent ?? "").trim()));
+      assert(JSON.stringify(chips) === JSON.stringify([...INTENT_CHIPS]), `chips ${chips.join(" | ")}`);
+      assert((await page.title()) === BRAND, `page title "${await page.title()}"`);
+      // Geometry: orb centred, about a quarter of the height; the bar about 44% of the width.
+      const geo = (await page.evaluate(`(() => {
+        const o = document.querySelector(".core-orb").getBoundingClientRect();
+        const b = document.querySelector(".dock-bar").getBoundingClientRect();
+        return { cx: o.left + o.width / 2, cy: o.top + o.height / 2, d: o.width, bw: b.width };
+      })()`)) as { cx: number; cy: number; d: number; bw: number };
+      assert(Math.abs(geo.cx - VIEWPORT.width / 2) < 4 && Math.abs(geo.cy / VIEWPORT.height - 0.53) < 0.02, `orb centre ${geo.cx},${geo.cy}`);
+      assert(Math.abs(geo.d / VIEWPORT.height - 0.262) < 0.02 && Math.abs(geo.bw / VIEWPORT.width - 0.439) < 0.02, `orb ${geo.d}px, bar ${geo.bw}px`);
+      await shot(page, "01-core-idle.png", "core-idle.png");
+
+      // The knowledge graph lives in the Field view.
+      await page.click(".btn-field");
+      await page.waitForSelector(".field .react-flow__node", { timeout: 15000 });
+      await page.waitForTimeout(900);
       const counts = (await page.evaluate(`(() => {
         const out = {};
         for (const t of ["project", "file", "agent", "mcp", "workflow", "concept", "folder", "workspace"]) out[t] = document.querySelectorAll('[data-node-type="' + t + '"]').length;
@@ -307,71 +319,131 @@ async function main() {
       })()`)) as Record<string, number>;
       for (const t of ["project", "file", "agent", "mcp", "workflow", "concept"]) assert(counts[t] > 0, `no ${t} nodes (counts ${JSON.stringify(counts)})`);
       assert(counts.edges > 0, "no edges");
-      const graph = await api<{ nodes: { id: string; type: string }[] }>("GET", "/api/graph");
+      const graph = await api<{ nodes: GraphNode[] }>("GET", "/api/graph");
       const project = graph.nodes.find((n) => n.type === "project");
-      assert(project && (await page.$(`[data-node-id="${project.id}"]`)), `project node ${project?.id} from /api/graph not on the canvas`);
-      assert(await page.$('[data-node-id="file:src/combat/damage.ts"]'), "file:src/combat/damage.ts not on the canvas");
-      return Object.entries(counts)
+      assert(project && (await page.$(`[data-node-id="${project.id}"]`)), `project node ${project?.id} from /api/graph not in the field`);
+      assert(await page.$('[data-node-id="file:src/combat/damage.ts"]'), "file:src/combat/damage.ts not in the field");
+      await shot(page, "02-field.png", "core-field.png");
+      await page.click(".btn-field");
+      await page.waitForSelector(".field-layer", { state: "detached", timeout: 3000 });
+      return `${left} | ${clock} | ${field} | orb ${Math.round(geo.d)}px at ${Math.round(geo.cx)},${Math.round(geo.cy)}, bar ${Math.round(geo.bw)}px | field: ${Object.entries(counts)
         .map(([key, v]) => `${key}=${v}`)
-        .join(" ");
+        .join(" ")}`;
     });
-    await page.screenshot({ path: join(SHOTS, "01-canvas.png") });
 
     // ---- b ---------------------------------------------------------------------------------------------------
-    await check("b. clicking the pane opens the root radial with Search, Files, Agents, Projects, Apps, Memory, Settings", async () => {
-      const p = await emptyPanePoint(page);
-      await page.mouse.click(p.x, p.y);
+    await check("b. clicking the core opens the root radial with Search, Files, Agents, Projects, Apps, Memory, Settings", async () => {
+      await page.click(".core-orb");
       const labels = await radialLabels(page);
       const want = ["Search", "Files", "Agents", "Projects", "Apps", "Memory", "Settings"];
       assert(JSON.stringify(labels) === JSON.stringify(want), `labels ${labels.join(", ")}`);
       assert(apiCalls.includes("GET /api/radial/root"), "GET /api/radial/root not requested");
-      await page.waitForTimeout(300);
-      await page.screenshot({ path: join(SHOTS, "02-radial-root.png") });
+      const focused = await page.evaluate(() => document.activeElement?.textContent?.trim());
+      await page.keyboard.press("ArrowRight");
+      const next = await page.evaluate(() => document.activeElement?.textContent?.trim());
+      assert(focused === "Search" && next === "Files", `keyboard focus ${focused} -> ${next}`);
+      await page.waitForTimeout(400);
+      await shot(page, "03-radial-root.png", "core-radial.png");
       await closeRadial(page);
-      return labels.join(", ");
+      return `${labels.join(", ")}; arrows move focus`;
     });
+
+    if (DOCS) {
+      // The review swarm below goes straight to an approval; photograph a working swarm with another intent first.
+      await page.fill("#nos-intent", "Localize this website to Indonesian");
+      await page.press("#nos-intent", "Enter");
+      await page.waitForFunction(
+        () => document.querySelector(".core-status")?.textContent?.startsWith("ACTIVE") && document.querySelectorAll(".satellite:not(.leaving)").length >= 2,
+        undefined,
+        { timeout: 15000, polling: 50 },
+      );
+      await page.waitForTimeout(300);
+      await shot(page, "04b-core-active.png", "core-active.png");
+      await page.waitForSelector(".results-sheet", { timeout: 30000 });
+      await page.click('.results-sheet button[aria-label="Close results"]');
+      await page.waitForTimeout(1800);
+    }
 
     // ---- c ---------------------------------------------------------------------------------------------------
     let wsId = "";
-    const seenBadges = new Set<string>();
+    const seenStates = new Set<string>();
+    const seenStatus = new Set<string>();
     let qaBefore = "";
-    await check('c. intent "Review inventory module": workspace node, intent engineering_review, three agents with live state badges', async () => {
+    await check('c. intent "Review inventory module": live classification hint, Enter submits, the core thinks, three agents orbit with live states', async () => {
       await page.fill("#nos-intent", "Review inventory module");
-      const [res] = await Promise.all([
-        page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/intents", { timeout: 15000 }),
-        page.click('button:has-text("Generate workspace")'),
-      ]);
+      const hint = await until("the classification hint", async () => {
+        const t = ((await page.textContent(".dock-hint.on")) ?? "").trim();
+        return t.includes("ENGINEERING REVIEW") ? t : undefined;
+      }, 6000, 100);
+      assert(apiCalls.includes("POST /api/intents/classify"), "POST /api/intents/classify not requested");
+      if (DOCS) {
+        // Hold the submission briefly so the thinking core can be photographed; the kernel is not slowed.
+        await page.route("**/api/intents", async (route) => {
+          await sleep(1400);
+          await route.continue();
+        });
+      }
+      // Record every core status and satellite state the page shows, however briefly.
+      await page.evaluate(`(() => {
+        window.__statuses = [];
+        window.__sats = [];
+        const note = () => {
+          const st = document.querySelector(".core-status")?.textContent ?? "";
+          if (window.__statuses[window.__statuses.length - 1] !== st) window.__statuses.push(st);
+          for (const el of document.querySelectorAll(".satellite:not(.leaving)")) {
+            const v = el.getAttribute("data-agent-id") + ":" + el.getAttribute("data-state");
+            if (!window.__sats.includes(v)) window.__sats.push(v);
+          }
+        };
+        window.__observer = new MutationObserver(note);
+        window.__observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["data-state"] });
+        note();
+      })()`);
+      const resP = page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/api/intents", { timeout: 15000 });
+      await page.press("#nos-intent", "Enter");
+      if (DOCS) {
+        await page.waitForFunction(() => document.querySelector(".core-status")?.textContent?.startsWith("THINKING"), undefined, { timeout: 3000 });
+        await page.waitForTimeout(500);
+        await shot(page, "04-core-thinking.png", "core-thinking.png");
+      }
+      const res = await resP;
+      if (DOCS) await page.unroute("**/api/intents");
       assert(res.status() === 200, `POST /api/intents -> ${res.status()}`);
       wsId = ((await res.json()) as { workspace: { id: string } }).workspace.id;
-      await page.waitForSelector(`[data-node-id="workspace:${wsId}"]`, { timeout: 10000 });
-      await page.waitForFunction((id) => document.querySelector(".exec .exec-status-row")?.textContent?.includes(id), wsId, { timeout: 10000 });
-      const intent = (await page.textContent(".exec .exec-head .id-tag"))?.trim();
-      assert(intent === "engineering_review", `execution panel intent "${intent}"`);
-      // Sample the agent chips while the swarm runs: the badges must move off "dormant" without a reload.
-      const end = Date.now() + 20000;
-      let chips: string[] = [];
-      while (Date.now() < end) {
-        chips = await page.$$eval(".exec .chip-agent", (els) => els.map((e) => (e.textContent ?? "").trim()));
-        for (const s of await page.$$eval(".exec .chip-agent .state-badge", (els) => els.map((e) => e.textContent ?? ""))) seenBadges.add(s);
-        if (await page.$(".approvals")) break;
-        await sleep(150);
-      }
-      const names = ["Systems Architect", "Code Reviewer", "QA Engineer"];
-      assert(chips.length === 3, `expected 3 agent chips, got ${chips.length}: ${chips.join(" | ")}`);
-      for (const n of names) assert(chips.some((c) => c.startsWith(n)), `no chip for ${n}: ${chips.join(" | ")}`);
-      const live = [...seenBadges].filter((s) => s !== "dormant");
-      assert(live.length > 0, `state badges never left dormant: ${[...seenBadges].join(", ")}`);
-      qaBefore = (await page.locator(".exec .chip-agent").filter({ hasText: "QA Engineer" }).locator(".state-badge").textContent())?.trim() ?? "";
-      await page.screenshot({ path: join(SHOTS, "03-after-intent.png") });
-      return `${wsId}; chips ${chips.join(" | ")}; badge states seen: ${[...seenBadges].join(", ")}`;
+      // Wait for the swarm to take its places: three satellites, the QA Engineer live (it waits on the approval).
+      const sats = await until(
+        "three agents in orbit with the QA Engineer live",
+        async () => {
+          const list = await satellites(page);
+          const qa = list.find((x) => x.agent === "qa_engineer");
+          return list.length >= 3 && qa && ["active", "collaborating"].includes(qa.state) ? list : undefined;
+        },
+        20000,
+        60,
+      );
+      const recorded = (await page.evaluate(`(() => { window.__observer.disconnect(); return { statuses: window.__statuses, sats: window.__sats }; })()`)) as {
+        statuses: string[];
+        sats: string[];
+      };
+      for (const st of recorded.statuses) seenStatus.add(st.split(" · ")[0]);
+      for (const v of recorded.sats) seenStates.add(v);
+      const names = ["SYSTEMS ARCHITECT", "CODE REVIEWER", "QA ENGINEER"];
+      const shown = sats.map((s) => s.name.toUpperCase());
+      for (const n of names) assert(shown.includes(n), `no satellite for ${n}: ${shown.join(" | ")}`);
+      // Satellites pass through their states in order: the architect is seen summoned, working and completed.
+      for (const st of ["summoned", "completed"]) assert(seenStates.has(`systems_architect:${st}`), `Systems Architect never shown ${st}: ${[...seenStates].join(", ")}`);
+      assert(["active", "collaborating"].some((st) => seenStates.has(`systems_architect:${st}`)), `Systems Architect never shown working: ${[...seenStates].join(", ")}`);
+      assert(seenStatus.has("THINKING"), `the core never showed THINKING: ${[...seenStatus].join(" > ")}`);
+      assert(seenStatus.has("HOLDING"), `the core never showed HOLDING for the approval: ${[...seenStatus].join(" > ")}`);
+      qaBefore = sats.find((s) => s.agent === "qa_engineer")?.state ?? "";
+      return `${wsId}; hint "${hint}"; core ${[...seenStatus].join(" > ")}; satellites seen ${[...seenStates].join(", ")}`;
     });
 
     // ---- d ---------------------------------------------------------------------------------------------------
-    await check("d. proc.run_tests approval (irreversible, principal chain) -> Approve -> completed, ranked findings, Open report", async () => {
+    await check("d. approval card: proc.run_tests, irreversible, exact command, principal chain -> Approve -> results sheet, ranked findings, Open report", async () => {
       assert(wsId, "no workspace from check c");
-      await page.waitForSelector(".approvals .approval", { timeout: 30000 });
-      const row = page.locator(".approvals .approval").filter({ hasText: "proc.run_tests" }).first();
-      await row.waitFor({ timeout: 10000 });
+      const row = page.locator(".approval-card .approval").filter({ hasText: "proc.run_tests" }).first();
+      await row.waitFor({ timeout: 30000 });
       const rev = (await row.locator(".rev").textContent())?.trim();
       const chain = (await row.locator(".approval-chain").textContent())?.trim() ?? "";
       assert(rev === "irreversible", `reversibility "${rev}"`);
@@ -380,10 +452,14 @@ async function main() {
       assert(apr, "no pending proc.run_tests approval on the server");
       assert(chain === apr.principal.chain.join(" > "), `chain shown "${chain}" != server "${apr.principal.chain.join(" > ")}"`);
       assert(chain.startsWith(`user:`) && chain.includes("qa_engineer"), `chain "${chain}" does not run user > ... > qa_engineer`);
-      // The approval must say what will actually run, not just an empty input.
-      const detail = (await row.locator(".approval-detail").textContent())?.trim() ?? "";
-      assert(/^Runs: npm test/.test(detail), `approval detail does not show the command: "${detail}"`);
-      await page.screenshot({ path: join(SHOTS, "04-approvals.png") });
+      // The approval must say what will actually run, and it must be visible.
+      const detail = row.locator(".approval-detail");
+      const detailText = ((await detail.textContent()) ?? "").trim();
+      assert(/^Runs: npm test/.test(detailText) && (await detail.isVisible()), `approval detail does not show the command: "${detailText}"`);
+      const status = await coreStatus(page);
+      assert(status.startsWith("HOLDING"), `core status during approval "${status}"`);
+      await page.waitForTimeout(600);
+      await shot(page, "06-approval.png", "core-approval.png");
       const [res] = await Promise.all([
         page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === `/api/approvals/${apr.id}`, { timeout: 5000 }),
         row.locator("button.btn-approve").click(),
@@ -391,18 +467,37 @@ async function main() {
       assert(res.status() === 200, `approve -> ${res.status()}`);
       const resolved = await api<ApprovalRequest[]>("GET", "/api/approvals");
       assert(resolved.find((a) => a.id === apr.id)?.status === "approved", "server does not show the approval as approved");
-      await page.waitForFunction(() => document.querySelector(".exec .exec-status-row .badge")?.textContent === "completed", undefined, { timeout: 90000 });
-      await page.waitForSelector(".exec .findings .finding", { timeout: 10000 });
-      const sev = await page.$$eval(".exec .finding .sev", (els) => els.map((e) => e.textContent ?? ""));
+      await page.waitForFunction(() => document.querySelector(".results-sheet .sheet-status")?.textContent === "completed", undefined, { timeout: 90000 });
+      await page.waitForSelector(".results-sheet .findings .finding", { timeout: 10000 });
+      const sev = await page.$$eval(".results-sheet .finding .sev", (els) => els.map((e) => e.textContent ?? ""));
       const order = ["critical", "high", "medium", "low", "info"];
       for (let i = 1; i < sev.length; i++) assert(order.indexOf(sev[i - 1]) <= order.indexOf(sev[i]), `findings not ranked: ${sev.join(", ")}`);
-      const chipStates = await page.$$eval(".exec .chip-agent .state-badge", (els) => els.map((e) => e.textContent ?? ""));
-      // Live badges: the QA Engineer chip was waiting on the approval and must now read completed, without a reload.
-      const qaAfter = (await page.locator(".exec .chip-agent").filter({ hasText: "QA Engineer" }).locator(".state-badge").textContent())?.trim();
-      assert(qaBefore && qaBefore !== "completed" && qaAfter === "completed", `QA Engineer badge ${qaBefore} -> ${qaAfter}`);
-      await page.screenshot({ path: join(SHOTS, "05-completed.png") });
-      await page.screenshot({ path: join(SHOTS, "05b-execution-panel.png"), clip: { x: VIEWPORT.width - 380, y: 48, width: 380, height: VIEWPORT.height - 48 } });
-      const link = page.locator(".exec .report-link");
+      const loc = await page.$$eval(".results-sheet .finding-loc", (els) => els.map((e) => (e.textContent ?? "").trim()));
+      assert(loc.some((l) => /:\d+$/.test(l)), `no file:line on any finding: ${loc.join(", ")}`);
+      // Live satellites: the QA Engineer was waiting on the approval and must now read completed, without a reload.
+      const qaAfter = await until(
+        "the QA Engineer satellite to complete",
+        async () => {
+          const s = await page.getAttribute('.satellite[data-agent-id="qa_engineer"]:not(.leaving)', "data-state");
+          return s === "completed" ? s : undefined;
+        },
+        8000,
+        100,
+      );
+      assert(qaBefore && qaBefore !== "completed", `QA Engineer before approval was "${qaBefore}"`);
+      const settled = await until(
+        "the core to settle",
+        async () => {
+          const st = await coreStatus(page);
+          return st === "SETTLED · WORKSPACE COMPLETE" ? st : undefined;
+        },
+        8000,
+        100,
+      );
+      const agentStates = await page.$$eval(".results-sheet .sheet-agent .state-badge", (els) => els.map((e) => e.textContent ?? ""));
+      await page.waitForTimeout(700);
+      await shot(page, "07-results.png", "core-results.png");
+      const link = page.locator(".results-sheet .report-link");
       const reportPath = ((await link.locator(".mono").textContent()) ?? "").trim();
       assert(reportPath.endsWith("report.md"), `report link path "${reportPath}"`);
       await link.click();
@@ -410,53 +505,54 @@ async function main() {
       const viewerPath = (await page.textContent(".viewer .viewer-path"))?.trim();
       assert(viewerPath === reportPath, `viewer shows "${viewerPath}", expected "${reportPath}"`);
       const lines = await page.$$eval(".viewer .code-line", (els) => els.length);
-      await page.screenshot({ path: join(SHOTS, "06-report-viewer.png") });
+      await shot(page, "08-report-viewer.png");
       await page.keyboard.press("Escape");
       await page.waitForSelector(".viewer", { state: "detached", timeout: 3000 });
-      return `${apr.id} chain ${chain}; QA badge ${qaBefore} -> ${qaAfter}; ${sev.length} findings (${sev.join(", ")}); agents ${chipStates.join(", ")}; report ${reportPath} (${lines} lines)`;
+      return `${apr.id} chain ${chain}; QA ${qaBefore} -> ${qaAfter}; core ${settled}; ${sev.length} findings (${sev.join(", ")}); agents ${agentStates.join(", ")}; report ${reportPath} (${lines} lines)`;
     });
 
     // ---- e ---------------------------------------------------------------------------------------------------
-    await check('e. agent node -> agent radial with 7 actions; "Explain" returns a result toast', async () => {
+    await check('e. clicking an agent satellite opens its radial with 7 actions; "Explain" returns a result toast', async () => {
       await closePanel(page);
       await closeRadial(page);
-      const a = await visibleNode(page, "agent");
-      await page.mouse.click(a.x, a.y);
+      const sat = page.locator('.satellite[data-agent-id="code_reviewer"]:not(.leaving)');
+      await sat.waitFor({ timeout: 5000 });
+      await sat.click();
       const labels = await radialLabels(page);
       const want = ["Review", "Explain", "Compare", "Improve", "Test", "Collaborate", "Replace"];
       assert(JSON.stringify(labels) === JSON.stringify(want), `labels ${labels.join(", ")}`);
-      await page.waitForTimeout(300);
-      await page.screenshot({ path: join(SHOTS, "07-radial-agent.png") });
+      assert(apiCalls.includes("GET /api/radial/agent:code_reviewer") || apiCalls.includes("GET /api/radial/agent%3Acode_reviewer"), "GET /api/radial/agent:code_reviewer not requested");
+      const title = ((await page.textContent(".radial-title")) ?? "").trim();
+      assert(title === "Code Reviewer", `radial title "${title}"`);
+      await page.waitForTimeout(400);
+      await shot(page, "09-radial-agent.png", "core-radial-agent.png");
       const before = await page.$$eval(".toast", (els) => els.length);
       const [res] = await Promise.all([
-        page.waitForResponse((r) => r.request().method() === "POST" && /\/api\/radial\/agent%3A[^/]+\/explain$/.test(r.url()), { timeout: 8000 }),
+        page.waitForResponse((r) => r.request().method() === "POST" && /\/api\/radial\/agent%3Acode_reviewer\/explain$/.test(r.url()), { timeout: 8000 }),
         page.click('.radial-opt[data-action-id="explain"]'),
       ]);
       assert(res.status() === 200, `explain -> ${res.status()}`);
-      const agentName = a.name.split(",")[0];
-      const toast = await toastsAfter(page, before, new RegExp(agentName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      const toast = await toastsAfter(page, before, /Code Reviewer/);
       await closeRadial(page);
-      return `${agentName}: ${toast}`;
+      return `Code Reviewer: ${toast}`;
     });
 
     // ---- f ---------------------------------------------------------------------------------------------------
-    await check('f. file node -> file radial; "Summarize" starts a run and shows a result', async () => {
+    await check('f. Files panel: open damage.ts, then its actions; "Summarize" starts a run that orbits the core and finishes', async () => {
       await closeRadial(page);
-      // The canvas is zoomed on the new workspace; bring a file into view the way a user would: the Files panel.
       await openPanel(page, "files");
       await page.locator(".side-panel .tree-btn:not(.tree-dir)").filter({ hasText: /^damage\.ts$/ }).click();
       await page.waitForSelector(".viewer .code-line", { timeout: 8000 });
+      const viewerPath = (await page.textContent(".viewer .viewer-path"))?.trim();
+      assert(viewerPath === "src/combat/damage.ts", `viewer path "${viewerPath}"`);
       await page.keyboard.press("Escape");
       await page.waitForSelector(".viewer", { state: "detached", timeout: 3000 });
-      await closePanel(page);
-      await page.waitForTimeout(800); // focus animation
-      const f = await visibleNode(page, "file", "damage.ts, file");
-      assert(f.id === "file:src/combat/damage.ts", `focused file node is ${f.id}`);
-      await page.mouse.click(f.x, f.y);
+      await page.click('.side-panel button[aria-label="Actions for damage.ts"]');
       const labels = await radialLabels(page);
       assert(labels.join(",") === "Open,Summarize,Translate,Refactor,Analyze,Attach Agent", `labels ${labels.join(", ")}`);
-      await page.waitForTimeout(300);
-      await page.screenshot({ path: join(SHOTS, "08-radial-file.png") });
+      assert(!(await page.$(".side-panel")), "the Files panel stayed open under the file radial");
+      await page.waitForTimeout(900); // the ring follows the core back to the centre
+      await shot(page, "10-radial-file.png");
       const before = await page.$$eval(".toast", (els) => els.length);
       const [res] = await Promise.all([
         page.waitForResponse((r) => r.request().method() === "POST" && /\/api\/radial\/file%3A.*\/summarize$/.test(r.url()), { timeout: 8000 }),
@@ -466,6 +562,12 @@ async function main() {
       const body = (await res.json()) as { ok: boolean; instanceId?: string; message: string };
       assert(body.ok && body.instanceId, `summarize result ${JSON.stringify(body)}`);
       const toast = await toastsAfter(page, before, /started: Summarize/);
+      const inOrbit = await until(
+        "the summarizing agent in orbit",
+        async () => ((await page.$(`.satellite[data-instance-id="${body.instanceId}"]`)) ? "yes" : undefined),
+        5000,
+        50,
+      ).catch(() => "no");
       const done = await until(
         "the summarize run to finish",
         async () => {
@@ -476,8 +578,8 @@ async function main() {
         30000,
       );
       assert(done.state === "completed" && done.output?.summary, `run ended ${done.state}: ${done.error ?? ""}`);
-      await page.screenshot({ path: join(SHOTS, "09-file-summarize.png") });
-      return `${f.id}: toast "${toast}"; ${done.agentId} ${done.state}: ${done.output!.summary.split("\n")[0].slice(0, 90)}`;
+      assert(inOrbit === "yes", "the summarizing agent never appeared as a satellite");
+      return `toast "${toast}"; ${done.agentId} orbited the core and ${done.state}: ${done.output!.summary.split("\n")[0].slice(0, 80)}`;
     });
 
     // ---- g ---------------------------------------------------------------------------------------------------
@@ -498,7 +600,7 @@ async function main() {
         const first = ((await page.textContent(".hit .hit-path")) ?? "").trim().replace(/:\d+$/, "");
         out.push(`"${q}" -> ${first}`);
         if (!ok(first)) bad.push(`"${q}": first hit ${first}, expected ${label}`);
-        if (q === "combat code") await page.screenshot({ path: join(SHOTS, "10-search.png") });
+        if (q === "combat code") await shot(page, "11-search.png", "core-search.png");
       }
       assert(!bad.length, bad.join("; "));
       await closePanel(page);
@@ -521,13 +623,12 @@ async function main() {
       await item.waitFor({ timeout: 8000 });
       const badge = (await item.locator(".badge").textContent())?.trim();
       assert(badge === "proposed", `badge "${badge}"`);
-      await page.screenshot({ path: join(SHOTS, "11-memory-proposed.png") });
+      await shot(page, "12-memory-proposed.png");
       await item.locator(`button[aria-label="Confirm memory ${key}"]`).click();
       await page.locator(".side-panel .mem:not(.proposed)").filter({ hasText: key }).waitFor({ timeout: 8000 });
       const server = await api<MemoryRecord[]>("GET", `/api/memory?includeProposed=true&limit=500`);
       const after = server.find((r) => r.id === rec.id);
       assert(after?.status === "active", `server status after confirm: ${after?.status}`);
-      await page.screenshot({ path: join(SHOTS, "12-memory-confirmed.png") });
       await closePanel(page);
       return `${rec.id} (${rec.source}) proposed -> ${after.status}`;
     });
@@ -539,7 +640,7 @@ async function main() {
       await page.click('.side-panel label.radio:has(input[value="readonly"])');
       const ro = await until("GET /api/policy to report readonly", async () => ((await api<ToolPolicy>("GET", "/api/policy")).mode === "readonly" ? "readonly" : undefined), 5000);
       await page.waitForSelector('.side-panel label.radio.on:has(input[value="readonly"])', { timeout: 5000 });
-      await page.screenshot({ path: join(SHOTS, "13-settings-readonly.png") });
+      await shot(page, "13-settings-readonly.png");
       await page.click('.side-panel label.radio:has(input[value="ask"])');
       const back = await until("GET /api/policy to report ask", async () => ((await api<ToolPolicy>("GET", "/api/policy")).mode === "ask" ? "ask" : undefined), 5000);
       await page.waitForSelector('.side-panel label.radio.on:has(input[value="ask"])', { timeout: 5000 });
@@ -548,34 +649,44 @@ async function main() {
     });
 
     // ---- j ---------------------------------------------------------------------------------------------------
-    await check("j. kill switch: Halt with confirmation shows the banner and the server reports halted; Resume clears it", async () => {
-      await page.click(".btn-halt");
+    await check("j. kill switch: Halt with confirmation turns the core into an ember and the server reports halted; Resume clears it", async () => {
+      await page.click(".hud .btn-halt");
       await page.waitForSelector('[role="alertdialog"]', { timeout: 3000 });
       await page.fill('[role="alertdialog"] input', "e2e kill switch");
       await page.click('[role="alertdialog"] .btn-danger');
-      await page.waitForSelector(".halt-banner", { timeout: 5000 });
+      await page.waitForFunction(() => document.querySelector(".core-status")?.textContent === "HALTED · ALL AGENTS STOPPED", undefined, { timeout: 5000 });
+      await page.waitForSelector(".core-action .btn-resume", { timeout: 3000 });
+      const field = ((await page.textContent(".hud-field")) ?? "").trim();
+      assert(field.startsWith("FIELD HALTED"), `field "${field}"`);
+      assert(await page.isDisabled("#nos-intent"), "the intent bar accepts input while halted");
       const halted = await api<{ halted: boolean }>("GET", "/api/status");
       assert(halted.halted === true, "server does not report halted");
       const audit = await api<{ entries: { kind: string; detail: Record<string, unknown> }[] }>("GET", "/api/audit?limit=500");
       const entry = [...audit.entries].reverse().find((e) => e.kind === "halt");
       assert(entry && JSON.stringify(entry.detail).includes("e2e kill switch"), `no halt audit entry with the reason: ${JSON.stringify(entry)}`);
-      await page.screenshot({ path: join(SHOTS, "14-halted.png") });
-      await page.click(".halt-banner .btn-resume");
-      await page.waitForSelector(".halt-banner", { state: "detached", timeout: 5000 });
+      await page.waitForTimeout(900);
+      await shot(page, "14-halted.png", "core-halted.png");
+      await page.click(".core-action .btn-resume");
+      await page.waitForFunction(() => !document.querySelector(".core-status")?.textContent?.startsWith("HALTED"), undefined, { timeout: 5000 });
       const resumed = await api<{ halted: boolean }>("GET", "/api/status");
       assert(resumed.halted === false, "server still halted after Resume");
-      return `halted (audit: ${JSON.stringify(entry.detail)}) -> resumed`;
+      return `halted (audit: ${JSON.stringify(entry.detail)}; ${field}) -> resumed, core "${await coreStatus(page)}"`;
     });
 
     // ---- k ---------------------------------------------------------------------------------------------------
-    await check("k. live trigger chain: editing src/combat/damage.ts shows File Updated then the Code Reviewer run within 15 s", async () => {
+    await check("k. live trigger chain: editing src/combat/damage.ts shows File Updated then the Code Reviewer run (ticker -> event log) within 15 s", async () => {
       await closePanel(page);
       const t0 = Date.now();
       appendFileSync(join(projectRoot, "src", "combat", "damage.ts"), `\n// e2e edit ${new Date().toISOString()}\n`);
+      const ticker = page.locator(".ticker");
+      await ticker.waitFor({ timeout: 8000 });
+      const tickerText = ((await ticker.textContent()) ?? "").trim();
+      await ticker.click();
+      await page.waitForSelector(".side-panel .eventlog", { timeout: 3000 });
       const found = await until(
         "File Updated and a Code Reviewer event in the event log",
         async () => {
-          const rows = await page.$$eval(".eventlog .ev", (els) =>
+          const rows = await page.$$eval(".side-panel .eventlog .ev", (els) =>
             els.map((e) => ({
               seq: Number((e.querySelector(".ev-seq")?.textContent ?? "#0").slice(1)),
               type: e.querySelector(".ev-type")?.textContent ?? "",
@@ -593,16 +704,14 @@ async function main() {
         15000,
       );
       const ms = Date.now() - t0;
-      await page.screenshot({ path: join(SHOTS, "15-trigger-chain.png") });
-      await page.screenshot({ path: join(SHOTS, "15b-event-log.png"), clip: { x: VIEWPORT.width - 380, y: 48, width: 380, height: VIEWPORT.height - 48 } });
-      return `#${found.upd.seq} ${found.upd.type} ${found.upd.detail} -> #${found.review.seq} ${found.review.type} ${found.review.detail} after ${ms} ms`;
+      await shot(page, "15-trigger-chain.png", "core-events.png");
+      await closePanel(page);
+      return `ticker "${tickerText}"; #${found.upd.seq} ${found.upd.type} ${found.upd.detail} -> #${found.review.seq} ${found.review.type} ${found.review.detail} after ${ms} ms`;
     });
 
     // Let the rest of the chain settle so late errors are caught by check l.
     await page.waitForTimeout(2500);
-    await page.click(".react-flow__controls-fitview").catch(() => undefined);
-    await page.waitForTimeout(700);
-    await page.screenshot({ path: join(SHOTS, "16-overview.png") });
+    await shot(page, "16-after.png");
 
     // ---- l ---------------------------------------------------------------------------------------------------
     await check("l. no console errors and no failed /api requests", async () => {
@@ -616,6 +725,17 @@ async function main() {
         fontsOk ? "fonts from Google Fonts" : "Google Fonts unreachable: empty stylesheet served",
       ].join("; ");
     });
+
+    // After the checks (the simulated outage logs failed requests on purpose): the offline core, for the docs.
+    if (DOCS) {
+      await page.keyboard.press("Escape").catch(() => undefined);
+      await page.route("**/api/**", (route) => route.abort("connectionrefused"));
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => document.querySelector(".core-status")?.textContent?.startsWith("CORE OFFLINE"), undefined, { timeout: 10000 });
+      await page.waitForTimeout(1200);
+      await shot(page, "17-offline.png", "core-offline.png");
+      await page.unroute("**/api/**");
+    }
   } finally {
     await browser?.close().catch(() => undefined);
     await http?.close().catch(() => undefined);
@@ -624,7 +744,7 @@ async function main() {
   }
 
   const failed = results.filter((r) => !r.ok);
-  console.log(`\n${results.length - failed.length}/${results.length} checks passed. Screenshots in ${relative(ROOT, SHOTS)}/`);
+  console.log(`\n${results.length - failed.length}/${results.length} checks passed. Screenshots in ${relative(ROOT, SHOTS)}/${DOCS ? ` and ${relative(ROOT, DOCS_SHOTS)}/` : ""}`);
   process.exit(failed.length ? 1 : 0);
 }
 
