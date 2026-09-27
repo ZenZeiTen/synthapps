@@ -1,0 +1,25 @@
+# Landscape: procedural hills, a lake with drifting ripples, rocks, and
+# aerial haze. Big distances need fog for depth; keep its density low.
+
+timeline { duration: 6s, fps: 24 }
+camera { position: [0, 1.7, 14] + wobble(t, 3cm, 0.5), look_at: [0, 1.2, 0], lens: 35mm }
+
+sky { sun_elevation: 6, sun_azimuth: 330, haze: 1.2 }
+fog { density: 0.004, anisotropy: 0.7, height: 20m }
+film { bloom: 0.05, grain: 0.1 }
+render { samples: 512, video_samples: 48 }
+
+terrain {
+  size: 160, height: 9, frequency: 0.035, flatten: 18, position: [0, -0.4, 0], seed: 3
+  material: matte { color: #4f5e33, pattern: noise, color2: #7a6848, pattern_scale: 0.15 }
+}
+quad { size: [160, 160], material: water { } }
+
+repeat i in 0..6 {
+  rock {
+    position: [-9 + i * 3.2, 0.05, 4 - random(i, 0, 6)]
+    radius: 0.5 + random(i, 0, 0.7)
+    seed: i
+    material: matte { color: #77716a, pattern: noise, color2: #5b554f, pattern_scale: 4 }
+  }
+}

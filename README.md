@@ -16,4 +16,10 @@ This repository is also a Claude Code plugin marketplace:
 ```
 /plugin marketplace add ZenZeiTen/synthapps
 /plugin install gamedev-forge@synthapps
+/plugin install reality-js@synthapps
 ```
+
+| Plugin | What it adds |
+|---|---|
+| `gamedev-forge` | A game director skill and 12 specialist skills, plus optional connectors (`gamedev-forge-connectors`). |
+| `reality-js` | A skill for writing, checking, rendering and speeding up reality.js scenes. |

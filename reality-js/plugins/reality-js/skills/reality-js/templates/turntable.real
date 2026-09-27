@@ -1,0 +1,20 @@
+# Product turntable video: the object turns once over the clip while the
+# camera and lights stay still. Render with --video.
+
+let seconds = 6
+
+timeline { duration: seconds, fps: 24, time: 1s }
+camera { position: [0, 0.6, 3.4], look_at: [0, 0.34, 0], lens: 70mm, aperture: f/8 }   # 1.75 m wide frame
+background { color: gray(0.8), intensity: 60 }
+film { bloom: 0.02 }
+render { video_samples: 64 }
+
+ground { material: matte { color: gray(0.2), roughness: 0.3 } }
+softbox { position: [-1.2, 1.5, 1.2], size: 1, aim: [0, 0.3, 0], power: 8000lm }
+softbox { position: [1.4, 1.2, -1.0], size: [0.4, 1.2], aim: [0, 0.4, 0], power: 5000lm }
+
+group {
+  rotate: [0, t * 360 / seconds, 0]      # one full turn over the clip
+  torus { position: [0, 0.35, 0], rotate: [90, 0, 0], radius: 0.25, tube: 0.08, material: metal { color: brass, roughness: 0.2 } }
+  box { position: [0, 0.05, 0], size: [0.5, 0.1, 0.3], material: plastic { color: #1f3b5a, roughness: 0.3 } }
+}

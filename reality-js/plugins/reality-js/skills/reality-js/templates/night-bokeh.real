@@ -1,0 +1,34 @@
+# Night portrait: warm practical lights thrown out of focus into polygon
+# bokeh. Exposure is manual; auto exposure would lift the night to daylight.
+
+camera {
+  position: [0, 1.2, 2.4]
+  look_at: [0, 1.0, 0]
+  lens: 85mm
+  aperture: f/1.4
+  focus: 2.4m             # distance from camera to subject
+  blades: 7
+  exposure: manual
+  shutter: 1/60s
+  iso: 800                # a lamp 1-2 m away is about EV 4; raise iso for dimmer light
+}
+
+background { color: #1a2440, intensity: 0.3 }   # a little blue night air
+film { bloom: 0.06, halation: 0.3, grain: 0.25 }
+render { samples: 512 }
+
+ground { material: matte { color: #333, roughness: 0.6 } }
+
+# Subject lit by one nearby lamp.
+sphere { position: [0, 1.0, 0], radius: 0.15, material: plastic { color: #d8c8b0, roughness: 0.35 } }
+bulb { position: [0.9, 1.7, 1.0], power: 800lm, temperature: 2700K }
+
+# Background string of bulbs, far behind focus.
+repeat i in 0..20 {
+  bulb {
+    position: [-5 + i * 0.5, 1.4 + 0.3 * sin(i * 47), -5 - random(i, 0, 3)]
+    radius: 2cm
+    power: 150lm
+    temperature: 2000K + random(i, 0, 1500)
+  }
+}

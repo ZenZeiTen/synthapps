@@ -1,0 +1,30 @@
+# Studio product shot: three-point lighting on a seamless backdrop.
+# Swap the hero object; keep the lights. Everything is in real units, so
+# auto exposure handles the overall level.
+
+let hero_color = #c9463d
+
+camera {
+  position: [0, 0.55, 4]
+  look_at: [0, 0.32, 0]
+  lens: 85mm              # telephoto: flattering; frames 4 m x 36 / 85 = 1.7 m wide
+  aperture: f/5.6         # the whole product sharp, backdrop soft
+}
+
+background { color: gray(0.6), intensity: 40 }   # dim fill from everywhere
+film { bloom: 0.02, vignette: 0.4 }
+render { samples: 512, bounces: 8 }
+
+# Seamless floor that curves into the wall is approximated by a floor and a
+# far wall of the same colour.
+ground { material: matte { color: gray(0.75) } }
+quad { position: [0, 2, -2.5], rotate: [90, 0, 0], size: [8, 4], material: matte { color: gray(0.75) } }
+
+softbox { position: [-1.4, 1.6, 1.0], size: [1.2, 0.9], aim: [0, 0.3, 0], power: 9000lm, temperature: 5600K }  # key
+softbox { position: [1.8, 0.9, 1.4], size: [1.0, 1.0], aim: [0, 0.3, 0], power: 2500lm, temperature: 5600K }   # fill
+softbox { position: [1.1, 1.9, -1.3], size: [0.4, 1.2], aim: [0, 0.4, 0], power: 6000lm, temperature: 6500K }  # rim, above the frame
+
+# The product.
+cylinder { position: [0, 0.3, 0], radius: 0.16, height: 0.6, material: plastic { color: hero_color, roughness: 0.18, clearcoat: 0.8 } }
+cylinder { position: [0, 0.64, 0], radius: 0.06, height: 0.08, material: metal { color: aluminium, roughness: 0.25 } }
+sphere { position: [0.36, 0.09, 0.18], radius: 0.09, material: glass { } }

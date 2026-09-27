@@ -38,7 +38,9 @@ class MarketplaceTests(unittest.TestCase):
         self.assertTrue(market["name"])
         self.assertTrue(market["owner"]["name"])
         names = [p["name"] for p in market["plugins"]]
-        self.assertEqual(sorted(names), ["gamedev-forge", "gamedev-forge-connectors"])
+        self.assertEqual(len(names), len(set(names)), "plugin names must be unique")
+        # Other projects in the repository publish plugins too; these two must be listed.
+        self.assertLessEqual({"gamedev-forge", "gamedev-forge-connectors"}, set(names))
         for entry in market["plugins"]:
             source = entry["source"]
             self.assertTrue(source.startswith("./"), source)

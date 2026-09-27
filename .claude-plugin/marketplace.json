@@ -21,6 +21,14 @@
       "version": "0.1.0",
       "category": "development",
       "keywords": ["mcp", "blender", "godot", "context7", "game-development"]
+    },
+    {
+      "name": "reality-js",
+      "source": "./reality-js/plugins/reality-js",
+      "description": "Write, check, render and speed up reality.js scenes: photoreal stills and film-like video from short .real text files, with a GPU-free scene checker, render-time estimates, tested templates and a property cheat sheet.",
+      "version": "0.1.0",
+      "category": "development",
+      "keywords": ["path-tracing", "rendering", "photoreal", "scene-language", "creative-coding", "video"]
     }
   ]
 }
