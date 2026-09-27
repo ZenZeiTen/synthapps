@@ -150,7 +150,7 @@ WebCodecs get PNG frames instead.
 
 ## How correctness is checked
 
-`npm test` (74 tests, about 1 second) covers the language, the scene
+`npm test` (76 tests, about 1 second) covers the language, the scene
 model, the physics helpers, camera and exposure maths, BVH construction
 against brute force, mesh generation and OBJ parsing, the sky model, HDR
 round trips, environment importance sampling (the pdf integrates to 1 and
@@ -160,6 +160,11 @@ WebM writer, and that the documentation matches the code.
 `npm run test:browser` (10 tests) renders in headless Chromium on
 SwiftShader, so it needs no GPU:
 
+- **Direct3D portability** is checked in the source, because no test
+  machine runs Direct3D: a unit test rejects vector constructors that mix
+  integer and float arguments (`vec3(0, x, 0)`), which Chrome's Direct3D 11
+  backend cannot compile. The renderer also probes shader variants on any
+  GPU that rejects a draw and reports the driver's log.
 - **White furnace tests.** A white diffuse, mirror, or glass sphere inside
   a uniform environment must be invisible. Energy gain or loss anywhere
   in the integrator makes the sphere show.
@@ -169,10 +174,13 @@ SwiftShader, so it needs no GPU:
 
 ## Limitations
 
-- **Speed.** It is a path tracer, not a real-time renderer. On SwiftShader
-  (Chromium's CPU fallback, which the tests use) a 640×360 frame at 96
-  samples took about 2 minutes for the golden-hour example. A hardware GPU
-  should be far faster, but that has not been measured for this repository.
+- **Speed.** It is a path tracer, not a real-time renderer. Measured with
+  the live demo's benchmark on an NVIDIA RTX 4050 laptop GPU (Chrome on
+  Windows, Direct3D 11): 95 million light paths per second at 640×360 and
+  130 million at 1280×720 for the golden-hour scene (about 140 samples
+  per pixel per second at 720p), and 60 million for the fog scene with a
+  glass sphere. On SwiftShader (Chromium's CPU fallback, which the tests
+  use) the same work runs at about 0.3 million paths per second.
 - **Scale.** Objects are tested one after another (there is no top-level
   BVH), so hundreds of objects are fine and tens of thousands are not.
   Put many small parts in one mesh.

@@ -131,8 +131,8 @@ model, mesh generators) also runs in Node without a GPU.
 ## Tests
 
 ```bash
-npm test                  # 74 unit tests, about 1 s, Node only
-npm run test:browser      # 10 rendering tests in headless Chromium
+npm test                  # 76 unit tests, about 1 s, Node only
+npm run test:browser      # 13 rendering tests in headless Chromium
 ```
 
 The rendering tests include white-furnace tests: white diffuse, mirror and
