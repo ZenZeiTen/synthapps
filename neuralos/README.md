@@ -26,6 +26,20 @@ npm run build                      # builds the Neural Canvas UI into web/dist
 npm start -- --root demo/breath-of-fire-iv-remake
 ```
 
+On Windows PowerShell 5.1, which does not accept `&&`, run the steps one per
+line, with a backslash in the path:
+
+```powershell
+cd neuralos
+npm install
+npm run build
+npm start -- --root demo\breath-of-fire-iv-remake
+```
+
+Windows is supported in the code (paths, file watching, killing a command's
+whole process tree) but has not been tested on a Windows machine; everything
+above was tested on Linux.
+
 Open http://127.0.0.1:7437 and type an intent in the bar at the bottom, for
 example **Review inventory module**, **Build inventory feature**, **Localize
 this website to Indonesian** or **Translate contract**. Click empty canvas for

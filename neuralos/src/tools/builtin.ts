@@ -166,7 +166,7 @@ function runCommand(command: string, cwd: string, env: Record<string, string>, t
     let output = "";
     let timedOut = false;
     let aborted = false;
-    const child = spawn(command, { shell: true, cwd, env, detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, { shell: true, cwd, env, detached: process.platform !== "win32", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     const append = (chunk: Buffer) => {
       output += chunk.toString("utf8");
       if (output.length > OUTPUT_CAP * 2) output = output.slice(-OUTPUT_CAP * 2);
@@ -175,8 +175,10 @@ function runCommand(command: string, cwd: string, env: Record<string, string>, t
     child.stderr?.on("data", append);
     const kill = () => {
       try {
-        if (child.pid && process.platform !== "win32") process.kill(-child.pid, "SIGKILL");
-        else child.kill("SIGKILL");
+        if (!child.pid) child.kill("SIGKILL");
+        // Windows has no process groups: killing the shell would leave the real command running, so kill the tree.
+        else if (process.platform === "win32") execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true }, () => undefined);
+        else process.kill(-child.pid, "SIGKILL");
       } catch {
         // Already gone.
       }
