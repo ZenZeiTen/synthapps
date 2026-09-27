@@ -196,8 +196,11 @@ if (env.type === 'background') dim = Math.max(...env.radiance) < 20;
 if (env.type === 'sky') dim = env.sun_elevation < -1 || env.intensity < 0.02;
 if (env.type === 'hdri') dim = env.intensity < 0.02;
 if (dim && cam.exposure === 'auto') {
-  warnings.push('the environment is dark but camera exposure is auto: the meter will brighten it to daylight. ' +
-    'For night, set exposure: manual with a real setting (for example f/1.8, 1/60s, iso: 3200).');
+  warnings.push(direct
+    ? 'bright lights in a dark environment with auto exposure: the firefly clamp is set from the dark environment\'s first exposure guess ' +
+      'and cuts light through glass and in reflections of the lights. Set exposure: manual (see the exposure table), or film { clamp: 0 }.'
+    : 'the environment is dark but camera exposure is auto: the meter will brighten it to daylight. ' +
+      'For night, set exposure: manual with a real setting (for example f/1.8, 1/60s, iso: 3200).');
 }
 if (env.type === 'sky' && env.sun_elevation < -1) {
   notes.push('sky models daytime only (no moon or stars); below the horizon it is twilight at best. Night scenes read better with background { } and bulbs.');

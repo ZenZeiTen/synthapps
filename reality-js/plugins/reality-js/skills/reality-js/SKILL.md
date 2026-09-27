@@ -110,9 +110,9 @@ the light, the camera, the exposure.
 | Shot | Environment and lights |
 |---|---|
 | Daylight exterior | `sky { sun_elevation: 30-50 }`. Hard shadows; add `sun_size: 3-8` for softer ones. |
-| Golden hour | `sky { sun_elevation: 3-12, sun_azimuth: toward the side }`, `haze: 1.2-2`. Side or back light reads best. |
+| Golden hour | `sky { sun_elevation: 3-12, sun_azimuth: toward the side }`, `haze: 1.2-2`. Side light shows colour and shape. Back light (sun in frame) turns the subject into a dark silhouette with a bright rim: use it only when that is the look wanted. |
 | Sunset | `sun_elevation: 0-2`. The sky model is daytime only; below 0 it goes dark, with no moon or stars. |
-| Studio product | `background { intensity: 30-60 }` as a dim fill plus `softbox` key, fill and rim. Template `studio-product.real`. |
+| Studio product | `background { intensity: 30-60 }` as a dim fill plus `softbox` key, fill and rim. Template `studio-product.real`. For a dark, low-key set, use manual exposure (see Exposure). |
 | Studio with a real HDR | `hdri { src: "file.hdr", rotate: ... }`. Paths are relative to the scene file. |
 | Night or low light | `background { color: #1a2440, intensity: 0.1-1 }`, `bulb`s in lumens, and **manual exposure**. Template `night-bokeh.real`. |
 | Sunbeams, haze, mist | `fog { density, anisotropy: 0.5-0.8, height }` below the roof line. Beams need the sun to pass through gaps. Template `interior-sunbeams.real`. |
@@ -150,7 +150,11 @@ polygons, which sells the lens look at night.
 daylight, studio and anything evenly lit. Use `exposure_compensation: -1`
 to +1 to bias it. Use `exposure: manual` whenever darkness is part of the
 picture, such as night, low-key or silhouettes: auto would lift it to
-daylight. Starting points for manual exposure:
+daylight. Also use manual exposure when bright lights sit in a dark
+environment, such as softboxes in a dark studio: auto exposure starts from
+the environment's brightness, and the firefly clamp keeps that first guess,
+so glass and reflections of the lights come out dark (the checker warns).
+Starting points for manual exposure:
 
 | Scene | aperture | shutter | iso |
 |---|---|---|---|

@@ -70,7 +70,7 @@ test('the checker reports errors with a hint and flags common mistakes', () => {
     const text = [...r2.errors, ...r2.warnings, ...r2.notes].join('\n');
     assert.match(text, /missing\.obj" not found/);
     assert.match(text, /not sampled directly/);
-    assert.match(text, /exposure is auto/);
+    assert.match(text, /exposure is auto|auto exposure/);
     assert.match(text, /bounces: 3 looks dark/);
     assert.match(text, /timeline duration is 0/);
 
