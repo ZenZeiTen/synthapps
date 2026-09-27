@@ -4,6 +4,8 @@
  * The server binds 127.0.0.1 by default. Requests from the UI and CLI act as config.userId.
  * Mutating requests must send header `X-NeuralOS-Client: 1` (blocks cross-site form posts); the server rejects
  * requests whose Origin header is present and not the server's own origin.
+ * Path parameters are URL-encoded single segments (node ids contain ":" and "/"): the server splits the raw path
+ * on "/" and then decodes each segment.
  *
  * Method  Path                                   Body                         Response
  * GET     /api/status                            -                            KernelStatus
@@ -25,7 +27,7 @@
  * GET     /api/search?q=&limit=&kind=            -                            SearchHit[]
  * GET     /api/concepts                          -                            ConceptInfo[]
  * GET     /api/files/content?path=               -                            { path, content, kind }
- * GET     /api/memory?category=&q=&limit=        -                            MemoryRecord[]
+ * GET     /api/memory?category=&q=&limit=&includeProposed= - MemoryRecord[]  (includeProposed=true also returns proposed records)
  * POST    /api/memory                            { category, key, content, tags? } MemoryRecord
  * DELETE  /api/memory/:id                        -                            { ok: boolean }
  * GET     /api/tools?server=&action=             -                            ToolDefinition[]
@@ -33,6 +35,7 @@
  * GET     /api/mcp                               -                            McpServerStatus[]
  * POST    /api/mcp                               { name, config: McpServerConfig } McpServerStatus
  * DELETE  /api/mcp/:name                         -                            { ok: boolean }
+ * POST    /api/mcp/tools/:name/reapprove         -                            { ok: boolean }     (re-enable a changed MCP tool)
  * GET     /api/approvals?status=                 -                            ApprovalRequest[]
  * POST    /api/approvals/:id                     { approved: boolean }        ApprovalRequest
  * GET     /api/policy                            -                            ToolPolicy
@@ -50,6 +53,7 @@
  * GET     /api/governor                          -                            Governor snapshot
  * GET     /api/events?since=&limit=&correlationId= -                          KernelEvent[]
  * GET     /api/events/stream?since=              -                            text/event-stream: each message `id: <seq>\ndata: <KernelEvent JSON>\n\n`
+ *                                                                              (replays seq > since, or > Last-Event-ID; without either the latest 200; then live)
  * GET     /*                                     -                            web/dist static files (index.html fallback for non-/api paths)
  */
 import type {

@@ -944,6 +944,8 @@ export interface NeuralOSConfig {
 export interface KernelStatus {
   version: string;
   root: string;
+  /** Name of the project node the index detected (README title, package name or folder name). */
+  projectName?: string;
   mode: "claude" | "offline";
   model: string;
   startedAt: string;

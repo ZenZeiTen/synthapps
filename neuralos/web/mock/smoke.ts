@@ -16,7 +16,9 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const ROOT = join(HERE, "..", "..");
 const SHOTS = join(HERE, "screenshots");
 const PORT = Number(process.env.SMOKE_PORT ?? 7462);
-const BASE = `http://127.0.0.1:${PORT}`;
+/** NEURALOS_SMOKE_BASE=http://127.0.0.1:7440 points the smoke test at an already-running real kernel instead of the mock. */
+const EXTERNAL_BASE = process.env.NEURALOS_SMOKE_BASE?.replace(/\/+$/, "");
+const BASE = EXTERNAL_BASE ?? `http://127.0.0.1:${PORT}`;
 
 function chromePath(): string {
   const base = "/opt/pw-browsers";
@@ -127,11 +129,13 @@ async function main() {
   mkdirSync(SHOTS, { recursive: true });
   assert(existsSync(join(ROOT, "web", "dist", "index.html")), "web/dist is missing: run the vite build first");
 
-  const server = spawn(process.execPath, ["--import", "tsx", join(HERE, "mock-server.ts")], {
-    cwd: ROOT,
-    env: { ...process.env, PORT: String(PORT), MOCK_QUIET: "1", MOCK_TICK_MS: "1500" },
-    stdio: ["ignore", "inherit", "inherit"],
-  });
+  const server = EXTERNAL_BASE
+    ? null
+    : spawn(process.execPath, ["--import", "tsx", join(HERE, "mock-server.ts")], {
+        cwd: ROOT,
+        env: { ...process.env, PORT: String(PORT), MOCK_QUIET: "1", MOCK_TICK_MS: "1500" },
+        stdio: ["ignore", "inherit", "inherit"],
+      });
   let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
   try {
     await waitForServer(`${BASE}/api/status`);
@@ -382,7 +386,7 @@ async function main() {
     });
   } finally {
     await browser?.close();
-    server.kill("SIGTERM");
+    server?.kill("SIGTERM");
   }
 
   const failed = results.filter((r) => !r.ok);
