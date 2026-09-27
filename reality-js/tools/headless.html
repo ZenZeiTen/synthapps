@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>reality.js headless</title>
+<!-- Driven by tools/render.mjs and tests/browser/*. Not meant to be opened by hand. -->
+<canvas id="c" width="320" height="180"></canvas>
+<script type="module">
+  import { Reality, renderVideo, RealityError } from '../src/index.js';
+  const canvas = document.getElementById('c');
+  let reality;
+
+  async function prepare({ url, source, width, height }) {
+    reality ??= new Reality(canvas);
+    reality.baseUrl = url ? new URL(url, location.href).href : location.href;
+    if (source === undefined) source = await (await fetch(reality.baseUrl, { cache: 'no-store' })).text();
+    const settings = { width, height };
+    try {
+      reality.resize(width ?? 640, height ?? 360);
+      await reality.load(source);
+      if (!width || !height) {
+        const [w, h] = reality.scene.renderSettings.resolution;
+        reality.resize(width ?? w, height ?? h);
+      }
+    } catch (err) {
+      throw new Error(err instanceof RealityError ? err.format(source) : String(err && err.stack || err));
+    }
+    return settings;
+  }
+
+  const toBase64 = (bytes) => {
+    let s = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  };
+
+  // Render a still. Returns a PNG as base64 plus some numbers for tests.
+  window.renderStill = async (opts) => {
+    await prepare(opts);
+    if (opts.time !== undefined) reality.setTime(opts.time);
+    const samples = opts.samples ?? reality.scene.renderSettings.samples;
+    const t0 = performance.now();
+    while (reality.samples < samples) {
+      reality.step(Math.min(4, samples - reality.samples));
+      reality.renderer.sync();
+      window.progress?.(reality.samples, samples);
+    }
+    reality.display();
+    const px = reality.renderer.readPixels();
+    const ms = performance.now() - t0;
+    const mean = [0, 0, 0];
+    for (let i = 0; i < px.length; i += 4) { mean[0] += px[i]; mean[1] += px[i + 1]; mean[2] += px[i + 2]; }
+    const n = px.length / 4;
+    const w = reality.renderer.width;
+    // Optional probes: average colour in small boxes, [x, y, radius] in pixels.
+    const probes = (opts.probes ?? []).map(([x, y, r = 2]) => {
+      const c = [0, 0, 0];
+      let k = 0;
+      for (let yy = y - r; yy <= y + r; yy++) for (let xx = x - r; xx <= x + r; xx++) {
+        const o = (yy * w + xx) * 4;
+        c[0] += px[o]; c[1] += px[o + 1]; c[2] += px[o + 2]; k++;
+      }
+      return c.map((v) => v / k);
+    });
+    return {
+      probes,
+      png: canvas.toDataURL('image/png').split(',')[1],
+      mean: mean.map((v) => v / n),
+      ms, samples: reality.samples, exposure: reality.exposure,
+      width: reality.renderer.width, height: reality.renderer.height,
+      warnings: reality.warnings.map((w) => w.message),
+      glError: reality.renderer.gl.getError(),
+    };
+  };
+
+  // Render the timeline. Returns WebM bytes (base64) or PNG frames.
+  window.renderMovie = async (opts) => {
+    await prepare(opts);
+    const r = await renderVideo(reality, {
+      samples: opts.samples, fps: opts.fps, duration: opts.duration, format: opts.format ?? 'webm',
+      onProgress: (p) => window.progress?.(p.frame * p.of + p.samples, p.frames * p.of),
+    });
+    if (r.bytes) return { type: r.type, codec: r.codec, data: toBase64(r.bytes) };
+    const frames = [];
+    for (const blob of r.frames) frames.push(toBase64(new Uint8Array(await blob.arrayBuffer())));
+    return { type: r.type, frames };
+  };
+
+  // Play a WebM back in a <video> element: checks a real decoder accepts it.
+  window.probeVideo = async (b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const v = document.createElement('video');
+    v.muted = true;
+    v.src = URL.createObjectURL(new Blob([bytes], { type: 'video/webm' }));
+    await new Promise((ok, fail) => { v.onloadeddata = ok; v.onerror = () => fail(new Error('video failed to load: ' + (v.error && v.error.message))); });
+    return { width: v.videoWidth, height: v.videoHeight, duration: v.duration };
+  };
+
+  window.ready = true;
+</script>

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>reality.js playground</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="brand"><span class="dot" aria-hidden="true"></span>reality.js</div>
+    <label class="field">
+      <span>Example</span>
+      <select id="example"></select>
+    </label>
+    <div class="spacer"></div>
+    <button id="still" class="btn" title="Render the final image at the scene's resolution (Ctrl+Enter)">Render image</button>
+    <button id="video" class="btn" title="Render the timeline as WebM video">Render video</button>
+  </header>
+
+  <main class="layout">
+    <section class="pane editor-pane" aria-label="Scene source">
+      <div class="editor" id="editor">
+        <pre class="highlight" aria-hidden="true"><code id="highlight"></code></pre>
+        <textarea id="source" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Scene code"></textarea>
+      </div>
+      <div class="problems" id="problems" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="pane view-pane" aria-label="Render">
+      <div class="stage" id="stage">
+        <canvas id="canvas" width="640" height="360"></canvas>
+        <div class="overlay" id="overlay" hidden>
+          <div class="overlay-box">
+            <div id="overlay-text">Rendering…</div>
+            <div class="meter"><div class="meter-fill" id="overlay-fill"></div></div>
+            <button id="cancel" class="btn ghost">Cancel</button>
+          </div>
+        </div>
+      </div>
+      <div class="timeline" id="timeline" hidden>
+        <button id="play" class="icon-btn" aria-label="Play">▶</button>
+        <input type="range" id="time" min="0" max="1" step="0.001" value="0" aria-label="Time">
+        <span class="mono" id="time-label">0.00 s</span>
+      </div>
+      <footer class="stats">
+        <span><b id="spp">0</b> samples</span>
+        <span id="res">—</span>
+        <span id="exposure">—</span>
+        <label class="field inline">
+          <span>Preview</span>
+          <select id="scale">
+            <option value="0.25">¼</option>
+            <option value="0.5" selected>½</option>
+            <option value="1">full</option>
+          </select>
+        </label>
+      </footer>
+    </section>
+  </main>
+
+  <script type="module" src="playground.js"></script>
+</body>
+</html>

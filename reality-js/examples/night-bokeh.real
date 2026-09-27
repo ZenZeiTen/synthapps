@@ -1,0 +1,34 @@
+# Night: a string of warm bulbs thrown out of focus. The six aperture
+# blades turn each blurred light into a hexagon, like a real lens.
+# Exposure is manual, as a photographer would set it at night: without it,
+# auto exposure would brighten the scene to daylight levels.
+
+camera {
+  position: [0, 1.2, 3]
+  look_at: [0, 1.0, 0]
+  lens: 85mm
+  aperture: f/1.4
+  focus: 1.8m
+  blades: 6
+  blade_rotation: 15
+  exposure: manual
+  iso: 3200
+  shutter: 1/60s
+}
+
+background { color: #1a2440, intensity: 0.3 }
+film { bloom: 0.05, halation: 0.3, grain: 0.3 }
+
+ground { material: matte { color: #3a3a3a, roughness: 0.6 } }
+
+sphere { position: [0, 0.95, 1.2], radius: 0.12, material: mirror { } }
+bulb { position: [0.6, 1.6, 1.7], power: 800lm, temperature: 2600K }
+
+repeat i in 0..24 {
+  bulb {
+    position: [-6 + i * 0.5, 1.3 + 0.35 * sin(i * 40), -4 - random(i) * 3]
+    radius: 2cm
+    power: 150lm
+    temperature: 2000K + random(i, 0, 1200)
+  }
+}

@@ -1,0 +1,7 @@
+# The smallest useful scene: a sky, a floor and a ball.
+# Everything not written uses a sensible default: an auto-exposed 35mm
+# camera, a midday sun, AgX tone mapping.
+
+sky { sun_elevation: 35 }
+ground { }
+sphere { position: [0, 1, 0], radius: 1, material: plastic { color: #d24a2c } }
