@@ -2,9 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ZenZeiTen/synthapps/neuralos/schemas/node.schema.json",
   "title": "NeuralOS knowledge graph node",
-  "description": "One resource in the knowledge graph (DESIGN.md section 3.4). Draft: the shape of a relation is not fixed by the spec yet.",
+  "description": "One resource in the knowledge graph (DESIGN.md section 3.4). The runtime stores relations as edges with a kind (src/kernel/types.ts EDGE_KINDS).",
   "type": "object",
-  "required": ["id", "type", "name", "relations"],
+  "required": [
+    "id",
+    "type",
+    "name",
+    "relations"
+  ],
   "properties": {
     "id": {
       "description": "Unique node id, for example node_551.",
@@ -12,9 +17,25 @@
       "minLength": 1
     },
     "type": {
-      "description": "Resource kind. The first nine come from DESIGN.md section 3.4; project and workflow come from the canvas node types in section 4.",
+      "description": "Resource kind. The first nine come from DESIGN.md section 3.4; project and workflow from the canvas node types in section 4; workspace, memory, concept and output are used by the runtime (src/kernel/types.ts NODE_TYPES).",
       "type": "string",
-      "enum": ["file", "folder", "agent", "mcp", "repository", "database", "meeting", "prompt", "task", "project", "workflow"]
+      "enum": [
+        "file",
+        "folder",
+        "agent",
+        "mcp",
+        "repository",
+        "database",
+        "meeting",
+        "prompt",
+        "task",
+        "project",
+        "workflow",
+        "workspace",
+        "memory",
+        "concept",
+        "output"
+      ]
     },
     "name": {
       "description": "Human-readable name, for example Code Reviewer.",
@@ -26,13 +47,23 @@
       "type": "array",
       "items": {
         "oneOf": [
-          { "type": "string", "minLength": 1 },
+          {
+            "type": "string",
+            "minLength": 1
+          },
           {
             "type": "object",
-            "required": ["target"],
+            "required": [
+              "target"
+            ],
             "properties": {
-              "target": { "type": "string", "minLength": 1 },
-              "kind": { "type": "string" }
+              "target": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string"
+              }
             }
           }
         ]
@@ -41,6 +72,11 @@
   },
   "additionalProperties": true,
   "examples": [
-    { "id": "node_551", "type": "agent", "name": "Code Reviewer", "relations": [] }
+    {
+      "id": "node_551",
+      "type": "agent",
+      "name": "Code Reviewer",
+      "relations": []
+    }
   ]
 }
