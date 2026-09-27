@@ -369,8 +369,16 @@ export interface SemanticIndex {
   search(query: string, opts?: { limit?: number; kind?: FileKind | FileKind[] }): SearchHit[];
   concepts(): ConceptInfo[];
   fileCount(): number;
+  hasFile(relPath: string): boolean;
+  kindOf(relPath: string): FileKind | undefined;
   /** Read a file under the root (throws on paths outside the root). */
   readFile(relPath: string): Promise<string>;
+}
+
+/** data of file.created, file.updated and file.deleted events. */
+export interface FileEventData {
+  path: string;
+  kind: FileKind;
 }
 
 export interface FileWatcher {

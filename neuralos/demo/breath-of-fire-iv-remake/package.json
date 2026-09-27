@@ -1,0 +1,13 @@
+{
+  "name": "breath-of-fire-iv-remake",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Fan-made demo remake project used as the NeuralOS sample workspace. Original code and text; not affiliated with any publisher.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.ts"
+  }
+}
