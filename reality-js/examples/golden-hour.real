@@ -1,0 +1,21 @@
+# Late-afternoon light: a low sun gives long shadows and warm colour,
+# the sky fills the shadows with blue. Try sun_elevation: 2 for sunset.
+
+camera {
+  position: [0.8, 1.4, 6.4]
+  look_at: [-0.1, 0.5, 0]
+  lens: 40mm
+  aperture: f/2.8          # shallow depth of field, like a portrait lens
+}
+
+sky { sun_elevation: 9, sun_azimuth: 250, haze: 1.5 }
+
+film { bloom: 0.06, grain: 0.15, halation: 0.2 }
+
+ground { material: matte { color: #b9ad9c, pattern: noise, color2: #a3968a, pattern_scale: 3 } }
+
+sphere { position: [-1.3, 0.6, 0], radius: 0.6, material: metal { color: gold, roughness: 0.12 } }
+sphere { position: [0, 0.55, 0.9], radius: 0.55, material: glass { } }
+sphere { position: [1.2, 0.5, -0.2], radius: 0.5, material: matte { color: #e8e2d8 } }
+box    { position: [0.55, 0.3, -1.4], size: [0.6, 0.6, 0.6], rotate: [0, 35, 0], material: plastic { color: #2f5d8a, roughness: 0.35 } }
+torus  { position: [-0.2, 0.08, -0.3], radius: 0.28, tube: 0.08, material: metal { color: copper, roughness: 0.25 } }

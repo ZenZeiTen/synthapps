@@ -1,0 +1,38 @@
+# Real motion: balls dropped from different heights, bouncing with
+# gravity (9.81 m/s²) and losing energy on every bounce. The motion is a
+# closed-form function of time, so motion blur samples it exactly.
+# Render this one as video (4 seconds at 24 fps, 180° shutter).
+
+timeline { duration: 4s, fps: 24, time: 0.75s }
+
+camera {
+  position: [0, 1.4, 6.5]
+  look_at: [0, 0.9, 0]
+  lens: 35mm
+  aperture: f/4
+  # shutter defaults to half a frame (1/48 s): the classic film look
+}
+
+sky { sun_elevation: 50, sun_azimuth: 140 }
+film { grain: 0.1 }
+
+ground { material: matte { color: #9d9d9d, pattern: grid, color2: #6d6d6d, pattern_scale: 1 } }
+
+let colors = [#e04b3a, #f2b233, #3aa55a, #2f7fd6, #a04bd6]
+
+repeat i in 0..5 {
+  sphere {
+    position: [-2 + i, 0.25 + bounce(t, 1 + i * 0.5, 0.72, i * 0.15), 0]
+    radius: 0.25
+    material: plastic { color: colors[i], roughness: 0.3 }
+  }
+}
+
+# A pendulum swinging from a frame, using the large-angle period.
+group {
+  position: [2.8, 2.4, -1.5]
+  rotate: [0, 0, pendulum(t, 1.8, 35)]
+  cylinder { position: [0, -0.9, 0], radius: 0.01, height: 1.8, material: metal { color: chrome } }
+  sphere { position: [0, -1.9, 0], radius: 0.18, material: metal { color: brass, roughness: 0.2 } }
+}
+box { position: [2.8, 2.45, -1.5], size: [0.6, 0.1, 0.1], material: matte { color: #333 } }
