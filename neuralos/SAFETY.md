@@ -40,7 +40,9 @@ not present in the installed copy of the skill, so that step was not run.
    LLM provider                    handlers    AuditLog (append-only, hash chain)
                                    (fs, git,   ActionJournal (before-images)
                                     proc, MCP)
- Kill switch: Kernel.halt() ── HTTP /api/kernel/halt, CLI `neuralos halt` (human only; no agent tool reaches it)
+ Kill switch: Kernel.halt() ── HTTP /api/kernel/halt, CLI `neuralos halt` (human only; no agent tool reaches it).
+ Halting denies new non-read calls, denies pending approvals, and aborts non-read calls already running, whoever
+ started them: process tools kill their process group, MCP calls cancel the request.
 ```
 
 **Fact:** agents get no handle to the kernel, bus, graph or registry; they
@@ -78,6 +80,10 @@ call, tool call and memory write passes one of two gates.
 | `proc.deploy` | execute | irreversible | external | **approval** | **approval** |
 | MCP tool with `readOnlyHint: true` | read | reversible | external | yes | yes |
 | any other MCP tool | write/execute | irreversible | external | **approval** | **approval** |
+
+Every approval shows the tool's own description of the concrete call where its
+input alone would not say what happens: `proc.run_tests` and `proc.deploy` show
+the exact command, working directory, environment rule and time limit.
 
 `readonly` mode runs only the reversible read/search rows. Deny globs beat
 everything; allow globs can pre-approve a tool (for example

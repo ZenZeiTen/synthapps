@@ -81,6 +81,7 @@ interface Entry {
   def: ToolDefinition;
   handler: ToolHandler;
   validate: ValidateFunction;
+  preview?: (input: Record<string, unknown>) => string;
 }
 
 interface PendingApproval {
@@ -104,6 +105,7 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
   const executed = new Map<string, Promise<ToolResult>>();
   let policy: ToolPolicy = { ...DEFAULT_TOOL_POLICY, ...(opts.policy ?? {}) };
   let halted = false;
+  const inflight = new Set<{ def: ToolDefinition; controller: AbortController }>();
 
   function publish(type: EventType, data: Record<string, unknown>, principal: Principal | null): void {
     try {
@@ -132,7 +134,14 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
     return { ...def };
   }
 
-  function waitForApproval(def: ToolDefinition, input: Record<string, unknown>, principal: Principal, signal?: AbortSignal): Promise<ApprovalRequest> {
+  function waitForApproval(entry: Entry, input: Record<string, unknown>, principal: Principal, signal?: AbortSignal): Promise<ApprovalRequest> {
+    const def = entry.def;
+    let detail: string | undefined;
+    try {
+      detail = entry.preview?.(input);
+    } catch (err) {
+      detail = `(could not describe the call: ${err instanceof Error ? err.message : String(err)})`;
+    }
     const request: ApprovalRequest = {
       id: newId("appr"),
       tool: def.name,
@@ -141,6 +150,7 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
       scope: def.scope,
       input,
       principal,
+      ...(detail ? { detail: detail.slice(0, 4000) } : {}),
       status: "pending",
       createdAt: nowIso(),
     };
@@ -225,7 +235,7 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
     }
     // (g) human approval
     if (needsApproval) {
-      const request = await waitForApproval(def, args, principal, ctx.signal);
+      const request = await waitForApproval(entry, args, principal, ctx.signal);
       if (request.status !== "approved") return deny(`approval ${request.status}`, { approvalId: request.id });
       via = "approval";
       record(principal, name, "allowed", { via: "approval", approvalId: request.id });
@@ -271,14 +281,25 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
   }
 
   async function runHandler(entry: Entry, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+    // Every call gets its own abort signal, linked to the caller's, so the kill switch can stop a call already running
+    // no matter who started it (an agent, the UI, the API or a radial action).
+    const controller = new AbortController();
+    const onCallerAbort = () => controller.abort(ctx.signal?.reason);
+    if (ctx.signal?.aborted) controller.abort(ctx.signal.reason);
+    else ctx.signal?.addEventListener("abort", onCallerAbort, { once: true });
+    const flight = { def: entry.def, controller };
+    inflight.add(flight);
     try {
-      const raw = await entry.handler(args, ctx);
+      const raw = await entry.handler(args, { ...ctx, signal: controller.signal });
       if (!raw || typeof raw !== "object") return { ok: false, content: `Tool ${entry.def.name} returned no result`, error: "no result" };
       const content = typeof raw.content === "string" ? raw.content : safeJson(raw.content);
       return { ...raw, ok: raw.ok === true, content: truncateContent(content) };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return { ok: false, content: `Tool ${entry.def.name} failed: ${message}`, error: message };
+    } finally {
+      inflight.delete(flight);
+      ctx.signal?.removeEventListener("abort", onCallerAbort);
     }
   }
 
@@ -297,7 +318,7 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
   }
 
   return {
-    register(def, handler) {
+    register(def, handler, registerOpts) {
       if (!def || typeof def.name !== "string" || !TOOL_NAME_RE.test(def.name)) throw new Error(`Invalid tool name "${def?.name}": only [a-zA-Z0-9_.-] allowed`);
       if (tools.has(def.name)) throw new Error(`Tool "${def.name}" is already registered`);
       if (!def.inputSchema || def.inputSchema.type !== "object") throw new Error(`Tool "${def.name}": inputSchema must have type "object"`);
@@ -307,7 +328,7 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
       } catch (err) {
         throw new Error(`Tool "${def.name}": invalid inputSchema: ${err instanceof Error ? err.message : String(err)}`);
       }
-      tools.set(def.name, { def: { ...def, hash: toolHash(def) }, handler, validate });
+      tools.set(def.name, { def: { ...def, hash: toolHash(def) }, handler, validate, ...(registerOpts?.preview ? { preview: registerOpts.preview } : {}) });
     },
     unregister(name) {
       return tools.delete(name);
@@ -333,7 +354,10 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
     },
     setHalted(value) {
       halted = value;
-      if (value) for (const p of [...pending.values()]) p.settle(false, "halt");
+      if (!value) return;
+      for (const p of [...pending.values()]) p.settle(false, "halt");
+      // Stop calls already past approval: process tools kill their process group, MCP calls cancel the request.
+      for (const f of [...inflight]) if (!isPureRead(f.def)) f.controller.abort(new Error("kernel halted"));
     },
     setDisabled(name, disabled, reason) {
       const entry = tools.get(name);

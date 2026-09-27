@@ -467,3 +467,43 @@ describe("observability", () => {
     expect(registry.policy()).toMatchObject({ mode: "auto", deny: ["proc.*"], approvalTimeoutMs: 600_000 });
   });
 });
+
+describe("kill switch on calls already running", () => {
+  it("aborts in-flight non-read calls of any principal, and leaves pure reads alone", async () => {
+    const { registry } = setup({ mode: "auto" });
+    const started: string[] = [];
+    const slow = (name: string) => async (_input: Record<string, unknown>, ctx: { signal?: AbortSignal }) => {
+      started.push(name);
+      return new Promise<{ ok: boolean; content: string }>((resolve) => {
+        const timer = setTimeout(() => resolve({ ok: true, content: `${name} finished` }), 2000);
+        ctx.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          resolve({ ok: false, content: `${name} aborted` });
+        });
+      });
+    };
+    registry.register(def("slow.write", { action: "write" }), slow("slow.write"));
+    registry.register(def("slow.read"), slow("slow.read"));
+    const write = registry.call("slow.write", {}, { principal: human }); // a human-started call, no signal of its own
+    const read = registry.call("slow.read", {}, { principal: human });
+    await vi.waitFor(() => expect(started).toEqual(["slow.write", "slow.read"]));
+    registry.setHalted(true);
+    expect(await write).toMatchObject({ ok: false, content: "slow.write aborted" });
+    registry.setHalted(false);
+    expect(await read).toMatchObject({ ok: true, content: "slow.read finished" });
+  });
+});
+
+describe("approval detail", () => {
+  it("puts the tool's own description of the call on the approval request", async () => {
+    const { registry } = setup({ mode: "ask" });
+    registry.register(def("t.run", { action: "execute", reversibility: "irreversible" }), async () => ({ ok: true, content: "ran" }), {
+      preview: (input) => `Runs: npm test (filter ${String(input.filter ?? "none")})`,
+    });
+    const call = registry.call("t.run", { filter: "combat" }, { principal: human });
+    const request = await pendingFor(registry, "t.run");
+    expect(request.detail).toBe("Runs: npm test (filter combat)");
+    registry.resolveApproval(request.id, true);
+    expect((await call).ok).toBe(true);
+  });
+});

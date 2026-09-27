@@ -380,6 +380,9 @@ async function main() {
       assert(apr, "no pending proc.run_tests approval on the server");
       assert(chain === apr.principal.chain.join(" > "), `chain shown "${chain}" != server "${apr.principal.chain.join(" > ")}"`);
       assert(chain.startsWith(`user:`) && chain.includes("qa_engineer"), `chain "${chain}" does not run user > ... > qa_engineer`);
+      // The approval must say what will actually run, not just an empty input.
+      const detail = (await row.locator(".approval-detail").textContent())?.trim() ?? "";
+      assert(/^Runs: npm test/.test(detail), `approval detail does not show the command: "${detail}"`);
       await page.screenshot({ path: join(SHOTS, "04-approvals.png") });
       const [res] = await Promise.all([
         page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === `/api/approvals/${apr.id}`, { timeout: 5000 }),

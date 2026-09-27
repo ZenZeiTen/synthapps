@@ -233,7 +233,7 @@ export function registerBuiltinTools(opts: BuiltinToolsOptions): string[] {
 
   const rel = (abs: string) => toPosix(relative(root, abs)) || ".";
 
-  function add(def: BuiltinDef, handler: ToolHandler): void {
+  function add(def: BuiltinDef, handler: ToolHandler, preview?: (input: Record<string, unknown>) => string): void {
     const guarded: ToolHandler = async (input, ctx) => {
       try {
         return await handler(input, ctx);
@@ -242,7 +242,7 @@ export function registerBuiltinTools(opts: BuiltinToolsOptions): string[] {
         throw err;
       }
     };
-    registry.register(def, guarded);
+    registry.register(def, guarded, preview ? { preview } : undefined);
     registered.push(def.name);
   }
 
@@ -664,6 +664,20 @@ export function registerBuiltinTools(opts: BuiltinToolsOptions): string[] {
       if (filter) env.NEURALOS_TEST_FILTER = filter;
       return formatProc(command, await runCommand(command, root, env, procTimeoutMs, ctx.signal), procTimeoutMs);
     },
+    (input) => {
+      const command = opts.testCommand ?? detectTestCommand(root);
+      if (!command) return "No test command is configured or detected: the call will fail without running anything.";
+      const filter = str(input.filter);
+      return [
+        `Runs: ${command}`,
+        `In: ${root}`,
+        filter ? `With NEURALOS_TEST_FILTER=${filter}` : "",
+        `Environment: credentials removed; stopped after ${Math.round(procTimeoutMs / 1000)} s.`,
+        "This executes project code on this machine.",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    },
   );
 
   add(
@@ -694,6 +708,10 @@ export function registerBuiltinTools(opts: BuiltinToolsOptions): string[] {
         files,
       });
     },
+    () =>
+      opts.deployCommand
+        ? `Runs: ${opts.deployCommand}\nIn: ${root}\nEnvironment: credentials removed; stopped after ${Math.round(procTimeoutMs / 1000)} s.\nThis deploys outside this machine.`
+        : "No deploy command is configured: copies this workspace's outputs to .neuralos/deployments/<timestamp>/. Nothing leaves this machine.",
   );
 
   if (opts.graph) {

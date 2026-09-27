@@ -54,9 +54,12 @@ export function ApprovalsBar({ approvals, onResolved, onToast }: Props) {
                 {a.principal.chain.join(" > ")}
               </span>
             </div>
-            <code className="approval-input" title={preview(a.input)}>
-              {preview(a.input)}
-            </code>
+            <div className="approval-what">
+              {a.detail ? <pre className="approval-detail">{a.detail}</pre> : null}
+              <code className="approval-input" title={preview(a.input)}>
+                {preview(a.input)}
+              </code>
+            </div>
             <div className="approval-actions">
               <button type="button" className="btn btn-sm btn-approve" disabled={busy === a.id} onClick={() => void resolve(a, true)} aria-label={`Approve ${a.tool}`}>
                 <IconCheck size={14} /> Approve

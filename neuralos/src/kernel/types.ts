@@ -476,6 +476,8 @@ export interface ApprovalRequest {
   scope: ToolScope;
   input: Record<string, unknown>;
   principal: Principal;
+  /** What will actually happen, described by the tool, e.g. the resolved shell command for proc.run_tests. */
+  detail?: string;
   status: "pending" | "approved" | "denied" | "expired";
   createdAt: string;
   resolvedAt?: string;
@@ -504,7 +506,8 @@ export interface McpServerStatus {
 }
 
 export interface ToolRegistry {
-  register(def: ToolDefinition, handler: ToolHandler): void;
+  /** `preview` describes a concrete call for the approval prompt (for tools whose input does not show what will run). */
+  register(def: ToolDefinition, handler: ToolHandler, opts?: { preview?: (input: Record<string, unknown>) => string }): void;
   unregister(name: string): boolean;
   get(name: string): ToolDefinition | undefined;
   /** `names` accepts globs ("fs.*"). */
@@ -520,7 +523,7 @@ export interface ToolRegistry {
   /** Tool-name globs a principal may call; set by the orchestrator when it spawns an instance. No inheritance between instances. */
   setScope(instanceId: string, toolGlobs: string[]): void;
   clearScope(instanceId: string): void;
-  /** Kill switch: while halted every non-read call is denied and pending approvals are denied. */
+  /** Kill switch: while halted every non-read call is denied, pending approvals are denied, and non-read calls already running are aborted. */
   setHalted(halted: boolean): void;
   /** Disable or re-enable a tool (for example after an MCP tool definition changed). */
   setDisabled(name: string, disabled: boolean, reason?: string): void;
