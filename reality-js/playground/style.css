@@ -1,45 +1,67 @@
+/* Dark-first palette: a darkroom lit by a tungsten lamp. The light theme
+   applies when the viewer's system or an explicit choice asks for it. */
 :root {
-  --bg: #0e0f12;
-  --panel: #15171c;
-  --panel-2: #1b1e24;
-  --line: #262a32;
-  --text: #e6e3dc;
-  --muted: #8d9099;
+  --bg: #0f0f10;
+  --panel: #161618;
+  --panel-2: #1d1d20;
+  --line: #2a2a2e;
+  --text: #ebe6dc;
+  --muted: #908b82;
   --accent: #f0a04b;
   --accent-ink: #1a1206;
   --error: #ff7a6b;
   --warn: #e6c35c;
-  --tok-comment: #6c717c;
+  --tok-comment: #6f6a63;
   --tok-kind: #f0a04b;
-  --tok-prop: #8fb8e8;
-  --tok-num: #c3e88d;
-  --tok-str: #e8b98f;
-  --tok-kw: #d59ae8;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --tok-prop: #95b9e0;
+  --tok-num: #bfdc8f;
+  --tok-str: #e3b48c;
+  --tok-kw: #d39be0;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: "Commissioner", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f4f2ee;
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f1ec;
     --panel: #fbfaf7;
-    --panel-2: #efece6;
-    --line: #dcd8cf;
-    --text: #1e1d1a;
-    --muted: #6d6a63;
-    --accent: #b8621a;
+    --panel-2: #ece9e2;
+    --line: #d9d4c9;
+    --text: #1f1d1a;
+    --muted: #6b675f;
+    --accent: #b0591a;
     --accent-ink: #fff8ef;
-    --error: #c0392b;
-    --warn: #8a6d00;
-    --tok-comment: #8b8a85;
-    --tok-kind: #b8621a;
-    --tok-prop: #2f5f97;
-    --tok-num: #4b7a1c;
-    --tok-str: #9a5a2a;
-    --tok-kw: #8a3fa8;
+    --error: #b83a2b;
+    --warn: #7d6200;
+    --tok-comment: #8a867e;
+    --tok-kind: #b0591a;
+    --tok-prop: #2d5d93;
+    --tok-num: #467418;
+    --tok-str: #955427;
+    --tok-kw: #86399f;
     color-scheme: light;
   }
+}
+
+:root[data-theme="light"] {
+  --bg: #f3f1ec;
+  --panel: #fbfaf7;
+  --panel-2: #ece9e2;
+  --line: #d9d4c9;
+  --text: #1f1d1a;
+  --muted: #6b675f;
+  --accent: #b0591a;
+  --accent-ink: #fff8ef;
+  --error: #b83a2b;
+  --warn: #7d6200;
+  --tok-comment: #8a867e;
+  --tok-kind: #b0591a;
+  --tok-prop: #2d5d93;
+  --tok-num: #467418;
+  --tok-str: #955427;
+  --tok-kw: #86399f;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -50,6 +72,7 @@ body {
   font: 14px/1.4 var(--sans);
   display: flex;
   flex-direction: column;
+  padding-inline: 16px;
 }
 
 .bar {
@@ -57,6 +80,7 @@ body {
   align-items: center;
   gap: 14px;
   padding: 10px 16px;
+  margin-inline: -16px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
@@ -76,6 +100,7 @@ select {
   padding: 7px 14px; font: 600 13px var(--sans); cursor: pointer;
 }
 .btn:hover { filter: brightness(1.08); }
+.btn:focus-visible, .icon-btn:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
 .icon-btn {
@@ -86,8 +111,9 @@ select {
 .layout {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(320px, 42%) 1fr;
+  grid-template-columns: minmax(0, 42%) 1fr;
   min-height: 0;
+  margin-inline: -16px;
 }
 .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .editor-pane { border-right: 1px solid var(--line); background: var(--panel); }
@@ -152,8 +178,15 @@ select {
 }
 .stats b { color: var(--text); font-variant-numeric: tabular-nums; }
 
+@media (prefers-reduced-motion: reduce) {
+  .meter-fill { transition: none; }
+}
+
 @media (max-width: 800px) {
-  .layout { grid-template-columns: 1fr; grid-template-rows: 50% 50%; }
+  body { padding-inline: 16px; }
+  .layout { grid-template-columns: 1fr; grid-template-rows: 50% 50%; margin-inline: 0; }
+  .bar { margin-inline: 0; }
+  .stats { flex-wrap: wrap; row-gap: 6px; }
   .editor-pane { border-right: 0; border-bottom: 1px solid var(--line); }
   .bar { flex-wrap: wrap; }
 }

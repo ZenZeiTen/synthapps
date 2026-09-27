@@ -184,7 +184,21 @@ function overlay(text, fraction) {
 }
 $('cancel').addEventListener('click', () => abort?.abort());
 
-function download(blob, name) {
+// Hand a finished render to the viewer. Inside a claude.ai artifact the
+// viewer's frame blocks ordinary downloads, so use its `downloads`
+// capability (it asks the viewer to confirm); anywhere else, a plain link.
+const downloadsReady = window.claude?.use ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+
+async function download(blob, name) {
+  const downloads = await downloadsReady;
+  if (downloads) {
+    try {
+      await downloads.save({ filename: name, data: blob });
+    } catch (err) {
+      if (err?.code !== 'declined') showProblems([`Could not save ${name}: ${err?.message ?? err}`], []);
+    }
+    return;
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = name;
@@ -220,7 +234,7 @@ async function renderStill() {
       samples,
       onProgress: (n) => overlay(`Rendering image: ${n} / ${samples} samples`, n / samples),
     });
-    download(blob, `${name}.png`);
+    await download(blob, `${name}.png`);
   });
 }
 
@@ -239,8 +253,8 @@ async function renderMovie() {
         onProgress: ({ frame, frames, samples, of }) =>
           overlay(`Rendering video: frame ${frame + 1} of ${frames}`, (frame + samples / of) / frames),
       });
-      if (r.blob) download(r.blob, `${name}.webm`);
-      else r.frames.forEach((f, i) => download(f, `${name}-${String(i).padStart(5, '0')}.png`));
+      if (r.blob) await download(r.blob, `${name}.webm`);
+      else for (const [i, f] of r.frames.entries()) await download(f, `${name}-${String(i).padStart(5, '0')}.png`);
     });
   } catch (err) {
     showProblems([String(err.message ?? err)], []);
