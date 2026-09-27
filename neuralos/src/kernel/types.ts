@@ -590,7 +590,11 @@ export interface AgentUsage {
 }
 
 export interface Governor {
-  /** Admission control: resolves when a model/agent lane is free for this priority. Call the returned release when done. */
+  /**
+   * Admission control: resolves when a model/agent lane is free for this priority. Call the returned release when done.
+   * One instance must not hold a run lane while its metered model calls also wait for lanes (deadlock at 1 lane):
+   * metered Claude runs admit per model call only; offline runs hold one lane for the whole run.
+   */
   admit(instanceId: string, priority: Priority, signal?: AbortSignal): Promise<() => void>;
   setBudget(instanceId: string, budget: AgentBudget): void;
   /** Adds usage and returns the reason if a budget is now exceeded. */
@@ -800,13 +804,17 @@ export interface Orchestrator {
   instance(instanceId: string): AgentInstance | undefined;
   /** Spawn: creates an instance in state "summoned" and emits agent.summoned. */
   /** Only platform code (kernel, trigger engine) can spawn; agents have no spawn tool. `parent` extends the delegation chain; the child never inherits the parent's tool scope. Throws if depth > maxDelegationDepth. */
-  spawn(agentId: string, opts?: { workspaceId?: string; task?: string; triggeredBy?: string; parent?: Principal }): AgentInstance;
+  spawn(agentId: string, opts?: { workspaceId?: string; task?: string; triggeredBy?: string; parent?: Principal; triggerDepth?: number; path?: string }): AgentInstance;
   /** Assign a task to a summoned instance and run it (active -> collaborating -> completed|failed). */
-  assign(instanceId: string, task: string, opts?: { files?: string[] }): Promise<AgentInstance>;
+  assign(instanceId: string, task: string, opts?: { files?: string[]; step?: PlanStep }): Promise<AgentInstance>;
   /** Terminate: aborts a running instance and moves it to "terminated". */
   terminate(instanceId: string, reason?: string): boolean;
   /** spawn + assign. */
-  runAgent(agentId: string, task: string, opts?: { workspaceId?: string; files?: string[]; triggeredBy?: string; parent?: Principal }): Promise<AgentInstance>;
+  runAgent(
+    agentId: string,
+    task: string,
+    opts?: { workspaceId?: string; files?: string[]; triggeredBy?: string; parent?: Principal; triggerDepth?: number; path?: string },
+  ): Promise<AgentInstance>;
   /**
    * Runs a plan as a DAG under the governor, then merges results through the Commander. Checkpoints after each step
    * (workspace.checkpoint); steps already in the checkpoint are not re-run, so a restarted kernel resumes instead of replaying.
