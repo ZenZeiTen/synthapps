@@ -66,12 +66,31 @@ test('manual exposure: two more stops of ISO is brighter', async (t) => {
   assert.ok(lum(c.mean) > lum(a.mean) * 1.5, `${lum(a.mean)} -> ${lum(c.mean)}`);
 });
 
+// The firefly clamp is set in display units, so it must follow auto
+// exposure. It once kept the first guess (from a dark background), which
+// clipped a bright softbox seen through glass to near black.
+test('auto exposure: the firefly clamp follows the metered exposure', async (t) => {
+  if (skip) return t.skip(skip);
+  const scene = (film) => `
+    camera { position: [0, 0.62, 1.4], look_at: [0, 0.56, 0], lens: 100mm, aperture: f/8 }
+    background { color: gray(0.5), intensity: 3 }
+    film { ${film} }
+    cylinder { position: [0, 0.25, 0], radius: 0.12, height: 0.5 }
+    box { position: [0, 0.56, 0], size: [0.1, 0.12, 0.04], rotate: [0, 25, 0], material: glass { } }
+    softbox { position: [0, 0.58, -0.9], rotate: [90, 0, 0], size: [0.5, 0.3], power: 8000lm }`;
+  const probe = [[80, 42, 4]];
+  const clamped = await still({ source: scene('denoise: false'), samples: 16, probes: probe });
+  const free = await still({ source: scene('denoise: false, clamp: 0'), samples: 16, probes: probe });
+  assert.ok(lum(free.probes[0]) > 150, `unclamped glass ${free.probes[0]}`);
+  assert.ok(Math.abs(lum(clamped.probes[0]) - lum(free.probes[0])) < 20, `clamped ${clamped.probes[0]} vs unclamped ${free.probes[0]}`);
+});
+
 test('motion blur smears a moving object', async (t) => {
   if (skip) return t.skip(skip);
   const scene = (speed) => `
     timeline { duration: 1s, time: 0.5s }
     camera { position: [0, 0, 5], look_at: [0, 0, 0], shutter: 1/10s, aperture: 0 }
-    background { color: 0.05 }
+    background { color: 0.05, intensity: 20 }   # 1 nit: far darker than the 50-nit sphere, so its smear shows
     film { bloom: 0 }
     sphere { position: [${speed} * (t - 0.5), 0, 0], radius: 0.4, material: material { emission: 1, emission_strength: 50 } }`;
   // Probe just outside the resting sphere's edge, along the motion.

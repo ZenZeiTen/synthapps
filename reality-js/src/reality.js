@@ -213,7 +213,7 @@ export class Reality {
       time,
       fog: mid.fog,
       bounces: Math.max(1, Math.min(64, Math.round(render.bounces))),
-      clamp: mid.film.clamp > 0 ? mid.film.clamp / this.exposure : 0,
+      clamp: this.radianceClamp(),
     });
     this.meteredAt.clear();
   }
@@ -268,6 +268,24 @@ export class Reality {
     return KEY_VALUE / Math.max(1e-6, this.envGuess ?? 1000);
   }
 
+  // The firefly clamp is given in display units (after exposure), so the
+  // tracer needs it as radiance: clamp / exposure. It has to follow the
+  // exposure, which auto exposure keeps changing while an image converges.
+  radianceClamp() {
+    return this.film.clamp > 0 ? this.film.clamp / this.exposure : 0;
+  }
+
+  // Give the tracer the clamp for the current exposure. Returns true when it
+  // moved by more than a factor of 2: the samples accumulated so far were
+  // clamped at a clearly wrong level and should be traced again.
+  updateClamp() {
+    const f = this.renderer.frameUniforms;
+    if (!f || !this.film) return false;
+    const old = f.clamp, next = this.radianceClamp();
+    f.clamp = next;
+    return old > 0 && next > 0 && Math.abs(Math.log2(next / old)) > 1;
+  }
+
   // ------------------------------------------------------------ rendering
   // Add samples and redraw the canvas.
   step(passes = this.samplesPerFrame) {
@@ -282,22 +300,33 @@ export class Reality {
       for (const at of [1, 4, 16, 64]) {
         if (n >= at && !this.meteredAt.has(at)) {
           this.meteredAt.add(at);
-          this.autoExpose();
+          if (this.autoExpose()) {
+            // The clamp moved a lot with the exposure: start the image again
+            // so no samples keep the old clamp. At most once per metering.
+            this.renderer.reset();
+            this.renderer.trace(1);
+            this.display();
+            break;
+          }
           this.display();
         }
       }
     }
   }
 
+  // Meter the image and move the exposure toward mid-grey. Returns true when
+  // the firefly clamp, which follows the exposure, moved by more than 2x.
   autoExpose(blend = 1) {
     const avg = this.renderer.meter(this.exposure);
     this.meterLog = [...(this.meterLog ?? []).slice(-7), Number.isFinite(avg) ? +avg.toPrecision(4) : String(avg)];
-    if (!(avg > 0) || !Number.isFinite(avg)) return;
+    if (!(avg > 0) || !Number.isFinite(avg)) return false;
     const target = (KEY_VALUE / avg) * Math.pow(2, this.camera.compensation);
     const next = this.exposure * Math.pow(target / this.exposure, blend);
     // Scene luminance spans roughly 1e-4 nits (starlight) to 1e9 (the sun):
     // anything outside that range is a bad reading, not a real scene.
-    if (Number.isFinite(next) && next > 1e-12 && next < 1e6) this.exposure = next;
+    if (!(Number.isFinite(next) && next > 1e-12 && next < 1e6)) return false;
+    this.exposure = next;
+    return this.updateClamp();
   }
 
   // A snapshot of what the renderer is doing, for diagnosing problems on
@@ -401,7 +430,18 @@ export class Reality {
   async renderFrame(index, { samples, fps = this.fps, onProgress } = {}) {
     const keepExposure = this.exposure;
     this.setTime(index / fps);
-    if (this.manualExposure == null && keepExposure != null && index > 0) this.exposure = keepExposure;
+    if (this.manualExposure == null && keepExposure != null && index > 0) {
+      this.exposure = keepExposure;
+      this.updateClamp();
+    } else if (this.manualExposure == null && index === 0) {
+      // The first frame starts from a guessed exposure. Meter after 1 and 4
+      // samples so the firefly clamp is right before most samples are traced.
+      for (const at of [1, 4]) {
+        while (this.renderer.samples < Math.min(at, samples)) this.renderer.trace(1);
+        this.display();
+        if (this.autoExpose(1)) this.renderer.reset();
+      }
+    }
     while (this.renderer.samples < samples) {
       this.renderer.trace(Math.min(4, samples - this.renderer.samples));
       this.renderer.sync();
