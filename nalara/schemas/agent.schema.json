@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ZenZeiTen/synthapps/nalara/schemas/agent.schema.json",
+  "title": "Nalara agent",
+  "description": "The interface every agent shares (DESIGN.md section 6). The spec names the fields; the types here are a draft.",
+  "type": "object",
+  "required": ["agent"],
+  "properties": {
+    "agent": {
+      "type": "object",
+      "required": ["id", "name", "role", "goals", "tools", "memory", "constraints"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "minLength": 1 },
+        "goals": { "type": "array", "items": { "type": "string" } },
+        "tools": {
+          "description": "Tool or MCP server names the agent may use.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "memory": {
+          "description": "Memory scopes the agent reads and writes, for example coding standards or translation guides.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "constraints": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ZenZeiTen/synthapps/nalara/schemas/intent.schema.json",
+  "title": "Nalara intent",
+  "description": "Output of the Intent Engine: a classified intent and the agents and tools it needs (DESIGN.md section 3.1). Draft.",
+  "type": "object",
+  "required": ["intent", "required_agents", "required_tools"],
+  "properties": {
+    "intent": {
+      "description": "Intent class in snake_case, for example engineering_review.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "required_agents": {
+      "description": "Agent roles to summon, for example architect, reviewer, qa.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "required_tools": {
+      "description": "Tools or MCP servers the plan needs, for example git, filesystem.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "intent": "engineering_review",
+      "required_agents": ["architect", "reviewer", "qa"],
+      "required_tools": ["git", "filesystem"]
+    }
+  ]
+}

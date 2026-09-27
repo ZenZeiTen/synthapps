@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nalara Neural Canvas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Instrument+Serif&amp;display=swap">
+<style>
+body{margin:0;background:#0C0E11;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#E9E6DF}
+*{box-sizing:border-box}
+button,input{font-family:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid #6FA8E8;outline-offset:2px}
+a{color:#E8A547}a:hover{color:#F3C27D}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #111317; color: #E9E6DF; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+
+<header style="position: absolute; left: 0; top: 0; width: 1440px; height: 48px; padding: 0 20px; display: flex; align-items: center; gap: 24px; background: #0C0E11; border-bottom: 1px solid #2A2F38">
+<div style="display: flex; align-items: baseline; gap: 14px">
+<span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 26px; line-height: 1">Nalara</span>
+<span style="font-size: 13px; color: #8A909A">Canvas / Breath of Fire IV Remake</span>
+</div>
+<div style="flex-grow: 1; display: flex; justify-content: center; align-items: center; gap: 20px; font-size: 12px; color: #A9ADB5">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">System agents</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 7px; height: 7px; border-radius: 50%; background: #E8A547"></span>Commander</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 7px; height: 7px; border-radius: 50%; background: #E8A547"></span>Memory</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 7px; height: 7px; border-radius: 50%; background: #E8A547"></span>Security</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 7px; height: 7px; border-radius: 50%; background: #E8A547"></span>Scheduler</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 7px; height: 7px; border-radius: 50%; background: #E8A547"></span>UX</span>
+</div>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8A909A">kernel: claude · zoom 100%</span>
+</header>
+
+<div style="position: absolute; left: 0; top: 48px; width: 1060px; height: 852px; overflow: hidden">
+
+<button ref="{{bgRef}}" onClick="{{onBg}}" aria-label="Canvas. Click empty space to open the root menu" style="position: absolute; left: 0; top: 0; width: 1060px; height: 852px; padding: 0; border: 0; border-radius: 0; cursor: default; background-color: #111317; background-image: radial-gradient(#272C35 1px, transparent 1px); background-size: 24px 24px"></button>
+
+<div style="position: absolute; left: 0; top: 0; width: 1060px; height: 852px; pointer-events: none">
+<sc-for list="{{edges}}" as="e" hint-placeholder-count="8">
+<div style="position: absolute; left: {{e.x}}px; top: {{e.y}}px; width: {{e.len}}px; height: {{e.h}}px; background: {{e.bg}}; border-top: {{e.bt}}; opacity: {{e.op}}; transform: rotate({{e.ang}}deg); transform-origin: 0 50%"></div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 20px; top: 16px; display: flex; align-items: center; gap: 16px; font-size: 12px; color: #8A909A; pointer-events: none">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #C9C4BA"></span>Project</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 11px; border-radius: 2px 4px 2px 2px; border: 1.5px solid #C9C4BA"></span>File</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 9px; height: 9px; transform: rotate(45deg); border: 1.5px solid #E8A547"></span>Agent</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 11px; height: 12px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: #6FA8E8"></span>MCP tool</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 13px; height: 11px; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: #9AA1AC"></span>Workflow</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 18px; height: 0; border-top: 2px dashed #6FA8E8"></span>uses tool</span>
+</div>
+
+<button onClick="{{project.pick}}" aria-label="Breath of Fire IV Remake, project. Open actions" style="position: absolute; left: 94px; top: 119px; width: 112px; height: 112px; padding: 10px; border-radius: 50%; border: 2px solid {{project.stroke}}; background: #1C2027; color: #E9E6DF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Project</span>
+<span style="font-size: 13px; font-weight: 600; line-height: 1.2; text-align: center">Breath of Fire IV Remake</span>
+</button>
+
+<button onClick="{{workflow.pick}}" aria-label="Build Pipeline, workflow. Open actions" style="position: absolute; left: 70px; top: 583px; width: 160px; padding: 0; border: 0; background: transparent; color: #E9E6DF; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer">
+<span style="width: 76px; height: 64px; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: {{workflow.stroke}}; display: flex; align-items: center; justify-content: center">
+<span style="width: 70px; height: 58px; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: #1C2027"></span>
+</span>
+<span style="font-size: 13px; font-weight: 500; padding: 2px 6px; border-radius: 4px; background: #111317; white-space: nowrap">Build Pipeline</span>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8A909A; margin-top: -4px">workflow</span>
+</button>
+
+<sc-for list="{{fileNodes}}" as="n" hint-placeholder-count="2">
+<button onClick="{{n.pick}}" aria-label="{{n.aria}}" style="position: absolute; left: {{n.bx}}px; top: {{n.by}}px; width: 160px; padding: 0; border: 0; background: transparent; color: #E9E6DF; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer">
+<span style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center">
+<span style="width: 46px; height: 56px; border: 1.5px solid {{n.stroke}}; background: {{n.fill}}; border-radius: 6px 16px 6px 6px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A9ADB5">{{n.ext}}</span>
+</span>
+<span style="font-size: 13px; font-weight: 500; padding: 2px 6px; border-radius: 4px; background: #111317; white-space: nowrap; color: {{n.labelColor}}">{{n.name}}</span>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8A909A; margin-top: -4px">{{n.sub}}</span>
+</button>
+</sc-for>
+
+<sc-for list="{{toolNodes}}" as="n" hint-placeholder-count="7">
+<button onClick="{{n.pick}}" aria-label="{{n.aria}}" style="position: absolute; left: {{n.bx}}px; top: {{n.by}}px; width: 140px; padding: 0; border: 0; background: transparent; color: #E9E6DF; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer">
+<span style="width: 52px; height: 58px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: {{n.stroke}}; display: flex; align-items: center; justify-content: center">
+<span style="width: 46px; height: 52px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: {{n.fill}}"></span>
+</span>
+<span style="font-size: 12.5px; font-weight: 500; padding: 1px 6px; border-radius: 4px; background: #111317; white-space: nowrap; color: {{n.labelColor}}">{{n.name}}</span>
+</button>
+</sc-for>
+
+<button onClick="{{hub.pick}}" aria-label="{{hub.aria}}" style="position: absolute; left: 470px; top: 336px; width: 240px; height: 88px; padding: 12px 16px; border-radius: 14px; border: 1.5px solid {{hub.stroke}}; background: #1F1A12; color: #E9E6DF; display: flex; flex-direction: column; justify-content: center; gap: 3px; text-align: left; cursor: pointer; box-shadow: 0 0 0 8px rgba(232, 165, 71, 0.08)">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #E8A547">Workspace</span>
+<span style="font-size: 16px; font-weight: 600; line-height: 1.2">{{hub.label}}</span>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #A9ADB5">{{hub.id}}</span>
+</button>
+
+<sc-for list="{{agentNodes}}" as="n" hint-placeholder-count="4">
+<button onClick="{{n.pick}}" aria-label="{{n.aria}}" style="position: absolute; left: {{n.bx}}px; top: {{n.by}}px; width: 160px; padding: 0; border: 0; background: transparent; color: #E9E6DF; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; opacity: {{n.op}}">
+<span style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center">
+<span style="width: 42px; height: 42px; transform: rotate(45deg); border: 2px solid {{n.stroke}}; background: {{n.fill}}; border-radius: 6px; box-shadow: {{n.glow}}"></span>
+</span>
+<span style="font-size: 13px; font-weight: 500; padding: 2px 6px; border-radius: 4px; background: #111317; white-space: nowrap">{{n.name}}</span>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{n.subColor}}; margin-top: -4px">{{n.sub}}</span>
+</button>
+</sc-for>
+
+<div style="position: absolute; left: 180px; top: 700px; width: 700px; padding: 12px; border-radius: 16px; border: 1px solid #3A414D; background: #16191E; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 10px">
+<label for="nos-intent" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #A9ADB5; padding: 0 4px">Intent</label>
+<input id="nos-intent" type="text" value="{{draft}}" onChange="{{onType}}" onKeyDown="{{onKey}}" placeholder="Say what you want done" style="flex-grow: 1; height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #3A414D; background: #0C0E11; color: #E9E6DF; font-size: 15px">
+<button onClick="{{run}}" style="height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: #E8A547; color: #1A1406; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap">Generate workspace</button>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="font-size: 12px; color: #8A909A; padding: 0 4px">Try</span>
+<sc-for list="{{examples}}" as="x" hint-placeholder-count="4">
+<button onClick="{{x.pick}}" style="height: 44px; padding: 0 14px; border-radius: 22px; border: 1px solid {{x.bd}}; background: {{x.bg}}; color: #D6D8DC; font-size: 12.5px; cursor: pointer; white-space: nowrap">{{x.text}}</button>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{radial.open}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: {{radial.dx}}px; top: {{radial.dy}}px; width: 420px; height: 420px; border-radius: 50%; border: 1px solid #3A414D; background: rgba(12, 14, 17, 0.84); pointer-events: none"></div>
+<div style="position: absolute; left: {{radial.cx}}px; top: {{radial.cy}}px; transform: translate(-50%, -50%); width: 170px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: {{radial.kindColor}}">{{radial.kind}}</span>
+<span style="font-size: 15px; font-weight: 600; line-height: 1.25">{{radial.title}}</span>
+<button onClick="{{close}}" aria-label="Close menu" style="margin-top: 6px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid #3A414D; background: #1C2027; color: #A9ADB5; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 3l8 8M11 3l-8 8"></path></svg>
+</button>
+</div>
+<sc-for list="{{radial.opts}}" as="o" hint-placeholder-count="6">
+<button onClick="{{o.pick}}" style="position: absolute; left: {{o.x}}px; top: {{o.y}}px; transform: translate(-50%, -50%); height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid {{radial.pill}}; background: #1C2027; color: #E9E6DF; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer">{{o.label}}</button>
+</sc-for>
+</sc-if>
+
+</div>
+
+<aside style="position: absolute; left: 1060px; top: 48px; width: 380px; height: 852px; padding: 22px 24px; overflow-y: auto; background: #16191E; border-left: 1px solid #2A2F38; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 28px; font-weight: 400; line-height: 1">Execution</h2>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; padding: 4px 8px; border-radius: 6px; border: 1px solid #3A414D; color: #A9ADB5">{{it.id}}</span>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Intent</h3>
+<p style="margin: 0; font-size: 17px; line-height: 1.35">“{{it.text}}”</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Agents</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{it.agents}}" as="a" hint-placeholder-count="3">
+<span style="display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid #3A414D; font-size: 12.5px"><span style="width: 8px; height: 8px; transform: rotate(45deg); border: 1.5px solid #E8A547"></span>{{a}}</span>
+</sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Tools</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{it.toolNames}}" as="t" hint-placeholder-count="2">
+<span style="display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid #2E4461; font-size: 12.5px"><span style="width: 10px; height: 11px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: #6FA8E8"></span>{{t}}</span>
+</sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Workspace</h3>
+<p style="margin: 0; font-size: 13px; line-height: 1.45; color: #C9CCD2">{{it.workspace}}</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Plan</h3>
+<div style="display: flex; flex-direction: column; gap: 7px">
+<sc-for list="{{it.plan}}" as="p" hint-placeholder-count="5">
+<div style="display: flex; gap: 10px; font-size: 13px; line-height: 1.4; color: #D6D8DC">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #E8A547; padding-top: 1px">{{p.n}}</span>
+<span>{{p.t}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 6px">
+<h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Output</h3>
+<p style="margin: 0; font-size: 13.5px; line-height: 1.4">{{it.output}}</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid #2A2F38">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 3px">
+<h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Swarm lifecycle</h3>
+<span style="font-size: 14px; font-weight: 600">{{life.name}} <span style="font-weight: 400; color: #8A909A">· step {{life.step}} of 6</span></span>
+</div>
+<button onClick="{{advance}}" style="height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid #3A414D; background: #1C2027; color: #E9E6DF; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap">{{life.action}}</button>
+</div>
+<div style="display: flex; gap: 4px">
+<sc-for list="{{life.bars}}" as="b" hint-placeholder-count="6">
+<span style="flex-grow: 1; height: 4px; border-radius: 2px; background: {{b.bg}}"></span>
+</sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8A909A">Event bus</h3>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{recent}}" as="ev" hint-placeholder-count="4">
+<div style="display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; line-height: 1.35">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8A909A">#{{ev.seq}}</span>
+<span style="font-weight: 500; white-space: nowrap">{{ev.type}}</span>
+<span style="color: #A9ADB5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ev.detail}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+</aside>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const TOOLS = [
+  { id: 'github', name: 'GitHub' },
+  { id: 'fs', name: 'Filesystem' },
+  { id: 'pg', name: 'PostgreSQL' },
+  { id: 'notion', name: 'Notion' },
+  { id: 'figma', name: 'Figma' },
+  { id: 'drive', name: 'Google Drive' },
+  { id: 'slack', name: 'Slack' }
+];
+const TOOL_X = 985, TOOL_Y0 = 118, TOOL_DY = 84;
+const HUB = { x: 590, y: 380 };
+const PROJECT = { x: 150, y: 175 };
+const WORKFLOW = { x: 150, y: 615 };
+const PFILES = [
+  { key: 'pf-battle', name: 'battle_system.ts', ext: 'ts', x: 100, y: 372 },
+  { key: 'pf-inv', name: 'inventory.ts', ext: 'ts', x: 240, y: 458 }
+];
+const SLOT_POS = {
+  3: [[455, 195], [725, 195], [590, 595]],
+  4: [[455, 195], [725, 195], [455, 565], [725, 565]],
+  5: [[455, 195], [590, 165], [725, 195], [455, 565], [725, 565]],
+  6: [[455, 195], [590, 165], [725, 195], [455, 565], [590, 595], [725, 565]]
+};
+const INTENTS = {
+  feature: {
+    text: 'Build inventory feature', id: 'feature_build', label: 'Feature build',
+    slots: [['agent', 'Planner'], ['agent', 'Architect'], ['agent', 'Engineer'], ['agent', 'QA'], ['agent', 'Documentation']],
+    links: ['pf-inv', 'pf-battle'], tools: ['github', 'fs', 'pg'],
+    workspace: 'inventory.ts · battle_system.ts · coding standards · architecture decisions',
+    plan: ['Planner splits the feature into tasks', 'Architect maps what inventory touches in the battle system', 'Engineer builds it on a feature branch', 'QA writes and runs the tests', 'Documentation updates the docs; Commander merges the outputs'],
+    output: 'Feature branch with passing tests and updated docs'
+  },
+  review: {
+    text: 'Review inventory module', id: 'engineering_review', label: 'Engineering review',
+    slots: [['agent', 'Systems Architect'], ['agent', 'Code Reviewer'], ['agent', 'QA Engineer']],
+    links: ['pf-inv', 'pf-battle'], tools: ['github', 'fs'],
+    workspace: 'inventory.ts · battle_system.ts · coding standards · past review decisions',
+    plan: ['Load coding standards and past decisions from memory', 'Architect checks module boundaries and dependencies', 'Code Reviewer reads the code and flags defects', 'QA Engineer checks test coverage on inventory paths', 'Commander merges findings into one ranked review'],
+    output: 'One ranked review, each finding pinned to its file node'
+  },
+  localize: {
+    text: 'Localize this website to Indonesian', id: 'website_localization', label: 'Localization',
+    slots: [['agent', 'Brand Analyst'], ['agent', 'Translator'], ['agent', 'Localization QA'], ['agent', 'SEO Reviewer'], ['file', 'Style Guide', 'md']],
+    links: [], tools: ['github', 'fs'],
+    workspace: 'website source · Style Guide · translation guides from memory',
+    plan: ['Brand Analyst extracts voice and key terms', 'Translator writes Indonesian copy against the Style Guide', 'SEO Reviewer localizes titles and metadata', 'Localization QA checks terms, length and tone', 'Commander merges everything into one locale'],
+    output: 'Indonesian locale, localized SEO metadata, QA log'
+  },
+  contract: {
+    text: 'Translate contract', id: 'legal_translation', label: 'Contract translation',
+    slots: [['agent', 'Legal Agent'], ['agent', 'Translation Agent'], ['agent', 'QA Reviewer'], ['file', 'Glossary', 'csv'], ['file', 'Source File', 'docx'], ['file', 'Output Folder', 'dir']],
+    links: [], tools: ['drive', 'fs'],
+    workspace: 'Source File · Glossary · Output Folder · translation guides from memory',
+    plan: ['Legal Agent marks defined terms and key clauses', 'Translation Agent translates against the Glossary', 'QA Reviewer checks terms, numbering and cross-references', 'Commander writes the result to Output Folder'],
+    output: 'Translated contract in Output Folder, with QA notes'
+  }
+};
+const ORDER = ['feature', 'review', 'localize', 'contract'];
+const RADIAL = {
+  root: ['Search', 'Files', 'Agents', 'Projects', 'Apps', 'Memory', 'Settings'],
+  agent: ['Review', 'Explain', 'Compare', 'Improve', 'Test', 'Collaborate', 'Replace'],
+  file: ['Open', 'Summarize', 'Translate', 'Refactor', 'Analyze', 'Attach Agent'],
+  project: ['Open Workspace', 'Launch Swarm', 'Review Status', 'Memory', 'Deploy', 'Archive'],
+  workspace: ['Open Workspace', 'Launch Swarm', 'Review Status', 'Memory', 'Archive'],
+  mcp: ['Read', 'Write', 'Search', 'Execute'],
+  workflow: ['Run', 'Inspect', 'Edit', 'Pause']
+};
+const KIND = {
+  root: ['Root menu', '#A9ADB5', '#3A414D'],
+  agent: ['Agent', '#E8A547', '#6B5230'],
+  file: ['File', '#C9C4BA', '#3A414D'],
+  project: ['Project', '#C9C4BA', '#3A414D'],
+  workspace: ['Workspace', '#E8A547', '#6B5230'],
+  mcp: ['MCP tool', '#6FA8E8', '#2E4461'],
+  workflow: ['Workflow', '#C9C4BA', '#3A414D']
+};
+const STAGES = ['Dormant', 'Summoned', 'Active', 'Collaborating', 'Completed', 'Archived'];
+const EDGE = {
+  agent: { h: 2, bg: '#E8A547', bt: '0 solid transparent', op: 0.4 },
+  agentOn: { h: 2, bg: '#E8A547', bt: '0 solid transparent', op: 0.85 },
+  file: { h: 2, bg: '#C9C4BA', bt: '0 solid transparent', op: 0.45 },
+  link: { h: 0, bg: 'transparent', bt: '1.5px dashed #C9C4BA', op: 0.5 },
+  tool: { h: 0, bg: 'transparent', bt: '2px dashed #6FA8E8', op: 0.8 },
+  context: { h: 0, bg: 'transparent', bt: '1.5px dashed #4A515C', op: 1 }
+};
+
+class Component extends DCLogic {
+  state = {
+    intent: 'review',
+    draft: 'Review inventory module',
+    stage: 2,
+    sel: null,
+    root: null,
+    seq: 14,
+    events: [
+      { seq: '014', type: 'Agents Active', detail: 'engineering_review · 3 agents' },
+      { seq: '013', type: 'Workspace Generated', detail: 'engineering_review' },
+      { seq: '012', type: 'MCP Connected', detail: 'GitHub' },
+      { seq: '011', type: 'File Updated', detail: 'inventory.ts' }
+    ]
+  };
+
+  bgRef = (el) => { this.bgEl = el; };
+
+  edge(x1, y1, x2, y2, kind) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const e = EDGE[kind];
+    return { x: x1, y: y1, len: Math.round(Math.hypot(dx, dy)), ang: (Math.atan2(dy, dx) * 180 / Math.PI).toFixed(2), h: e.h, bg: e.bg, bt: e.bt, op: e.op };
+  }
+
+  classify(text) {
+    const t = text.toLowerCase();
+    if (/contract|legal|agreement|clause/.test(t)) return 'contract';
+    if (/locali|indonesia|translat|website|seo/.test(t)) return 'localize';
+    if (/review|audit|inspect|check/.test(t)) return 'review';
+    return 'feature';
+  }
+
+  agentCount(key) {
+    return INTENTS[key].slots.filter((s) => s[0] === 'agent').length;
+  }
+
+  pushEvents(list, extra) {
+    let seq = this.state.seq;
+    const fresh = list.map(([type, detail]) => ({ seq: String(++seq).padStart(3, '0'), type, detail }));
+    this.setState(Object.assign({}, extra, { seq, events: fresh.reverse().concat(this.state.events).slice(0, 8) }));
+  }
+
+  runKey(key, text) {
+    const it = INTENTS[key];
+    const nodes = it.slots.length + it.links.length + it.tools.length;
+    this.pushEvents([
+      ['Intent Classified', it.id],
+      ['Workspace Generated', nodes + ' nodes linked'],
+      ['Agents Summoned', this.agentCount(key) + ' agents']
+    ], { intent: key, draft: text, stage: 1, sel: null, root: null });
+  }
+
+  run = () => {
+    const text = (this.state.draft || '').trim();
+    if (!text) return;
+    this.runKey(this.classify(text), text);
+  };
+
+  onType = (e) => { this.setState({ draft: e.target.value }); };
+  onKey = (e) => { if (e.key === 'Enter') this.run(); };
+  close = () => { this.setState({ sel: null, root: null }); };
+
+  onBg = (e) => {
+    if (this.state.sel || this.state.root) { this.close(); return; }
+    let x = 530, y = 360;
+    if (e.detail !== 0 && this.bgEl) {
+      const r = this.bgEl.getBoundingClientRect();
+      const s = r.width / 1060 || 1;
+      x = (e.clientX - r.left) / s;
+      y = (e.clientY - r.top) / s;
+    }
+    this.setState({ root: { x, y }, sel: null });
+  };
+
+  act(title, opt) {
+    const it = INTENTS[this.state.intent];
+    if (opt === 'Launch Swarm') {
+      this.pushEvents([['Agent Swarm Launched', it.id]], { stage: 2, sel: null, root: null });
+    } else {
+      this.pushEvents([['Action Requested', title + ' → ' + opt]], { sel: null, root: null });
+    }
+  }
+
+  advance = () => {
+    const s = this.state;
+    const it = INTENTS[s.intent];
+    const k = this.agentCount(s.intent);
+    if (s.stage >= 5) {
+      this.pushEvents([['Agents Summoned', it.id + ' · ' + k + ' agents']], { stage: 1 });
+      return;
+    }
+    const next = s.stage + 1;
+    const ev = {
+      1: ['Agents Summoned', k + ' agents'],
+      2: ['Agents Active', k + ' agents working'],
+      3: ['Agents Collaborating', 'sharing outputs through Commander'],
+      4: ['Agent Finished', 'Commander merged ' + k + ' outputs'],
+      5: ['Workspace Archived', it.id]
+    }[next];
+    this.pushEvents([ev], { stage: next });
+  };
+
+  renderVals() {
+    const s = this.state;
+    const it = INTENTS[s.intent];
+    const pos = SLOT_POS[it.slots.length];
+    const stageName = STAGES[s.stage];
+    const busy = s.stage === 2 || s.stage === 3;
+    const linked = new Set(it.links);
+    const used = new Set(it.tools);
+    const lookup = {};
+    const pick = (key) => () => { this.setState({ sel: key, root: null }); };
+
+    const edges = [];
+    edges.push(this.edge(PROJECT.x, PROJECT.y, WORKFLOW.x, WORKFLOW.y, 'context'));
+    PFILES.forEach((f) => edges.push(this.edge(PROJECT.x, PROJECT.y, f.x, f.y, 'context')));
+    PFILES.forEach((f) => { if (linked.has(f.key)) edges.push(this.edge(HUB.x, HUB.y, f.x, f.y, 'link')); });
+    TOOLS.forEach((t, i) => { if (used.has(t.id)) edges.push(this.edge(HUB.x, HUB.y, TOOL_X, TOOL_Y0 + i * TOOL_DY, 'tool')); });
+
+    const agentNodes = [];
+    const fileNodes = [];
+    it.slots.forEach((sl, i) => {
+      const [x, y] = pos[i];
+      const key = 's' + i;
+      const isSel = s.sel === key;
+      if (sl[0] === 'agent') {
+        edges.push(this.edge(HUB.x, HUB.y, x, y, busy ? 'agentOn' : 'agent'));
+        lookup[key] = { x, y, kind: 'agent', name: sl[1] };
+        agentNodes.push({
+          name: sl[1], bx: x - 80, by: y - 32,
+          stroke: isSel ? '#F6D29B' : '#E8A547',
+          fill: isSel ? '#3A2C14' : '#1F1A12',
+          glow: busy ? '0 0 0 7px rgba(232, 165, 71, 0.16)' : 'none',
+          op: s.stage === 5 ? 0.45 : 1,
+          sub: stageName.toLowerCase(),
+          subColor: busy ? '#E8A547' : '#8A909A',
+          aria: sl[1] + ', agent, ' + stageName.toLowerCase() + '. Open actions',
+          pick: pick(key)
+        });
+      } else {
+        edges.push(this.edge(HUB.x, HUB.y, x, y, 'file'));
+        lookup[key] = { x, y, kind: 'file', name: sl[1] };
+        fileNodes.push({
+          name: sl[1], ext: sl[2], bx: x - 80, by: y - 32,
+          stroke: isSel ? '#FFFFFF' : '#C9C4BA', fill: '#1C2027', labelColor: '#E9E6DF',
+          sub: 'generated',
+          aria: sl[1] + ', file in this workspace. Open actions',
+          pick: pick(key)
+        });
+      }
+    });
+    PFILES.forEach((f) => {
+      const on = linked.has(f.key);
+      lookup[f.key] = { x: f.x, y: f.y, kind: 'file', name: f.name };
+      fileNodes.push({
+        name: f.name, ext: f.ext, bx: f.x - 80, by: f.y - 32,
+        stroke: s.sel === f.key ? '#FFFFFF' : (on ? '#C9C4BA' : '#5A616C'),
+        fill: '#1C2027', labelColor: on ? '#E9E6DF' : '#A9ADB5',
+        sub: on ? 'in workspace' : 'project file',
+        aria: f.name + ', file. Open actions',
+        pick: pick(f.key)
+      });
+    });
+
+    const toolNodes = TOOLS.map((t, i) => {
+      const key = 'tool-' + t.id;
+      const on = used.has(t.id);
+      const y = TOOL_Y0 + i * TOOL_DY;
+      lookup[key] = { x: TOOL_X, y, kind: 'mcp', name: t.name };
+      return {
+        name: t.name, bx: TOOL_X - 70, by: y - 29,
+        stroke: s.sel === key ? '#BFD9F6' : (on ? '#6FA8E8' : '#3A414D'),
+        fill: on ? '#17263A' : '#16191E',
+        labelColor: on ? '#E9E6DF' : '#A9ADB5',
+        aria: t.name + ', MCP tool, ' + (on ? 'in use' : 'idle') + '. Open actions',
+        pick: pick(key)
+      };
+    });
+
+    lookup.project = { x: PROJECT.x, y: PROJECT.y, kind: 'project', name: 'Breath of Fire IV Remake' };
+    lookup.workflow = { x: WORKFLOW.x, y: WORKFLOW.y, kind: 'workflow', name: 'Build Pipeline' };
+    lookup.hub = { x: HUB.x, y: HUB.y, kind: 'workspace', name: it.label };
+
+    let radial = { open: false, opts: [] };
+    if (s.sel || s.root) {
+      let cx, cy, kind, title;
+      if (s.root) { cx = s.root.x; cy = s.root.y; kind = 'root'; title = 'Nalara'; }
+      else { const n = lookup[s.sel] || lookup.hub; cx = n.x; cy = n.y; kind = n.kind; title = n.name; }
+      cx = Math.round(Math.min(845, Math.max(215, cx)));
+      cy = Math.round(Math.min(640, Math.max(215, cy)));
+      const labels = RADIAL[kind];
+      const opts = labels.map((label, i) => {
+        const a = (-90 + i * 360 / labels.length) * Math.PI / 180;
+        return { label, x: Math.round(cx + 150 * Math.cos(a)), y: Math.round(cy + 150 * Math.sin(a)), pick: () => this.act(title, label) };
+      });
+      radial = { open: true, cx, cy, dx: cx - 210, dy: cy - 210, opts, title, kind: KIND[kind][0], kindColor: KIND[kind][1], pill: KIND[kind][2] };
+    }
+
+    return {
+      bgRef: this.bgRef,
+      onBg: this.onBg,
+      edges,
+      agentNodes,
+      fileNodes,
+      toolNodes,
+      project: { stroke: s.sel === 'project' ? '#FFFFFF' : '#C9C4BA', pick: pick('project') },
+      workflow: { stroke: s.sel === 'workflow' ? '#FFFFFF' : '#9AA1AC', pick: pick('workflow') },
+      hub: { label: it.label, id: it.id, stroke: s.sel === 'hub' ? '#F6D29B' : '#E8A547', aria: 'Workspace ' + it.label + '. Open actions', pick: pick('hub') },
+      radial,
+      close: this.close,
+      draft: s.draft,
+      onType: this.onType,
+      onKey: this.onKey,
+      run: this.run,
+      examples: ORDER.map((k) => ({
+        text: INTENTS[k].text,
+        bd: k === s.intent ? '#E8A547' : '#3A414D',
+        bg: k === s.intent ? '#2A2114' : '#1C2027',
+        pick: () => this.runKey(k, INTENTS[k].text)
+      })),
+      it: {
+        id: it.id,
+        text: it.text,
+        agents: it.slots.filter((x) => x[0] === 'agent').map((x) => x[1]),
+        toolNames: TOOLS.filter((t) => used.has(t.id)).map((t) => t.name),
+        workspace: it.workspace,
+        plan: it.plan.map((t, i) => ({ n: String(i + 1).padStart(2, '0'), t })),
+        output: it.output
+      },
+      life: {
+        name: stageName,
+        step: s.stage + 1,
+        action: s.stage >= 5 ? 'Summon again' : 'Advance',
+        bars: STAGES.map((_, i) => ({ bg: i <= s.stage ? '#E8A547' : '#2A2F38' }))
+      },
+      advance: this.advance,
+      recent: s.events.slice(0, 4)
+    };
+  }
+}
+</script>
+</body>
+</html>

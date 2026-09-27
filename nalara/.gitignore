@@ -1,0 +1,9 @@
+node_modules/
+web/dist/
+.nalara/
+*.db
+*.db-journal
+coverage/
+test-results/
+web/mock/screenshots/
+test/e2e/screenshots/
