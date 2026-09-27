@@ -73,7 +73,20 @@ test('the checker reports errors with a hint and flags common mistakes', () => {
     assert.match(text, /exposure is auto/);
     assert.match(text, /bounces: 3 looks dark/);
     assert.match(text, /timeline duration is 0/);
+
+    const glow = join(dir, 'glow.real');
+    writeFileSync(glow, 'background { intensity: 0.2 }\nbulb { position: [0, 2, 0] }\nfilm { halation: 0.3 }\nground { }\n');
+    const r3 = JSON.parse(check(glow, '--json').out);
+    assert.ok(r3.warnings.some((w) => /orange haze/.test(w)), r3.warnings.join('\n'));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('the checker estimates with a measured CPU speed', () => {
+  const scene = join(SKILL, 'templates', 'physics-motion.real');
+  const idle = JSON.parse(check(scene, '--json', '--size', '320x180', '--samples', '16').out).estimate;
+  const busy = JSON.parse(check(scene, '--json', '--size', '320x180', '--samples', '16', '--cpu-speed', '0.1').out).estimate;
+  assert.equal(idle.videoPaths, 320 * 180 * 16 * 96);
+  assert.ok(Math.abs(busy.videoCpu / idle.videoCpu - 3) < 1e-9);
 });

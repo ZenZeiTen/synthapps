@@ -169,8 +169,18 @@ stop off is a factor of 2 in iso.
 **Film.** `film { }` is the lab: `tonemap: agx` (default, holds colour in
 highlights), `white_balance` in kelvin (default 6,500; set about 3,200 to
 make tungsten light look neutral, or leave it for a warm look), `grain: 0.1-0.3`,
-`bloom: 0.02-0.08`, `halation: 0.2-0.4` for a filmic glow, and `vignette`.
-Keep these subtle; they are seasoning.
+`bloom`, `halation` and `vignette`. Keep these subtle; they are seasoning.
+
+Bloom and halation scale with how bright the highlights are, and a lamp
+seen directly is thousands of times brighter than the rest of the frame:
+
+| Brightest thing in frame | bloom | halation |
+|---|---|---|
+| Daylight, studio, sun only in reflections | 0.02-0.08 | 0-0.2 |
+| The sun itself, or bulbs, lamps and softboxes in view | 0.003-0.01 | 0 |
+
+Too much of either spreads an orange haze over the whole frame. If a night
+render looks foggy without fog, set bloom 0.005 and halation 0 first.
 
 **Materials.** Use the named kinds, then tune. `matte` is paper, plaster and
 clay. `plastic` is paint and ceramics. `metal { color: gold, roughness: 0.1-0.4 }`.
@@ -220,11 +230,15 @@ With no GPU, draft at 480×270 and 32-64 samples, and keep final renders
 modest unless the user has asked for high quality and accepts the time.
 
 Estimate a planned render before starting it: pass the same overrides to the
-checker, for example `check.mjs clip.real --size 320x180 --samples 16`. When
-the user gives a time limit, choose size, samples and clip length so the
-estimate is at most half of it: CPU speed varies, and renders running at the
-same time share the CPU. A 3-second draft clip at 320×180 and 16 samples is
-about 66 million paths, or 4 minutes on the CPU.
+checker, for example `check.mjs clip.real --size 320x180 --samples 16`.
+The 0.3 million figure is for an idle machine; a shared CPU can be 3 to 5
+times slower. So measure: `render.mjs` prints the time of your draft still,
+and width × height × samples ÷ seconds is this machine's real speed. Pass it
+to the checker as `--cpu-speed` (millions of paths per second) to get honest
+estimates for the rest. When the user gives a time limit, choose size,
+samples and clip length so the estimate at the measured speed is at most
+half of it. A 3-second draft clip at 320×180 and 16 samples is about 66
+million paths: 4 minutes on an idle CPU, 10 to 20 on a busy one.
 
 The knobs, with the biggest effect first:
 

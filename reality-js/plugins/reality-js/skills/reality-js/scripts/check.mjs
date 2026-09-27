@@ -7,6 +7,8 @@
 //
 // --size and --samples estimate a render with those overrides, the same flags
 // tools/render.mjs takes (for video, --samples is samples per frame).
+// --cpu-speed M replaces the idle-CPU figure with a measured speed in millions
+// of paths per second (width x height x samples / seconds of a draft render).
 //
 // --root is the reality-js folder (the one holding src/lang/compile.js). If it
 // is not given, the script looks upward from the scene file and from the
@@ -20,21 +22,22 @@ import { pathToFileURL } from 'node:url';
 // Measured throughput in light paths per second (DESIGN.md, "Limitations").
 // A path is one sample of one pixel. Fog, glass and many bounces are slower.
 const GPU_PATHS = { fast: 130e6, slow: 60e6 };   // RTX 4050 laptop, Chrome, D3D11
-const CPU_PATHS = 0.3e6;                          // SwiftShader, what render.mjs uses without --gpu
+const IDLE_CPU_PATHS = 0.3e6;                     // SwiftShader on an idle 4-core machine (render.mjs without --gpu)
 const DIRECT_LIGHT_SHAPES = new Set(['sphere', 'quad', 'disk']);
 const MESH_KINDS = new Set(['torus', 'mesh', 'terrain', 'rock']);
 
 function usage(code) {
-  console.log('usage: node check.mjs SCENE.real [--root REALITY_JS_DIR] [--json] [--size WxH] [--samples N]');
+  console.log('usage: node check.mjs SCENE.real [--root REALITY_JS_DIR] [--json] [--size WxH] [--samples N] [--cpu-speed M]');
   process.exit(code);
 }
 
 const args = process.argv.slice(2);
-let file = null, root = null, json = false, size = null, samplesOverride = null;
+let file = null, root = null, json = false, size = null, samplesOverride = null, cpuSpeed = null;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--root') root = args[++i];
   else if (args[i] === '--size') size = args[++i].split('x').map(Number);
   else if (args[i] === '--samples') samplesOverride = Number(args[++i]);
+  else if (args[i] === '--cpu-speed') cpuSpeed = Number(args[++i]) * 1e6;
   else if (args[i] === '--json') json = true;
   else if (args[i] === '-h' || args[i] === '--help') usage(0);
   else if (!file) file = args[i];
@@ -72,6 +75,7 @@ function findRoot() {
   return null;
 }
 
+const CPU_PATHS = cpuSpeed || IDLE_CPU_PATHS;
 const rjRoot = findRoot();
 if (!rjRoot) {
   console.error('check: cannot find the reality-js folder (src/lang/compile.js). Pass --root PATH.');
@@ -104,7 +108,8 @@ function finish() {
       console.log(`shader features: ${s.features.length ? s.features.join(', ') : 'none (fastest variant)'}`);
       console.log(`render settings${size || samplesOverride ? ' (with overrides)' : ''}: ${s.resolution.join('x')}, ${s.samples} spp still, ${s.videoSamples} spp video, ${s.bounces} bounces`);
       const e = report.estimate;
-      console.log(`estimate, still: ${fmtPaths(e.stillPaths)} paths -> GPU ${fmtTime(e.stillGpu)}, CPU (SwiftShader) ${fmtTime(e.stillCpu)}`);
+      const cpuLabel = cpuSpeed ? `CPU at ${(cpuSpeed / 1e6).toFixed(2)} M/s` : 'CPU (idle SwiftShader)';
+      console.log(`estimate, still: ${fmtPaths(e.stillPaths)} paths -> GPU ${fmtTime(e.stillGpu)}, ${cpuLabel} ${fmtTime(e.stillCpu)}`);
       if (e.videoPaths) {
         console.log(`estimate, video: ${e.frames} frames, ${fmtPaths(e.videoPaths)} paths -> GPU ${fmtTime(e.videoGpu)}, CPU ${fmtTime(e.videoCpu)}`);
       }
@@ -213,6 +218,10 @@ if (objCount > 1000) warnings.push(`${objCount} objects: every ray tests every o
 else if (objCount > 250) warnings.push(`${objCount} objects will slow every ray; hundreds are fine, thousands are not.`);
 if (rs.bounces > 12) warnings.push(`bounces: ${rs.bounces} costs time with little visible gain; 6 to 10 covers glass and interiors.`);
 const hasGlass = snap.objects.some((o) => o.material.transmission > 0);
+if (direct && (film.halation > 0.05 || film.bloom > 0.02)) {
+  warnings.push(`film bloom ${film.bloom} / halation ${film.halation} with lamps in the scene: lamps seen directly are thousands of times brighter than the frame, ` +
+    'so these spread an orange haze everywhere. If a lamp is in view, use bloom 0.003-0.01 and halation 0.');
+}
 if (hasGlass && rs.bounces < 6) warnings.push(`glass or water with bounces: ${rs.bounces} looks dark; use at least 6.`);
 if (!film.denoise && rs.samples < 256) warnings.push('denoise is off with fewer than 256 samples: expect visible noise.');
 if (fog && rs.samples < 256) notes.push('fog converges slowly; a still usually needs 512 or more samples.');
