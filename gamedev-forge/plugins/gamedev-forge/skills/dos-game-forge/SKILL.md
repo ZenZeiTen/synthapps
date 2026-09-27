@@ -176,8 +176,8 @@ subfolder goes at the front of the search path. Then:
 wcl -q -bt=dos -ml -ox -fe=GAME.EXE GAME.C
 timeout 40 dosbox -c "mount c ." -c "c:" -c "GAME.EXE /T" -c "exit"
 ```
-On a machine with no display or sound device, give DOSBox SDL's dummy video and audio
-drivers (the `SDL_VIDEODRIVER` and `SDL_AUDIODRIVER` settings, value `dummy`).
+On a machine with no display or sound device, run DOSBox with SDL's dummy video and audio
+drivers selected, so it starts without a window or sound card.
 The skeleton (Appendix F) sets mode 13h, programs the DAC, draws into a far back buffer, flips on vsync, beeps through the PIT, and with `/T` dumps `FRAME.RAW` (64000 indices + 768 palette bytes) so you can convert it to PNG on the host and look at it. Deliver the .C source, the .EXE, and a README with the DOSBox command. Running the .EXE inside a browser page (js-dos) was not tested; say so if asked.
 
 ## Appendix A: page shell (`game.html`)
