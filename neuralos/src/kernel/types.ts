@@ -658,7 +658,7 @@ export interface LLMProvider {
 export class LLMError extends Error {
   constructor(
     message: string,
-    readonly kind: "refusal" | "invalid_output" | "api" | "aborted" | "max_tokens",
+    readonly kind: "refusal" | "invalid_output" | "api" | "aborted" | "max_tokens" | "budget",
     cause?: unknown,
   ) {
     super(message, { cause });
@@ -700,6 +700,8 @@ export interface IntentResult extends IntentClassification {
   entities: { files: string[]; topics: string[]; targetLanguage?: string };
   context: { files: SearchHit[]; memory: MemoryRecord[] };
   plan: PlanStep[];
+  /** Generated resources the workspace should provide, e.g. "Glossary", "Style Guide", "Output Folder". */
+  resources?: string[];
   createdAt: string;
 }
 
