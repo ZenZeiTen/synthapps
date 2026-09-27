@@ -17,7 +17,9 @@
  * meter the metered provider admits every model call itself; holding a run lane as well would deadlock as soon
  * as AIMD shrinks the lanes, so a metered Claude run takes no run lane.
  */
+import { createHash } from "node:crypto";
 import { newId, nowIso } from "../kernel/ids";
+import { stableStringify } from "../tools/registry";
 import type {
   AgentBudget,
   AgentDefinition,
@@ -434,13 +436,20 @@ export function createOrchestrator(opts: OrchestratorOptions): NeuralOrchestrato
 
   /** keyPrefix: "<workspaceId>:<stepId>" for plan steps, so a resumed step (new instance) keeps the same fence keys. */
   function boundCallTool(inst: AgentInstance, rt: Runtime, signal: AbortSignal, keyPrefix: string) {
-    let n = 0;
+    const seen = new Map<string, number>();
     return async (name: string, input: Record<string, unknown>): Promise<ToolResult> => {
       if (signal.aborted) return { ok: false, content: `Aborted: ${rt.abortReason ?? "run stopped"}`, error: "aborted" };
-      n++;
       const def = tools.get(name);
-      // Irreversible calls carry a stable key so the gateway refuses to run the same logical call twice.
-      const idempotencyKey = def?.reversibility === "irreversible" ? `${keyPrefix}:${n}` : undefined;
+      // Irreversible calls carry a key naming the logical operation (step, tool, input, and which identical call this
+      // is), not its position in the run: a resumed step may make other calls first and must still be fenced from
+      // repeating a deploy, while a deliberate second identical call in one run (re-running tests) gets its own key.
+      let idempotencyKey: string | undefined;
+      if (def?.reversibility === "irreversible") {
+        const op = `${name}:${createHash("sha256").update(stableStringify(input)).digest("hex").slice(0, 16)}`;
+        const occurrence = (seen.get(op) ?? 0) + 1;
+        seen.set(op, occurrence);
+        idempotencyKey = `${keyPrefix}:${op}:${occurrence}`;
+      }
       const result = await tools.call(name, input, { principal: inst.principal, signal, ...(idempotencyKey ? { idempotencyKey } : {}) });
       inst.toolCalls++;
       if (result.ok && (name === "fs.write_output" || name === "fs.write_file")) {

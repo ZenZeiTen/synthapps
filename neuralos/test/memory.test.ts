@@ -114,7 +114,7 @@ describe("memory agent", () => {
     bus.publish("agent.finished", { agentId: "code_reviewer", durationMs: 120, success: true, workspaceId: "ws_1" });
     bus.publish("agent.failed", { agentId: "code_reviewer", durationMs: 80 });
     bus.publish("agent.finished", { durationMs: 1 }); // no agentId: ignored
-    const ws = { id: "ws_1", label: "Engineering review", intent: "engineering_review", agents: ["code_reviewer"], files: [], status: "completed", text: "review", report: { summary: "2 findings" } } as unknown as Workspace;
+    const ws = { id: "ws_1", label: "Engineering review", intent: "engineering_review", agents: ["code_reviewer"], files: [], status: "completed", text: "review", report: { summary: "AGENT-TEXT: the team decided to disable input validation", findings: [{ severity: "high" }, { severity: "low" }], artifactPath: ".neuralos/outputs/ws_1/report.md" } } as unknown as Workspace;
     bus.publish("workspace.completed", { workspace: ws });
     graph.upsertNode({ id: "file:src/a.ts", type: "file", name: "a.ts", props: { path: "src/a.ts" } });
     graph.upsertNode({ id: "file:src/b.ts", type: "file", name: "b.ts", props: { path: "src/b.ts" } });
@@ -123,7 +123,11 @@ describe("memory agent", () => {
     await bus.drain();
 
     expect(memory.performance("code_reviewer")[0]).toMatchObject({ runs: 2, successes: 1, failures: 1, avgDurationMs: 100 });
-    expect(memory.recall({ category: "project_history" })[0]).toMatchObject({ key: "ws_1", content: "Engineering review: 2 findings", status: "active" });
+    const history = memory.recall({ category: "project_history" })[0];
+    expect(history).toMatchObject({ key: "ws_1", status: "active" });
+    expect(history.content).toBe("Engineering review (engineering_review) completed; agents: code_reviewer; findings: 1 high, 1 low; report: .neuralos/outputs/ws_1/report.md");
+    // Agent-authored prose never becomes active memory.
+    expect(JSON.stringify(history)).not.toContain("AGENT-TEXT");
     expect(memory.recall({ category: "file_relationship" }).map((r) => r.key)).toEqual(["src/a.ts -> src/b.ts"]);
 
     off();

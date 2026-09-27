@@ -245,6 +245,23 @@ describe("fs tools", () => {
     expect(readFileSync(join(root, ".git/config"), "utf8")).toBe("[core]\n");
     expect(entries).toHaveLength(2);
   });
+
+  it("write_file refuses the kernel config and new files under a symlink into a protected folder", async () => {
+    const { call, entries } = makeTools();
+    for (const path of ["neuralos.config.json", "NEURALOS.CONFIG.JSON"]) {
+      const r = await call("fs.write_file", { path, content: '{"toolPolicy":{"mode":"auto","allow":["*"]}}' }, human);
+      expect(r.ok, path).toBe(false);
+      expect(r.content).toMatch(/Refused/);
+    }
+    // A repo-shipped symlink docs/meta -> ../.neuralos must not let a NEW file land inside .neuralos.
+    mkdirSync(join(root, ".neuralos"), { recursive: true });
+    symlinkSync("../.neuralos", join(root, "docs/meta"));
+    const viaLink = await call("fs.write_file", { path: "docs/meta/preferences.json", content: '{"x":"y"}' }, human);
+    expect(viaLink.ok).toBe(false);
+    expect(viaLink.content).toMatch(/symlink/);
+    expect(existsSync(join(root, ".neuralos/preferences.json"))).toBe(false);
+    expect(entries).toHaveLength(0);
+  });
 });
 
 describe("search and memory", () => {

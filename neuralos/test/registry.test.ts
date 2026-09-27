@@ -95,13 +95,15 @@ async function pendingFor(registry: ToolRegistry, tool: string) {
 // --- tests ----------------------------------------------------------------------
 
 describe("register", () => {
-  it("computes the definition hash from name, description and schema", () => {
+  it("computes the definition hash from name, description, schema and classification", () => {
     const { registry } = setup();
     const d = registry.get("t.read")!;
-    const expected = createHash("sha256").update("t.read" + "tool t.read" + stableStringify(objectSchema)).digest("hex");
+    const expected = createHash("sha256").update("t.read" + "tool t.read" + stableStringify(objectSchema) + `${d.action}|${d.reversibility}|${d.scope}`).digest("hex");
     expect(d.hash).toBe(expected);
     expect(d.hash).toBe(toolHash(def("t.read")));
     expect(toolHash(def("t.read", { description: "other" }))).not.toBe(d.hash);
+    // A reclassification (e.g. an MCP server flipping readOnlyHint) changes the hash, so drift detection catches it.
+    expect(toolHash(def("t.read", { reversibility: "irreversible", action: "write" }))).not.toBe(d.hash);
   });
 
   it("rejects bad names, duplicates and non-object schemas", () => {

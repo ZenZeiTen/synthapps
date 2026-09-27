@@ -58,8 +58,13 @@ function sortKeys(value: unknown): unknown {
   return value;
 }
 
-export function toolHash(def: Pick<ToolDefinition, "name" | "description" | "inputSchema">): string {
-  return createHash("sha256").update(def.name + def.description + stableStringify(def.inputSchema)).digest("hex");
+/**
+ * Identity of a tool definition for drift detection. It covers the classification (action, reversibility, scope),
+ * so an MCP server that flips readOnlyHint on an unchanged tool is caught and the tool disabled until re-approved.
+ */
+export function toolHash(def: Pick<ToolDefinition, "name" | "description" | "inputSchema" | "action" | "reversibility" | "scope">): string {
+  const classification = `${def.action}|${def.reversibility}|${def.scope}`;
+  return createHash("sha256").update(def.name + def.description + stableStringify(def.inputSchema) + classification).digest("hex");
 }
 
 /** Read and search tools with no lasting effect: the only calls allowed while halted or in readonly mode. */

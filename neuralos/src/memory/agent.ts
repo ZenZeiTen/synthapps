@@ -30,12 +30,19 @@ export function attachMemoryAgent(opts: { bus: EventBus; memory: MemoryService; 
   const onWorkspace = (event: KernelEvent) => {
     const ws = (event.data as { workspace?: Workspace } | undefined)?.workspace;
     if (!ws?.id) return;
-    const summary = ws.report?.summary ?? "";
+    // Only platform facts go into active memory. Agent-authored text (the Commander summary, finding titles) stays in
+    // the report: memory written from it would reach later agents as confirmed fact without a human confirming it.
+    const counts: Record<string, number> = {};
+    for (const f of ws.report?.findings ?? []) counts[f.severity] = (counts[f.severity] ?? 0) + 1;
+    const countText = Object.entries(counts).map(([sev, n]) => `${n} ${sev}`).join(", ");
+    const facts = [`${ws.label} (${ws.intent}) ${ws.status}`, `agents: ${(ws.agents ?? []).join(", ")}`];
+    if (countText) facts.push(`findings: ${countText}`);
+    if (ws.report?.artifactPath) facts.push(`report: ${ws.report.artifactPath}`);
     memory.remember({
       category: "project_history",
       key: ws.id,
-      content: summary ? `${ws.label}: ${summary}` : ws.label,
-      data: { intent: ws.intent, text: ws.text, agents: ws.agents, files: ws.files, status: ws.status, completedAt: ws.completedAt },
+      content: facts.join("; "),
+      data: { intent: ws.intent, text: ws.text, agents: ws.agents, files: ws.files, status: ws.status, completedAt: ws.completedAt, findingCounts: counts, report: ws.report?.artifactPath },
       tags: [ws.intent, ...(ws.agents ?? [])].filter(Boolean),
       source: "platform",
     });

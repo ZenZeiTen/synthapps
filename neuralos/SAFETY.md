@@ -58,13 +58,13 @@ call, tool call and memory write passes one of two gates.
 | 4 | Tool mediation | ToolRegistry on every call; reversibility class and scope per tool (register below) | platform | built |
 | 5 | Context management | Minimum-fidelity set pinned in the system prompt (task, constraints, file list, plan step); tool results capped at 20 000 chars; bounded turns | platform (agent loop) | partial: no paging |
 | 6 | Agent-to-agent comms | No direct channel. Outputs reach the Commander and trigger rules as data, wrapped as untrusted; trigger task text comes from rule templates | platform | built |
-| 7 | Agent memory | Records carry source and timestamps; agent writes are `proposed` until a human confirms | platform | built (no record-level ACL: single user) |
+| 7 | Agent memory | Records carry source and timestamps; agent writes are `proposed` until a human confirms; the Memory Agent stores only platform facts (status, agents, finding counts), never agent-authored text, as active memory | platform | built (no record-level ACL: single user) |
 | 8 | Identity and authZ | `Principal` with delegation chain on every call; per-instance tool scope set at spawn, never inherited; depth limit `maxDelegationDepth` (default 3) | platform | built (no OAuth token exchange: all tools are local or use server-held credentials) |
 | 9 | Guardrails | Deterministic rules only: deny > allow > mode × reversibility; path confinement (realpath) to the root; secrets never passed to child processes | platform | built |
 | 10 | Failure detection | Agent output validated against a schema; empty or zero-confidence outputs flagged by Commander; audit ledger agents cannot write | platform | built |
-| 11 | Saga and checkpoint | Workspace checkpoint after each plan step; resume skips finished steps; irreversible calls fenced by idempotency key; compensable writes undoable from the journal | platform | built |
+| 11 | Saga and checkpoint | Workspace checkpoint after each plan step; resume skips finished steps; irreversible calls fenced by an idempotency key naming the operation (workspace, step, tool, input hash, occurrence), so a resumed step cannot repeat a deploy even if it makes other calls first; compensable writes undoable from the journal | platform | built |
 | 12 | Trajectory observability | Every event carries workspace and instance ids; tool events carry the principal chain; full event history in SQLite | platform | built |
-| 13 | AI-aware proxy | MCP tools pass through the registry; tool definition hashes recorded at connect; a changed definition is disabled until re-approved | platform | built |
+| 13 | AI-aware proxy | MCP tools pass through the registry; tool definition hashes (name, description, schema and the derived action, reversibility and scope) recorded at connect; a changed definition, including a flipped readOnlyHint, is disabled until re-approved | platform | built |
 
 ## 4. Tool register
 
@@ -73,7 +73,7 @@ call, tool call and memory write passes one of two gates.
 | `fs.list_files`, `fs.read_file`, `fs.search_text`, `search.semantic`, `memory.recall`, `git.status`, `git.log`, `git.diff` | read/search | reversible | tenant | yes | yes |
 | `fs.write_output` (workspace output folder only) | write | reversible | sandbox | yes | yes |
 | `memory.remember` (creates a proposed record) | write | reversible | tenant | yes | yes |
-| `fs.write_file` (project files) | write | compensable (journaled) | tenant | **approval** | yes |
+| `fs.write_file` (project files; never `.git`, `.neuralos` or `neuralos.config.json`, also through symlinks) | write | compensable (journaled) | tenant | **approval** | yes |
 | `proc.run_tests` (runs project code) | execute | irreversible | tenant | **approval** | **approval** |
 | `proc.deploy` | execute | irreversible | external | **approval** | **approval** |
 | MCP tool with `readOnlyHint: true` | read | reversible | external | yes | yes |

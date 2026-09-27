@@ -5,7 +5,7 @@
  */
 import { execFile, spawn } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { matchGlob } from "../kernel/glob";
 import type {
   ActionJournal,
@@ -466,9 +466,9 @@ export function registerBuiltinTools(opts: BuiltinToolsOptions): string[] {
       const abs = resolveInside(root, path);
       const r = rel(abs);
       if (r === ".") return fail("path must name a file");
-      if (isProtected(r)) return fail(`Refused: ${r} is inside .git or .neuralos`);
-      // A symlink inside the root could still point into .git.
-      if (existsSync(abs) && isProtected(rel(realpathSync(abs)))) return fail(`Refused: ${r} resolves into .git or .neuralos`);
+      if (isProtected(r)) return fail(`Refused: ${r} is protected (.git, .neuralos or the kernel config)`);
+      // A symlinked file or a symlinked parent directory (even for a new file) could still point into a protected path.
+      if (isProtected(rel(realTarget(abs)))) return fail(`Refused: ${r} resolves into a protected path through a symlink`);
       if (existsSync(abs) && statSync(abs).isDirectory()) return fail(`Is a directory: ${r}`);
       const before = existsSync(abs) ? readFileSync(abs, "utf8") : null;
       mkdirSync(dirname(abs), { recursive: true });
@@ -711,11 +711,28 @@ export function registerBuiltinTools(opts: BuiltinToolsOptions): string[] {
   return registered;
 }
 
+/** Kernel config at the root: it sets the tool policy, delegation depth and data dir, so agents must never write it. */
+const KERNEL_CONFIG_FILE = "neuralos.config.json";
+
 function isProtected(relPath: string): boolean {
+  if (relPath.toLowerCase() === KERNEL_CONFIG_FILE) return true;
   return relPath.split("/").some((seg) => {
     const s = seg.toLowerCase();
     return s === ".git" || s === ".neuralos";
   });
+}
+
+/** Where a path really lands: realpath of its nearest existing ancestor plus the not-yet-existing tail. */
+function realTarget(abs: string): string {
+  let probe = abs;
+  const tail: string[] = [];
+  while (!exists(probe)) {
+    const parent = dirname(probe);
+    if (parent === probe) break;
+    tail.unshift(basename(probe));
+    probe = parent;
+  }
+  return join(realpathSync(probe), ...tail);
 }
 
 function countFiles(dir: string): number {

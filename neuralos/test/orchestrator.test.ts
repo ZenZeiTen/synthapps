@@ -466,12 +466,32 @@ describe("assign: offline and Claude paths", () => {
     });
     const { orch, calls } = setup({ llm });
     const inst = await orch.runAgent("qa_engineer", "Run the tests");
-    expect(calls.map((c) => [c.name, c.ctx.idempotencyKey])).toEqual([
-      ["fs.read_file", undefined],
-      ["proc.run_tests", `${inst.instanceId}:2`],
-      ["proc.run_tests", `${inst.instanceId}:3`],
-    ]);
+    const keys = calls.map((c) => c.ctx.idempotencyKey);
+    expect(keys[0]).toBeUndefined();
+    // Keyed by operation and occurrence, not by position: a second identical call is a new occurrence.
+    expect(keys[1]).toMatch(new RegExp(`^${inst.instanceId}:proc\\.run_tests:[0-9a-f]{16}:1$`));
+    expect(keys[2]).toBe(keys[1]!.replace(/:1$/, ":2"));
     expect(calls.every((c) => c.ctx.signal instanceof AbortSignal)).toBe(true);
+  });
+
+  it("keeps an irreversible call's fence key stable across a resumed step that makes other calls first", async () => {
+    let extraRead = false;
+    const { llm } = fakeLLM(async (req) => {
+      if (extraRead) await req.callTool("fs.read_file", { path: "src/a.ts" });
+      await req.callTool("proc.run_tests", { filter: "combat" });
+      return jsonOutput("ran tests");
+    });
+    const { orch, calls } = setup({ llm });
+    const s1 = step("s1", "qa_engineer", "Run the tests");
+    const first = orch.spawn("qa_engineer", { workspaceId: "ws_1" });
+    await orch.assign(first.instanceId, "Run the tests", { step: s1 });
+    extraRead = true; // the resumed run (a new instance) reads a file before calling the same tool
+    const resumed = orch.spawn("qa_engineer", { workspaceId: "ws_1" });
+    await orch.assign(resumed.instanceId, "Run the tests", { step: s1 });
+    const keys = calls.filter((c) => c.name === "proc.run_tests").map((c) => c.ctx.idempotencyKey);
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toMatch(/^ws_1:s1:proc\.run_tests:[0-9a-f]{16}:1$/);
+    expect(keys[1]).toBe(keys[0]); // same logical operation -> the gateway fences the repeat
   });
 
   it("builds the system prompt with constraint reasons and the pinned plan step", () => {
