@@ -249,7 +249,7 @@ export const codeReview: Skill = async (ctx) => {
       add(
         {
           severity: "medium",
-          title: "Missing test file",
+          title: "Untested source file", // same title as the QA skill so the Commander merges the two
           detail: `No test found for ${basename(src)} (expected something like ${moduleBase(src)}.test.${src.split(".").pop()}).`,
           file: src,
         },

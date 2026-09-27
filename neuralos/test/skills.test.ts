@@ -148,7 +148,7 @@ describe("code_review", () => {
     expect(find(/console\.log/)[0]).toMatchObject({ line: 9 });
     expect(find(/Empty catch/)[0]).toMatchObject({ line: 10 });
 
-    const missing = find(/Missing test/);
+    const missing = find(/Untested source file/);
     expect(missing.map((f) => f.file)).toEqual(["src/shop.ts"]);
     expect(missing[0].detail).toMatch(/rule 3/);
 
@@ -455,5 +455,15 @@ describe("other skills", () => {
     const { ctx } = ctxFor("memory_agent", "coding rules", {}, { memory: [{ category: "coding_standard", key: "no-any", content: "Never use any" }] });
     const out = await runOfflineSkill("memory", ctx);
     expect(out.summary).toMatch(/\[coding_standard\] no-any/);
+  });
+});
+
+describe("legal document selection", () => {
+  it("treats only numbered agreements between parties as contracts", async () => {
+    const { looksLikeContract } = await import("../src/agents/skills/business");
+    const readme = "# Demo\n\nThis repo includes a services agreement between the Client and the Contractor, used by the legal demo.\n";
+    const contract = "# Services Agreement\n\nBetween the Client and the Contractor.\n\n## 1. Definitions\n1.1 Terms.\n## 2. Services\n## 3. Fees\n";
+    expect(looksLikeContract(readme)).toBe(false);
+    expect(looksLikeContract(contract)).toBe(true);
   });
 });

@@ -72,9 +72,15 @@ const KEY_CLAUSES: { name: string; re: RegExp; severity: Finding["severity"] }[]
 
 export const NOT_LEGAL_ADVICE = "This is an automated reading, not legal advice.";
 
-/** Contract-like: names an agreement and its parties. Keeps design docs and READMEs out of the clause checks. */
+/**
+ * Contract-like: names an agreement and its parties, and is laid out in numbered clauses.
+ * The clause test keeps READMEs and design docs that merely mention a contract out of the clause checks.
+ */
 export function looksLikeContract(text: string): boolean {
-  return /\b(agreement|contract|terms of service|perjanjian|kontrak)\b/i.test(text) && /\b(part(y|ies)|client|contractor|supplier|customer|licensee|licensor|pihak)\b/i.test(text);
+  const namesAgreement = /\b(agreement|contract|terms of service|perjanjian|kontrak)\b/i.test(text);
+  const namesParties = /\b(part(y|ies)|client|contractor|supplier|customer|licensee|licensor|pihak)\b/i.test(text);
+  const numberedClauses = text.match(/^\s*(?:#{1,6}\s*)?(?:(?:clause|article|pasal)\s+)?\d+(?:\.\d+)*[.)]?\s+\S/gim) ?? [];
+  return namesAgreement && namesParties && numberedClauses.length >= 3;
 }
 
 export const legal: Skill = async (ctx) => {
