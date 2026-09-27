@@ -413,7 +413,7 @@ export interface ToolDefinition {
   /** Unique. Built-ins: "fs.read_file". MCP: "mcp.<server>.<tool>". Only [a-zA-Z0-9_.-]. */
   name: string;
   description: string;
-  /** "builtin:fs", "builtin:git", "builtin:proc", "builtin:search" or "mcp:<server>". */
+  /** "builtin:fs", "builtin:git", "builtin:proc", "builtin:search", "builtin:memory" or "mcp:<server>". */
   server: string;
   action: ToolAction;
   reversibility: Reversibility;
@@ -506,6 +506,7 @@ export interface ToolRegistry {
    * depth within limit? -> tool within the principal's scope (agent tool globs) -> deny/allow rules -> policy mode and
    * reversibility (may wait for approval) -> input schema -> replay fence -> governor charge -> handler -> audit.
    * Emits tool.called and tool.result. Never throws for tool failures; returns ok:false.
+   * Schema rejections are audited as "denied" (reason "invalid input"); handler failures as "error".
    */
   call(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult>;
   /** Tool-name globs a principal may call; set by the orchestrator when it spawns an instance. No inheritance between instances. */
@@ -598,6 +599,10 @@ export interface McpManager {
   disconnect(name: string): Promise<void>;
   status(): McpServerStatus[];
   closeAll(): Promise<void>;
+  /** Tool-definition hashes pinned at first sight, keyed by full tool name ("mcp.<server>.<tool>"). Persist to survive restarts. */
+  approvedHashes(): Record<string, string>;
+  /** Human re-approval of a tool whose definition changed: pins the new hash and re-enables it. */
+  reapprove(toolName: string): boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -912,6 +917,8 @@ export interface NeuralOSConfig {
   budget: AgentBudget;
   /** Test command for proc.run_tests, run in root. Default: detect from package.json / pyproject. */
   testCommand?: string;
+  /** Timeout for proc.run_tests and proc.deploy. Default 10 minutes. */
+  procTimeoutMs?: number;
   /** Deploy command for the project radial Deploy action. Without it, Deploy packages the outputs. */
   deployCommand?: string;
 }
