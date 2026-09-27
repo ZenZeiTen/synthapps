@@ -1,0 +1,1109 @@
+{
+ "backdrops": [
+  "reach",
+  "harbor",
+  "village",
+  "cliffs",
+  "abbey",
+  "brinecrow"
+ ],
+ "music": [
+  "title",
+  "house",
+  "reach",
+  "harbor",
+  "village",
+  "cliffs",
+  "abbey",
+  "brinecrow",
+  "guardian",
+  "final",
+  "clear",
+  "ending",
+  "over"
+ ],
+ "sfx": [
+  "jump",
+  "land",
+  "swing",
+  "spin",
+  "cleave",
+  "hit",
+  "clink",
+  "hurt",
+  "die",
+  "coin",
+  "item",
+  "use",
+  "deny",
+  "chest",
+  "post",
+  "splash",
+  "eswing",
+  "throw",
+  "break",
+  "boom",
+  "slam",
+  "net",
+  "screech",
+  "appear",
+  "vanish",
+  "cast",
+  "roar",
+  "wave",
+  "bell",
+  "gate",
+  "life",
+  "select",
+  "menu",
+  "page"
+ ],
+ "sprites": {
+  "bat": {
+   "frames": 3,
+   "h": 16,
+   "origin": [
+    12,
+    15
+   ],
+   "tags": {
+    "fly": [
+     1,
+     2
+    ],
+    "hang": [
+     0,
+     1
+    ]
+   },
+   "w": 24
+  },
+  "bell": {
+   "frames": 2,
+   "h": 20,
+   "origin": [
+    10,
+    19
+   ],
+   "tags": {
+    "shine": [
+     0,
+     2
+    ]
+   },
+   "w": 20
+  },
+  "blast": {
+   "frames": 3,
+   "h": 30,
+   "origin": [
+    18,
+    29
+   ],
+   "tags": {
+    "burst": [
+     0,
+     3
+    ]
+   },
+   "w": 36
+  },
+  "bomb": {
+   "frames": 2,
+   "h": 10,
+   "origin": [
+    5,
+    9
+   ],
+   "tags": {
+    "spin": [
+     0,
+     2
+    ]
+   },
+   "w": 10
+  },
+  "bottle": {
+   "frames": 2,
+   "h": 8,
+   "origin": [
+    4,
+    7
+   ],
+   "tags": {
+    "spin": [
+     0,
+     2
+    ]
+   },
+   "w": 8
+  },
+  "brannoch": {
+   "frames": 34,
+   "h": 48,
+   "origin": [
+    24,
+    46
+   ],
+   "tags": {
+    "cattack": [
+     20,
+     3
+    ],
+    "climb": [
+     29,
+     2
+    ],
+    "crouch": [
+     10,
+     1
+    ],
+    "cut0": [
+     11,
+     3
+    ],
+    "cut1": [
+     14,
+     3
+    ],
+    "dead": [
+     32,
+     2
+    ],
+    "fall": [
+     9,
+     1
+    ],
+    "hurt": [
+     31,
+     1
+    ],
+    "jattack": [
+     23,
+     2
+    ],
+    "jump": [
+     8,
+     1
+    ],
+    "special": [
+     25,
+     4
+    ],
+    "spin": [
+     17,
+     3
+    ],
+    "stand": [
+     0,
+     2
+    ],
+    "walk": [
+     2,
+     6
+    ]
+   },
+   "w": 48
+  },
+  "captive": {
+   "frames": 4,
+   "h": 44,
+   "origin": [
+    16,
+    42
+   ],
+   "tags": {
+    "stand": [
+     0,
+     2
+    ],
+    "wave": [
+     2,
+     2
+    ]
+   },
+   "w": 32
+  },
+  "chest": {
+   "frames": 1,
+   "h": 16,
+   "origin": [
+    10,
+    15
+   ],
+   "tags": {
+    "shut": [
+     0,
+     1
+    ]
+   },
+   "w": 20
+  },
+  "crab": {
+   "frames": 2,
+   "h": 20,
+   "origin": [
+    16,
+    19
+   ],
+   "tags": {
+    "walk": [
+     0,
+     2
+    ]
+   },
+   "w": 32
+  },
+  "cursor": {
+   "frames": 2,
+   "h": 8,
+   "origin": [
+    0,
+    0
+   ],
+   "tags": {
+    "point": [
+     0,
+     2
+    ]
+   },
+   "w": 8
+  },
+  "feather": {
+   "frames": 1,
+   "h": 10,
+   "origin": [
+    4,
+    9
+   ],
+   "tags": {
+    "fall": [
+     0,
+     1
+    ]
+   },
+   "w": 8
+  },
+  "font": {
+   "frames": 1,
+   "h": 8,
+   "origin": [
+    0,
+    0
+   ],
+   "tags": {
+    "glyphs": [
+     0,
+     1
+    ]
+   },
+   "w": 576
+  },
+  "fx": {
+   "frames": 4,
+   "h": 24,
+   "origin": [
+    12,
+    20
+   ],
+   "tags": {
+    "poof": [
+     0,
+     4
+    ]
+   },
+   "w": 24
+  },
+  "golem": {
+   "frames": 4,
+   "h": 44,
+   "origin": [
+    20,
+    43
+   ],
+   "tags": {
+    "slam": [
+     3,
+     1
+    ],
+    "walk": [
+     0,
+     2
+    ],
+    "windup": [
+     2,
+     1
+    ]
+   },
+   "w": 40
+  },
+  "grane": {
+   "frames": 11,
+   "h": 48,
+   "origin": [
+    24,
+    46
+   ],
+   "tags": {
+    "back": [
+     10,
+     1
+    ],
+    "cut": [
+     7,
+     2
+    ],
+    "hurt": [
+     9,
+     1
+    ],
+    "stand": [
+     0,
+     2
+    ],
+    "walk": [
+     2,
+     4
+    ],
+    "windup": [
+     6,
+     1
+    ]
+   },
+   "w": 48
+  },
+  "gull": {
+   "frames": 2,
+   "h": 20,
+   "origin": [
+    16,
+    16
+   ],
+   "tags": {
+    "fly": [
+     0,
+     2
+    ]
+   },
+   "w": 32
+  },
+  "gust": {
+   "frames": 2,
+   "h": 48,
+   "origin": [
+    24,
+    40
+   ],
+   "tags": {
+    "spin": [
+     0,
+     2
+    ]
+   },
+   "w": 48
+  },
+  "hud": {
+   "frames": 5,
+   "h": 16,
+   "origin": [
+    0,
+    0
+   ],
+   "tags": {
+    "box": [
+     3,
+     1
+    ],
+    "brannoch": [
+     2,
+     1
+    ],
+    "heart": [
+     4,
+     1
+    ],
+    "june": [
+     1,
+     1
+    ],
+    "kess": [
+     0,
+     1
+    ]
+   },
+   "w": 16
+  },
+  "hullbreaker": {
+   "frames": 5,
+   "h": 40,
+   "origin": [
+    32,
+    39
+   ],
+   "tags": {
+    "charge": [
+     2,
+     2
+    ],
+    "rest": [
+     4,
+     1
+    ],
+    "walk": [
+     0,
+     2
+    ]
+   },
+   "w": 64
+  },
+  "items": {
+   "frames": 11,
+   "h": 16,
+   "origin": [
+    8,
+    14
+   ],
+   "tags": {
+    "coin": [
+     0,
+     1
+    ],
+    "feather": [
+     6,
+     1
+    ],
+    "fury": [
+     9,
+     1
+    ],
+    "gem": [
+     1,
+     1
+    ],
+    "heartroot": [
+     4,
+     1
+    ],
+    "key": [
+     2,
+     1
+    ],
+    "knives": [
+     5,
+     1
+    ],
+    "life": [
+     10,
+     1
+    ],
+    "squall": [
+     7,
+     1
+    ],
+    "stoneskin": [
+     8,
+     1
+    ],
+    "tonic": [
+     3,
+     1
+    ]
+   },
+   "w": 16
+  },
+  "june": {
+   "frames": 34,
+   "h": 48,
+   "origin": [
+    24,
+    46
+   ],
+   "tags": {
+    "cattack": [
+     20,
+     3
+    ],
+    "climb": [
+     29,
+     2
+    ],
+    "crouch": [
+     10,
+     1
+    ],
+    "cut0": [
+     11,
+     3
+    ],
+    "cut1": [
+     14,
+     3
+    ],
+    "dead": [
+     32,
+     2
+    ],
+    "fall": [
+     9,
+     1
+    ],
+    "hurt": [
+     31,
+     1
+    ],
+    "jattack": [
+     23,
+     2
+    ],
+    "jump": [
+     8,
+     1
+    ],
+    "special": [
+     25,
+     4
+    ],
+    "spin": [
+     17,
+     3
+    ],
+    "stand": [
+     0,
+     2
+    ],
+    "walk": [
+     2,
+     6
+    ]
+   },
+   "w": 48
+  },
+  "kess": {
+   "frames": 34,
+   "h": 48,
+   "origin": [
+    24,
+    46
+   ],
+   "tags": {
+    "cattack": [
+     20,
+     3
+    ],
+    "climb": [
+     29,
+     2
+    ],
+    "crouch": [
+     10,
+     1
+    ],
+    "cut0": [
+     11,
+     3
+    ],
+    "cut1": [
+     14,
+     3
+    ],
+    "dead": [
+     32,
+     2
+    ],
+    "fall": [
+     9,
+     1
+    ],
+    "hurt": [
+     31,
+     1
+    ],
+    "jattack": [
+     23,
+     2
+    ],
+    "jump": [
+     8,
+     1
+    ],
+    "special": [
+     25,
+     4
+    ],
+    "spin": [
+     17,
+     3
+    ],
+    "stand": [
+     0,
+     2
+    ],
+    "walk": [
+     2,
+     6
+    ]
+   },
+   "w": 48
+  },
+  "knife": {
+   "frames": 1,
+   "h": 6,
+   "origin": [
+    6,
+    3
+   ],
+   "tags": {
+    "fly": [
+     0,
+     1
+    ]
+   },
+   "w": 12
+  },
+  "logo": {
+   "frames": 1,
+   "h": 56,
+   "origin": [
+    0,
+    0
+   ],
+   "tags": {
+    "logo": [
+     0,
+     1
+    ]
+   },
+   "w": 256
+  },
+  "mapmark": {
+   "frames": 4,
+   "h": 16,
+   "origin": [
+    8,
+    8
+   ],
+   "tags": {
+    "done": [
+     1,
+     1
+    ],
+    "here": [
+     2,
+     2
+    ],
+    "island": [
+     0,
+     1
+    ]
+   },
+   "w": 16
+  },
+  "mudskip": {
+   "frames": 3,
+   "h": 16,
+   "origin": [
+    12,
+    15
+   ],
+   "tags": {
+    "hop": [
+     2,
+     1
+    ],
+    "stand": [
+     0,
+     2
+    ]
+   },
+   "w": 24
+  },
+  "net": {
+   "frames": 1,
+   "h": 12,
+   "origin": [
+    8,
+    11
+   ],
+   "tags": {
+    "fly": [
+     0,
+     1
+    ]
+   },
+   "w": 16
+  },
+  "oldgrey": {
+   "frames": 4,
+   "h": 40,
+   "origin": [
+    32,
+    30
+   ],
+   "tags": {
+    "dive": [
+     3,
+     1
+    ],
+    "fly": [
+     0,
+     3
+    ]
+   },
+   "w": 64
+  },
+  "panel": {
+   "frames": 1,
+   "h": 24,
+   "origin": [
+    0,
+    0
+   ],
+   "tags": {
+    "frame": [
+     0,
+     1
+    ]
+   },
+   "w": 24
+  },
+  "portraits": {
+   "frames": 12,
+   "h": 48,
+   "origin": [
+    0,
+    0
+   ],
+   "tags": {
+    "brannoch": [
+     3,
+     1
+    ],
+    "grane": [
+     9,
+     1
+    ],
+    "hullbreaker": [
+     5,
+     1
+    ],
+    "june": [
+     2,
+     1
+    ],
+    "kess": [
+     1,
+     1
+    ],
+    "oldgrey": [
+     7,
+     1
+    ],
+    "pell": [
+     0,
+     1
+    ],
+    "siltking": [
+     10,
+     1
+    ],
+    "tallyman": [
+     6,
+     1
+    ],
+    "vell": [
+     4,
+     1
+    ],
+    "villager": [
+     11,
+     1
+    ],
+    "warden": [
+     8,
+     1
+    ]
+   },
+   "w": 48
+  },
+  "post": {
+   "frames": 3,
+   "h": 40,
+   "origin": [
+    8,
+    39
+   ],
+   "tags": {
+    "dark": [
+     0,
+     1
+    ],
+    "lit": [
+     1,
+     2
+    ]
+   },
+   "w": 16
+  },
+  "raider": {
+   "frames": 10,
+   "h": 48,
+   "origin": [
+    24,
+    46
+   ],
+   "tags": {
+    "cut": [
+     7,
+     2
+    ],
+    "hurt": [
+     9,
+     1
+    ],
+    "stand": [
+     0,
+     2
+    ],
+    "walk": [
+     2,
+     4
+    ],
+    "windup": [
+     6,
+     1
+    ]
+   },
+   "w": 48
+  },
+  "shock": {
+   "frames": 2,
+   "h": 10,
+   "origin": [
+    7,
+    9
+   ],
+   "tags": {
+    "run": [
+     0,
+     2
+    ]
+   },
+   "w": 14
+  },
+  "siltking": {
+   "frames": 5,
+   "h": 96,
+   "origin": [
+    48,
+    94
+   ],
+   "tags": {
+    "slam": [
+     2,
+     2
+    ],
+    "stand": [
+     0,
+     2
+    ],
+    "wave": [
+     4,
+     1
+    ]
+   },
+   "w": 96
+  },
+  "spark": {
+   "frames": 2,
+   "h": 10,
+   "origin": [
+    5,
+    9
+   ],
+   "tags": {
+    "glow": [
+     0,
+     2
+    ]
+   },
+   "w": 10
+  },
+  "tallyman": {
+   "frames": 6,
+   "h": 56,
+   "origin": [
+    28,
+    54
+   ],
+   "tags": {
+    "hop": [
+     2,
+     1
+    ],
+    "hurt": [
+     5,
+     1
+    ],
+    "lob": [
+     3,
+     2
+    ],
+    "stand": [
+     0,
+     2
+    ]
+   },
+   "w": 56
+  },
+  "thrower": {
+   "frames": 9,
+   "h": 48,
+   "origin": [
+    24,
+    46
+   ],
+   "tags": {
+    "hurt": [
+     8,
+     1
+    ],
+    "stand": [
+     0,
+     2
+    ],
+    "throw": [
+     6,
+     2
+    ],
+    "walk": [
+     2,
+     4
+    ]
+   },
+   "w": 48
+  },
+  "vell": {
+   "frames": 10,
+   "h": 48,
+   "origin": [
+    24,
+    46
+   ],
+   "tags": {
+    "hurt": [
+     9,
+     1
+    ],
+    "leap": [
+     6,
+     1
+    ],
+    "stand": [
+     0,
+     2
+    ],
+    "throw": [
+     7,
+     2
+    ],
+    "walk": [
+     2,
+     4
+    ]
+   },
+   "w": 48
+  },
+  "warden": {
+   "frames": 3,
+   "h": 48,
+   "origin": [
+    20,
+    46
+   ],
+   "tags": {
+    "cast": [
+     2,
+     1
+    ],
+    "float": [
+     0,
+     2
+    ]
+   },
+   "w": 40
+  },
+  "wave": {
+   "frames": 2,
+   "h": 26,
+   "origin": [
+    8,
+    25
+   ],
+   "tags": {
+    "roll": [
+     0,
+     2
+    ]
+   },
+   "w": 16
+  },
+  "wisp": {
+   "frames": 2,
+   "h": 16,
+   "origin": [
+    8,
+    14
+   ],
+   "tags": {
+    "float": [
+     0,
+     2
+    ]
+   },
+   "w": 16
+  }
+ },
+ "stills": [
+  "title",
+  "map",
+  "dawn"
+ ],
+ "tiles": {
+  "cells": [
+   "top",
+   "inner",
+   "top_l",
+   "top_r",
+   "ledge",
+   "climb",
+   "spikes",
+   "gate",
+   "crate",
+   "water",
+   "side_l",
+   "side_r",
+   "under",
+   "top_alt",
+   "inner_alt",
+   "climb_top",
+   "deco0",
+   "deco1",
+   "deco2",
+   "deco3",
+   "ledge_l",
+   "ledge_r",
+   "water_top",
+   "blank"
+  ],
+  "cols": 8,
+  "rows": 3,
+  "themes": [
+   "reach",
+   "harbor",
+   "village",
+   "cliffs",
+   "abbey",
+   "brinecrow"
+  ]
+ }
+}

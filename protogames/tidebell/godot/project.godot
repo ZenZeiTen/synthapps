@@ -1,0 +1,35 @@
+; Engine configuration file.
+; Tidebell -- an original sword game on the rules of The Pirates of Dark Water (Genesis, 1994).
+; Godot 4.7. Content is read at runtime from res://content (pipeline/sync_content.py copies it).
+
+config_version=5
+
+[application]
+
+config/name="Tidebell"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7")
+boot_splash/use_filter=false
+boot_splash/bg_color=Color(0.07, 0.08, 0.13, 1)
+config/icon="res://content/app_icon.png"
+
+[display]
+
+window/size/viewport_width=320
+window/size/viewport_height=224
+window/size/window_width_override=1280
+window/size/window_height_override=896
+window/stretch/mode="viewport"
+window/stretch/aspect="keep"
+window/stretch/scale_mode="integer"
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+2d/snap/snap_2d_transforms_to_pixel=true

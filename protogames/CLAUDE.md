@@ -11,6 +11,10 @@ Each game lives in its own folder with its own README, docs, pipeline and tests:
   `vale-of-shards/CLAUDE.md` first. It holds the commands, the harness (which can drive
   the game through synthesized key and pad events), the route checker that proves every
   stage can be finished, and the level bugs it caught.
+- `tidebell/`: a side-scrolling sword game in two builds, Godot 4.7 and three.js, with one
+  set of rules ported to both and a parity check that they match. Read `tidebell/CLAUDE.md`
+  first. Its rules were measured by running a Genesis ROM in an emulator; the ROM is never
+  committed.
 
 Rules shared by every project here:
 
