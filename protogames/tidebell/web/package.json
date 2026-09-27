@@ -1,0 +1,17 @@
+{
+  "name": "tidebell-web",
+  "private": true,
+  "type": "module",
+  "description": "Tidebell in the browser: the same rules as the Godot build, drawn with three.js.",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "serve": "node tools/serve.mjs dist",
+    "test": "bash ../tests/run_web.sh"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
