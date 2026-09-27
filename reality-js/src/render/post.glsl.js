@@ -197,6 +197,27 @@ float grainNoise(vec2 p, float seed) {
   return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
+// Halation: light that passes through the film reflects off the back of the
+// base and exposes the red layer again, in a thin ring around highlights.
+// Real halation reaches a few pixels, not across the frame, and its rim
+// saturates instead of growing with the highlight. So it is sampled from
+// the image itself on two small rings (not from the wide bloom pyramid) and
+// compressed: a lamp in view gets a red edge, not a red frame.
+vec3 halation(vec2 uv) {
+  vec2 px = 1.0 / uResolution;
+  float r = max(1.5, uResolution.y / 400.0);
+  vec3 sum = vec3(0.0);
+  for (int i = 0; i < 8; i++) {
+    float a = float(i) * 0.7853982;
+    vec2 d = vec2(cos(a), sin(a)) * px * r;
+    sum += safe3(texture(uHdr, uv + d).rgb) + safe3(texture(uHdr, uv + d * 2.5).rgb);
+  }
+  // Only light above paper white (1.0 after exposure) causes halation.
+  vec3 over = max(sum / 16.0 - 1.0, vec3(0.0));
+  float l = dot(over, vec3(0.2126, 0.7152, 0.0722));
+  return vec3(1.0, 0.28, 0.1) * (l / (1.0 + 0.5 * l));
+}
+
 void main() {
   vec2 uv = gl_FragCoord.xy / uResolution;
   vec2 c = uv - 0.5;
@@ -210,9 +231,7 @@ void main() {
   vec3 bloom = safe3(texture(uBloom, uv).rgb / uBloomLevels);
   col = safe3(col);
   col = mix(col, bloom, uBloomAmount);
-  // Halation: red light scattered back through the film base, around
-  // highlights only.
-  col += uHalation * 0.5 * max(bloom - 0.5, vec3(0)) * vec3(1.0, 0.28, 0.1);
+  if (uHalation > 0.0) col += uHalation * 0.6 * halation(uv);
 
   // Natural vignetting of an ideal lens: cos^4 of the angle off axis.
   vec2 tanXY = (uv * 2.0 - 1.0) * vec2(uTanHalfW, uTanHalfH);

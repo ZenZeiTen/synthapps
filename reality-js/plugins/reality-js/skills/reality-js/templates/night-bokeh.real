@@ -14,7 +14,7 @@ camera {
 }
 
 background { color: #1a2440, intensity: 0.3 }   # a little blue night air
-film { bloom: 0.01, grain: 0.25 }   # lamps in view: keep bloom low, no halation
+film { bloom: 0.01, halation: 0.3, grain: 0.25 }   # lamps in view: keep bloom low
 render { samples: 512 }
 
 ground { material: matte { color: #333, roughness: 0.6 } }
