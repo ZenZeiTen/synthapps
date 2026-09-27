@@ -85,6 +85,25 @@ test('auto exposure: the firefly clamp follows the metered exposure', async (t) 
   assert.ok(Math.abs(lum(clamped.probes[0]) - lum(free.probes[0])) < 20, `clamped ${clamped.probes[0]} vs unclamped ${free.probes[0]}`);
 });
 
+// Halation is a thin red rim around highlights. It once came from the wide
+// bloom pyramid without a limit, so lamps in view turned the whole night
+// sky red even at halation 0.05.
+test('halation stays around highlights instead of flooding the frame', async (t) => {
+  if (skip) return t.skip(skip);
+  const scene = (h) => `
+    camera { position: [0, 1.6, 7], look_at: [0, 1.6, 0], exposure: manual, aperture: f/2, shutter: 1/60s, iso: 1600 }
+    background { color: #0b1020, intensity: 0.2 }
+    film { bloom: 0, halation: ${h}, denoise: false }
+    bulb { position: [0, 1.6, 0], radius: 0.1, power: 6000lm, temperature: 2200K }`;
+  // The bulb is at the centre; probe the dark sky far from it, and just
+  // outside its edge.
+  const probes = [[20, 15, 3], [86, 45, 1]];
+  const off = await still({ source: scene(0), samples: 8, probes });
+  const on = await still({ source: scene(1), samples: 8, probes });
+  assert.ok(Math.abs(lum(on.probes[0]) - lum(off.probes[0])) < 3, `far sky ${off.probes[0]} -> ${on.probes[0]}`);
+  assert.ok(on.probes[1][0] > off.probes[1][0] + 10, `bulb edge ${off.probes[1]} -> ${on.probes[1]}`);
+});
+
 test('motion blur smears a moving object', async (t) => {
   if (skip) return t.skip(skip);
   const scene = (speed) => `

@@ -221,9 +221,9 @@ if (objCount > 1000) warnings.push(`${objCount} objects: every ray tests every o
 else if (objCount > 250) warnings.push(`${objCount} objects will slow every ray; hundreds are fine, thousands are not.`);
 if (rs.bounces > 12) warnings.push(`bounces: ${rs.bounces} costs time with little visible gain; 6 to 10 covers glass and interiors.`);
 const hasGlass = snap.objects.some((o) => o.material.transmission > 0);
-if (direct && (film.halation > 0.05 || film.bloom > 0.02)) {
-  warnings.push(`film bloom ${film.bloom} / halation ${film.halation} with lamps in the scene: lamps seen directly are thousands of times brighter than the frame, ` +
-    'so these spread an orange haze everywhere. If a lamp is in view, use bloom 0.003-0.01 and halation 0.');
+if (direct && film.bloom > 0.02) {
+  warnings.push(`film bloom ${film.bloom} with lamps in the scene: lamps seen directly are thousands of times brighter than the frame, ` +
+    'so bloom spreads a haze everywhere. If a lamp is in view, use bloom 0.003-0.01.');
 }
 if (hasGlass && rs.bounces < 6) warnings.push(`glass or water with bounces: ${rs.bounces} looks dark; use at least 6.`);
 if (!film.denoise && rs.samples < 256) warnings.push('denoise is off with fewer than 256 samples: expect visible noise.');

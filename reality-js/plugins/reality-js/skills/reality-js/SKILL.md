@@ -171,16 +171,18 @@ highlights), `white_balance` in kelvin (default 6,500; set about 3,200 to
 make tungsten light look neutral, or leave it for a warm look), `grain: 0.1-0.3`,
 `bloom`, `halation` and `vignette`. Keep these subtle; they are seasoning.
 
-Bloom and halation scale with how bright the highlights are, and a lamp
-seen directly is thousands of times brighter than the rest of the frame:
+Bloom spreads a share of every highlight across the frame, and a lamp seen
+directly is thousands of times brighter than the rest of it:
 
-| Brightest thing in frame | bloom | halation |
-|---|---|---|
-| Daylight, studio, sun only in reflections | 0.02-0.08 | 0-0.2 |
-| The sun itself, or bulbs, lamps and softboxes in view | 0.003-0.01 | 0 |
+| Brightest thing in frame | bloom |
+|---|---|
+| Daylight, studio, sun only in reflections | 0.02-0.08 |
+| The sun itself, or bulbs, lamps and softboxes in view | 0.003-0.01 |
 
-Too much of either spreads an orange haze over the whole frame. If a night
-render looks foggy without fog, set bloom 0.005 and halation 0 first.
+Too much bloom spreads a haze over the whole frame: if a night render looks
+foggy without fog, set bloom 0.005 first. Halation stays in a thin red rim
+around highlights whatever their brightness, so `halation: 0.1-0.4` is safe
+in any scene; use up to 1 for a strong film look.
 
 **Materials.** Use the named kinds, then tune. `matte` is paper, plaster and
 clay. `plastic` is paint and ceramics. `metal { color: gold, roughness: 0.1-0.4 }`.
