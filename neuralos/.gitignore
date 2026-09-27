@@ -1,0 +1,7 @@
+node_modules/
+web/dist/
+.neuralos/
+*.db
+*.db-journal
+coverage/
+test-results/
