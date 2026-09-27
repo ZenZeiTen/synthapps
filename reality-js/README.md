@@ -128,6 +128,15 @@ model, mesh generators) also runs in Node without a GPU.
 - [examples/](examples/): seven commented scenes, from `hello.real` to
   animated physics and a hand-held lake shot.
 
+## Claude Code skill
+
+`plugins/reality-js/` is a Claude Code plugin with a skill for working in
+reality.js: the shot-setup workflow, a GPU-free scene checker with
+render-time estimates (`skills/reality-js/scripts/check.mjs`), seven tested
+scene templates, and a property cheat sheet generated from the schemas.
+Install it with `/plugin install reality-js@synthapps` after
+`/plugin marketplace add ZenZeiTen/synthapps`.
+
 ## Tests
 
 ```bash
