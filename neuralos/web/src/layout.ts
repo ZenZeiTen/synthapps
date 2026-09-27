@@ -3,6 +3,9 @@
  * refreshes and live updates only move what changed.
  *
  *   concepts | project / folders / files (tree) | workspaces with their agents | MCP servers | other nodes
+ *
+ * Columns right of the tree start where the tree ends (a deep tree or a folder with many files pushes them right),
+ * and the MCP column follows the rightmost workspace or pool agent instead of a fixed far-away x.
  */
 import type { GraphEdge, GraphNode, GraphSlice, NodeType } from "./types";
 
@@ -50,14 +53,20 @@ const FILE_COLS = 3;
 const COL_W = 172;
 const ROW_H = 116;
 const CONCEPT_X = -210;
+/** Minimum x of the first workspace column; moves right when the tree is wider. */
 const WS_X = 1180;
+/** Half the width of a node box (every shape is at most 160 wide). */
+const HALF_W = 80;
+/** Clear space between the tree and the workspace / agent-pool columns. */
+const COLUMN_GAP = 60;
 /** Workspaces fill a two-column grid, oldest first, so a new one never moves the others. */
 const WS_COLS = 2;
 const WS_COL_GAP = 840;
 const WS_ROW_GAP = 820;
-const MCP_X = WS_X + WS_COL_GAP + 720;
 const MCP_GAP = 94;
-const OTHER_X = MCP_X + 200;
+/** Distance from the rightmost workspace / pool node to the MCP column. */
+const MCP_OFFSET = 260;
+const POOL_COLS = 6;
 
 const byName = (a: GraphNode, b: GraphNode) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
 
@@ -177,6 +186,14 @@ export function layoutGraph(graph: GraphSlice): Map<string, Point> {
     pos.set(n.id, { x: CONCEPT_X, y: cy });
   }
 
+  // Everything placed so far is the tree column (concepts sit left of it). Later columns must clear it.
+  let treeRight = -Infinity;
+  for (const [id, p] of pos) if (nodes.get(id)?.type !== "concept") treeRight = Math.max(treeRight, p.x + HALF_W);
+  const poolHalf = ((POOL_COLS - 1) * COL_W) / 2 + HALF_W;
+  // The first workspace column: its ring (rx <= 300), the files it owns (rx + 200 to its left) and the pool centred
+  // under it all stay right of the tree.
+  const baseX = Number.isFinite(treeRight) ? Math.max(WS_X, treeRight + COLUMN_GAP + Math.max(300 + 200 + HALF_W, poolHalf)) : WS_X;
+
   // ---- workspaces with their agents ---------------------------------------------------------------
   const workspaces = graph.nodes
     .filter((n) => n.type === "workspace")
@@ -204,7 +221,7 @@ export function layoutGraph(graph: GraphSlice): Map<string, Point> {
   let wsY = 300;
   workspaces.forEach((ws, i) => {
     wsY = 300 + Math.floor(i / WS_COLS) * WS_ROW_GAP;
-    const wsX = WS_X + (i % WS_COLS) * WS_COL_GAP;
+    const wsX = baseX + (i % WS_COLS) * WS_COL_GAP;
     pos.set(ws.id, { x: wsX, y: wsY });
     const agents = wsAgents.get(ws.id) ?? [];
     const n = agents.length;
@@ -241,26 +258,28 @@ export function layoutGraph(graph: GraphSlice): Map<string, Point> {
       return ga - gb || byName(a, b);
     });
   const poolY = workspaces.length ? wsY + 520 : 300;
-  const poolCols = 6;
-  const poolCenter = WS_X + ((Math.min(WS_COLS, Math.max(1, workspaces.length)) - 1) * WS_COL_GAP) / 2;
+  const poolCenter = baseX + ((Math.min(WS_COLS, Math.max(1, workspaces.length)) - 1) * WS_COL_GAP) / 2;
   pool.forEach((a, i) => {
     pos.set(a.id, {
-      x: poolCenter - ((poolCols - 1) * COL_W) / 2 + (i % poolCols) * COL_W,
-      y: poolY + Math.floor(i / poolCols) * ROW_H,
+      x: poolCenter - ((POOL_COLS - 1) * COL_W) / 2 + (i % POOL_COLS) * COL_W,
+      y: poolY + Math.floor(i / POOL_COLS) * ROW_H,
     });
   });
 
-  // ---- MCP column ------------------------------------------------------------------------------------
+  // ---- MCP column: right of the workspaces and the pool --------------------------------------------
+  let right = baseX;
+  for (const p of pos.values()) right = Math.max(right, p.x);
+  const mcpX = right + MCP_OFFSET;
   graph.nodes
     .filter((n) => n.type === "mcp")
     .sort(byName)
-    .forEach((m, i) => pos.set(m.id, { x: MCP_X, y: 60 + i * MCP_GAP }));
+    .forEach((m, i) => pos.set(m.id, { x: mcpX, y: 60 + i * MCP_GAP }));
 
   // ---- everything else -------------------------------------------------------------------------------
   graph.nodes
     .filter((n) => !pos.has(n.id))
     .sort((a, b) => a.type.localeCompare(b.type) || byName(a, b))
-    .forEach((n, i) => pos.set(n.id, { x: OTHER_X, y: 60 + i * ROW_H }));
+    .forEach((n, i) => pos.set(n.id, { x: mcpX + 200, y: 60 + i * ROW_H }));
 
   return pos;
 }

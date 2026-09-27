@@ -13,6 +13,7 @@ import {
   useNodesInitialized,
   useNodesState,
   useReactFlow,
+  useStore,
   type Edge,
   type Node,
   type NodeProps,
@@ -197,7 +198,10 @@ const EDGE_LOOK: Record<GraphEdge["kind"], EdgeLook> = {
 };
 
 /** Fit padding that keeps nodes clear of the legend (top) and the intent bar (bottom). */
-const FIT_PADDING = { top: "70px", bottom: "180px", left: "40px", right: "40px" } as const;
+const PAD = { top: 70, bottom: 180, left: 40, right: 40 } as const;
+const FIT_PADDING = { top: `${PAD.top}px`, bottom: `${PAD.bottom}px`, left: `${PAD.left}px`, right: `${PAD.right}px` } as const;
+/** Below this zoom node labels are unreadable; the first view of a large graph starts here instead of fitting all. */
+const READABLE_ZOOM = 0.55;
 const FIT_ALL = { padding: FIT_PADDING, duration: 400 };
 
 const WS_KINDS = new Set<GraphEdge["kind"]>(["uses_tool", "assigned_to", "member_of", "produced"]);
@@ -242,6 +246,8 @@ function CanvasInner(props: CanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<CanvasNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const initialized = useNodesInitialized();
+  const paneWidth = useStore((s) => s.width);
+  const paneHeight = useStore((s) => s.height);
   const didFit = useRef<string | null>(null);
 
   const positions = useMemo(() => (graph ? layoutGraph(graph) : new Map()), [graph]);
@@ -351,9 +357,22 @@ function CanvasInner(props: CanvasProps) {
       return;
     }
     const target = members.length > 1 ? members.map((id) => ({ id })) : undefined;
+    if (!target) {
+      // The whole graph. When it only fits below a readable zoom (a real project: dozens of files and the full agent
+      // catalog), start readable at its top-left, where the project and its tree begin; the minimap and the
+      // fit-view control still show everything.
+      const b = rf.getNodesBounds(rf.getNodes());
+      const w = paneWidth - PAD.left - PAD.right;
+      const h = paneHeight - PAD.top - PAD.bottom;
+      if (w > 0 && h > 0 && b.width > 0 && b.height > 0 && Math.min(w / b.width, h / b.height) < READABLE_ZOOM) {
+        const zoom = READABLE_ZOOM;
+        void rf.setViewport({ x: PAD.left - b.x * zoom, y: PAD.top - b.y * zoom, zoom }, { duration: first ? 0 : 450 });
+        return;
+      }
+    }
     // Leave room for the legend on top and the intent bar at the bottom.
     void rf.fitView({ nodes: target, padding: FIT_PADDING, maxZoom: 1, minZoom: 0.2, duration: first ? 0 : 450 });
-  }, [initialized, graph, positions, nodes.length, selectedWorkspaceNodeId, rf]);
+  }, [initialized, graph, positions, nodes.length, selectedWorkspaceNodeId, rf, paneWidth, paneHeight]);
 
   // Search / file tree focus.
   useEffect(() => {

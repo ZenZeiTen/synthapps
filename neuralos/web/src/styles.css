@@ -566,7 +566,8 @@ textarea::placeholder {
 }
 .approval {
   display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+  /* A long principal chain must not squeeze the input preview to nothing: both columns keep a share. */
+  grid-template-columns: minmax(0, 1.5fr) minmax(140px, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 8px 10px;
@@ -588,6 +589,7 @@ textarea::placeholder {
 .approval-chain {
   font-size: 11.5px;
   color: var(--text-2);
+  overflow-wrap: anywhere;
 }
 .approval-input {
   font-family: var(--mono);
@@ -1831,6 +1833,11 @@ textarea::placeholder {
 }
 .finding-detail {
   color: var(--text-2);
+  /* Details can be multi-line (a test run's output tail): keep the lines, cap the height. */
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  max-height: 12.5em;
+  overflow-y: auto;
 }
 .sev {
   font-family: var(--mono);
@@ -1883,10 +1890,14 @@ textarea::placeholder {
 }
 .report-link {
   font-size: 12.5px;
+  flex-wrap: wrap;
+  white-space: nowrap;
 }
 .report-link .mono {
   color: var(--text-2);
   font-size: 11.5px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .lifecycle {
   padding-top: 14px;
@@ -2018,6 +2029,15 @@ textarea::placeholder {
   gap: 6px;
   pointer-events: none;
   width: min(560px, calc(100% - 40px));
+}
+/* With a side panel open, toasts centre over the visible canvas instead of covering the panel's header. */
+.has-panel .toasts {
+  left: calc(420px + (100% - 420px) / 2);
+  width: min(560px, calc(100% - 420px - 40px));
+}
+.has-wide-panel .toasts {
+  left: calc(560px + (100% - 560px) / 2);
+  width: min(560px, calc(100% - 560px - 40px));
 }
 .toast {
   pointer-events: auto;

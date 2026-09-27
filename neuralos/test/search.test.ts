@@ -226,6 +226,30 @@ describe("semantic index over the demo project", () => {
   });
 });
 
+describe("recency on a fresh copy", () => {
+  let root: string;
+
+  beforeAll(async () => {
+    root = await copyDemo();
+  });
+
+  afterAll(async () => {
+    await fsp.rm(root, { recursive: true, force: true });
+  });
+
+  it('"latest" ignores millisecond differences from a copy or checkout', async () => {
+    // A copy stamps files in copy order: here the test file lands a few milliseconds after the code it tests.
+    const now = Date.now();
+    await fsp.utimes(path.join(root, "src/combat/damage.ts"), new Date(now - 50), new Date(now - 50));
+    await fsp.utimes(path.join(root, "tests/damage.test.ts"), new Date(now + 50), new Date(now + 50));
+    const index = createSemanticIndex({ root, graph: createFakeGraph() });
+    await index.indexAll();
+    const hits = index.search("latest damage calculations");
+    expect(hits[0].path).toBe("src/combat/damage.ts");
+    expect(hits.some((h) => h.reasons.includes("recently modified"))).toBe(false);
+  });
+});
+
 describe("incremental updates", () => {
   let root: string;
   let graph: ReturnType<typeof createFakeGraph>;

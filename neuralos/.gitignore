@@ -6,3 +6,4 @@ web/dist/
 coverage/
 test-results/
 web/mock/screenshots/
+test/e2e/screenshots/

@@ -14,7 +14,10 @@ interface Props {
 export function SearchPanel({ onClose, onOpenHit }: Props) {
   const [q, setQ] = useState("");
   const [submitted, setSubmitted] = useState("");
-  const [hits, setHits] = useState<SearchHit[] | null>(null);
+  // Hits travel with the query that produced them: while the next query loads, the old list must not be labelled
+  // with the new query's text.
+  const [result, setResult] = useState<{ query: string; hits: SearchHit[] } | null>(null);
+  const hits = result?.hits ?? null;
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +28,7 @@ export function SearchPanel({ onClose, onOpenHit }: Props) {
     setError(null);
     api
       .search(submitted, { limit: 25 }, ctl.signal)
-      .then((h) => setHits(h))
+      .then((h) => setResult({ query: submitted, hits: h }))
       .catch((err: Error) => {
         if (err.name !== "AbortError") setError(err.message);
       })
@@ -68,10 +71,10 @@ export function SearchPanel({ onClose, onOpenHit }: Props) {
             Search failed: {error}
           </p>
         ) : null}
-        {!loading && hits && hits.length === 0 ? <p className="muted">No files match &ldquo;{submitted}&rdquo;.</p> : null}
-        {hits && hits.length > 0 ? (
+        {!loading && result && result.hits.length === 0 ? <p className="muted">No files match &ldquo;{result.query}&rdquo;.</p> : null}
+        {result && result.hits.length > 0 ? (
           <p className="muted small">
-            {hits.length} result{hits.length === 1 ? "" : "s"} for &ldquo;{submitted}&rdquo;
+            {result.hits.length} result{result.hits.length === 1 ? "" : "s"} for &ldquo;{result.query}&rdquo;
           </p>
         ) : null}
       </div>

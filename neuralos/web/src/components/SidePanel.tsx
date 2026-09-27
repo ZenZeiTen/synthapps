@@ -13,8 +13,23 @@ interface Props {
 export function SidePanel({ title, subtitle, onClose, children, wide }: Props) {
   const id = useId();
   const ref = useRef<HTMLElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>("input, select, textarea")?.focus() ?? ref.current?.querySelector<HTMLElement>("button")?.focus();
+  }, []);
+  // Escape inside the panel is handled below. When an action re-renders the panel and removes the focused control
+  // (Confirm on a memory record, for example), focus falls back to <body>: Escape must still close the panel.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      const active = document.activeElement;
+      if (active && active !== document.body && active !== document.documentElement) return;
+      e.preventDefault();
+      closeRef.current();
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
   }, []);
   return (
     <aside

@@ -34,6 +34,11 @@ const PATH_BOOST = 1.5;
 const RELATED_SEEDS = 3;
 const RELATED_LIFT: Record<"imports" | "references", number> = { imports: 0.8, references: 0.6 };
 const SNIPPET_MAX = 160;
+/**
+ * "latest"/"recent" queries: files changed within this window of the newest change all count as newest. A copy or a
+ * checkout stamps every file milliseconds apart; that order is noise, not recency.
+ */
+const RECENT_WINDOW_MS = 60_000;
 
 /** Implementation extras beyond the SemanticIndex contract (used by the file watcher). */
 export interface SemanticIndexImpl extends SemanticIndex {
@@ -813,12 +818,16 @@ export function createSemanticIndex(opts: { root: string; graph: KnowledgeGraph;
 
     if (parsed.recent && scored.size > 0) {
       const mtimes = [...scored.keys()].map((p) => docs.get(p)!.mtimeMs);
-      const min = Math.min(...mtimes);
-      const span = Math.max(...mtimes) - min;
-      for (const [p, entry] of scored) {
-        const r = span > 0 ? (docs.get(p)!.mtimeMs - min) / span : 1;
-        entry.score *= 1 + 0.5 * r;
-        if (r >= 0.75) entry.reasons.push("recently modified");
+      const newest = Math.max(...mtimes);
+      const span = newest - Math.min(...mtimes);
+      // No boost when every candidate changed within the window: there is no "latest" to prefer.
+      if (span > RECENT_WINDOW_MS) {
+        for (const [p, entry] of scored) {
+          const age = newest - docs.get(p)!.mtimeMs;
+          const r = age <= RECENT_WINDOW_MS ? 1 : 1 - (age - RECENT_WINDOW_MS) / (span - RECENT_WINDOW_MS);
+          entry.score *= 1 + 0.5 * r;
+          if (r >= 0.75) entry.reasons.push("recently modified");
+        }
       }
     }
 
