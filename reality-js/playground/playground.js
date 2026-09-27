@@ -26,6 +26,35 @@ try {
   throw err;
 }
 
+reality.onStatus = (message) => {
+  if (message) problems.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+  else showProblems([], reality.warnings);
+};
+
+// ------------------------------------------------------------ diagnostics
+// Inside a claude.ai artifact with the `db` capability, save one report per
+// visit about what the GPU did (renderer name, errors, a few pixel values
+// from each stage), so rendering problems on hardware we cannot test on
+// can be diagnosed. It holds no scene content and nothing personal beyond
+// the browser and GPU names.
+const dbReady = window.claude?.use ? window.claude.use('db').catch(() => null) : Promise.resolve(null);
+let reportSaved = false;
+async function saveReport(reason) {
+  if (reportSaved) return;
+  const db = await dbReady;
+  if (!db) return;
+  reportSaved = true;
+  try {
+    const report = { reason, example: $('example').value || 'edited', ...reality.diagnostics() };
+    const id = report.time.replace(/[^0-9]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 8);
+    await db.doc(`diagnostics/${id}`).set(report);
+    $('gpu').textContent += ' · report saved';
+  } catch (err) {
+    console.warn('diagnostics not saved', err);
+  }
+}
+setTimeout(() => saveReport('timer'), 15000);
+
 // ------------------------------------------------------------ storage
 const store = {
   get() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) ?? {}; } catch { return {}; } },
@@ -135,7 +164,14 @@ $('scale').addEventListener('change', () => {
   if (reality.scene) { fitPreview(); reality.start(); }
 });
 
+try {
+  const info = reality.renderer.info();
+  $('gpu').textContent = info.renderer.replace(/^ANGLE \((.*)\)$/, '$1').slice(0, 60);
+  $('gpu').title = `${info.renderer}\n${info.version}`;
+} catch { /* diagnostics are optional */ }
+
 reality.onProgress = (n) => {
+  if (n >= 24) saveReport('samples');
   $('spp').textContent = n;
   $('exposure').textContent = reality.manualExposure != null ? 'manual exposure' : `auto exposure, EV ${(-Math.log2(reality.exposure * 1.2)).toFixed(1)}`;
 };

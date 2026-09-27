@@ -27,6 +27,8 @@ export class Reality {
     this.canvas = canvas;
     this.baseUrl = baseUrl;
     this.renderer = new Renderer(canvas, { width: width ?? canvas.width, height: height ?? canvas.height });
+    this.watchContext();
+    this.onStatus = null;      // (message | null) => void, for context loss and recovery
     this.scene = null;
     this.time = 0;
     this.caches = { geometry: new Map(), sky: new Map(), hdr: new Map(), images: new Map(), text: new Map() };
@@ -38,6 +40,31 @@ export class Reality {
     this.samplesPerFrame = 1;
     this.onProgress = null;    // (samples, target) => void
     this.warnings = [];
+  }
+
+  // When the GPU takes the context away (driver reset, too much work), say
+  // so, and rebuild everything once the browser gives it back.
+  watchContext() {
+    const r = this.renderer;
+    r.onLost = () => {
+      this.onStatus?.('The graphics driver reset and the renderer lost its GPU context. Waiting for the browser to restore it…');
+    };
+    r.onRestored = async () => {
+      r.onLost = r.onRestored = null;
+      const { width, height } = r;
+      this.renderer = new Renderer(this.canvas, { width, height });
+      this.watchContext();
+      this.meshKeys = '';
+      this.textureKey = undefined;
+      this.envKey = null;
+      this.contextRestores = (this.contextRestores ?? 0) + 1;
+      try {
+        if (this.source != null) await this.load(this.source);
+        this.onStatus?.(null);
+      } catch (err) {
+        this.onStatus?.(`Could not recover after the GPU reset: ${err.message}`);
+      }
+    };
   }
 
   // ------------------------------------------------------------ files
@@ -70,6 +97,7 @@ export class Reality {
   // Compile `source`, fetch what it needs, and show time `timeline.time`.
   // Throws RealityError (with .format(source)) on mistakes in the scene.
   async load(source) {
+    this.source = source;
     const imports = {};
     for (const path of importPaths(source)) imports[path] = await this.fetchText(path);
     const scene = compile(source, { imports });
@@ -239,9 +267,45 @@ export class Reality {
 
   autoExpose(blend = 1) {
     const avg = this.renderer.meter(this.exposure);
+    this.meterLog = [...(this.meterLog ?? []).slice(-7), Number.isFinite(avg) ? +avg.toPrecision(4) : String(avg)];
     if (!(avg > 0) || !Number.isFinite(avg)) return;
     const target = (KEY_VALUE / avg) * Math.pow(2, this.camera.compensation);
-    this.exposure = this.exposure * Math.pow(target / this.exposure, blend);
+    const next = this.exposure * Math.pow(target / this.exposure, blend);
+    // Scene luminance spans roughly 1e-4 nits (starlight) to 1e9 (the sun):
+    // anything outside that range is a bad reading, not a real scene.
+    if (Number.isFinite(next) && next > 1e-12 && next < 1e6) this.exposure = next;
+  }
+
+  // A snapshot of what the renderer is doing, for diagnosing problems on
+  // hardware we cannot test. Everything is plain JSON.
+  diagnostics() {
+    const r = this.renderer;
+    const report = {
+      time: new Date().toISOString(),
+      userAgent: globalThis.navigator?.userAgent ?? '',
+      gpu: r.info(),
+      size: [r.width, r.height],
+      samples: r.samples,
+      samplesPerFrame: this.samplesPerFrame,
+      exposure: Number.isFinite(this.exposure) ? +this.exposure.toPrecision(4) : String(this.exposure),
+      manualExposure: this.manualExposure != null,
+      meterLog: this.meterLog ?? [],
+      contextRestores: this.contextRestores ?? 0,
+      scene: this.scene ? { objects: this.scene.objects.length, environment: this.scene.environmentKind } : null,
+      film: this.film ? { tonemap: this.film.tonemap, denoise: this.film.denoise, bloom: this.film.bloom } : null,
+    };
+    if (!r.lost && r.samples > 0) {
+      try {
+        report.accumGrid = r.probeGrid('accum');
+        report.hdrGrid = r.probeGrid('hdr');
+        report.canvasGrid = canvasGrid(r);
+      } catch (err) {
+        report.probeError = String(err.message ?? err);
+      }
+      r.checkError('diagnostics');
+      report.gpu.errors = r.errors.slice();
+    }
+    return report;
   }
 
   display() {
@@ -326,6 +390,20 @@ export class Reality {
       this.display();
     }
   }
+}
+
+// The displayed 8-bit image at a few points (needs preserveDrawingBuffer).
+function canvasGrid(r, cols = 4, rows = 3) {
+  const px = r.readPixels();
+  const out = [];
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const x = Math.floor(((i + 0.5) / cols) * r.width), y = Math.floor(((j + 0.5) / rows) * r.height);
+      const o = (y * r.width + x) * 4;
+      out.push([px[o], px[o + 1], px[o + 2]]);
+    }
+  }
+  return out;
 }
 
 function nextFrame() {

@@ -177,6 +177,7 @@ select {
   color: var(--muted); font-size: 12px; background: var(--panel);
 }
 .stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+.stats .gpu { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 34ch; }
 
 @media (prefers-reduced-motion: reduce) {
   .meter-fill { transition: none; }

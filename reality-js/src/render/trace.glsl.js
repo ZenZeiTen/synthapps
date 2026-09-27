@@ -51,6 +51,13 @@ uniform vec4 uFog;        // density, anisotropy, top height, enabled
 uniform vec3 uFogAlbedo;
 uniform float uClamp;
 
+// ---------------------------------------------------------------- safety
+// NaN / infinity tests on the bit pattern. GPU compilers that assume
+// "fast math" may delete isnan()/isinf(); integer tests survive.
+bool badf(float x) { return (floatBitsToUint(x) & 0x7f800000u) == 0x7f800000u; }
+bool bad3(vec3 v) { return badf(v.x) || badf(v.y) || badf(v.z); }
+bool bad4(vec4 v) { return bad3(v.xyz) || badf(v.w); }
+
 // ---------------------------------------------------------------- random
 uint rngState;
 uint pcg(uint v) {
@@ -98,7 +105,9 @@ float hitSphere(vec3 o, vec3 d, float tmax, out vec3 n) {
 }
 
 float hitBox(vec3 o, vec3 d, float tmax, out vec3 n) {
-  vec3 inv = 1.0 / d;
+  // Avoid dividing by zero: infinities are not reliable on every GPU.
+  vec3 dd = vec3(abs(d.x) < 1e-12 ? 1e-12 : d.x, abs(d.y) < 1e-12 ? 1e-12 : d.y, abs(d.z) < 1e-12 ? 1e-12 : d.z);
+  vec3 inv = 1.0 / dd;
   vec3 ta = (vec3(-0.5) - o) * inv, tb = (vec3(0.5) - o) * inv;
   vec3 t0 = min(ta, tb), t1 = max(ta, tb);
   float tn = max(max(t0.x, t0.y), t0.z), tf = min(min(t1.x, t1.y), t1.z);
@@ -721,7 +730,7 @@ vec3 directLight(Vertex v) {
 }
 
 vec3 clampContribution(vec3 c, int depth) {
-  if (any(isnan(c)) || any(isinf(c))) return vec3(0);
+  if (bad3(c)) return vec3(0);
   if (depth == 0 || uClamp <= 0.0) return c;
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   return l > uClamp ? c * (uClamp / l) : c;
@@ -930,7 +939,7 @@ void main() {
       if (dot(wi, gn) <= 0.0) break; // below the true surface
       float pdf;
       vec3 f = evalOpaque(m, lo, li, pdf);
-      if (pdf <= 0.0) break;
+      if (!(pdf > 1e-12) || badf(pdf)) break;
       T *= f / pdf;
       prevPdf = pdf;
       specular = false;
@@ -946,14 +955,19 @@ void main() {
     }
   }
 
-  if (any(isnan(L)) || any(isinf(L))) L = vec3(0);
-  L = max(L, vec3(0));
+  if (bad3(L)) L = vec3(0);
+  L = clamp(L, vec3(0), vec3(1e9));
+  if (bad3(aovNormal) || dot(aovNormal, aovNormal) < 1e-12) aovNormal = vec3(0, 0, 1);
+  if (badf(aovDepth)) aovDepth = 1e4;
+  if (bad3(aovAlbedo)) aovAlbedo = vec3(1);
 
   vec4 pc = vec4(0), pa = vec4(0), pb = vec4(0);
   if (uAccumulate == 1) {
     pc = texelFetch(uPrevColor, pix, 0);
     pa = texelFetch(uPrevAux, pix, 0);
     pb = texelFetch(uPrevAlbedo, pix, 0);
+    // A pixel that was ever poisoned restarts instead of staying broken.
+    if (bad4(pc) || bad4(pa) || bad4(pb)) { pc = vec4(0); pa = vec4(0); pb = vec4(0); }
   }
   float lum = dot(L, vec3(0.2126, 0.7152, 0.0722));
   outColor = pc + vec4(L, 1.0);

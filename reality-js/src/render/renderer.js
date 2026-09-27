@@ -25,7 +25,22 @@ export class Renderer {
     this.gl = gl;
     this.canvas = canvas;
     this.vao = gl.createVertexArray();
+    this.lost = false;
+    this.errors = []; // [{stage, code}] from gl.getError(), for diagnostics
+    this.compileMs = 0;
 
+    // A GPU driver reset or an overloaded GPU can take the context away.
+    // Say so instead of drawing nothing; src/reality.js rebuilds on restore.
+    this.onLost = null;
+    this.onRestored = null;
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault(); // allow the browser to restore the context
+      this.lost = true;
+      this.onLost?.();
+    });
+    canvas.addEventListener('webglcontextrestored', () => this.onRestored?.());
+
+    const t0 = performance.now();
     this.programs = {
       trace: this.program(TRACE_FRAGMENT, 'trace'),
       prep: this.program(DENOISE_PREP, 'denoise prep'),
@@ -35,6 +50,7 @@ export class Renderer {
       up: this.program(BLOOM_UP, 'bloom up'),
       film: this.program(FILM, 'film'),
     };
+    this.compileMs = performance.now() - t0;
 
     // Placeholders so every sampler is always bound to something valid.
     const one = new Float32Array(4);
@@ -260,7 +276,7 @@ export class Renderer {
 
   // Add `passes` samples per pixel.
   trace(passes = 1) {
-    if (!this.frameUniforms || !this.env) return;
+    if (!this.frameUniforms || !this.env || this.lost) return;
     const f = this.frameUniforms;
     const env = this.env;
     for (let i = 0; i < passes; i++) {
@@ -297,11 +313,13 @@ export class Renderer {
       this.current = 1 - this.current;
       this.samples++;
     }
+    if (this.samples <= 32) this.checkError('trace');
   }
 
   // Post-process and draw to the canvas.
   // film: resolved film settings; exposure: multiplier; tan: camera field of view.
   display({ film, exposure, tanHalfW, tanHalfH, whiteBalance }) {
+    if (this.lost) return;
     const gl = this.gl;
     const acc = this.accum[this.current];
     let illum = null;
@@ -352,37 +370,107 @@ export class Renderer {
       uTonemap: { int: TONEMAPS[film.tonemap] ?? 0 }, uFrame: { int: this.frameIndex },
     });
     this.draw(null);
+    if (this.samples <= 32) this.checkError('display');
+  }
+
+  // Record any pending GL error under `stage` (kept short for reports).
+  checkError(stage) {
+    const code = this.gl.getError();
+    if (code && this.errors.length < 20) this.errors.push({ stage, code: '0x' + code.toString(16) });
+    return code;
+  }
+
+  // Read a float framebuffer as RGBA floats. RGBA/FLOAT is the portable
+  // combination; if a driver refuses it for a half-float target, read
+  // HALF_FLOAT and convert.
+  readFloat(target) {
+    const gl = this.gl;
+    const n = target.width * target.height * 4;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.fb);
+    gl.readBuffer(gl.COLOR_ATTACHMENT0);
+    this.checkError('before read');
+    let px = new Float32Array(n);
+    gl.readPixels(0, 0, target.width, target.height, gl.RGBA, gl.FLOAT, px);
+    if (gl.getError()) {
+      const half = new Uint16Array(n);
+      gl.readPixels(0, 0, target.width, target.height, gl.RGBA, gl.HALF_FLOAT, half);
+      this.checkError('read half float');
+      px = Float32Array.from(half, halfToFloat);
+      if (!this.halfReadback) this.halfReadback = true;
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return px;
   }
 
   // Log-average luminance of the last exposed image, divided by `exposure`
   // to give scene luminance in nits. Read from the smallest bloom level,
   // which holds a plain downsample (upsampling never writes into it).
+  // Returns NaN when the readback holds nothing usable.
   meter(exposure) {
-    const gl = this.gl;
+    if (this.lost) return NaN;
     const level = this.bloom[this.bloom.length - 1];
-    gl.bindFramebuffer(gl.FRAMEBUFFER, level.fb);
-    const px = new Float32Array(level.width * level.height * 4);
-    gl.readPixels(0, 0, level.width, level.height, gl.RGBA, gl.FLOAT, px);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    let sum = 0, wsum = 0;
+    const px = this.readFloat(level);
+    let sum = 0, wsum = 0, used = 0;
     for (let y = 0; y < level.height; y++) {
       for (let x = 0; x < level.width; x++) {
         const o = (y * level.width + x) * 4;
         const l = 0.2126 * px[o] + 0.7152 * px[o + 1] + 0.0722 * px[o + 2];
+        if (!Number.isFinite(l)) continue;
         // Centre-weighted, like a camera's default metering.
         const dx = (x + 0.5) / level.width - 0.5, dy = (y + 0.5) / level.height - 0.5;
         const w = Math.exp(-(dx * dx + dy * dy) * 4);
         sum += Math.log(Math.max(1e-6, l)) * w;
         wsum += w;
+        if (l > 0) used++;
       }
     }
+    if (!used || !(wsum > 0)) return NaN;
     return Math.exp(sum / wsum) / exposure;
+  }
+
+  // What this browser and GPU report, for diagnosing problems on hardware
+  // we cannot test on.
+  info() {
+    const gl = this.gl;
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    return {
+      renderer: String(dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)),
+      vendor: String(dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR)),
+      version: String(gl.getParameter(gl.VERSION)),
+      floatLinear: this.floatLinear,
+      maxDrawBuffers: gl.getParameter(gl.MAX_DRAW_BUFFERS),
+      maxTextureUnits: gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS),
+      maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
+      compileMs: Math.round(this.compileMs),
+      halfReadback: !!this.halfReadback,
+      lost: this.lost,
+      errors: this.errors.slice(),
+    };
+  }
+
+  // Average RGBA of a coarse grid over a float target (accumulation divided
+  // by sample count, or exposed HDR), for diagnostics. Non-finite values
+  // are reported as strings so they survive JSON.
+  probeGrid(which = 'hdr', cols = 4, rows = 3) {
+    const target = which === 'accum' ? this.accum[this.current] : this.hdr;
+    const px = this.readFloat(target);
+    const out = [];
+    for (let j = 0; j < rows; j++) {
+      for (let i = 0; i < cols; i++) {
+        const x = Math.floor(((i + 0.5) / cols) * target.width), y = Math.floor(((j + 0.5) / rows) * target.height);
+        const o = (y * target.width + x) * 4;
+        const n = which === 'accum' ? Math.max(1, px[o + 3]) : 1;
+        out.push([px[o] / n, px[o + 1] / n, px[o + 2] / n, px[o + 3]].map((v) => (Number.isFinite(v) ? +v.toPrecision(4) : String(v))));
+      }
+    }
+    return out;
   }
 
   // Wait until queued GPU work is done (reads back one texel). Used for
   // honest progress and timing, and to keep long renders from queueing
   // thousands of passes at once.
   sync() {
+    if (this.lost) return;
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.accum[this.current].fb);
     gl.readBuffer(gl.COLOR_ATTACHMENT0);
@@ -400,4 +488,12 @@ export class Renderer {
     for (let y = 0; y < this.height; y++) out.set(px.subarray((this.height - 1 - y) * row, (this.height - y) * row), y * row);
     return out;
   }
+}
+
+// IEEE 754 half precision bits to a number.
+function halfToFloat(h) {
+  const s = h & 0x8000 ? -1 : 1, e = (h >> 10) & 0x1f, m = h & 0x3ff;
+  if (e === 0) return s * m * 2 ** -24;
+  if (e === 31) return m ? NaN : s * Infinity;
+  return s * (1 + m / 1024) * 2 ** (e - 15);
 }

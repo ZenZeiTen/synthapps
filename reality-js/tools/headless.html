@@ -94,5 +94,25 @@
     return { width: v.videoWidth, height: v.videoHeight, duration: v.duration };
   };
 
+  // Simulate a GPU reset and check the renderer recovers.
+  window.simulateContextLoss = async () => {
+    const old = reality.renderer;
+    const ext = old.gl.getExtension('WEBGL_lose_context');
+    const statuses = [];
+    reality.onStatus = (m) => statuses.push(m);
+    ext.loseContext();
+    await new Promise((r) => setTimeout(r, 200));
+    const lostSeen = old.lost;
+    ext.restoreContext();
+    for (let i = 0; i < 200 && reality.renderer === old; i++) await new Promise((r) => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 500));
+    while (reality.samples < 4) { reality.step(1); reality.renderer.sync(); }
+    reality.display();
+    const px = reality.renderer.readPixels();
+    let sum = 0;
+    for (let i = 0; i < px.length; i += 4) sum += px[i] + px[i + 1] + px[i + 2];
+    return { lostSeen, replaced: reality.renderer !== old, statuses, mean: sum / (px.length / 4) / 3 };
+  };
+  window.diagnostics = () => JSON.parse(JSON.stringify(reality.diagnostics()));
   window.ready = true;
 </script>

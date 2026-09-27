@@ -18,6 +18,10 @@ const HEADER = /* glsl */ `#version 300 es
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+// NaN / infinity tests on the bit pattern (see trace.glsl.js).
+bool badf(float x) { return (floatBitsToUint(x) & 0x7f800000u) == 0x7f800000u; }
+bool bad3(vec3 v) { return badf(v.x) || badf(v.y) || badf(v.z); }
+vec3 safe3(vec3 v) { return bad3(v) ? vec3(0) : v; }
 `;
 
 // Demodulate: illumination = colour / albedo, plus variance of the mean.
@@ -29,10 +33,10 @@ void main() {
   vec4 c = texelFetch(uColor, p, 0);
   vec4 a = texelFetch(uAlbedo, p, 0);
   float n = max(c.a, 1.0);
-  vec3 color = c.rgb / n;
-  vec3 albedo = max(a.rgb / n, vec3(0.02));
+  vec3 color = safe3(c.rgb / n);
+  vec3 albedo = bad3(a.rgb) ? vec3(1) : max(a.rgb / n, vec3(0.02));
   float lum = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  float variance = max(0.0, a.a / n - lum * lum) / n;
+  float variance = badf(a.a) ? 0.0 : max(0.0, a.a / n - lum * lum) / n;
   float la = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
   outIllum = vec4(color / albedo, variance / (la * la));
 }
@@ -74,12 +78,14 @@ void main() {
       float wz = exp(-abs(zp - aq.w) / (0.01 * zp * float(uStep) + 1e-3));
       float wl = exp(-abs(lp - lq) / sigmaL);
       float w = K[abs(x)] * K[abs(y)] * wn * wz * wl;
+      if (badf(w) || bad3(cq.rgb) || badf(cq.a)) continue;
       sum += cq.rgb * w;
       vsum += cq.a * w * w;
       wsum += w;
     }
   }
-  outIllum = wsum > 1e-8 ? vec4(sum / wsum, vsum / (wsum * wsum)) : cp;
+  vec4 r = wsum > 1e-8 ? vec4(sum / wsum, vsum / (wsum * wsum)) : cp;
+  outIllum = bad3(r.rgb) || badf(r.a) ? vec4(0) : r;
 }
 `;
 
@@ -101,7 +107,8 @@ void main() {
   } else {
     col = c.rgb / n;
   }
-  outHdr = vec4(min(col * uExposure, vec3(60000.0)), 1.0);
+  col = safe3(col * uExposure);
+  outHdr = vec4(clamp(col, vec3(0), vec3(60000.0)), 1.0);
 }
 `;
 
@@ -200,7 +207,8 @@ void main() {
   col.b = texture(uHdr, 0.5 + c * (1.0 - k)).b;
 
   // The pyramid adds its levels together; divide to keep energy.
-  vec3 bloom = texture(uBloom, uv).rgb / uBloomLevels;
+  vec3 bloom = safe3(texture(uBloom, uv).rgb / uBloomLevels);
+  col = safe3(col);
   col = mix(col, bloom, uBloomAmount);
   // Halation: red light scattered back through the film base, around
   // highlights only.
@@ -232,6 +240,6 @@ void main() {
   }
   // Triangular dither to hide banding in 8-bit output.
   display += (hash12(gl_FragCoord.xy + float(uFrame % 61)) + hash12(gl_FragCoord.yx * 1.3) - 1.0) / 255.0;
-  outColor = vec4(clamp(display, 0.0, 1.0), 1.0);
+  outColor = vec4(bad3(display) ? vec3(0) : clamp(display, 0.0, 1.0), 1.0);
 }
 `;

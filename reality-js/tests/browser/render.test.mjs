@@ -103,3 +103,25 @@ test('a timeline renders to a WebM a browser can play', async (t) => {
   assert.equal(probe.height, 54);
   assert.ok(Math.abs(probe.duration - 0.25) < 0.05, `duration ${probe.duration}`);
 });
+
+test('diagnostics report the GPU and sane pixel values', async (t) => {
+  if (skip) return t.skip(skip);
+  await still({ source: 'sky {}\nground {}\nsphere { position: [0, 1, 0] }', samples: 4 });
+  const d = await b.page.evaluate(() => window.diagnostics());
+  assert.ok(d.gpu.renderer.length > 0);
+  assert.deepEqual(d.gpu.errors, []);
+  assert.equal(d.accumGrid.length, 12);
+  for (const cell of [...d.accumGrid, ...d.hdrGrid]) for (const v of cell) assert.equal(typeof v, 'number');
+  assert.ok(d.canvasGrid.some(([r, g, bl]) => r + g + bl > 30), 'canvas is not black');
+});
+
+test('the renderer recovers after the GPU context is lost', async (t) => {
+  if (skip) return t.skip(skip);
+  await still({ source: 'sky {}\nground {}\nsphere { position: [0, 1, 0] }', samples: 2 });
+  const r = await b.page.evaluate(() => window.simulateContextLoss());
+  assert.equal(r.lostSeen, true);
+  assert.equal(r.replaced, true);
+  assert.match(String(r.statuses[0]), /lost its GPU context/);
+  assert.equal(r.statuses.at(-1), null);
+  assert.ok(r.mean > 30, `image after recovery, mean ${r.mean}`);
+});
