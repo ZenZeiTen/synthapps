@@ -39,6 +39,7 @@ export class Reality {
     this.targetSamples = Infinity;
     this.samplesPerFrame = 1;
     this.onProgress = null;    // (samples, target) => void
+    this.exposureLocked = false;
     this.warnings = [];
   }
 
@@ -49,8 +50,11 @@ export class Reality {
     r.onLost = () => {
       this.onStatus?.('The graphics driver reset and the renderer lost its GPU context. Waiting for the browser to restore it…');
     };
+    r.onTraceFailed = (gpu, variant) => {
+      this.onStatus?.(`The graphics driver refused to run the path-tracing shader (${gpu}; features: ${variant || 'none'}). Nothing can be drawn on this GPU until that is fixed; please report it.`);
+    };
     r.onRestored = async () => {
-      r.onLost = r.onRestored = null;
+      r.onLost = r.onRestored = r.onTraceFailed = null;
       const { width, height } = r;
       this.renderer = new Renderer(this.canvas, { width, height });
       this.watchContext();
@@ -254,7 +258,9 @@ export class Reality {
     this.display();
     const n = this.renderer.samples;
     // Auto exposure: meter a few times while the image converges.
-    if (this.manualExposure == null) {
+    // `exposureLocked` keeps the current value (for live animation, where
+    // re-metering every frame would flicker).
+    if (this.manualExposure == null && !this.exposureLocked) {
       for (const at of [1, 4, 16, 64]) {
         if (n >= at && !this.meteredAt.has(at)) {
           this.meteredAt.add(at);

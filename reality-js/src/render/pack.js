@@ -165,5 +165,12 @@ export function packScene(open, close, { meshRoots = new Map(), meshes = new Map
     }
   });
 
-  return { objects, materials, lights: lightData, objectCount: n, lightCount: lights.length, warnings };
+  // Shader features this scene needs (see TRACE_FEATURES in trace.glsl.js).
+  const features = [];
+  if (objs.some((o) => o.shape === 'mesh')) features.push('HAS_MESH');
+  if (lights.length) features.push('HAS_LIGHTS');
+  if (objs.some((o) => o.material.texture && textureLayers.has(o.material.texture))) features.push('HAS_TEXTURES');
+  if (objs.some((o) => o.material.pattern > 0 || o.material.bump > 0)) features.push('HAS_PATTERNS');
+
+  return { objects, materials, lights: lightData, objectCount: n, lightCount: lights.length, features, warnings };
 }

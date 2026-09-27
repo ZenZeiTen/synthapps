@@ -13,7 +13,17 @@
 
 import { DATA_WIDTH, OBJECT_TEXELS, MATERIAL_TEXELS, LIGHT_TEXELS } from './pack.js';
 
-export const TRACE_FRAGMENT = /* glsl */ `#version 300 es
+// Features a scene may not need. Compiling only what a scene uses keeps
+// the shader small, which matters for GPU drivers that inline everything.
+export const TRACE_FEATURES = ['HAS_MESH', 'HAS_FOG', 'HAS_LIGHTS', 'HAS_TEXTURES', 'HAS_PATTERNS'];
+
+// The shader source with the given features switched on (all by default).
+export function traceFragment(features = TRACE_FEATURES) {
+  const defines = TRACE_FEATURES.map((f) => `#define ${f} ${features.includes(f) ? 1 : 0}`).join('\n');
+  return TRACE_SOURCE.replace('#version 300 es\n', `#version 300 es\n${defines}\n`);
+}
+
+const TRACE_SOURCE = /* glsl */ `#version 300 es
 precision highp float;
 precision highp int;
 precision highp sampler2D;
@@ -36,7 +46,7 @@ uniform sampler2D uObjects, uMaterials, uLights, uBvh, uTris;
 uniform sampler2D uEnv, uEnvPdf, uEnvCond, uEnvMarg;
 uniform sampler2DArray uTextures;
 
-uniform int uObjectCount, uLightCount, uFrame, uMaxBounces, uAccumulate;
+uniform int uObjectCount, uLightCount, uFrame, uMaxBounces, uAccumulate, uNeeStrategies;
 uniform vec2 uResolution;
 uniform ivec2 uEnvSize;
 uniform float uEnvRotation;
@@ -255,7 +265,9 @@ bool trace(vec3 ro, vec3 rd, float tmax, bool anyHit, out Hit h) {
       t = hitPlaneY(o, d, h.t);
       if (t < INF) { vec3 p = o + d * t; if (abs(p.x) > 0.5 || abs(p.z) > 0.5) t = INF; }
     } else if (shape == 5) t = hitCylinder(o, d, h.t, n);
+#if HAS_MESH
     else if (shape == 6) t = hitMesh(int(head.z), o, d, h.t, anyHit, tri, bary);
+#endif
     if (t < h.t) {
       h.t = t;
       h.obj = i;
@@ -347,17 +359,24 @@ Mat loadMaterial(int obj, vec3 pObj, vec3 nObj, vec4 r0, vec4 r1, vec4 r2, inout
   m.absorb = t6.rgb; m.coatRough = t6.a;
   m.thin = t7.x > 0.5;
 
+#if HAS_PATTERNS || HAS_TEXTURES
   vec3 scaleW = fetch(uObjects, obj * OBJ_TX + 7).xyz;
   vec3 pM = pObj * scaleW - t5.xyz * uTime; // object-local position in metres, drifting with flow
+#endif
+#if HAS_PATTERNS
   int pat = int(t3.x);
   if (pat > 0) {
     float f = pattern(pat, pM * t3.y);
     m.color = mix(m.color, t4.rgb, f);
     m.rough = mix(m.rough, t4.a, f);
   }
+#endif
+#if HAS_TEXTURES
   if (t3.w >= 0.0) {
     m.color *= triplanar(t3.w, pObj * scaleW * t5.w, normalize(nObj));
   }
+#endif
+#if HAS_PATTERNS
   if (t3.z > 0.0) {
     // Bump: tilt the shading normal along the gradient of a noise field.
     vec3 q = pM * t7.y;
@@ -373,6 +392,7 @@ Mat loadMaterial(int obj, vec3 pObj, vec3 nObj, vec4 r0, vec4 r1, vec4 r2, inout
       ns = normalize(ns - t3.z * 0.5 * tang);
     }
   }
+#endif
   return m;
 }
 
@@ -581,9 +601,13 @@ vec2 fogSegment(vec3 ro, vec3 rd, float tmax) {
 }
 
 float fogTransmittance(vec3 ro, vec3 rd, float dist) {
+#if HAS_FOG
   if (uFog.w < 0.5) return 1.0;
   vec2 s = fogSegment(ro, rd, min(dist, 1e6));
   return exp(-uFog.x * max(0.0, s.y - s.x));
+#else
+  return 1.0;
+#endif
 }
 
 // ---------------------------------------------------------------- lights
@@ -683,48 +707,41 @@ vec3 shadowOrigin(Vertex v, vec3 wi) {
 }
 
 // Direct light from the sun, the environment and one area light.
+// One shadow-ray call site inside a loop whose bound is a uniform: HLSL
+// compilers (Chrome on Windows) inline every call and unroll constant
+// loops, and three inlined copies of trace() made the shader too big to
+// compile there.
 vec3 directLight(Vertex v) {
   vec3 sum = vec3(0);
-  if (uSunOn) {
-    vec3 wi = sampleCone(uSunDir, uSunOneMinusCos);
+  for (int k = 0; k < uNeeStrategies; k++) {
+    vec3 wi = vec3(0, 1, 0), Le = vec3(0);
+    float pl = 0.0, dist = INF;
+    bool ok = false;
+    if (k == 0) {
+      if (uSunOn) {
+        wi = sampleCone(uSunDir, uSunOneMinusCos);
+        pl = sunPdf();
+        Le = uSunRadiance;
+        ok = true;
+      }
+    } else if (k == 1) {
+      wi = sampleEnv(pl);
+      ok = pl > 0.0;
+      if (ok) Le = envRadiance(wi);
+    }
+#if HAS_LIGHTS
+    else {
+      ok = sampleLight(v.p, wi, dist, pl, Le);
+    }
+#endif
+    if (!ok) continue;
     float pb;
     vec3 f = scatterEval(v, wi, pb);
-    if (f.x + f.y + f.z > 0.0) {
-      vec3 o = shadowOrigin(v, wi);
-      if (!occluded(o, wi, INF)) {
-        float pl = sunPdf();
-        sum += f * uSunRadiance * fogTransmittance(o, wi, INF) * powerHeuristic(pl, pb) / pl;
-      }
-    }
-  }
-  {
-    float pl;
-    vec3 wi = sampleEnv(pl);
-    if (pl > 0.0) {
-      float pb;
-      vec3 f = scatterEval(v, wi, pb);
-      if (f.x + f.y + f.z > 0.0) {
-        vec3 o = shadowOrigin(v, wi);
-        if (!occluded(o, wi, INF)) {
-          sum += f * envRadiance(wi) * fogTransmittance(o, wi, INF) * powerHeuristic(pl, pb) / pl;
-        }
-      }
-    }
-  }
-  {
-    vec3 wi, Le;
-    float dist, pl;
-    if (sampleLight(v.p, wi, dist, pl, Le)) {
-      float pb;
-      vec3 f = scatterEval(v, wi, pb);
-      if (f.x + f.y + f.z > 0.0) {
-        vec3 o = shadowOrigin(v, wi);
-        float d = dist - length(o - v.p);
-        if (!occluded(o, wi, d * (1.0 - 1e-3))) {
-          sum += f * Le * fogTransmittance(o, wi, d) * powerHeuristic(pl, pb) / pl;
-        }
-      }
-    }
+    if (f.x + f.y + f.z <= 0.0) continue;
+    vec3 o = shadowOrigin(v, wi);
+    float d = dist >= INF ? INF : (dist - length(o - v.p)) * (1.0 - 1e-3);
+    if (occluded(o, wi, d)) continue;
+    sum += f * Le * fogTransmittance(o, wi, d) * powerHeuristic(pl, pb) / pl;
   }
   return sum;
 }
@@ -795,11 +812,18 @@ void main() {
   vec3 aovNormal = -rd, aovAlbedo = vec3(1);
   float aovDepth = 1e4;
 
-  for (int depth = 0; depth <= 64; depth++) {
-    if (depth > uMaxBounces) break;
+  // The bound is a uniform so HLSL compilers keep this a real loop.
+  for (int depth = 0; depth <= uMaxBounces; depth++) {
     Hit h;
     bool hit = trace(ro, rd, INF, false, h);
 
+    // The one place light is sampled this bounce, set up by the fog or
+    // surface code below (one call site keeps the compiled shader small).
+    Vertex v;
+    bool nee = false;
+    bool inFog = false;
+
+#if HAS_FOG
     // Fog: sample a free-flight distance through the layer.
     if (uFog.w > 0.5) {
       vec2 seg = fogSegment(ro, rd, hit ? h.t : 1e6);
@@ -807,145 +831,153 @@ void main() {
         float dist = seg.x - log(1.0 - rand()) / uFog.x;
         if (dist < seg.y) {
           T *= uFogAlbedo;
-          Vertex v;
           v.p = ro + rd * dist;
           v.wo = -rd;
           v.fog = true;
-          L += T * clampContribution(directLight(v), depth);
-          vec3 wi = sampleHG(rd, uFog.y);
-          prevPdf = henyeyGreenstein(dot(rd, wi), uFog.y);
-          specular = false;
-          prevPos = v.p;
-          ro = v.p;
-          rd = wi;
+          nee = true;
+          inFog = true;
           if (depth == 0) { aovDepth = dist; aovAlbedo = uFogAlbedo; }
-          if (depth >= 3) {
-            float q = max(0.05, 1.0 - max(T.x, max(T.y, T.z)));
-            if (rand() < q) break;
-            T /= 1.0 - q;
-          }
-          continue;
         }
       }
     }
+#endif
 
-    if (!hit) {
-      vec3 c = vec3(0);
-      if (depth > 0 || uEnvVisible) {
-        vec3 e = envRadiance(rd);
-        c += e * (specular ? 1.0 : powerHeuristic(prevPdf, envPdf(rd)));
+    // Surface state carried to the sampling step after light sampling.
+    Mat m;
+    vec3 p = vec3(0), gn = vec3(0, 1, 0), lo = vec3(0, 0, 1);
+
+    if (!inFog) {
+      if (!hit) {
+        vec3 c = vec3(0);
+        if (depth > 0 || uEnvVisible) {
+          vec3 e = envRadiance(rd);
+          c += e * (specular ? 1.0 : powerHeuristic(prevPdf, envPdf(rd)));
+        }
+        if (uSunOn && dot(rd, uSunDir) >= uSunCosMax) {
+          c += uSunRadiance * (specular ? 1.0 : powerHeuristic(prevPdf, sunPdf()));
+        }
+        L += T * clampContribution(c, depth);
+        break;
       }
-      if (uSunOn && dot(rd, uSunDir) >= uSunCosMax) {
-        c += uSunRadiance * (specular ? 1.0 : powerHeuristic(prevPdf, sunPdf()));
+
+      if (absorb.x + absorb.y + absorb.z > 0.0) T *= exp(-absorb * h.t);
+
+      vec4 head = fetch(uObjects, h.obj * OBJ_TX);
+      int shape = int(head.x);
+      vec4 r0, r1, r2;
+      objectInverse(h.obj, r0, r1, r2);
+      p = ro + rd * h.t;
+
+      vec3 nObj = h.nObj, nsObj = h.nObj;
+#if HAS_MESH
+      if (h.tri >= 0) {
+        int b = h.tri * 6;
+        vec3 v0 = fetch(uTris, b).xyz, v1 = fetch(uTris, b + 1).xyz, v2 = fetch(uTris, b + 2).xyz;
+        nObj = cross(v1 - v0, v2 - v0);
+        float w = 1.0 - h.bary.x - h.bary.y;
+        nsObj = fetch(uTris, b + 3).xyz * w + fetch(uTris, b + 4).xyz * h.bary.x + fetch(uTris, b + 5).xyz * h.bary.y;
       }
-      L += T * clampContribution(c, depth);
-      break;
-    }
+#endif
+      // Normals transform with the inverse transpose.
+      vec3 ng = normalize(nObj.x * r0.xyz + nObj.y * r1.xyz + nObj.z * r2.xyz);
+      vec3 ns = normalize(nsObj.x * r0.xyz + nsObj.y * r1.xyz + nsObj.z * r2.xyz);
+      if (dot(ns, ng) < 0.0) ns = -ns;
+      vec3 wo = -rd;
+      bool front = dot(ng, wo) > 0.0;
 
-    if (absorb.x + absorb.y + absorb.z > 0.0) T *= exp(-absorb * h.t);
+      m = loadMaterial(h.obj, h.pObj, nsObj, r0, r1, r2, ns);
 
-    vec4 head = fetch(uObjects, h.obj * OBJ_TX);
-    int shape = int(head.x);
-    vec4 r0, r1, r2;
-    objectInverse(h.obj, r0, r1, r2);
-    vec3 p = ro + rd * h.t;
-
-    vec3 nObj = h.nObj, nsObj = h.nObj;
-    if (h.tri >= 0) {
-      int b = h.tri * 6;
-      vec3 v0 = fetch(uTris, b).xyz, v1 = fetch(uTris, b + 1).xyz, v2 = fetch(uTris, b + 2).xyz;
-      nObj = cross(v1 - v0, v2 - v0);
-      float w = 1.0 - h.bary.x - h.bary.y;
-      nsObj = fetch(uTris, b + 3).xyz * w + fetch(uTris, b + 4).xyz * h.bary.x + fetch(uTris, b + 5).xyz * h.bary.y;
-    }
-    // Normals transform with the inverse transpose.
-    vec3 ng = normalize(nObj.x * r0.xyz + nObj.y * r1.xyz + nObj.z * r2.xyz);
-    vec3 ns = normalize(nsObj.x * r0.xyz + nsObj.y * r1.xyz + nsObj.z * r2.xyz);
-    if (dot(ns, ng) < 0.0) ns = -ns;
-    vec3 wo = -rd;
-    bool front = dot(ng, wo) > 0.0;
-
-    Mat m = loadMaterial(h.obj, h.pObj, nsObj, r0, r1, r2, ns);
-
-    // Emission. Flat shapes shine from their front (+Y) side only.
-    if (m.emit.x + m.emit.y + m.emit.z > 0.0) {
-      bool oneSided = shape == 3 || shape == 4;
-      if (front || !oneSided) {
-        int li = int(head.w);
-        float w = 1.0;
-        if (!specular && li >= 0) w = powerHeuristic(prevPdf, lightPdf(li, prevPos, p, ng));
-        L += T * clampContribution(m.emit * w, depth);
+      // Emission. Flat shapes shine from their front (+Y) side only.
+      if (m.emit.x + m.emit.y + m.emit.z > 0.0) {
+        bool oneSided = shape == 3 || shape == 4;
+        if (front || !oneSided) {
+          float w = 1.0;
+#if HAS_LIGHTS
+          int li = int(head.w);
+          if (!specular && li >= 0) w = powerHeuristic(prevPdf, lightPdf(li, prevPos, p, ng));
+#endif
+          L += T * clampContribution(m.emit * w, depth);
+        }
       }
-    }
 
-    if (depth == 0) {
-      aovNormal = front ? ns : -ns;
-      aovDepth = h.t;
-      aovAlbedo = m.trans > 0.5 ? vec3(1) : (m.metal > 0.5 ? m.color : m.color);
-    }
-    if (depth == uMaxBounces) break;
+      if (depth == 0) {
+        aovNormal = front ? ns : -ns;
+        aovDepth = h.t;
+        aovAlbedo = m.trans > 0.5 ? vec3(1) : m.color;
+      }
+      if (depth == uMaxBounces) break;
 
-    if (rand() < m.trans) {
-      // Rough dielectric: reflect or refract through a sampled microfacet.
-      vec3 n = front ? ns : -ns;
-      vec3 t, b;
-      basis(n, t, b);
-      vec3 lo = vec3(dot(wo, t), dot(wo, b), dot(wo, n));
-      if (lo.z <= 0.0) { n = front ? ng : -ng; basis(n, t, b); lo = vec3(dot(wo, t), dot(wo, b), dot(wo, n)); }
-      float a = max(1e-3, m.rough * m.rough);
-      vec3 hm = m.thin ? vec3(0, 0, 1) : sampleVNDF(lo, a, rand(), rand());
-      float eta = front ? 1.0 / m.ior : m.ior;
-      float F = fresnelDielectric(dot(lo, hm), m.thin ? 1.0 / m.ior : eta);
-      vec3 li;
-      bool refracted = false;
-      if (rand() < F) {
-        li = reflect(-lo, hm);
-        if (li.z <= 0.0) break;
-      } else if (m.thin) {
-        li = -lo;
-        refracted = true;
-        T *= m.color * exp(-m.absorb * 0.005);
+      if (rand() < m.trans) {
+        // Rough dielectric: reflect or refract through a sampled microfacet.
+        vec3 n = front ? ns : -ns;
+        vec3 t, b;
+        basis(n, t, b);
+        vec3 lt = vec3(dot(wo, t), dot(wo, b), dot(wo, n));
+        if (lt.z <= 0.0) { n = front ? ng : -ng; basis(n, t, b); lt = vec3(dot(wo, t), dot(wo, b), dot(wo, n)); }
+        float a = max(1e-3, m.rough * m.rough);
+        vec3 hm = m.thin ? vec3(0, 0, 1) : sampleVNDF(lt, a, rand(), rand());
+        float eta = front ? 1.0 / m.ior : m.ior;
+        float F = fresnelDielectric(dot(lt, hm), m.thin ? 1.0 / m.ior : eta);
+        vec3 li;
+        bool refracted = false;
+        if (rand() < F) {
+          li = reflect(-lt, hm);
+          if (li.z <= 0.0) break;
+        } else if (m.thin) {
+          li = -lt;
+          refracted = true;
+          T *= m.color * exp(-m.absorb * 0.005);
+        } else {
+          li = refract(-lt, hm, eta);
+          if (dot(li, li) < 1e-8 || li.z >= 0.0) break;
+          refracted = true;
+          T *= m.color;
+        }
+        if (!m.thin) T *= G1(abs(li.z), a);
+        vec3 wi = normalize(li.x * t + li.y * b + li.z * n);
+        if (refracted && !m.thin) absorb = front ? m.absorb : vec3(0);
+        ro = p + ng * (dot(ng, wi) > 0.0 ? EPS : -EPS) * (1.0 + length(p) * 0.01);
+        rd = wi;
+        specular = true;
+        prevPos = p;
       } else {
-        li = refract(-lo, hm, eta);
-        if (dot(li, li) < 1e-8 || li.z >= 0.0) break;
-        refracted = true;
-        T *= m.color;
+        // Opaque: shade both sides like a thin shell.
+        vec3 n = front ? ns : -ns;
+        gn = front ? ng : -ng;
+        if (dot(n, wo) <= 0.0) n = gn;
+        v.p = p;
+        v.n = n;
+        basis(n, v.t, v.b);
+        v.wo = wo;
+        v.fog = false;
+        v.m = m;
+        lo = vec3(dot(wo, v.t), dot(wo, v.b), dot(wo, n));
+        nee = true;
       }
-      if (!m.thin) T *= G1(abs(li.z), a);
-      vec3 wi = normalize(li.x * t + li.y * b + li.z * n);
-      if (refracted && !m.thin) absorb = front ? m.absorb : vec3(0);
-      ro = p + ng * (dot(ng, wi) > 0.0 ? EPS : -EPS) * (1.0 + length(p) * 0.01);
-      rd = wi;
-      specular = true;
-      prevPos = p;
-    } else {
-      // Opaque: shade both sides like a thin shell.
-      vec3 n = front ? ns : -ns;
-      vec3 gn = front ? ng : -ng;
-      if (dot(n, wo) <= 0.0) n = gn;
-      Vertex v;
-      v.p = p;
-      v.n = n;
-      basis(n, v.t, v.b);
-      v.wo = wo;
-      v.fog = false;
-      v.m = m;
-      L += T * clampContribution(directLight(v), depth);
+    }
 
-      vec3 lo = vec3(dot(wo, v.t), dot(wo, v.b), dot(wo, n));
-      vec3 li;
-      if (!sampleOpaque(m, lo, li)) break;
-      vec3 wi = normalize(li.x * v.t + li.y * v.b + li.z * n);
-      if (dot(wi, gn) <= 0.0) break; // below the true surface
-      float pdf;
-      vec3 f = evalOpaque(m, lo, li, pdf);
-      if (!(pdf > 1e-12) || badf(pdf)) break;
-      T *= f / pdf;
-      prevPdf = pdf;
+    if (nee) {
+      L += T * clampContribution(directLight(v), depth);
+      if (inFog) {
+        vec3 wi = sampleHG(rd, uFog.y);
+        prevPdf = henyeyGreenstein(dot(rd, wi), uFog.y);
+        ro = v.p;
+        rd = wi;
+      } else {
+        vec3 li;
+        if (!sampleOpaque(m, lo, li)) break;
+        vec3 wi = normalize(li.x * v.t + li.y * v.b + li.z * v.n);
+        if (dot(wi, gn) <= 0.0) break; // below the true surface
+        float pdf;
+        vec3 f = evalOpaque(m, lo, li, pdf);
+        if (!(pdf > 1e-12) || badf(pdf)) break;
+        T *= f / pdf;
+        prevPdf = pdf;
+        ro = p + gn * EPS * (1.0 + length(p) * 0.01);
+        rd = wi;
+      }
       specular = false;
-      prevPos = p;
-      ro = p + gn * EPS * (1.0 + length(p) * 0.01);
-      rd = wi;
+      prevPos = v.p;
     }
 
     if (depth >= 3) {
@@ -975,3 +1007,5 @@ void main() {
   outAlbedo = pb + vec4(aovAlbedo, lum * lum);
 }
 `;
+
+export const TRACE_FRAGMENT = traceFragment();

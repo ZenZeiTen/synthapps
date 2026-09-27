@@ -9,7 +9,7 @@
 // The Renderer knows nothing about the scene language; see src/reality.js
 // for the part that turns a Scene into the data uploaded here.
 
-import { TRACE_FRAGMENT } from './trace.glsl.js';
+import { traceFragment } from './trace.glsl.js';
 import { FULLSCREEN_VERTEX, DENOISE_PREP, DENOISE_ATROUS, RESOLVE, BLOOM_DOWN, BLOOM_UP, FILM } from './post.glsl.js';
 import { DATA_WIDTH } from './pack.js';
 
@@ -41,8 +41,9 @@ export class Renderer {
     canvas.addEventListener('webglcontextrestored', () => this.onRestored?.());
 
     const t0 = performance.now();
+    this.tracePrograms = new Map(); // feature key -> program, compiled on demand
     this.programs = {
-      trace: this.program(TRACE_FRAGMENT, 'trace'),
+      trace: this.traceProgram(['HAS_MESH', 'HAS_FOG', 'HAS_LIGHTS', 'HAS_TEXTURES', 'HAS_PATTERNS']),
       prep: this.program(DENOISE_PREP, 'denoise prep'),
       atrous: this.program(DENOISE_ATROUS, 'denoise'),
       resolve: this.program(RESOLVE, 'resolve'),
@@ -87,6 +88,20 @@ export class Renderer {
     gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(`${name} program failed to link:\n${gl.getProgramInfoLog(p)}`);
     return { handle: p, locations: new Map(), units: new Map() };
+  }
+
+  // The path tracer compiled with only the features a scene needs.
+  traceProgram(features) {
+    const key = [...features].sort().join(',');
+    if (!this.tracePrograms.has(key)) {
+      const t0 = performance.now();
+      const prog = this.program(traceFragment(features), 'trace');
+      prog.key = key;
+      prog.verified = false;
+      this.tracePrograms.set(key, prog);
+      this.compileMs += performance.now() - t0;
+    }
+    return this.tracePrograms.get(key);
   }
 
   texture(width, height, internal, format, type, data = null, filter = this.gl.NEAREST) {
@@ -223,6 +238,8 @@ export class Renderer {
     this.objectCount = packed.objectCount;
     this.lightCount = packed.lightCount;
     this.frameUniforms = frame;
+    const features = [...(packed.features ?? []), ...(frame.fog ? ['HAS_FOG'] : [])];
+    this.programs.trace = this.traceProgram(features);
     this.reset();
   }
 
@@ -289,6 +306,7 @@ export class Renderer {
         uTextures: { array: this.textureArray },
         uObjectCount: { int: this.objectCount }, uLightCount: { int: this.lightCount },
         uFrame: { int: this.frameIndex++ }, uMaxBounces: { int: f.bounces },
+        uNeeStrategies: { int: this.lightCount > 0 ? 3 : 2 },
         uAccumulate: { int: this.samples > 0 ? 1 : 0 },
         uResolution: [this.width, this.height],
         uEnvSize: { ivec2: [env.width, env.height] },
@@ -313,7 +331,19 @@ export class Renderer {
       this.current = 1 - this.current;
       this.samples++;
     }
-    if (this.samples <= 32) this.checkError('trace');
+    if (this.samples <= 32) {
+      const code = this.checkError('trace');
+      // The first draw is where some drivers (Direct3D through ANGLE)
+      // compile the shader for real; a failure shows up here, not at link.
+      const prog = this.programs.trace;
+      if (!prog.verified) {
+        prog.verified = true;
+        if (code === this.gl.INVALID_OPERATION) {
+          prog.failed = true;
+          this.onTraceFailed?.(this.info().renderer, prog.key);
+        }
+      }
+    }
   }
 
   // Post-process and draw to the canvas.
@@ -442,6 +472,8 @@ export class Renderer {
       maxTextureUnits: gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS),
       maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
       compileMs: Math.round(this.compileMs),
+      traceVariant: this.programs.trace?.key ?? '',
+      traceFailed: !!this.programs.trace?.failed,
       halfReadback: !!this.halfReadback,
       lost: this.lost,
       errors: this.errors.slice(),

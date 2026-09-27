@@ -81,6 +81,14 @@ a time slider for animated scenes, and buttons to render the final image
 browsers with those features should work. Where WebCodecs is missing,
 video comes out as numbered PNG frames instead of WebM.
 
+## Live demo
+
+`demo/` is a small interactive page built on reality.js: pick a light,
+a material and an aperture, drop the ball, and watch the frame being
+traced on your GPU with live frames-per-second and paths-per-second
+readouts and a 4-second benchmark. Open
+`http://localhost:8080/demo/` after `npm run serve`.
+
 ## Render from the command line
 
 `tools/render.mjs` drives headless Chromium through
