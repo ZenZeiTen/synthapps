@@ -126,7 +126,7 @@ float hitBox(vec3 o, vec3 d, float tmax, out vec3 n) {
   if (t < EPS || t > tmax) return INF;
   vec3 p = o + d * t;
   vec3 a = abs(p);
-  n = a.x > a.y && a.x > a.z ? vec3(sign(p.x), 0, 0) : a.y > a.z ? vec3(0, sign(p.y), 0) : vec3(0, 0, sign(p.z));
+  n = a.x > a.y && a.x > a.z ? vec3(sign(p.x), 0.0, 0.0) : a.y > a.z ? vec3(0.0, sign(p.y), 0.0) : vec3(0.0, 0.0, sign(p.z));
   return t;
 }
 
@@ -149,7 +149,7 @@ float hitCylinder(vec3 o, vec3 d, float tmax, out vec3 n) {
         float y = o.y + d.y * t;
         if (t > EPS && t < best && t < tmax && abs(y) <= 0.5) {
           best = t;
-          n = vec3(o.x + d.x * t, 0, o.z + d.z * t);
+          n = vec3(o.x + d.x * t, 0.0, o.z + d.z * t);
         }
       }
     }
@@ -161,7 +161,7 @@ float hitCylinder(vec3 o, vec3 d, float tmax, out vec3 n) {
       vec3 p = o + d * t;
       if (t > EPS && t < best && t < tmax && p.x * p.x + p.z * p.z <= 1.0) {
         best = t;
-        n = vec3(0, sign(cy), 0);
+        n = vec3(0.0, sign(cy), 0.0);
       }
     }
   }
@@ -249,7 +249,7 @@ bool trace(vec3 ro, vec3 rd, float tmax, bool anyHit, out Hit h) {
     int shape = int(head.x);
     vec4 r0, r1, r2;
     objectInverse(i, r0, r1, r2);
-    vec3 o = vec3(dot(r0, vec4(ro, 1)), dot(r1, vec4(ro, 1)), dot(r2, vec4(ro, 1)));
+    vec3 o = vec3(dot(r0, vec4(ro, 1.0)), dot(r1, vec4(ro, 1.0)), dot(r2, vec4(ro, 1.0)));
     vec3 d = vec3(dot(r0.xyz, rd), dot(r1.xyz, rd), dot(r2.xyz, rd));
     float t = INF;
     vec3 n = vec3(0, 1, 0);
@@ -315,7 +315,7 @@ float pattern(int kind, vec3 q) {
   if (kind == 3) return smoothstep(0.25, 0.75, fbm(q));
   if (kind == 4) return pow(0.5 + 0.5 * sin(q.x * 3.0 + fbm(q) * 9.0), 3.0);
   if (kind == 5) {
-    float r = length(q.xz) * 6.0 + fbm(q * vec3(1, 0.15, 1) * 2.0) * 3.0;
+    float r = length(q.xz) * 6.0 + fbm(q * vec3(1.0, 0.15, 1.0) * 2.0) * 3.0;
     return smoothstep(0.35, 0.65, fract(r)) * 0.8 + 0.2 * fbm(q * 12.0);
   }
   if (kind == 6) return step(0.5, fract(q.x));
@@ -381,9 +381,9 @@ Mat loadMaterial(int obj, vec3 pObj, vec3 nObj, vec4 r0, vec4 r1, vec4 r2, inout
     // Bump: tilt the shading normal along the gradient of a noise field.
     vec3 q = pM * t7.y;
     float h = 0.02;
-    vec3 g = vec3(fbm(q + vec3(h, 0, 0)) - fbm(q - vec3(h, 0, 0)),
-                  fbm(q + vec3(0, h, 0)) - fbm(q - vec3(0, h, 0)),
-                  fbm(q + vec3(0, 0, h)) - fbm(q - vec3(0, 0, h))) / (2.0 * h);
+    vec3 g = vec3(fbm(q + vec3(h, 0.0, 0.0)) - fbm(q - vec3(h, 0.0, 0.0)),
+                  fbm(q + vec3(0.0, h, 0.0)) - fbm(q - vec3(0.0, h, 0.0)),
+                  fbm(q + vec3(0.0, 0.0, h)) - fbm(q - vec3(0.0, 0.0, h))) / (2.0 * h);
     vec3 gw = g.x * r0.xyz + g.y * r1.xyz + g.z * r2.xyz;
     float gl = length(gw);
     if (gl > 0.0) {
@@ -422,7 +422,7 @@ float fresnelDielectric(float cosi, float eta) {
 vec3 sampleVNDF(vec3 Ve, float a, float u1, float u2) {
   vec3 Vh = normalize(vec3(a * Ve.x, a * Ve.y, Ve.z));
   float lensq = Vh.x * Vh.x + Vh.y * Vh.y;
-  vec3 T1 = lensq > 0.0 ? vec3(-Vh.y, Vh.x, 0) * inversesqrt(lensq) : vec3(1, 0, 0);
+  vec3 T1 = lensq > 0.0 ? vec3(-Vh.y, Vh.x, 0.0) * inversesqrt(lensq) : vec3(1, 0, 0);
   vec3 T2 = cross(Vh, T1);
   float r = sqrt(u1), phi = 2.0 * PI * u2;
   float p1 = r * cos(phi), p2 = r * sin(phi);
