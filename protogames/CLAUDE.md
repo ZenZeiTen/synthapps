@@ -15,6 +15,10 @@ Each game lives in its own folder with its own README, docs, pipeline and tests:
   set of rules ported to both and a parity check that they match. Read `tidebell/CLAUDE.md`
   first. Its rules were measured by running a Genesis ROM in an emulator; the ROM is never
   committed.
+- `thornlash/`: a Godot 4.7 gothic whip-action platformer at 320x224, with rewind,
+  save-anywhere and gamepad rebinding. Read `thornlash/CLAUDE.md` first. It holds the
+  commands, the harness, the Aseprite-source art pipeline, and the renderer traps it hit
+  (mirrored sprites, aliased images).
 
 Rules shared by every project here:
 
