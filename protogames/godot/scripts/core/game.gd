@@ -302,10 +302,12 @@ func step(inp: Dictionary) -> void:
 		"play":
 			_step_play(ip)
 		"dying":
+			_hold_gravity()
 			_step_world(false)
 			if s.mode_t >= 150:
 				_after_death()
 		"trans":
+			_hold_gravity()
 			if s.mode_t == 24:
 				load_block(s.mode_next)
 				s.check = s.block
@@ -313,6 +315,7 @@ func step(inp: Dictionary) -> void:
 				s.mode = "play"
 				s.mode_t = 0
 		"clear":
+			_hold_gravity()
 			_step_clear()
 		"gameover", "ending":
 			pass
@@ -320,6 +323,20 @@ func step(inp: Dictionary) -> void:
 			push_error("unknown mode " + str(s.mode))
 			s.mode = "play"
 	s.frame += 1
+
+
+func _hold_gravity() -> void:
+	## A hold (death, stage clear, a block fade) stops the hero's control, not gravity:
+	## started mid-jump, the body still falls and lands.
+	var p: Dictionary = s.p
+	if p.st == "stair" or p.stair >= 0:
+		return
+	if on_floor(p, PW) and p.vy >= 0.0:
+		p.vy = 0.0
+		return
+	p.vx = 0.0
+	p.vy = minf(float(p.vy) + GRAV, MAX_FALL)
+	move_y(p, PW, PH)
 
 
 func _step_play(ip: Dictionary) -> void:

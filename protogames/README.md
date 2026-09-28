@@ -113,11 +113,12 @@ python godot/tests/mutation_core.py
 python godot/tests/mutation_harness.py
 ```
 
-- **Core suite, 25 tests:**
+- **Core suite, 26 tests:**
   - physics, stairs, whip reach, sub-weapons, pickups, saves and determinism;
   - a reachability lint over all 18 blocks;
   - a bot that fights every boss;
   - the final boss played through to the ending;
+  - holds (death, stage clear, fades) keep gravity when started mid-jump;
   - art coverage.
 - **End-to-end harness, 14 checks:** these run through the real input path. They cover menus,
   slots, rewind, game over, assists, rebinding, music and the ending back to the title. All 14

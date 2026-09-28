@@ -10,7 +10,7 @@ boss is the Pale Margrave.
 ```bash
 G="$HOME/Downloads/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe"
 "$G" --headless --path godot --import
-"$G" --headless --path godot --script res://tests/run_tests.gd --quit-after 1000000   # "TESTS 25/25 passed"
+"$G" --headless --path godot --script res://tests/run_tests.gd --quit-after 1000000   # "TESTS 26/26 passed"
 bash godot/tests/harness.sh                       # "HARNESS 0 failure(s)"; ONLY=regex filters checks
 python tests/verify_audio.py                      # "AUDIO ok"
 python godot/tests/mutation_core.py               # planted faults in the rules must all be caught
@@ -64,6 +64,10 @@ starts empty and is kept apart from the player's saves.
 - **Balance bugs came from the boss bot, not from the maths.** A bot standing on top of a boss
   never lands the whip, because the lash starts 14 px ahead of the hero. Keep the bot's
   spacing rule.
+
+- **A hold keeps gravity** (a protogames standing rule): death, stage clear and block fades
+  froze the hero mid-air when started mid-jump. `Game._hold_gravity()` now lets the body land;
+  `t_holds_keep_gravity` failed on the old code for all three cases.
 
 ## Player-reported bugs
 

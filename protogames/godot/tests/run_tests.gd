@@ -16,6 +16,7 @@ func _init() -> void:
 		"t_boss_triggers_and_dies", "t_timer_runs_out", "t_all_stages_parse", "t_all_blocks_reachable",
 		"t_lint_catches_a_wall", "t_every_boss_fights_and_falls", "t_final_boss_reaches_ending",
 		"t_flipped_frames_sample_the_mirror", "t_every_named_animation_exists", "t_whip_reach_by_level",
+		"t_holds_keep_gravity",
 	]
 	for name in tests:
 		var ok: bool = call(name)
@@ -640,6 +641,37 @@ func t_whip_reach_by_level() -> bool:
 	ok = check(_swing_at(3, 54.0), "level 3 reaches 54 px") and ok
 	ok = check(not _swing_at(3, 58.0), "level 3 stops short of 58 px") and ok
 	ok = check(not _swing_at(1, -20.0), "nothing behind the hero is struck") and ok
+	return ok
+
+
+func t_holds_keep_gravity() -> bool:
+	# protogames rule: a hold that stops the player keeps gravity. Start each hold mid-jump.
+	var ok := true
+	var g := game()
+	for i in 11:
+		g.step({"jump": true})
+	ok = check(g.s.p.y < 150.0, "setup: hero is in the air (y=%.1f)" % g.s.p.y) and ok
+	g.kill_player()
+	run(g, {}, 100)
+	ok = check(g.s.p.y == 160.0, "death mid-jump: the body falls to the floor (y=%.1f)" % g.s.p.y) and ok
+	var g2 := game()
+	for i in 12:
+		g2.step({"jump": true})
+	g2.drop_item("orb", g2.s.p.x, g2.s.p.y - 10)
+	run(g2, {}, 3)
+	ok = check(g2.s.mode == "clear", "setup: orb taken in the air (mode=%s)" % g2.s.mode) and ok
+	run(g2, {}, 80)
+	ok = check(g2.s.p.y == 160.0, "stage clear mid-jump: the hero lands (y=%.1f)" % g2.s.p.y) and ok
+	var g3 := game()
+	g3.s.p.x = 1000.0
+	g3.step({"jump": true, "r": true})
+	for i in 8:
+		g3.step({"jump": true, "r": true})
+	var mode_seen: String = g3.s.mode
+	var yt: float = g3.s.p.y
+	run(g3, {}, 20)
+	if mode_seen == "trans" or g3.s.mode == "trans":
+		ok = check(g3.s.p.y > yt, "block fade mid-jump: the hero keeps falling (%.1f -> %.1f)" % [yt, g3.s.p.y]) and ok
 	return ok
 
 
