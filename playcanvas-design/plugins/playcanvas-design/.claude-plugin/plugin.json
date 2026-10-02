@@ -1,0 +1,14 @@
+{
+  "name": "playcanvas-design",
+  "displayName": "PlayCanvas Design",
+  "version": "0.1.0",
+  "description": "Turn PlayCanvas scenes into finished media and game assets: deterministic, frame-exact headless renders to MP4/WebM/GIF/WebP, seamless-loop proofs, product turntables, 8-direction animated sprite sheets with PlayCanvas atlas data, icons, GLB exports and scripted gameplay captures. Works with code scenes or Editor projects driven through the PlayCanvas Editor MCP server.",
+  "author": {
+    "name": "ZenZeiTen",
+    "url": "https://github.com/ZenZeiTen"
+  },
+  "homepage": "https://github.com/ZenZeiTen/synthapps/tree/main/playcanvas-design",
+  "repository": "https://github.com/ZenZeiTen/synthapps",
+  "license": "MIT",
+  "keywords": ["playcanvas", "rendering", "video", "animation", "sprites", "game-assets", "gltf", "webgl"]
+}

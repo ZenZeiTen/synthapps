@@ -29,6 +29,14 @@
       "version": "0.1.0",
       "category": "development",
       "keywords": ["path-tracing", "rendering", "photoreal", "scene-language", "creative-coding", "video"]
+    },
+    {
+      "name": "playcanvas-design",
+      "source": "./playcanvas-design/plugins/playcanvas-design",
+      "description": "Turn PlayCanvas scenes into finished media and game assets: deterministic, frame-exact headless renders to MP4/WebM/GIF/WebP with seamless-loop proofs, product turntables, 8-direction animated sprite sheets with PlayCanvas atlas data, icons, GLB exports and scripted gameplay captures, from code scenes or Editor projects.",
+      "version": "0.1.0",
+      "category": "development",
+      "keywords": ["playcanvas", "rendering", "video", "animation", "sprites", "game-assets", "gltf"]
     }
   ]
 }
