@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nalara Architecture</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Instrument+Serif&amp;display=swap">
+<style>
+body{margin:0;background:#0C0E11;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#E9E6DF}
+*{box-sizing:border-box}
+a{color:#E8A547}a:hover{color:#F3C27D}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1360px; padding: 56px 64px; display: flex; flex-direction: column; gap: 32px; background: #111317; color: #E9E6DF; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 48px">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #E8A547">Parts 2 · 3 · 9 · 10 · 11</span>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 52px; font-weight: 400; line-height: 1.05">System architecture</h1>
+</div>
+<p style="margin: 0; max-width: 520px; font-size: 15px; line-height: 1.55; color: #A9ADB5">The desktop is a view of Claude's reasoning. Intent enters at the top, the orchestrator fans work out to agents, memory and tools, and the Workspace Engine draws the result back onto the canvas.</p>
+</div>
+
+<div style="display: flex; gap: 48px; align-items: stretch">
+
+<div style="width: 560px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 0">
+<div style="width: 400px; padding: 14px 18px; border-radius: 12px; border: 1px solid #C9C4BA; background: #1C2027; text-align: center; font-size: 16px; font-weight: 600">Neural Canvas UI</div>
+<div style="width: 2px; height: 22px; background: #5A616C"></div>
+<div style="width: 400px; padding: 14px 18px; border-radius: 12px; border: 1px solid #3A414D; background: #16191E; text-align: center; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 16px; font-weight: 600">Intent Processing Layer</span>
+<span style="font-size: 12.5px; color: #8A909A">natural language → executable plan</span>
+</div>
+<div style="width: 2px; height: 22px; background: #5A616C"></div>
+<div style="width: 400px; padding: 16px 18px; border-radius: 12px; border: 1.5px solid #E8A547; background: #1F1A12; text-align: center; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 16px; font-weight: 600">Cognitive Operating Layer</span>
+<span style="font-size: 12.5px; color: #E8A547">Claude Orchestrator · the kernel</span>
+</div>
+<svg width="480" height="40" viewBox="0 0 480 40" fill="none" stroke="#5A616C" stroke-width="2" aria-hidden="true"><path d="M240 0v14M80 14h320M80 14v26M240 14v26M400 14v26"></path></svg>
+<div style="width: 560px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<div style="padding: 14px 12px; border-radius: 12px; border: 1px solid #6B5230; background: #16191E; text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center">
+<span style="width: 14px; height: 14px; transform: rotate(45deg); border: 2px solid #E8A547"></span>
+<span style="font-size: 15px; font-weight: 600">Agent Swarm</span>
+<span style="font-size: 12px; color: #8A909A">specialist processes</span>
+</div>
+<div style="padding: 14px 12px; border-radius: 12px; border: 1px solid #3A414D; background: #16191E; text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center">
+<span style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid #C9C4BA"></span>
+<span style="font-size: 15px; font-weight: 600">Memory Graph</span>
+<span style="font-size: 12px; color: #8A909A">knowledge + history</span>
+</div>
+<div style="padding: 14px 12px; border-radius: 12px; border: 1px solid #2E4461; background: #16191E; text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center">
+<span style="width: 15px; height: 17px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: #6FA8E8"></span>
+<span style="font-size: 15px; font-weight: 600">Tools Layer</span>
+<span style="font-size: 12px; color: #8A909A">MCP servers</span>
+</div>
+</div>
+<svg width="480" height="40" viewBox="0 0 480 40" fill="none" stroke="#5A616C" stroke-width="2" aria-hidden="true"><path d="M80 0v26M240 0v26M400 0v26M80 26h320M240 26v14"></path></svg>
+<div style="width: 400px; padding: 14px 18px; border-radius: 12px; border: 1px solid #3A414D; background: #16191E; text-align: center; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 16px; font-weight: 600">Workspace Engine</span>
+<span style="font-size: 12.5px; color: #8A909A">assembles the outcome</span>
+</div>
+<div style="width: 2px; height: 22px; background: #5A616C"></div>
+<div style="width: 400px; padding: 14px 18px; border-radius: 12px; border: 1px solid #C9C4BA; background: #1C2027; text-align: center; font-size: 16px; font-weight: 600">Neural Canvas</div>
+<span style="margin-top: 12px; font-size: 12.5px; color: #8A909A">The loop closes: the canvas that shows the result is where the next intent starts.</span>
+</div>
+
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8A909A">Core services</h2>
+<sc-for list="{{services}}" as="s" hint-placeholder-count="5">
+<div style="padding: 14px 18px; border-radius: 12px; border: 1px solid #2A2F38; background: #16191E; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; align-items: start">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #E8A547">{{s.n}}</span>
+<span style="font-size: 15px; font-weight: 600">{{s.name}}</span>
+<span style="font-size: 12.5px; line-height: 1.4; color: #8A909A">{{s.role}}</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px">
+<sc-for list="{{s.parts}}" as="p" hint-placeholder-count="5">
+<span style="height: 28px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 7px; border: 1px solid #3A414D; font-size: 12.5px; color: #D6D8DC">{{p}}</span>
+</sc-for>
+</div>
+</div>
+</sc-for>
+<div style="padding: 14px 18px; border-radius: 12px; border: 1px solid #2A2F38; background: #0C0E11; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; line-height: 1.6; color: #A9ADB5; white-space: pre">{{intentJson}}</div>
+</div>
+
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+
+<div style="padding: 18px 20px; border-radius: 12px; border: 1px solid #2A2F38; background: #16191E; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8A909A">Event-driven model</h2>
+<div style="display: flex; flex-direction: column; gap: 4px; font-size: 13.5px">
+<span style="font-weight: 600">File Changed</span>
+<span style="color: #5A616C; padding-left: 4px">↓</span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; transform: rotate(45deg); border: 1.5px solid #E8A547"></span>Review Agent Triggered</span>
+<span style="color: #5A616C; padding-left: 4px">↓</span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; transform: rotate(45deg); border: 1.5px solid #E8A547"></span>QA Agent Triggered</span>
+<span style="color: #5A616C; padding-left: 4px">↓</span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; transform: rotate(45deg); border: 1.5px solid #E8A547"></span>Documentation Agent Updated</span>
+</div>
+<span style="font-size: 12.5px; line-height: 1.45; color: #8A909A">Bus: NATS (recommended); Kafka, Redis Streams or Temporal also fit.</span>
+</div>
+
+<div style="padding: 18px 20px; border-radius: 12px; border: 1px solid #2A2F38; background: #16191E; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8A909A">Filesystem by meaning</h2>
+<div style="display: flex; align-items: center; gap: 10px; font-size: 13px">
+<span style="font-family: 'IBM Plex Mono', monospace; color: #5A616C; text-decoration: line-through">C:\Projects\Game\Combat\</span>
+<span style="color: #5A616C">→</span>
+<span style="font-weight: 600">Combat System</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{searches}}" as="q" hint-placeholder-count="4">
+<span style="display: flex; align-items: center; gap: 10px; height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid #3A414D; background: #0C0E11; font-size: 13px; color: #D6D8DC">
+<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#8A909A" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="6" r="4.5"></circle><path d="M9.5 9.5L13 13"></path></svg>{{q}}</span>
+</sc-for>
+</div>
+<span style="font-size: 12.5px; color: #8A909A">Folders become optional; graph relations come first.</span>
+</div>
+
+<div style="padding: 18px 20px; border-radius: 12px; border: 1px solid #2A2F38; background: #16191E; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #8A909A">Suggested stack</h2>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{stack}}" as="r" hint-placeholder-count="7">
+<div style="display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 10px; padding: 5px 0; border-bottom: 1px solid #22262D; font-size: 12.5px; line-height: 1.4">
+<span style="color: #8A909A">{{r.k}}</span>
+<span style="color: #D6D8DC">{{r.v}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1360}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const services = [
+      ['Intent Engine', 'Turns natural language into executable plans.', ['Intent Classifier', 'Intent Enricher', 'Planner', 'Priority Engine', 'Context Loader']],
+      ['Agent Orchestrator', 'The kernel scheduler for agents.', ['Spawn', 'Terminate', 'Assign tasks', 'Monitor progress', 'Aggregate results', 'Resolve conflicts']],
+      ['Workspace Generator', 'Builds temporary workspaces from intent, with no user setup.', ['Agents', 'Source files', 'Glossaries', 'Reviewers', 'Output folders']],
+      ['Knowledge Graph Engine', 'Every resource is a node with relations.', ['Neo4j (preferred)', 'ArangoDB', 'RDF triple store', 'Custom graph DB']],
+      ['Memory Service', 'Persistent memory that Claude keeps updating.', ['Preferences', 'Project history', 'Architecture decisions', 'Coding standards', 'Translation guides', 'File relations', 'Agent performance']]
+    ].map(([name, role, parts], i) => ({ n: String(i + 1).padStart(2, '0'), name, role, parts }));
+    const intentJson = '"Review inventory module"  →\n{\n  "intent": "engineering_review",\n  "required_agents": ["architect", "reviewer", "qa"],\n  "required_tools": ["git", "filesystem"]\n}';
+    const searches = ['combat code', 'latest damage calculations', 'files related to inventory', 'design docs referencing merchants'];
+    const stack = [
+      ['Frontend', 'Next.js, React, TypeScript, Tailwind, Framer Motion, React Flow, Tauri'],
+      ['Rendering', 'WebGL, Three.js, D3, PixiJS'],
+      ['AI layer', 'Claude Code, Claude Opus, Claude Sonnet, OpenRouter fallback'],
+      ['Graph', 'Neo4j (preferred)'],
+      ['Search', 'Qdrant, Weaviate, LanceDB'],
+      ['Local storage', 'SQLite, DuckDB'],
+      ['Event bus', 'NATS (recommended)']
+    ].map(([k, v]) => ({ k, v }));
+    return { services, intentJson, searches, stack };
+  }
+}
+</script>
+</body>
+</html>
