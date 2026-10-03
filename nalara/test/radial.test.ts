@@ -124,7 +124,10 @@ describe("file actions", () => {
     const ws = await workspaceDone(r.workspaceId!);
     expect(ws.status).toBe("completed");
     expect(ws.files).toEqual(["src/combat/battle_system.ts"]);
-    expect(ws.report?.outputs.map((o) => o.agentId).sort()).toEqual(["code_reviewer", "systems_architect"]);
+    // The systems architect builds (it writes architecture.md), so the security agent attacks its work as a critic.
+    expect(ws.report?.outputs.map((o) => o.agentId).sort()).toEqual(["code_reviewer", "security_agent", "systems_architect"]);
+    expect(ws.report?.reviews).toHaveLength(1);
+    expect(ws.report?.reviews?.[0]).toMatchObject({ builderId: "systems_architect", critics: ["security_agent"], verdict: "survived", rounds: 1 });
     const titles = ws.report!.findings.map((f) => f.title);
     expect(titles).toContain("Use of `any`");
     expect(titles.some((t) => /TODO/.test(t))).toBe(true);
@@ -176,7 +179,9 @@ describe("agent actions", () => {
     const ws = await workspaceDone(r.workspaceId!);
     expect(ws.plan).toHaveLength(2);
     expect(ws.plan[0].agent).toBe("code_reviewer");
-    expect(ws.report?.outputs).toHaveLength(2);
+    // Plan-step outputs; critics of builder steps add their own outputs on top.
+    const stepInstances = Object.values(ws.checkpoint.completedSteps).map((c) => c.instanceId);
+    expect(ws.report?.outputs.filter((o) => stepInstances.includes(o.instanceId))).toHaveLength(2);
     const commander = kernel.orchestrator.instances({ workspaceId: ws.id, agentId: "commander" });
     expect(commander).toHaveLength(1);
 

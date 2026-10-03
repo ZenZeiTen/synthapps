@@ -63,6 +63,10 @@ npm run cli -- search "latest damage calculations" --root demo/breath-of-fire-iv
 npm run cli -- approvals          # on a running server
 npm run cli -- approve <id>
 npm run cli -- halt "stop everything"
+npm run cli -- tree <workspaceId>       # process tree: builders, critics, verdicts
+npm run cli -- observatory              # usage per fleet and agent
+npm run cli -- queue                    # approvals, running agents, waiting workspaces
+printf %s "$TOKEN" | npm run cli -- secret set GITHUB_TOKEN   # value from stdin (a terminal prompt shows the input)
 npm run cli -- --help
 ```
 
@@ -84,6 +88,7 @@ Nalara writes its database and outputs to `<root>/.nalara/`.
 | MCP (8) | Stdio and HTTP servers; tools discovered at run time and classed read / write / search / execute |
 | Filesystem by meaning (9) | Semantic search with concepts, recency, kind filters and graph relations |
 | Events (10) | Persistent event bus and the File Changed → Review → QA → Documentation trigger chain |
+| Fleets (beyond the spec) | Process tree per run, adversarial review (builders attacked by critics; only evidence-checked challenges block), an audited relay, fleet memory, fleet budgets, an Observatory and a work queue. See [ARCHITECTURE.md](ARCHITECTURE.md#fleets) and [docs/orc-gap-analysis.md](docs/orc-gap-analysis.md) |
 
 ## Safety
 
@@ -104,7 +109,12 @@ register are in [SAFETY.md](SAFETY.md).
 - **Memory:** anything an agent saves stays *proposed* until you confirm it.
 - **Audit:** an append-only, hash-chained ledger of every decision.
 - **Budgets:** per-agent limits on tokens, tool calls, turns and time, with
-  repeat-call detection.
+  repeat-call detection, plus a per-run fleet budget (agents, tokens, tool
+  calls, relay messages).
+- **Secrets:** MCP credentials go in the secret store (Settings → Secrets, or
+  `nalara secret set`) and are referenced as `${secret:NAME}`. Agents never see
+  them, and stored values are removed from tool results, events, the audit
+  ledger and API responses.
 - **Network:** the server binds to 127.0.0.1 and has no authentication. Do not
   expose it.
 

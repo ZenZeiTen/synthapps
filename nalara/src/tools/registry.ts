@@ -41,6 +41,8 @@ export interface ToolRegistryOptions {
   policy?: ToolPolicy;
   maxDelegationDepth?: number;
   now?: () => Date;
+  /** Secret redaction (src/kernel/secrets.ts): applied to every result before the caller, events or audit see it. */
+  redact?: { text(text: string): string; value<T>(value: T): T };
 }
 
 /** JSON with sorted object keys, so equal values always serialize the same way (hashes, loop-detection keys). */
@@ -192,7 +194,8 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
 
     publish("tool.called", { ...base, ...inputSummary(def, args) }, principal);
 
-    const finish = (result: ToolResult, outcome: Outcome, detail: Record<string, unknown> = {}): ToolResult => {
+    const finish = (raw: ToolResult, outcome: Outcome, detail: Record<string, unknown> = {}): ToolResult => {
+      const result = redactResult(raw);
       const durationMs = Date.now() - started;
       record(principal, name, outcome, { ...detail, durationMs, ...(outcome === "denied" ? {} : { idempotencyKey: ctx?.idempotencyKey }) });
       publish("tool.result", { ...base, ok: result.ok, outcome, durationMs, error: result.error, ...(outcome === "denied" ? { reason: result.error } : {}) }, principal);
@@ -273,11 +276,23 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
     const run = runHandler(entry, args, ctx);
     if (fenceKey) executed.set(fenceKey, run);
     const result = await run;
-    return finish(result, result.ok ? "ok" : "error", {
+    const clean = redactResult(result);
+    return finish(clean, clean.ok ? "ok" : "error", {
       via,
-      error: result.error,
-      resultPreview: result.content.slice(0, 500),
+      error: clean.error,
+      resultPreview: clean.content.slice(0, 500),
     });
+  }
+
+  function redactResult(result: ToolResult): ToolResult {
+    const r = opts.redact;
+    if (!r) return result;
+    return {
+      ...result,
+      content: r.text(result.content),
+      ...(result.error !== undefined ? { error: r.text(result.error) } : {}),
+      ...(result.data !== undefined ? { data: r.value(result.data) } : {}),
+    };
   }
 
   async function runHandler(entry: Entry, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {

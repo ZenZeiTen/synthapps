@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
-import type { AuditEntry, GovernorSnapshot, KernelEvent, KernelStatus, McpServerStatus, ToolPolicy, TriggerRule } from "../types";
+import type { AuditEntry, GovernorSnapshot, KernelEvent, KernelStatus, McpServerStatus, SecretInfo, ToolPolicy, TriggerRule } from "../types";
 import { SidePanel } from "./SidePanel";
 import { IconEvents, IconRefresh, IconShield } from "./Icons";
 
@@ -11,6 +11,7 @@ interface Props {
   onEvent: (l: (ev: KernelEvent) => void) => () => void;
   onStatusChanged: () => void;
   onOpenEvents: () => void;
+  onOpenObservatory?: () => void;
 }
 
 const POLICY_HELP: Record<ToolPolicy["mode"], string> = {
@@ -19,14 +20,16 @@ const POLICY_HELP: Record<ToolPolicy["mode"], string> = {
   readonly: "Only reversible read and search tools run.",
 };
 
-export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChanged, onOpenEvents }: Props) {
+export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChanged, onOpenEvents, onOpenObservatory }: Props) {
   const [policy, setPolicy] = useState<ToolPolicy | null>(null);
   const [mcp, setMcp] = useState<McpServerStatus[] | null>(null);
   const [triggers, setTriggers] = useState<TriggerRule[] | null>(null);
   const [governor, setGovernor] = useState<GovernorSnapshot | null>(null);
   const [audit, setAudit] = useState<{ entries: AuditEntry[]; chainBrokenAt: number | null } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [secrets, setSecrets] = useState<SecretInfo[] | null>(null);
   const [form, setForm] = useState({ name: "", command: "", args: "" });
+  const [secretForm, setSecretForm] = useState({ name: "", value: "" });
   const [busy, setBusy] = useState<string | null>(null);
 
   const guard = useCallback(async <T,>(key: string, fn: () => Promise<T>, set: (v: T) => void) => {
@@ -48,6 +51,7 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
     void guard("triggers", api.triggers, setTriggers);
     void guard("governor", api.governor, setGovernor);
     void guard("audit", () => api.audit({ limit: 40 }), setAudit);
+    void guard("secrets", api.secrets, setSecrets);
   }, [guard]);
 
   useEffect(() => loadAll(), [loadAll]);
@@ -56,6 +60,7 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
       onEvent((ev) => {
         if (ev.type.startsWith("mcp.")) void guard("mcp", api.mcp, setMcp);
         if (ev.type.startsWith("tool.") || ev.type.startsWith("kernel.")) void guard("audit", () => api.audit({ limit: 40 }), setAudit);
+        if (ev.type === "secret.changed") void guard("secrets", api.secrets, setSecrets);
       }),
     [onEvent, guard],
   );
@@ -118,6 +123,36 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
     }
   };
 
+  const saveSecret = async (e: FormEvent) => {
+    e.preventDefault();
+    const name = secretForm.name.trim().toUpperCase();
+    if (!name || !secretForm.value) return;
+    setBusy("secret");
+    try {
+      await api.setSecret(name, secretForm.value);
+      onToast(`Secret ${name} saved`);
+      setSecretForm({ name: "", value: "" });
+      void guard("secrets", api.secrets, setSecrets);
+    } catch (err) {
+      onToast(`Saving the secret failed: ${(err as Error).message}`, "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeSecret = async (name: string) => {
+    setBusy(`secret:${name}`);
+    try {
+      await api.deleteSecret(name);
+      onToast(`Secret ${name} deleted`);
+      void guard("secrets", api.secrets, setSecrets);
+    } catch (err) {
+      onToast(`Deleting the secret failed: ${(err as Error).message}`, "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const err = (k: string) =>
     errors[k] ? (
       <p className="inline-error" role="alert">
@@ -137,6 +172,11 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
         <button type="button" className="btn btn-sm events-link" onClick={onOpenEvents}>
           <IconEvents size={14} /> Open the event log
         </button>
+        {onOpenObservatory ? (
+          <button type="button" className="btn btn-sm events-link" onClick={onOpenObservatory}>
+            Open the Observatory
+          </button>
+        ) : null}
         {status ? (
           <dl className="kv">
             <dt>Mode</dt>
@@ -232,6 +272,45 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
           </label>
           <button type="submit" className="btn btn-primary" disabled={busy === "connect" || !form.name.trim() || !form.command.trim()}>
             {busy === "connect" ? "Connecting..." : "Connect server"}
+          </button>
+        </form>
+      </section>
+
+      <section className="panel-sec" aria-label="Secrets">
+        <h3>Secrets</h3>
+        <p className="small muted">
+          Credentials for MCP servers. Write <span className="mono">{"${secret:NAME}"}</span> in a server&apos;s env, headers, URL or arguments; the
+          gateway fills it in at connect time. Agents never see values, and values are removed from tool results, events and the audit ledger.
+        </p>
+        {err("secrets")}
+        {secrets && secrets.length === 0 ? <p className="muted">No secrets stored.</p> : null}
+        {secrets && secrets.length ? (
+          <ul className="plain-list secret-list">
+            {secrets.map((s) => (
+              <li key={s.name} className="mcp-item">
+                <span className="mono">{s.name}</span>
+                <span className="muted small">updated {new Date(s.updatedAt).toLocaleString()}</span>
+                {s.redacted ? null : <span className="badge badge-amber" title="Values shorter than 6 characters are not removed from output">short</span>}
+                <button type="button" className="btn btn-sm" disabled={busy === `secret:${s.name}`} onClick={() => void removeSecret(s.name)} aria-label={`Delete secret ${s.name}`}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <form className="form" onSubmit={saveSecret}>
+          <div className="row gap">
+            <label className="field grow">
+              <span className="field-label">Name</span>
+              <input value={secretForm.name} onChange={(e) => setSecretForm({ ...secretForm, name: e.target.value })} placeholder="GITHUB_TOKEN" pattern="[A-Za-z][A-Za-z0-9_]{0,63}" required />
+            </label>
+            <label className="field grow">
+              <span className="field-label">Value</span>
+              <input type="password" autoComplete="off" value={secretForm.value} onChange={(e) => setSecretForm({ ...secretForm, value: e.target.value })} required />
+            </label>
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={busy === "secret" || !secretForm.name.trim() || !secretForm.value}>
+            {busy === "secret" ? "Saving..." : "Save secret"}
           </button>
         </form>
       </section>

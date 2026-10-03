@@ -8,16 +8,19 @@
  *   - POST/PUT/DELETE need `X-Nalara-Client: 1` (a header cross-site forms cannot set);
  *   - JSON bodies are capped at 1 MB; static files are confined to the static directory.
  */
+import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { createReadStream, existsSync, realpathSync, statSync } from "node:fs";
 import { extname, join, relative, resolve, sep, isAbsolute } from "node:path";
+import { canonicalJson } from "../kernel/audit";
 import { isLoopbackHost } from "../kernel/config";
-import type { NeuralKernel } from "../kernel/kernel";
+import { KERNEL_VERSION, type NeuralKernel } from "../kernel/kernel";
 import { detectKind } from "../search/index";
 import {
   MEMORY_CATEGORIES,
   NODE_TYPES,
+  type RelayKind,
   type KernelEvent,
   type McpServerConfig,
   type MemoryCategory,
@@ -28,6 +31,41 @@ import {
 import type { GraphSlice, NodeDetail, RadialMenu, WorkspaceDetail } from "./api-contract";
 
 export const MAX_BODY_BYTES = 1024 * 1024;
+/** Major version of the HTTP API. Clients may send X-Nalara-Api-Version; versions in SUPPORTED_API_VERSIONS are accepted. */
+export const API_VERSION = 2;
+export const SUPPORTED_API_VERSIONS = [1, 2];
+export const API_FEATURES = [
+  "intents",
+  "workspaces",
+  "agents",
+  "radial",
+  "search",
+  "memory",
+  "tools",
+  "mcp",
+  "approvals",
+  "policy",
+  "triggers",
+  "workflows",
+  "kill-switch",
+  "audit",
+  "journal",
+  "events-stream",
+  "process-tree",
+  "relay",
+  "adversarial-review",
+  "fleet-memory",
+  "fleet-budgets",
+  "observatory",
+  "work-queue",
+  "secrets",
+  "idempotency-keys",
+  "structured-errors",
+];
+/** How long a response is kept for replay under its Idempotency-Key. */
+export const IDEMPOTENCY_TTL_MS = 10 * 60_000;
+const IDEMPOTENCY_MAX_ENTRIES = 1000;
+const RELAY_KINDS: RelayKind[] = ["spawn", "handoff", "challenge", "verdict", "result"];
 export const SSE_HEARTBEAT_MS = 15_000;
 const SSE_DEFAULT_REPLAY = 200;
 
@@ -56,10 +94,34 @@ export class HttpError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** Stable machine-readable error code; defaults from the status (see codeFor). */
+    readonly code?: string,
   ) {
     super(message);
     this.name = "HttpError";
   }
+}
+
+const STATUS_CODES: Record<number, string> = {
+  400: "invalid_request",
+  403: "forbidden",
+  404: "not_found",
+  405: "method_not_allowed",
+  409: "conflict",
+  413: "payload_too_large",
+  422: "unprocessable",
+  500: "internal_error",
+};
+
+/** Structured errors: every error body is { error, code }; codes are stable, messages are for people. */
+export function codeFor(err: unknown, status: number): string {
+  const own = (err as { code?: unknown })?.code;
+  if (typeof own === "string" && /^[a-z][a-z0-9_]*$/.test(own)) return own;
+  const name = (err as { name?: unknown })?.name;
+  if (name === "KernelHaltedError") return "kernel_halted";
+  if (name === "SecretError") return "invalid_secret";
+  if (name === "ConfigError") return "invalid_config";
+  return STATUS_CODES[status] ?? (status >= 500 ? "internal_error" : "request_failed");
 }
 
 export interface NeuralHttpServer {
@@ -74,7 +136,7 @@ export interface NeuralHttpServer {
 type Query = URLSearchParams;
 type Json = Record<string, unknown>;
 
-function send(res: ServerResponse, status: number, body: unknown): void {
+function send(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
   if (res.headersSent) {
     res.end();
     return;
@@ -85,6 +147,8 @@ function send(res: ServerResponse, status: number, body: unknown): void {
     "Content-Length": Buffer.byteLength(text),
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
+    "X-Nalara-Api-Version": String(API_VERSION),
+    ...headers,
   });
   res.end(text);
 }
@@ -170,10 +234,36 @@ function validateMcpConfig(v: unknown): McpServerConfig {
   return cfg;
 }
 
-export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: string } = {}): NeuralHttpServer {
+interface IdempotentEntry {
+  hash: string;
+  expires: number;
+  result: Promise<{ status: number; body: unknown } | undefined>;
+}
+
+export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: string; now?: () => number } = {}): NeuralHttpServer {
   const staticRoot = opts.staticDir && existsSync(opts.staticDir) ? realpathSync(opts.staticDir) : undefined;
   const sseClients = new Set<ServerResponse>();
   let boundHost = kernel.config.host;
+  const now = opts.now ?? Date.now;
+  const idempotent = new Map<string, IdempotentEntry>();
+
+  /** Every JSON response passes the secret redactor: a credential never reaches a shell, whatever produced it. */
+  const reply = (res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}) => send(res, status, kernel.secrets.redactValue(body), headers);
+
+  function pruneIdempotent() {
+    const t = now();
+    for (const [k, e] of idempotent) if (e.expires <= t) idempotent.delete(k);
+    while (idempotent.size > IDEMPOTENCY_MAX_ENTRIES) idempotent.delete(idempotent.keys().next().value!);
+  }
+
+  function checkApiVersion(req: IncomingMessage) {
+    const raw = req.headers["x-nalara-api-version"];
+    if (raw === undefined) return;
+    const major = Number(String(raw).split(".")[0]);
+    if (!SUPPORTED_API_VERSIONS.includes(major)) {
+      throw new HttpError(400, `API version ${String(raw)} is not supported (supported: ${SUPPORTED_API_VERSIONS.join(", ")})`, "unsupported_version");
+    }
+  }
 
   function boundPort(): number | undefined {
     const addr = server.address();
@@ -280,7 +370,7 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
     const write = (ev: KernelEvent) => {
       if (ev.seq <= lastSent || res.writableEnded) return;
       lastSent = ev.seq;
-      res.write(`id: ${ev.seq}\ndata: ${JSON.stringify(ev)}\n\n`);
+      res.write(`id: ${ev.seq}\ndata: ${JSON.stringify(kernel.secrets.redactValue(ev))}\n\n`);
     };
     // Subscribe first: bus handlers run in a microtask, so nothing published during the replay is lost or doubled.
     const unsubscribe = kernel.bus.subscribe("*", write);
@@ -303,16 +393,72 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
 
   // --- API routes -------------------------------------------------------------------------------------
 
-  async function api(req: IncomingMessage, res: ServerResponse, seg: string[], q: Query): Promise<void> {
+  async function api(req: IncomingMessage, res: ServerResponse, seg: string[], q: Query, body: Json, record?: (status: number, value: unknown) => void): Promise<void> {
     const method = req.method ?? "GET";
     const [a, b, c, d] = seg;
-    const body = method === "POST" || method === "PUT" || method === "PATCH" ? await readJson(req) : {};
-    const ok = (value: unknown) => send(res, 200, value);
+    const ok = (value: unknown) => {
+      record?.(200, value);
+      reply(res, 200, value);
+    };
     const is = (m: string, n: number) => method === m && seg.length === n;
 
     switch (a) {
+      case "version":
+        if (is("GET", 1)) return ok({ name: "nalara", version: KERNEL_VERSION, apiVersion: API_VERSION, supportedApiVersions: SUPPORTED_API_VERSIONS, features: API_FEATURES });
+        break;
+
       case "status":
         if (is("GET", 1)) return ok(kernel.status());
+        break;
+
+      case "observatory":
+        if (is("GET", 1)) return ok(kernel.observatory());
+        break;
+
+      case "queue":
+        if (is("GET", 1)) return ok(kernel.workQueue());
+        break;
+
+      case "relay":
+        if (is("GET", 1)) {
+          const kinds = q.get("kind") ? q.get("kind")!.split(",").map((k) => k.trim()).filter(Boolean) : [];
+          for (const k of kinds) if (!(RELAY_KINDS as string[]).includes(k)) throw new HttpError(400, `Unknown relay kind "${k}"`);
+          const since = optInt(q, "since", 0);
+          return ok(
+            kernel.relay.list({
+              ...(q.get("workspaceId") ? { workspaceId: q.get("workspaceId")! } : {}),
+              ...(q.get("instanceId") ? { instanceId: q.get("instanceId")! } : {}),
+              ...(kinds.length ? { kind: kinds as RelayKind[] } : {}),
+              ...(since !== undefined ? { sinceSeq: since } : {}),
+              limit: optInt(q, "limit", 1, 5000) ?? 500,
+            }),
+          );
+        }
+        break;
+
+      case "fleet":
+        if (is("GET", 2) && b === "records") {
+          const files = q.getAll("file").filter(Boolean);
+          return ok(
+            kernel.fleet.records({
+              ...(files.length ? { files } : {}),
+              ...(q.get("workspaceId") ? { workspaceId: q.get("workspaceId")! } : {}),
+              limit: optInt(q, "limit", 1, 1000) ?? 50,
+            }),
+          );
+        }
+        break;
+
+      case "secrets":
+        if (is("GET", 1)) return ok(kernel.secrets.list());
+        if (is("PUT", 2)) {
+          if (typeof body.value !== "string" || !body.value) throw new HttpError(400, "value must be a non-empty string", "invalid_secret");
+          return ok(kernel.setSecret(b, body.value));
+        }
+        if (is("DELETE", 2)) {
+          if (!kernel.secrets.has(b)) throw new HttpError(404, `No secret "${b}"`);
+          return ok({ ok: kernel.deleteSecret(b) });
+        }
         break;
 
       case "graph":
@@ -355,6 +501,7 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
           const detail: WorkspaceDetail = { workspace: ws, instances: kernel.orchestrator.instances({ workspaceId: b }) };
           return ok(detail);
         }
+        if (is("GET", 3) && c === "tree") return ok(kernel.fleetTree(b));
         if (is("POST", 3) && c === "run") return ok({ workspace: kernel.startWorkspace(b).workspace });
         if (is("POST", 3) && c === "archive") return ok({ workspace: kernel.archiveWorkspace(b) });
         if (is("POST", 3) && c === "undo") return ok(await kernel.undoWorkspace(b));
@@ -581,7 +728,41 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
         throw new HttpError(400, "Malformed URL encoding");
       }
       if (!seg.length) throw new HttpError(404, "No route");
-      return api(req, res, seg, q);
+      checkApiVersion(req);
+      const method = req.method ?? "GET";
+      const mutating = method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE";
+      const body = method === "POST" || method === "PUT" || method === "PATCH" ? await readJson(req) : {};
+      const rawKey = req.headers["idempotency-key"];
+      const key = typeof rawKey === "string" ? rawKey.trim() : "";
+      if (!mutating || !key) return api(req, res, seg, q, body);
+      if (key.length > 200) throw new HttpError(400, "Idempotency-Key must be at most 200 characters");
+      // Idempotency: the same key on the same route replays the first response (2xx and 4xx; 5xx may be retried).
+      pruneIdempotent();
+      const cacheKey = `${method} ${rawPath}\u0000${key}`;
+      const hash = createHash("sha256").update(canonicalJson(body)).digest("hex");
+      const hit = idempotent.get(cacheKey);
+      if (hit) {
+        if (hit.hash !== hash) throw new HttpError(422, `Idempotency-Key "${key}" was already used with a different request body`, "idempotency_conflict");
+        const first = await hit.result;
+        if (first) return reply(res, first.status, first.body, { "Idempotent-Replayed": "true" });
+      }
+      let settle!: (v: { status: number; body: unknown } | undefined) => void;
+      const entry: IdempotentEntry = { hash, expires: now() + IDEMPOTENCY_TTL_MS, result: new Promise((r) => (settle = r)) };
+      idempotent.set(cacheKey, entry);
+      let recorded: { status: number; body: unknown } | undefined;
+      try {
+        await api(req, res, seg, q, body, (status, value) => (recorded = { status, body: value }));
+        settle(recorded);
+      } catch (err) {
+        const status = statusOf(err);
+        if (status < 500) settle({ status, body: { error: err instanceof Error ? err.message : String(err), code: codeFor(err, status) } });
+        else {
+          idempotent.delete(cacheKey);
+          settle(undefined);
+        }
+        throw err;
+      }
+      return;
     }
     return serveStatic(req, res, rawPath);
   }
@@ -596,7 +777,7 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
           // bus closed
         }
       }
-      send(res, status, { error: err instanceof Error ? err.message : String(err) });
+      reply(res, status, { error: err instanceof Error ? err.message : String(err), code: codeFor(err, status) });
     });
   });
 

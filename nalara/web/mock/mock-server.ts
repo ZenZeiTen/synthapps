@@ -457,6 +457,7 @@ appendAudit({ kind: "approval", principal: approvals.get("apr_1")!.principal, su
 
 const journal: JournalEntry[] = [];
 let halted = false;
+const secrets = new Map<string, { name: string; createdAt: string; updatedAt: string; redacted: boolean }>();
 
 const WORKFLOWS: WorkflowDefinition[] = [
   { id: "build-pipeline", name: "Build Pipeline", description: "Review, test and document the current changes.", steps: [{ kind: "intent", text: "Review inventory module" }, { kind: "agent", agentId: "qa_engineer", task: "Run the test suite" }, { kind: "agent", agentId: "documentation", task: "Update the changelog" }] },
@@ -887,6 +888,24 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (method === "GET" && !b) return send(res, 200, [...workspaces.values()].sort((x, y) => x.createdAt.localeCompare(y.createdAt)));
     const ws = b ? workspaces.get(b) : undefined;
     if (b && !ws) throw new HttpError(404, `No workspace ${b}`);
+    if (method === "GET" && ws && c === "tree") {
+      // The mock has no process tree beyond the plan: every instance is a root worker, no relay, no reviews.
+      const nodes = [...instances.values()]
+        .filter((i) => i.workspaceId === ws.id)
+        .map((i) => ({
+          instanceId: i.instanceId,
+          agentId: i.agentId,
+          workspaceId: ws.id,
+          depth: 0,
+          role: "worker",
+          state: i.state,
+          task: i.task,
+          usage: { inputTokens: 0, outputTokens: 0, toolCalls: 0, wallMs: 0 },
+          createdAt: i.startedAt ?? now(),
+          updatedAt: i.finishedAt ?? i.startedAt ?? now(),
+        }));
+      return send(res, 200, { workspaceId: ws.id, nodes, edges: [], roots: nodes.map((n) => n.instanceId), reviews: [] });
+    }
     if (method === "GET" && ws && !c) {
       const detail: WorkspaceDetail = { workspace: ws, instances: [...instances.values()].filter((i) => i.workspaceId === ws.id) };
       return send(res, 200, detail);
@@ -1102,6 +1121,61 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   }
   if (method === "GET" && a === "journal") return send(res, 200, journal.filter((j) => !q.get("workspaceId") || j.principal.workspaceId === q.get("workspaceId")));
   if (method === "GET" && a === "governor") return send(res, 200, governor());
+
+  // --- system interface, secrets, fleet telemetry (minimal mock) ------------------------------------------
+  if (method === "GET" && a === "version") return send(res, 200, { name: "nalara", version: "mock", apiVersion: 2, supportedApiVersions: [1, 2], features: [] });
+  if (a === "secrets") {
+    if (method === "GET" && !b) return send(res, 200, [...secrets.values()]);
+    if (b && !/^[A-Z][A-Z0-9_]{0,63}$/.test(b)) throw new HttpError(400, "Secret names are upper case letters, digits and _");
+    if (method === "PUT" && b) {
+      if (typeof body.value !== "string" || !body.value) throw new HttpError(400, "value is required");
+      const at = now();
+      const info = { name: b, createdAt: secrets.get(b)?.createdAt ?? at, updatedAt: at, redacted: body.value.length >= 6 };
+      secrets.set(b, info);
+      publish("secret.changed", { name: b, action: "set" });
+      return send(res, 200, info);
+    }
+    if (method === "DELETE" && b) {
+      const ok = secrets.delete(b);
+      if (ok) publish("secret.changed", { name: b, action: "delete" });
+      return send(res, ok ? 200 : 404, ok ? { ok } : { error: `No secret ${b}` });
+    }
+  }
+  if (method === "GET" && a === "relay") return send(res, 200, []);
+  if (method === "GET" && a === "fleet" && b === "records") return send(res, 200, []);
+  if (method === "GET" && a === "queue") {
+    const running = [...instances.values()].filter((i) => ["summoned", "active", "collaborating"].includes(i.state));
+    return send(res, 200, {
+      generatedAt: now(),
+      approvals: [...approvals.values()].filter((x) => x.status === "pending").map((x) => ({ id: x.id, tool: x.tool, requestedBy: x.principal.chain.join(" > "), createdAt: x.createdAt })),
+      running: running.map((i) => ({ instanceId: i.instanceId, agentId: i.agentId, name: i.agentId, workspaceId: i.workspaceId, state: i.state, owner: "user:root", startedAt: i.startedAt })),
+      workspaces: [...workspaces.values()].filter((w) => w.status === "ready" || w.status === "running").map((w) => ({ id: w.id, label: w.label, status: w.status, owner: "user:root", createdAt: w.createdAt, steps: w.plan.length, completedSteps: 0 })),
+      admission: { queued: 0, running: running.length, lanes: 4 },
+    });
+  }
+  if (method === "GET" && a === "observatory") {
+    const zero = { inputTokens: 0, outputTokens: 0, toolCalls: 0, wallMs: 0 };
+    const all = [...instances.values()];
+    return send(res, 200, {
+      generatedAt: now(),
+      totals: { ...zero, agents: all.length, workspaces: workspaces.size, messages: 0 },
+      fleetBudget: { maxAgents: 40, maxInputTokens: 4_000_000, maxOutputTokens: 600_000, maxToolCalls: 600, maxMessages: 400 },
+      workspaces: [...workspaces.values()].map((w) => ({
+        workspaceId: w.id,
+        agents: all.filter((i) => i.workspaceId === w.id).length,
+        byRole: {},
+        usage: zero,
+        failed: 0,
+        lastActivity: w.createdAt,
+        label: w.label,
+        status: w.status,
+        messages: 0,
+        reviews: { survived: 0, unresolved: 0, unreviewed: 0 },
+      })),
+      agents: [...new Set(all.map((i) => i.agentId))].map((agentId) => ({ agentId, runs: all.filter((i) => i.agentId === agentId).length, failures: 0, usage: zero })),
+      governor: governor(),
+    });
+  }
   if (method === "GET" && a === "events" && b === "stream") {
     const since = Number(q.get("since") ?? req.headers["last-event-id"] ?? 0);
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });

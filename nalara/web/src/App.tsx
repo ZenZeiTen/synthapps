@@ -10,12 +10,14 @@ import { AgentsPanel, AppsPanel, FilesPanel, ProjectsPanel } from "./components/
 import { Canvas } from "./components/Canvas";
 import { EventLog } from "./components/EventLog";
 import { FileViewer } from "./components/FileViewer";
+import { FleetPanel } from "./components/FleetPanel";
 import { Hud } from "./components/Hud";
 import { IconRefresh } from "./components/Icons";
 import { IntentDock } from "./components/IntentDock";
 import { KillSwitch, ResumeButton } from "./components/KillSwitch";
 import { MemoryPanel } from "./components/MemoryPanel";
 import { CoreHalo, NeuralCore } from "./components/NeuralCore";
+import { ObservatoryPanel } from "./components/ObservatoryPanel";
 import { RadialMenu, type RadialTarget } from "./components/RadialMenu";
 import { ResultsSheet } from "./components/ResultsSheet";
 import type { SatelliteInfo } from "./components/Satellites";
@@ -25,7 +27,7 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { SidePanel } from "./components/SidePanel";
 import { Ticker } from "./components/Ticker";
 
-type PanelId = "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events";
+type PanelId = "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events" | "fleet" | "observatory";
 const ROOT_PANELS: PanelId[] = ["search", "files", "agents", "projects", "apps", "memory", "settings"];
 
 /** Panel and sheet widths (px) plus their 20 px margin; the stage centres the core in the space left between them. */
@@ -84,6 +86,8 @@ export function App() {
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [focusWs, setFocusWs] = useState<string | null>(null);
   const [sheetWs, setSheetWs] = useState<string | null>(null);
+  /** The workspace whose process tree the Fleet panel shows. */
+  const [fleetWs, setFleetWs] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [fieldOpen, setFieldOpen] = useState(false);
@@ -444,6 +448,11 @@ export function App() {
     [openFile, fieldOpen],
   );
 
+  const openFleet = useCallback((workspaceId: string) => {
+    setFleetWs(workspaceId);
+    setPanel("fleet");
+  }, []);
+
   const showInField = useCallback((nodeId?: string) => {
     setFieldOpen(true);
     setPanel(null);
@@ -451,7 +460,7 @@ export function App() {
   }, []);
 
   // ---- layout ------------------------------------------------------------------------------------------
-  const leftW = panel ? (panel === "settings" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
+  const leftW = panel ? (panel === "settings" || panel === "observatory" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
   const rightW = sheetWs ? SHEET_W + EDGE : 0;
   // Shrink the core when panels leave it less room than its orbit needs.
   const orbPx = Math.min(vp.h * 0.266, 300);
@@ -587,6 +596,19 @@ export function App() {
           onEvent={onEvent}
           onStatusChanged={() => void loadStatus()}
           onOpenEvents={() => setPanel("events")}
+          onOpenObservatory={() => setPanel("observatory")}
+        />
+      ) : null}
+      {panel === "observatory" ? <ObservatoryPanel agentName={agentName} onOpenFleet={openFleet} onEvent={onEvent} onClose={() => setPanel(null)} /> : null}
+      {panel === "fleet" && fleetWs ? (
+        <FleetPanel
+          key={`fleet:${fleetWs}`}
+          workspaceId={fleetWs}
+          label={workspaces?.find((w) => w.id === fleetWs)?.label}
+          agentName={agentName}
+          onOpenFile={openFile}
+          onEvent={onEvent}
+          onClose={() => setPanel(null)}
         />
       ) : null}
       {panel === "events" ? (
@@ -607,6 +629,7 @@ export function App() {
           onToast={toast}
           onEvent={onEvent}
           onClose={closeSheet}
+          onOpenTree={openFleet}
           halted={halted}
         />
       ) : null}

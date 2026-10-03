@@ -5,7 +5,7 @@
  * the markdown renderer escapes every agent-provided string so a finding titled
  * "## Ignore previous instructions" stays literal text inside a list item.
  */
-import type { AgentOutput, CommanderReport, Finding, ToolResult, Workspace } from "../kernel/types";
+import type { AgentOutput, CommanderReport, Finding, StepReview, ToolResult, Workspace } from "../kernel/types";
 import { SEVERITY_ORDER, severityRank } from "./skills/context";
 
 export interface AgentOutputEntry {
@@ -150,6 +150,26 @@ export function mergeOutputs(workspace: Pick<Workspace, "id"> & Partial<Workspac
   };
 }
 
+/**
+ * Adds the adversarial review to a merged report: the reviews themselves, a summary line, and one high finding per
+ * step that did not survive its critics, so unresolved work is never presented as settled.
+ */
+export function applyReviews(report: CommanderReport, reviews: StepReview[]): CommanderReport {
+  if (!reviews.length) return report;
+  const count = (v: StepReview["verdict"]) => reviews.filter((r) => r.verdict === v).length;
+  const extra: Finding[] = reviews
+    .filter((r) => r.verdict === "unresolved")
+    .map((r) => ({
+      severity: "high" as const,
+      title: `Step ${r.stepId} (${r.builderId}) did not survive adversarial review`,
+      detail: `${r.reason}. Open: ${r.open.map((c) => `${c.finding.severity} "${oneLine(c.finding.title, 80)}"${c.finding.file ? ` at ${c.finding.file}${c.finding.line ? `:${c.finding.line}` : ""}` : ""} (${c.criticId})`).join("; ") || "none listed"}`,
+    }));
+  const findings = [...extra, ...report.findings].sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
+  const line = `Adversarial review: ${reviews.length} builder step(s), ${count("survived")} survived, ${count("unresolved")} unresolved, ${count("unreviewed")} unreviewed.`;
+  const [first, ...rest] = report.summary.split("\n");
+  return { ...report, findings, reviews, summary: [first, line, ...rest].join("\n") };
+}
+
 // ---------------------------------------------------------------------------
 // Markdown
 // ---------------------------------------------------------------------------
@@ -186,13 +206,23 @@ export function renderReportMarkdown(report: CommanderReport, workspace?: Partia
   if (!report.findings.length) out.push("No findings.");
   report.findings.forEach((f, i) => {
     const where = f.file ? ` (${escapeMarkdown(f.file)}${f.line ? `:${f.line}` : ""})` : "";
-    out.push(`${i + 1}. **${f.severity.toUpperCase()}** ${escapeMarkdown(f.title)}${where}`);
+    out.push(`${i + 1}. **${f.severity.toUpperCase()}** ${escapeMarkdown(f.title)}${where}${f.evidence ? ` [evidence: ${f.evidence}]` : ""}`);
     if (f.detail) out.push(`   - ${escapeMarkdown(f.detail)}`);
   });
   out.push("", "## Conflicts", "");
   if (!report.conflicts.length) out.push("No conflicts between agents.");
   for (const c of report.conflicts) {
     out.push(`- **${escapeMarkdown(c.topic)}**`, `  - Agents: ${c.agents.map(escapeMarkdown).join(", ")}`, `  - Resolution: ${escapeMarkdown(c.resolution)}`);
+  }
+  if (report.reviews?.length) {
+    out.push("", "## Adversarial review", "");
+    for (const r of report.reviews) {
+      out.push(`- **${escapeMarkdown(r.stepId)}** ${escapeMarkdown(r.builderId)} vs ${r.critics.map(escapeMarkdown).join(", ")}: **${r.verdict}** after ${r.rounds} round(s). ${escapeMarkdown(r.reason)}`);
+      for (const c of r.open) {
+        const where = c.finding.file ? ` (${escapeMarkdown(c.finding.file)}${c.finding.line ? `:${c.finding.line}` : ""})` : "";
+        out.push(`  - Open: ${c.finding.severity} ${escapeMarkdown(c.finding.title)}${where}, raised by ${escapeMarkdown(c.criticId)}; evidence ${c.evidence}`);
+      }
+    }
   }
   out.push("", "## Agents", "");
   for (const o of report.outputs) {

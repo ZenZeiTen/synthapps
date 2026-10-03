@@ -6,6 +6,8 @@
  *   nalara search  "<query>" [--limit N]
  *   nalara status | agents
  *   nalara halt [reason] | approvals | approve <id> | deny <id>      (talk to a running server)
+ *   nalara tree <workspaceId> | observatory | queue
+ *   nalara secret set <NAME> | secret list | secret delete <NAME>    (value read from stdin, never from argv)
  *
  * status, agents and search ask a running server first and fall back to a local kernel on the root.
  */
@@ -14,8 +16,10 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { loadConfig, type ConfigOverrides } from "./kernel/config";
-import { createKernel, type NeuralKernel } from "./kernel/kernel";
-import type { AgentDefinition, ApprovalRequest, KernelStatus, SearchHit, ToolPolicy, Workspace } from "./kernel/types";
+import { createKernel, type NeuralKernel, type Observatory, type WorkQueue } from "./kernel/kernel";
+import { createSecretStore, type SecretInfo } from "./kernel/secrets";
+import type { FleetTree } from "./fleet/store";
+import type { AgentDefinition, ApprovalRequest, FleetNode, KernelStatus, SearchHit, StepReview, ToolPolicy, Workspace } from "./kernel/types";
 import { createHttpServer } from "./server/http";
 
 const WEB_DIST = fileURLToPath(new URL("../web/dist", import.meta.url));
@@ -36,6 +40,12 @@ Commands:
   approvals               List pending tool approvals on a running server
   approve <id>            Approve a pending tool call on a running server
   deny <id>               Deny a pending tool call on a running server
+  tree <workspaceId>      The workspace's process tree: builders, critics, rounds and verdicts
+  observatory             Usage and burn per fleet, per agent and in total
+  queue                   What is waiting (approvals, admissions), what is running, and who owns it
+  secret set <NAME>       Store a credential (value read from stdin); reference it as \${secret:NAME}
+  secret list             Secret names (values are never shown)
+  secret delete <NAME>    Remove a secret
 
 Options:
   --root DIR              Directory Nalara manages (default: current directory, or NALARA_ROOT)
@@ -196,6 +206,118 @@ function printApproval(a: ApprovalRequest): void {
   console.log(`${a.id}  ${a.tool}  ${a.action}/${a.reversibility}/${a.scope}  by ${a.principal.chain.join(" > ")}  ${a.createdAt}`);
   const input = JSON.stringify(a.input);
   if (input && input !== "{}") console.log(`    input: ${input.length > 200 ? `${input.slice(0, 200)}...` : input}`);
+}
+
+// ---------------------------------------------------------------------------
+// Fleet output
+// ---------------------------------------------------------------------------
+
+function fmtTokens(n: number): string {
+  return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+export function renderTree(tree: FleetTree & { reviews?: StepReview[] }): string {
+  const byParent = new Map<string, FleetNode[]>();
+  for (const e of tree.edges) {
+    const child = tree.nodes.find((n) => n.instanceId === e.child);
+    if (child) byParent.set(e.parent, [...(byParent.get(e.parent) ?? []), child]);
+  }
+  const lines: string[] = [`Process tree of ${tree.workspaceId}: ${tree.nodes.length} agent(s)`];
+  const label = (n: FleetNode) =>
+    `${n.name} [${n.role}${n.stepId ? ` ${n.stepId}` : ""}${n.round ? ` r${n.round}` : ""}] ${n.state}  ${n.instanceId}  ${n.usage.toolCalls} tool call(s)${n.summary ? `  - ${n.summary.slice(0, 80)}` : ""}`;
+  const walk = (n: FleetNode, prefix: string, last: boolean, root: boolean) => {
+    lines.push(`${root ? "" : `${prefix}${last ? "└─ " : "├─ "}`}${label(n)}`);
+    const kids = byParent.get(n.instanceId) ?? [];
+    kids.forEach((k, i) => walk(k, root ? "" : `${prefix}${last ? "   " : "│  "}`, i === kids.length - 1, false));
+  };
+  for (const id of tree.roots) {
+    const n = tree.nodes.find((x) => x.instanceId === id);
+    if (n) walk(n, "", true, true);
+  }
+  for (const r of tree.reviews ?? []) {
+    lines.push(`Review ${r.stepId}: ${r.builderId} vs ${r.critics.join(", ")}: ${r.verdict} after ${r.rounds} round(s). ${r.reason}`);
+    for (const c of r.open) lines.push(`  open: ${c.finding.severity} ${c.finding.title}${c.finding.file ? ` (${c.finding.file}${c.finding.line ? `:${c.finding.line}` : ""})` : ""} by ${c.criticId}`);
+  }
+  return lines.join("\n");
+}
+
+export function renderObservatory(o: Observatory): string {
+  const t = o.totals;
+  const lines = [
+    `Observatory (${o.generatedAt})`,
+    `Total: ${t.workspaces} fleet(s), ${t.agents} agent run(s), ${fmtTokens(t.inputTokens)} in / ${fmtTokens(t.outputTokens)} out tokens, ${t.toolCalls} tool calls, ${t.messages} relay messages`,
+    `Fleet budget per run: ${o.fleetBudget.maxAgents} agents, ${fmtTokens(o.fleetBudget.maxInputTokens)} in / ${fmtTokens(o.fleetBudget.maxOutputTokens)} out tokens, ${o.fleetBudget.maxToolCalls} tool calls, ${o.fleetBudget.maxMessages} messages`,
+    `Governor: ${o.governor.running}/${o.governor.lanes} lanes busy, ${o.governor.queued} queued, circuit ${o.governor.circuit}`,
+    "",
+    "Fleets:",
+    ...o.workspaces.map(
+      (w) =>
+        `  ${w.workspaceId}  ${w.status.padEnd(9)} ${w.agents} agents, ${fmtTokens(w.usage.inputTokens + w.usage.outputTokens)} tokens, ${w.usage.toolCalls} calls, ${w.messages} msgs; reviews ${w.reviews.survived} survived / ${w.reviews.unresolved} unresolved${w.fleet?.exceeded ? `; BUDGET: ${w.fleet.exceeded}` : ""}  ${w.label}`,
+    ),
+    "",
+    "Agents:",
+    ...o.agents.slice(0, 15).map((a) => `  ${a.agentId.padEnd(22)} ${a.runs} run(s), ${a.failures} failed, ${fmtTokens(a.usage.inputTokens + a.usage.outputTokens)} tokens, ${a.usage.toolCalls} calls`),
+  ];
+  return lines.join("\n");
+}
+
+export function renderQueue(q: WorkQueue): string {
+  return [
+    `Approvals waiting: ${q.approvals.length}`,
+    ...q.approvals.map((a) => `  ${a.id}  ${a.tool}  requested by ${a.requestedBy}${a.workspaceId ? ` in ${a.workspaceId}` : ""}`),
+    `Running: ${q.running.length} (admission: ${q.admission.running}/${q.admission.lanes} lanes, ${q.admission.queued} queued)`,
+    ...q.running.map((r) => `  ${r.instanceId}  ${r.name} [${r.role ?? "worker"}${r.stepId ? ` ${r.stepId}` : ""}${r.round ? ` r${r.round}` : ""}] ${r.state}  owner ${r.owner}${r.workspaceId ? `  ${r.workspaceId}` : ""}`),
+    `Workspaces waiting or running: ${q.workspaces.length}`,
+    ...q.workspaces.map((w) => `  ${w.id}  ${w.status}  ${w.completedSteps}/${w.steps} steps  ${w.label}`),
+  ].join("\n");
+}
+
+async function readSecretValue(name: string): Promise<string> {
+  if (!process.stdin.isTTY) {
+    const chunks: Buffer[] = [];
+    for await (const c of process.stdin) chunks.push(typeof c === "string" ? Buffer.from(c) : (c as Buffer));
+    return Buffer.concat(chunks).toString("utf8").replace(/\r?\n$/, "");
+  }
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return (await rl.question(`Value for ${name} (input is visible; pipe it in to hide it): `)).trim();
+  } finally {
+    rl.close();
+  }
+}
+
+async function secretCommand(parsed: Parsed): Promise<void> {
+  const [sub, name] = parsed.args;
+  const local = () => createSecretStore({ dataDir: loadConfig(overridesFrom(parsed.flags)).dataDir });
+  const viaServer = async <T>(method: string, path: string, body?: unknown): Promise<T | undefined> => {
+    try {
+      return await callServer<T>(serverUrl(parsed.flags), method, path, body, 3000);
+    } catch (err) {
+      if (err instanceof CliError && err.code === 3) return undefined;
+      throw err;
+    }
+  };
+  if (sub === "list") {
+    const list = (await viaServer<SecretInfo[]>("GET", "/api/secrets")) ?? local().list();
+    if (!list.length) console.log("No secrets.");
+    for (const s of list) console.log(`${s.name}  updated ${s.updatedAt}${s.redacted ? "" : "  (short: not redacted from output)"}`);
+    return;
+  }
+  if (!name) throw new CliError(`secret ${sub ?? ""} needs a NAME`.trim(), 2);
+  if (sub === "set") {
+    const value = await readSecretValue(name);
+    if (!value) throw new CliError("no value given", 2);
+    const info = (await viaServer<SecretInfo>("PUT", `/api/secrets/${encodeURIComponent(name)}`, { value })) ?? local().set(name, value);
+    console.log(`Stored ${info.name}. Reference it as \${secret:${info.name}} in mcpServers env or headers.`);
+    return;
+  }
+  if (sub === "delete") {
+    const r = await viaServer<{ ok: boolean }>("DELETE", `/api/secrets/${encodeURIComponent(name)}`);
+    const ok = r ? r.ok : local().delete(name);
+    console.log(ok ? `Deleted ${name}.` : `No secret ${name}.`);
+    return;
+  }
+  throw new CliError("usage: nalara secret set <NAME> | secret list | secret delete <NAME>", 2);
 }
 
 // ---------------------------------------------------------------------------
@@ -389,6 +511,27 @@ export async function main(argv: string[]): Promise<number> {
         console.log(`${a.id} ${a.status}: ${a.tool}`);
         return 0;
       }
+      case "tree": {
+        const id = parsed.args[0];
+        if (!id) throw new CliError("tree needs a workspace id (see: nalara status, or the UI)", 2);
+        const path = `/api/workspaces/${encodeURIComponent(id)}/tree`;
+        const tree = (await tryServer<FleetTree & { reviews: StepReview[] }>(parsed.flags, path)) ?? (await withLocalKernel(parsed.flags, async (k) => k.fleetTree(id)));
+        console.log(renderTree(tree));
+        return 0;
+      }
+      case "observatory": {
+        const o = (await tryServer<Observatory>(parsed.flags, "/api/observatory")) ?? (await withLocalKernel(parsed.flags, async (k) => k.observatory()));
+        console.log(renderObservatory(o));
+        return 0;
+      }
+      case "queue": {
+        const q = (await tryServer<WorkQueue>(parsed.flags, "/api/queue")) ?? (await withLocalKernel(parsed.flags, async (k) => k.workQueue()));
+        console.log(renderQueue(q));
+        return 0;
+      }
+      case "secret":
+        await secretCommand(parsed);
+        return 0;
       default:
         console.error(`Unknown command "${parsed.command}".\n`);
         console.log(HELP);

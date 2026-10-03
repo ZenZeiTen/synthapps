@@ -1,6 +1,6 @@
 /**
  * HTTP API contract between the kernel server (src/server) and the Nalara UI (web/).
- * JSON in, JSON out. Errors: status >= 400 with body { error: string }.
+ * JSON in, JSON out. Errors: status >= 400 with body { error: string, code: string } (codes below).
  * The server binds 127.0.0.1 by default. Requests from the UI and CLI act as config.userId.
  * Mutating requests must send header `X-Nalara-Client: 1` (blocks cross-site form posts); the server rejects
  * requests whose Origin header is present and not the server's own origin.
@@ -54,7 +54,27 @@
  * GET     /api/events?since=&limit=&correlationId= -                          KernelEvent[]
  * GET     /api/events/stream?since=              -                            text/event-stream: each message `id: <seq>\ndata: <KernelEvent JSON>\n\n`
  *                                                                              (replays seq > since, or > Last-Event-ID; without either the latest 200; then live)
+ * GET     /api/version                           -                            { name, version, apiVersion, supportedApiVersions, features }
+ * GET     /api/workspaces/:id/tree               -                            FleetTree & { reviews: StepReview[] }  (process tree, live states)
+ * GET     /api/relay?workspaceId=&instanceId=&kind=&since=&limit= -           RelayMessage[]      (kind: comma list of spawn,handoff,challenge,verdict,result)
+ * GET     /api/fleet/records?file=&workspaceId=&limit= -                      FleetRecord[]       (fleet memory; file may repeat)
+ * GET     /api/observatory                       -                            Observatory         (usage and burn per fleet and agent)
+ * GET     /api/queue                             -                            WorkQueue           (approvals, running agents, waiting workspaces)
+ * GET     /api/secrets                           -                            SecretInfo[]        (names only, never values)
+ * PUT     /api/secrets/:name                     { value }                    SecretInfo
+ * DELETE  /api/secrets/:name                     -                            { ok: boolean }
  * GET     /*                                     -                            web/dist static files (index.html fallback for non-/api paths)
+ *
+ * System interface (every route):
+ * - Responses carry X-Nalara-Api-Version. A request may send X-Nalara-Api-Version; an unsupported version gets 400
+ *   unsupported_version.
+ * - Errors are { error: string, code: string }. Codes: invalid_request, forbidden, not_found, conflict,
+ *   payload_too_large, unprocessable, internal_error, kernel_halted, invalid_secret, unsupported_version,
+ *   idempotency_conflict.
+ * - Mutating requests may send Idempotency-Key (at most 200 characters). The same key and body on the same route
+ *   within 10 minutes replays the first response (any status below 500) with Idempotent-Replayed: true; the same key
+ *   with a different body gets 422 idempotency_conflict.
+ * - JSON responses and SSE events pass through secret redaction: stored secret values never leave the server.
  */
 import type {
   AgentInstance,

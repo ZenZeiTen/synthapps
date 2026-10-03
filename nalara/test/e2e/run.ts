@@ -17,7 +17,7 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { createKernel, type NeuralKernel } from "../../src/kernel/kernel";
-import type { AgentDefinition, AgentInstance, ApprovalRequest, GraphNode, MemoryRecord, ToolPolicy } from "../../src/kernel/types";
+import type { AgentDefinition, AgentInstance, ApprovalRequest, FleetTree, GraphNode, MemoryRecord, Observatory, SecretInfo, ToolPolicy } from "../../src/kernel/types";
 import { createHttpServer, type NeuralHttpServer } from "../../src/server/http";
 import { BRAND, INTENT_CHIPS } from "../../web/src/brand";
 import { shrinkPng } from "./png";
@@ -511,6 +511,29 @@ async function main() {
       return `${apr.id} chain ${chain}; QA ${qaBefore} -> ${qaAfter}; core ${settled}; ${sev.length} findings (${sev.join(", ")}); agents ${agentStates.join(", ")}; report ${reportPath} (${lines} lines)`;
     });
 
+    // ---- d2 --------------------------------------------------------------------------------------------------
+    await check("d2. process tree: the results sheet opens the Fleet panel with the server's tree, roles and the relay log", async () => {
+      assert(wsId, "no workspace from check c");
+      await page.click(".results-sheet .sheet-actions button:has-text('Process tree')");
+      await page.waitForSelector(".side-panel .fleet-tree .fleet-node", { timeout: 5000 });
+      const tree = await api<FleetTree>("GET", `/api/workspaces/${wsId}/tree`);
+      const shown = await until(
+        "the Fleet panel to show every node",
+        async () => {
+          const n = await page.$$eval(".side-panel .fleet-node", (els) => els.length);
+          return n === tree.nodes.length ? n : undefined;
+        },
+        5000,
+      );
+      const roles = await page.$$eval(".side-panel .fleet-row .badge[class*='role-']", (els) => els.map((e) => e.textContent ?? ""));
+      assert(roles.includes("commander"), `no commander in the tree: ${roles.join(", ")}`);
+      const relay = await page.$$eval(".side-panel .relay-msg", (els) => els.length);
+      assert(relay > 0, "the relay log is empty");
+      await shot(page, "07b-fleet.png");
+      await closePanel(page);
+      return `${shown} node(s), roles ${[...new Set(roles)].join(", ")}; ${relay} relay message(s) shown`;
+    });
+
     // ---- e ---------------------------------------------------------------------------------------------------
     await check('e. clicking an agent satellite opens its radial with 7 actions; "Explain" returns a result toast', async () => {
       await closePanel(page);
@@ -646,6 +669,32 @@ async function main() {
       await page.waitForSelector('.side-panel label.radio.on:has(input[value="ask"])', { timeout: 5000 });
       await closePanel(page);
       return `${ro} -> ${back}`;
+    });
+
+    // ---- i2 --------------------------------------------------------------------------------------------------
+    await check("i2. settings: a secret saved in the UI is listed by name only; the Observatory shows the workspace", async () => {
+      await openPanel(page, "settings");
+      const value = "e2e-secret-value-0123456789";
+      await page.fill('.side-panel section[aria-label="Secrets"] input:not([type="password"])', "E2E_TOKEN");
+      await page.fill('.side-panel section[aria-label="Secrets"] input[type="password"]', value);
+      await page.click('.side-panel section[aria-label="Secrets"] button[type="submit"]');
+      await page.waitForSelector('.side-panel .secret-list li:has-text("E2E_TOKEN")', { timeout: 5000 });
+      const listed = await api<SecretInfo[]>("GET", "/api/secrets");
+      assert(listed.some((x) => x.name === "E2E_TOKEN"), "GET /api/secrets does not list E2E_TOKEN");
+      assert(!JSON.stringify(listed).includes(value), "GET /api/secrets leaked the value");
+      const html = await page.content();
+      assert(!html.includes(value), "the page still holds the secret value after saving");
+      await page.click('.side-panel button[aria-label="Delete secret E2E_TOKEN"]');
+      await until("E2E_TOKEN to be deleted", async () => ((await api<SecretInfo[]>("GET", "/api/secrets")).some((x) => x.name === "E2E_TOKEN") ? undefined : true), 5000);
+
+      await page.click(".side-panel button:has-text('Open the Observatory')");
+      await page.waitForSelector('.side-panel section[aria-label="Fleets"] table', { timeout: 5000 });
+      const obs = await api<Observatory>("GET", "/api/observatory");
+      const labels = await page.$$eval('.side-panel section[aria-label="Fleets"] tbody tr', (els) => els.length);
+      assert(labels === obs.workspaces.length, `Observatory rows ${labels} != server ${obs.workspaces.length}`);
+      await shot(page, "13b-observatory.png");
+      await closePanel(page);
+      return `secret saved and deleted, value never echoed; observatory ${labels} fleet(s), ${obs.totals.agents} agent run(s)`;
     });
 
     // ---- j ---------------------------------------------------------------------------------------------------

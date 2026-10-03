@@ -22,6 +22,14 @@ import type {
   MemoryRecord,
   NodeDetail,
   NodeType,
+  FleetRecord,
+  FleetTree,
+  Observatory,
+  RelayKind,
+  RelayMessage,
+  SecretInfo,
+  StepReview,
+  WorkQueue,
   RadialMenu,
   RadialResult,
   SearchHit,
@@ -39,6 +47,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Stable error code from the kernel's structured errors (e.g. "kernel_halted", "not_found"). */
+    readonly code?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -91,7 +101,8 @@ async function request<T>(method: Method, path: string, body?: unknown, signal?:
       parsed && typeof parsed === "object" && typeof (parsed as { error?: unknown }).error === "string"
         ? (parsed as { error: string }).error
         : res.statusText || `HTTP ${res.status}`;
-    throw new ApiError(msg, res.status);
+    const code = parsed && typeof parsed === "object" && typeof (parsed as { code?: unknown }).code === "string" ? (parsed as { code: string }).code : undefined;
+    throw new ApiError(msg, res.status, code);
   }
   return parsed as T;
 }
@@ -177,6 +188,16 @@ export const api = {
     request<{ entries: AuditEntry[]; chainBrokenAt: number | null }>("GET", `/api/audit${qs({ since: opts.since, limit: opts.limit })}`),
   journal: (workspaceId?: string) => request<JournalEntry[]>("GET", `/api/journal${qs({ workspaceId })}`),
   governor: () => request<GovernorSnapshot>("GET", "/api/governor"),
+
+  fleetTree: (workspaceId: string, signal?: AbortSignal) => request<FleetTree & { reviews: StepReview[] }>("GET", `/api/workspaces/${enc(workspaceId)}/tree`, undefined, signal),
+  relay: (opts: { workspaceId?: string; instanceId?: string; kind?: RelayKind[]; since?: number; limit?: number } = {}, signal?: AbortSignal) =>
+    request<RelayMessage[]>("GET", `/api/relay${qs({ workspaceId: opts.workspaceId, instanceId: opts.instanceId, kind: opts.kind?.join(","), since: opts.since, limit: opts.limit })}`, undefined, signal),
+  fleetRecords: (opts: { workspaceId?: string; limit?: number } = {}) => request<FleetRecord[]>("GET", `/api/fleet/records${qs(opts)}`),
+  observatory: (signal?: AbortSignal) => request<Observatory>("GET", "/api/observatory", undefined, signal),
+  queue: (signal?: AbortSignal) => request<WorkQueue>("GET", "/api/queue", undefined, signal),
+  secrets: () => request<SecretInfo[]>("GET", "/api/secrets"),
+  setSecret: (name: string, value: string) => request<SecretInfo>("PUT", `/api/secrets/${enc(name)}`, { value }),
+  deleteSecret: (name: string) => request<{ ok: boolean }>("DELETE", `/api/secrets/${enc(name)}`),
 
   events: (opts: { since?: number; limit?: number; correlationId?: string } = {}) =>
     request<KernelEvent[]>("GET", `/api/events${qs({ since: opts.since, limit: opts.limit, correlationId: opts.correlationId })}`),

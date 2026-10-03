@@ -180,7 +180,10 @@ describe("HTTP API: contract shapes", () => {
     expect(term.json).toEqual({ ok: false }); // already finished
     expect((await post("/api/agents/instances/ai_missing/terminate")).status).toBe(404);
     const perf = await get("/api/agents/performance");
-    expect(perf.json.find((p: { agentId: string }) => p.agentId === "security_agent")).toMatchObject({ runs: 1, successes: 1 });
+    // Earlier workspaces may also have run the security agent as a critic of a builder step.
+    const security = perf.json.find((p: { agentId: string }) => p.agentId === "security_agent");
+    expect(security.runs).toBeGreaterThanOrEqual(1);
+    expect(security.successes).toBe(security.runs);
   });
 
   it("radial: menus and actions with URL-encoded node ids", async () => {
@@ -331,7 +334,7 @@ describe("HTTP API: security", () => {
   it("returns 404 JSON for unknown API paths and wrong methods", async () => {
     const r = await get("/api/nope");
     expect(r.status).toBe(404);
-    expect(r.json).toEqual({ error: expect.any(String) });
+    expect(r.json).toEqual({ error: expect.any(String), code: expect.any(String) });
     expect((await req("DELETE", "/api/status")).status).toBe(404);
     expect((await get("/api/files/content?path=nope.md")).status).toBe(404);
     expect((await get(`/api/files/content?path=${enc("../outside.txt")}`)).status).toBe(403);
@@ -456,5 +459,102 @@ describe("HTTP: static files", () => {
     }
     const r = await get("/%2e%2e/%2e%2e/etc/passwd");
     expect(r.text).not.toContain("root:");
+  });
+});
+
+describe("HTTP API: system interface", () => {
+  it("negotiates versions and advertises features", async () => {
+    const v = await get("/api/version");
+    expect(v.status).toBe(200);
+    expect(v.json).toMatchObject({ name: "nalara", apiVersion: 2, supportedApiVersions: [1, 2] });
+    expect(v.json.features).toEqual(expect.arrayContaining(["process-tree", "relay", "adversarial-review", "secrets", "idempotency-keys"]));
+    expect(v.headers["x-nalara-api-version"]).toBe("2");
+    expect((await get("/api/status", { "X-Nalara-Api-Version": "1" })).status).toBe(200);
+    const old = await get("/api/status", { "X-Nalara-Api-Version": "9" });
+    expect(old.status).toBe(400);
+    expect(old.json).toMatchObject({ code: "unsupported_version" });
+  });
+
+  it("returns structured errors with stable codes", async () => {
+    expect((await get("/api/workspaces/ws_missing")).json).toMatchObject({ code: "not_found" });
+    expect((await post("/api/intents", {})).json).toMatchObject({ code: "invalid_request" });
+    expect((await req("POST", "/api/kernel/halt", { body: {}, headers: { "X-Nalara-Client": "" } })).json).toMatchObject({ code: "forbidden" });
+  });
+
+  it("replays a mutating request under the same Idempotency-Key and refuses a different body", async () => {
+    const key = { "Idempotency-Key": "mem-create-1" };
+    const first = await post("/api/memory", { category: "preference", key: "idem_test", content: "first" }, key);
+    expect(first.status).toBe(200);
+    const again = await post("/api/memory", { category: "preference", key: "idem_test", content: "first" }, key);
+    expect(again.status).toBe(200);
+    expect(again.headers["idempotent-replayed"]).toBe("true");
+    expect(again.json).toEqual(first.json);
+    const conflict = await post("/api/memory", { category: "preference", key: "idem_test", content: "changed" }, key);
+    expect(conflict.status).toBe(422);
+    expect(conflict.json).toMatchObject({ code: "idempotency_conflict" });
+    // Errors below 500 replay too, so a retried bad request gets the same answer.
+    const bad1 = await post("/api/memory", { category: "nope", key: "k", content: "c" }, { "Idempotency-Key": "bad-1" });
+    const bad2 = await post("/api/memory", { category: "nope", key: "k", content: "c" }, { "Idempotency-Key": "bad-1" });
+    expect([bad1.status, bad2.status]).toEqual([400, 400]);
+    expect(bad2.headers["idempotent-replayed"]).toBe("true");
+    // The same key on another route is a different request.
+    expect((await post("/api/intents/classify", { text: "review the code" }, key)).status).toBe(200);
+  });
+});
+
+describe("HTTP API: secrets", () => {
+  it("stores secrets write-only, redacts them from every response and resolves MCP placeholders", async () => {
+    const put = await req("PUT", "/api/secrets/DEMO_TOKEN", { body: { value: "demo-secret-value-42" } });
+    expect(put.status).toBe(200);
+    expect(put.json).toMatchObject({ name: "DEMO_TOKEN", redacted: true });
+    expect(put.text).not.toContain("demo-secret-value-42");
+    const list = await get("/api/secrets");
+    expect(list.json.map((s: { name: string }) => s.name)).toContain("DEMO_TOKEN");
+    expect(list.text).not.toContain("demo-secret-value-42");
+    expect((await req("PUT", "/api/secrets/bad-name", { body: { value: "x" } })).json).toMatchObject({ code: "invalid_secret" });
+    expect((await req("PUT", "/api/secrets/EMPTY", { body: {} })).status).toBe(400);
+
+    // A value that reaches a response through any route comes back redacted.
+    const mem = await post("/api/memory", { category: "preference", key: "leaky", content: "token is demo-secret-value-42" });
+    expect(mem.json.content).toBe("token is [secret:DEMO_TOKEN]");
+
+    // Placeholders: a missing secret is reported without connecting; the stored config never holds a value.
+    const mcp = await post("/api/mcp", { name: "needs_secret", config: { command: "node", args: ["-e", ""], env: { TOKEN: "${secret:NOT_SET}" } } });
+    expect(mcp.json).toMatchObject({ name: "needs_secret", status: "error", error: expect.stringMatching(/missing secret\(s\): NOT_SET/) });
+
+    const audit = await get("/api/audit?limit=5000");
+    expect(audit.json.entries.some((e: { kind: string; subject: string }) => e.kind === "secret" && e.subject === "secret:DEMO_TOKEN")).toBe(true);
+    expect(audit.text).not.toContain("demo-secret-value-42");
+    expect((await req("DELETE", "/api/secrets/DEMO_TOKEN")).json).toEqual({ ok: true });
+    expect((await req("DELETE", "/api/secrets/DEMO_TOKEN")).status).toBe(404);
+  });
+});
+
+describe("HTTP API: fleet", () => {
+  it("exposes the process tree, relay, fleet memory, Observatory and work queue", async () => {
+    const { json } = await post("/api/intents", { text: "Implement a new feature: merchant discounts" });
+    const id = json.workspace.id as string;
+    const ws = await kernel.runWorkspace(id).catch(() => kernel.workspaces.get(id)!);
+    expect(["completed", "failed"]).toContain(ws.status);
+
+    const tree = await get(`/api/workspaces/${id}/tree`);
+    expect(tree.status).toBe(200);
+    expect(tree.json).toMatchObject({ workspaceId: id, nodes: expect.any(Array), edges: expect.any(Array), roots: expect.any(Array), reviews: expect.any(Array) });
+    expect(tree.json.nodes.some((n: { role: string }) => n.role === "commander")).toBe(true);
+    expect((await get("/api/workspaces/ws_missing/tree")).status).toBe(404);
+
+    const relay = await get(`/api/relay?workspaceId=${id}&kind=spawn,result`);
+    expect(relay.json.length).toBeGreaterThan(0);
+    expect(relay.json.every((m: { kind: string }) => m.kind === "spawn" || m.kind === "result")).toBe(true);
+    expect((await get("/api/relay?kind=gossip")).status).toBe(400);
+
+    expect(Array.isArray((await get(`/api/fleet/records?workspaceId=${id}`)).json)).toBe(true);
+
+    const obs = await get("/api/observatory");
+    expect(obs.json).toMatchObject({ totals: { agents: expect.any(Number) }, fleetBudget: { maxAgents: expect.any(Number) }, workspaces: expect.any(Array), agents: expect.any(Array), governor: { lanes: expect.any(Number) } });
+    expect(obs.json.workspaces.some((w: { workspaceId: string }) => w.workspaceId === id)).toBe(true);
+
+    const queue = await get("/api/queue");
+    expect(queue.json).toMatchObject({ approvals: expect.any(Array), running: expect.any(Array), workspaces: expect.any(Array), admission: { queued: expect.any(Number) } });
   });
 });

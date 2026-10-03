@@ -160,6 +160,10 @@ export const EVENT_TYPES = [
   "kernel.resumed",
   "budget.exceeded",
   "journal.undone",
+  "relay.message",
+  "review.round",
+  "review.verdict",
+  "secret.changed",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -179,6 +183,8 @@ export const EVENT_LABELS: Partial<Record<EventType, string>> = {
   "workspace.completed": "Workspace Completed",
   "tool.approval_requested": "Approval Requested",
   "memory.updated": "Memory Updated",
+  "relay.message": "Relay Message",
+  "review.verdict": "Review Verdict",
 };
 
 export interface KernelEvent<T = unknown> {
@@ -537,7 +543,7 @@ export interface ToolRegistry {
 export interface AuditEntry {
   seq: number;
   ts: string;
-  kind: "tool_call" | "approval" | "halt" | "resume" | "undo" | "budget" | "memory_confirm" | "policy";
+  kind: "tool_call" | "approval" | "halt" | "resume" | "undo" | "budget" | "memory_confirm" | "policy" | "relay" | "verdict" | "secret";
   principal: Principal | null;
   subject: string; // tool name, workspace id, ...
   outcome: "allowed" | "denied" | "ok" | "error" | "info";
@@ -607,6 +613,13 @@ export interface Governor {
   reportProvider(outcome: "ok" | "rate_limited" | "overloaded" | "error"): void;
   snapshot(): { lanes: number; maxLanes: number; running: number; queued: number; circuit: "closed" | "open" | "half_open" };
   release(instanceId: string): void;
+  /** Fleet budgets (one fleet per workspace run). Starts a fresh run: usage counters reset to zero. */
+  setFleetBudget?(fleetId: string, budget: FleetBudget): void;
+  /** Counts an agent against its fleet and charges the instance's later usage to the fleet too. */
+  assignFleet?(instanceId: string, fleetId: string): { exceeded: false } | { exceeded: true; reason: string };
+  /** Charges fleet-only dimensions (relay messages). */
+  chargeFleet?(fleetId: string, usage: { messages?: number }): { exceeded: false } | { exceeded: true; reason: string };
+  fleetUsage?(fleetId: string): { budget?: FleetBudget; usage: FleetUsage; exceeded?: string } | undefined;
 }
 
 export interface McpManager {
@@ -758,6 +771,8 @@ export interface Finding {
   detail: string;
   file?: string;
   line?: number;
+  /** Set by the platform's evidence check (src/fleet/evidence.ts), never by the agent. */
+  evidence?: EvidenceStatus;
 }
 
 export interface AgentOutput {
@@ -787,6 +802,13 @@ export interface AgentInstance {
   principal: Principal;
   budget: AgentBudget;
   usage: AgentUsage;
+  /** Process tree: the instance this one was spawned for (builder of a critic, previous round of a builder, finished agent of a trigger hop). */
+  parentInstanceId?: string;
+  /** Plan step this instance works on. */
+  stepId?: string;
+  /** Adversarial round (1-based) for builders and critics. */
+  round?: number;
+  role?: FleetRole;
 }
 
 export interface CommanderReport {
@@ -798,6 +820,8 @@ export interface CommanderReport {
   findings: Finding[];
   /** Markdown report written under the workspace output dir, relative to root. */
   artifactPath?: string;
+  /** Adversarial review of builder steps: rounds, challenges and the verdict each step reached. */
+  reviews?: StepReview[];
 }
 
 export interface Orchestrator {
@@ -827,6 +851,188 @@ export interface Orchestrator {
   terminateAll(reason: string): number;
   /** Moves every finished instance of a workspace to "archived". */
   archiveWorkspace(workspaceId: string): number;
+}
+
+
+// ---------------------------------------------------------------------------
+// Fleet: process tree, relay, adversarial review, fleet memory (docs/orc-gap-analysis.md)
+// ---------------------------------------------------------------------------
+
+/** builder: a plan step whose agent produces artifacts and is attacked by critics. */
+export type FleetRole = "worker" | "builder" | "critic" | "commander" | "triggered";
+
+/** Durable process-tree node: one per agent instance, kept after the process exits. */
+export interface FleetNode {
+  instanceId: string;
+  agentId: string;
+  name: string;
+  workspaceId?: string;
+  parentInstanceId?: string;
+  stepId?: string;
+  round?: number;
+  role: FleetRole;
+  state: AgentState;
+  chain: string[];
+  depth: number;
+  task?: string;
+  /** First line of the output summary or the error. */
+  summary?: string;
+  usage: AgentUsage;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Kernel-relayed inter-agent message. Agents have no messaging tool: the orchestrator is the only sender, so every
+ * hop is scheduled, budgeted (fleet maxMessages) and audited. Bodies that come from an agent are untrusted data.
+ */
+export type RelayKind = "spawn" | "handoff" | "challenge" | "verdict" | "result";
+
+export interface RelayMessage {
+  id: string;
+  /** Monotonic per kernel. */
+  seq: number;
+  ts: string;
+  workspaceId?: string;
+  kind: RelayKind;
+  /** "kernel" or the sending instance's address `agent:<agentId>#<instanceId>`. */
+  from: string;
+  /** An instance address, `step:<id>` or `commander`. */
+  to: string;
+  fromInstanceId?: string;
+  toInstanceId?: string;
+  stepId?: string;
+  round?: number;
+  /** Capped at 4000 characters. */
+  body: string;
+  /** Paths the message points at (artifacts under review, cited files). */
+  refs: string[];
+  data: Record<string, unknown>;
+}
+
+export interface RelayQuery {
+  workspaceId?: string;
+  instanceId?: string;
+  kind?: RelayKind | RelayKind[];
+  sinceSeq?: number;
+  limit?: number;
+}
+
+/** verified: the cited file exists under the root and the cited line is inside it. none: nothing was cited. */
+export type EvidenceStatus = "verified" | "unverified" | "none";
+
+export interface Challenge {
+  finding: Finding;
+  criticId: string;
+  criticInstanceId: string;
+  round: number;
+  evidence: EvidenceStatus;
+  evidenceNote: string;
+  /** Blocking challenges send the builder into another round: severity at or above the threshold, about the builder's own artifacts, with verified evidence. */
+  blocking: boolean;
+}
+
+/** survived: the final round raised no blocking challenge. unresolved: rounds ran out with blocking challenges left. unreviewed: no critic could attack the work (no artifacts, critic failed, budget). */
+export type Verdict = "survived" | "unresolved" | "unreviewed";
+
+export interface StepReview {
+  workspaceId: string;
+  stepId: string;
+  builderId: string;
+  critics: string[];
+  rounds: number;
+  verdict: Verdict;
+  reason: string;
+  /** Blocking challenges still open at the end (empty when the work survived). */
+  open: Challenge[];
+  history: { round: number; builderInstanceId: string; criticInstanceIds: string[]; blocking: number; challenges: number }[];
+}
+
+export interface AdversarialConfig {
+  enabled: boolean;
+  /** Build/attack rounds per step, including the first. */
+  maxRounds: number;
+  /** Lowest severity that blocks convergence. */
+  blockingSeverity: Finding["severity"];
+  /** Builder agent id -> critic agent ids that attack its work. */
+  critics: Record<string, string[]>;
+}
+
+/** Fleet memory: the durable result of one reviewed step, consulted by later fleets working on the same files. */
+export interface FleetRecord {
+  id: string;
+  workspaceId: string;
+  stepId: string;
+  agentId: string;
+  verdict: Verdict;
+  rounds: number;
+  files: string[];
+  summary: string;
+  open: { severity: Finding["severity"]; title: string; file?: string; line?: number }[];
+  createdAt: string;
+}
+
+export interface FleetBudget {
+  maxAgents: number;
+  maxInputTokens: number;
+  maxOutputTokens: number;
+  maxToolCalls: number;
+  maxMessages: number;
+}
+
+export interface FleetUsage {
+  agents: number;
+  inputTokens: number;
+  outputTokens: number;
+  toolCalls: number;
+  messages: number;
+}
+
+/** A workspace's process tree (GET /api/workspaces/:id/tree without reviews). */
+export interface FleetTree {
+  workspaceId: string;
+  nodes: FleetNode[];
+  /** parent -> child edges of the process tree. */
+  edges: { parent: string; child: string }[];
+  /** Instances whose parent is not part of this workspace's tree (plan steps, the Commander). */
+  roots: string[];
+}
+
+export interface WorkspaceUsage {
+  workspaceId: string;
+  agents: number;
+  byRole: Partial<Record<FleetRole, number>>;
+  usage: AgentUsage;
+  failed: number;
+  lastActivity: string;
+}
+
+/** Telemetry for every fleet and agent (GET /api/observatory). */
+export interface Observatory {
+  generatedAt: string;
+  totals: AgentUsage & { agents: number; workspaces: number; messages: number };
+  fleetBudget: FleetBudget;
+  workspaces: (WorkspaceUsage & { label: string; status: string; messages: number; reviews: { survived: number; unresolved: number; unreviewed: number }; fleet?: { usage: FleetUsage; exceeded?: string } })[];
+  agents: { agentId: string; runs: number; failures: number; usage: AgentUsage }[];
+  governor: ReturnType<Governor["snapshot"]>;
+}
+
+/** What is waiting or running, across every workspace (GET /api/queue). */
+export interface WorkQueue {
+  generatedAt: string;
+  approvals: { id: string; tool: string; requestedBy: string; workspaceId?: string; createdAt: string; detail?: string }[];
+  running: { instanceId: string; agentId: string; name: string; workspaceId?: string; state: string; role?: string; stepId?: string; round?: number; owner: string; startedAt?: string }[];
+  workspaces: { id: string; label: string; status: string; owner: string; createdAt: string; steps: number; completedSteps: number }[];
+  admission: { queued: number; running: number; lanes: number };
+}
+
+/** A stored secret as listed: never the value. */
+export interface SecretInfo {
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Whether the value is long enough to be redacted from output. */
+  redacted: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -859,7 +1065,19 @@ export interface Workspace {
   report?: CommanderReport;
   error?: string;
   /** Turn-aligned checkpoint: finished plan steps and their outputs. */
-  checkpoint: { completedSteps: Record<string, { instanceId: string; agentId: string; output: AgentOutput }> };
+  checkpoint: {
+    completedSteps: Record<
+      string,
+      {
+        instanceId: string;
+        agentId: string;
+        output: AgentOutput;
+        /** Critic outputs of the final review round (merged by the Commander with the builder's output). */
+        critics?: { instanceId: string; agentId: string; output: AgentOutput }[];
+        review?: StepReview;
+      }
+    >;
+  };
 }
 
 export interface WorkspaceGenerator {
@@ -942,6 +1160,10 @@ export interface NalaraConfig {
   procTimeoutMs?: number;
   /** Deploy command for the project radial Deploy action. Without it, Deploy packages the outputs. */
   deployCommand?: string;
+  /** Build -> attack -> converge: critics shadow builder steps until the work survives or rounds run out. */
+  adversarial: AdversarialConfig;
+  /** Whole-fleet budget for one workspace run (every agent, critic and relay message of the run together). */
+  fleetBudget: FleetBudget;
 }
 
 export interface KernelStatus {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { api } from "../api";
 import { useDebouncedCallback, useEscapeLayer } from "../hooks";
-import type { AgentInstance, Finding, KernelEvent, PlanStep, Workspace, WorkspaceDetail } from "../types";
+import type { AgentInstance, Finding, KernelEvent, PlanStep, Verdict, Workspace, WorkspaceDetail } from "../types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { IconAlert, IconArchive, IconClose, IconFile, IconPlay, IconRefresh, IconUndo } from "./Icons";
 
@@ -13,12 +13,15 @@ interface Props {
   onToast: (message: string, tone?: "ok" | "error") => void;
   onEvent: (l: (ev: KernelEvent) => void) => () => void;
   onClose: () => void;
+  /** Opens the workspace's process tree (Fleet panel). */
+  onOpenTree?: (workspaceId: string) => void;
   halted: boolean;
 }
 
 type StepStatus = "done" | "running" | "failed" | "pending";
 
 const SEVERITY_ORDER: Finding["severity"][] = ["critical", "high", "medium", "low", "info"];
+const VERDICT_CLASS: Record<Verdict, string> = { survived: "badge-green", unresolved: "badge-red", unreviewed: "badge-amber" };
 
 function stepStatus(step: PlanStep, ws: Workspace, instances: AgentInstance[]): StepStatus {
   if (ws.checkpoint?.completedSteps?.[step.id]) return "done";
@@ -227,6 +230,7 @@ export function ResultsSheet(props: Props) {
                               </button>
                             ) : null}
                             <span className="finding-detail">{f.detail}</span>
+                            {f.evidence && f.evidence !== "verified" ? <span className="muted small">evidence: {f.evidence}</span> : null}
                           </span>
                         </li>
                       ))}
@@ -234,6 +238,24 @@ export function ResultsSheet(props: Props) {
                   ) : (
                     <p className="muted">No findings.</p>
                   )}
+                  {ws.report.reviews?.length ? (
+                    <div className="sheet-reviews">
+                      <h3 className="sheet-sub">Adversarial review</h3>
+                      <ul className="review-list">
+                        {ws.report.reviews.map((r) => (
+                          <li key={r.stepId} className="review">
+                            <span className="mono small">{r.stepId}</span> {props.agentName(r.builderId)} vs {r.critics.map(props.agentName).join(", ")}{" "}
+                            <span className={`badge ${VERDICT_CLASS[r.verdict]}`}>{r.verdict}</span>
+                            <span className="muted small">
+                              {" "}
+                              {r.rounds} round(s)
+                              {r.open.length ? `, ${r.open.length} open challenge(s)` : ""}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   {ws.report.conflicts.length ? (
                     <div className="conflicts">
                       <h3 className="sheet-sub">Conflicts</h3>
@@ -264,6 +286,11 @@ export function ResultsSheet(props: Props) {
           {ws.report?.artifactPath ? (
             <button type="button" className="btn btn-primary report-link" onClick={() => props.onOpenFile(ws.report!.artifactPath!)} title={ws.report.artifactPath}>
               <IconFile size={14} /> Open report <span className="mono sr-only">{ws.report.artifactPath}</span>
+            </button>
+          ) : null}
+          {props.onOpenTree ? (
+            <button type="button" className="btn" onClick={() => props.onOpenTree!(ws.id)} title="Who spawned whom, builders against critics, and the relay">
+              Process tree
             </button>
           ) : null}
           <button type="button" className="btn" onClick={() => setConfirmUndo(true)} disabled={acting !== null}>

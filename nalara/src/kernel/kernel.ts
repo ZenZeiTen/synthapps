@@ -12,6 +12,9 @@ import { AGENT_CATALOG } from "../agents/catalog";
 import { createGovernor } from "../agents/governor";
 import { createOrchestrator, type NeuralOrchestrator } from "../agents/orchestrator";
 import { createEventBus } from "../events/bus";
+import { createEvidenceChecker } from "../fleet/evidence";
+import { createRelay, type Relay } from "../fleet/relay";
+import { createFleetStore, type FleetStore, type FleetTree } from "../fleet/store";
 import { createTriggerEngine, DEFAULT_TRIGGER_RULES } from "../events/triggers";
 import { createKnowledgeGraph } from "../graph/store";
 import { createIntentEngine } from "../intent/engine";
@@ -30,10 +33,15 @@ import { loadConfig, type ConfigOverrides } from "./config";
 import { openDatabase, type Database } from "./db";
 import { createActionJournal } from "./journal";
 import { createRadial, RadialError, type Radial } from "./radial";
+import { createSecretStore, type SecretInfo, type SecretStore } from "./secrets";
 import { loadWorkflows } from "./workflows";
 import type {
   AgentInstance,
+  AgentUsage,
   ApprovalRequest,
+  Observatory,
+  WorkQueue,
+  StepReview,
   Kernel,
   KernelStatus,
   LLMProvider,
@@ -123,7 +131,23 @@ export interface NeuralKernel extends Kernel {
   connectMcp(name: string, config: McpServerConfig): Promise<McpServerStatus>;
   disconnectMcp(name: string): Promise<boolean>;
   reapproveMcpTool(toolName: string): boolean;
+  /** Durable process tree and fleet memory. */
+  readonly fleet: FleetStore;
+  /** Kernel message relay (inter-agent communication). */
+  readonly relay: Relay;
+  /** Credentials, injected at the gateway; values never leave the kernel. */
+  readonly secrets: SecretStore;
+  setSecret(name: string, value: string): SecretInfo;
+  deleteSecret(name: string): boolean;
+  /** A workspace's process tree, with live state for instances still running. */
+  fleetTree(workspaceId: string): FleetTree & { reviews: StepReview[] };
+  /** Telemetry for every fleet: usage and burn per workspace run, per agent and in total. */
+  observatory(): Observatory;
+  /** What is waiting, what is running, and who owns it. */
+  workQueue(): WorkQueue;
 }
+
+export type { Observatory, WorkQueue } from "./types";
 
 const RESUME_REASON = "resumed after restart";
 const STOP_WAIT_MS = 5000;
@@ -141,10 +165,28 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
   const graph = createKnowledgeGraph({ db, bus });
   const memory = createMemoryService({ db, bus });
   const index = createSemanticIndex({ root, graph, bus });
+  const secrets = createSecretStore({ dataDir });
+  const fleet = createFleetStore({ db });
 
   // --- governor, tools --------------------------------------------------------------
   const governor = createGovernor({ maxLanes: config.maxConcurrentAgents, bus, audit });
-  const tools = createToolRegistry({ bus, audit, governor, policy: config.toolPolicy as ToolPolicy, maxDelegationDepth: config.maxDelegationDepth });
+  const relay = createRelay({
+    db,
+    bus,
+    audit,
+    charge: (workspaceId) => {
+      const verdict = governor.chargeFleet?.(workspaceId, { messages: 1 });
+      return verdict?.exceeded ? verdict.reason : undefined;
+    },
+  });
+  const tools = createToolRegistry({
+    bus,
+    audit,
+    governor,
+    policy: config.toolPolicy as ToolPolicy,
+    maxDelegationDepth: config.maxDelegationDepth,
+    redact: { text: (t) => secrets.redact(t), value: (v) => secrets.redactValue(v) },
+  });
   registerBuiltinTools({
     registry: tools,
     root,
@@ -201,6 +243,10 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     saveWorkspace,
     ...(llm ? { meter } : {}),
     effort: config.effort,
+    fleet,
+    relay,
+    adversarial: config.adversarial,
+    checkEvidence: createEvidenceChecker(root),
   });
 
   const intents = createIntentEngine({
@@ -247,6 +293,8 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     const patch: Partial<Workspace> = { status: "running", error: undefined };
     if (current.status === "completed") Object.assign(patch, { checkpoint: { completedSteps: {} }, report: undefined, completedAt: undefined });
     const ws = workspaces.update(id, patch);
+    // One fleet per run: its budget covers every agent, critic and relay message of this run together.
+    governor.setFleetBudget?.(id, config.fleetBudget);
     if (resume) log("info", `workspace ${id} ${RESUME_REASON}: ${Object.keys(ws.checkpoint.completedSteps).length} finished step(s) will be skipped`, { workspaceId: id });
     const done = track(
       (async (): Promise<Workspace> => {
@@ -306,6 +354,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
           triggeredBy,
           triggerDepth,
           parent,
+          ...(parentInstance ? { parentInstanceId: parentInstance.instanceId } : {}),
           ...(path ? { path, files: [path] } : {}),
         }),
       );
@@ -331,6 +380,18 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     bus.publish(d.ok ? "deployment.succeeded" : "deployment.failed", { tool: d.name, error: d.error, instanceId: d.instanceId }, { source: "kernel", correlationId: event.correlationId });
   });
   const unsubMcp = bus.subscribe("mcp.connected", () => persistHashes());
+  // Every review verdict lands in the audit ledger: the challenge-and-resolution record outlives the run.
+  const unsubVerdict = bus.subscribe("review.verdict", (event) => {
+    const review = (event.data as { review?: StepReview } | undefined)?.review;
+    if (!review) return;
+    audit.append({
+      kind: "verdict",
+      principal: null,
+      subject: `${review.workspaceId}:${review.stepId}`,
+      outcome: review.verdict === "survived" ? "ok" : review.verdict === "unresolved" ? "error" : "info",
+      detail: { verdict: review.verdict, reason: review.reason, rounds: review.rounds, builder: review.builderId, critics: review.critics, open: review.open.map((c) => ({ severity: c.finding.severity, title: c.finding.title, file: c.finding.file, line: c.finding.line, critic: c.criticId, evidence: c.evidence })) },
+    });
+  });
 
   // --- workflows ----------------------------------------------------------------------------
   let workflowList: WorkflowDefinition[] = [];
@@ -369,6 +430,25 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     }
     bus.publish("kernel.log", { level: "info", message: `workflow ${wf.name} finished`, workflowId: wf.id, ...out }, { source: `workflow:${wf.id}` });
     return out;
+  }
+
+  // --- secrets: injected at connect time, never stored in the config the API returns ---------------
+  async function connectWithSecrets(name: string, cfg: McpServerConfig): Promise<McpServerStatus> {
+    let resolved: McpServerConfig;
+    try {
+      resolved = {
+        ...cfg,
+        ...(cfg.env ? { env: secrets.resolveRecord(cfg.env) } : {}),
+        ...(cfg.headers ? { headers: secrets.resolveRecord(cfg.headers) } : {}),
+        ...(cfg.url ? { url: secrets.resolve(cfg.url) } : {}),
+        ...(cfg.args ? { args: cfg.args.map((a) => secrets.resolve(a)) } : {}),
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { name, status: "error", transport: cfg.url ? "http" : "stdio", tools: [], error: message };
+    }
+    const status = await mcp.connect(name, resolved);
+    return status.error ? { ...status, error: secrets.redact(status.error) } : status;
   }
 
   // --- MCP persistence ------------------------------------------------------------------------
@@ -458,7 +538,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
 
       await Promise.all(
         Object.entries(config.mcpServers).map(async ([name, cfg]) => {
-          const status = await mcp.connect(name, cfg);
+          const status = await connectWithSecrets(name, cfg);
           if (status.status === "error") log("warn", `MCP server ${name} did not connect: ${status.error ?? "unknown error"}`);
         }),
       );
@@ -528,6 +608,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
       }
       unsubDeploy();
       unsubMcp();
+      unsubVerdict();
       detachMemoryAgent();
       bus.publish("kernel.stopped", {}, { source: "kernel" });
       await bus.drain();
@@ -619,7 +700,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     },
 
     async connectMcp(name: string, cfg: McpServerConfig) {
-      const status = await mcp.connect(name, cfg);
+      const status = await connectWithSecrets(name, cfg);
       persistHashes();
       const project = projectNode();
       if (project && graph.getNode(`mcp:${name}`)) {
@@ -638,6 +719,119 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
       await mcp.disconnect(name);
       persistHashes();
       return true;
+    },
+
+    fleet,
+    relay,
+    secrets,
+
+    setSecret(name: string, value: string) {
+      const info = secrets.set(name, value);
+      audit.append({ kind: "secret", principal: human(), subject: `secret:${name}`, outcome: "ok", detail: { action: "set", redacted: info.redacted } });
+      bus.publish("secret.changed", { name, action: "set" }, { source: "kernel" });
+      return info;
+    },
+
+    deleteSecret(name: string) {
+      const removed = secrets.delete(name);
+      audit.append({ kind: "secret", principal: human(), subject: `secret:${name}`, outcome: removed ? "ok" : "error", detail: { action: "delete" } });
+      if (removed) bus.publish("secret.changed", { name, action: "delete" }, { source: "kernel" });
+      return removed;
+    },
+
+    fleetTree(workspaceId: string) {
+      if (!workspaces.get(workspaceId)) throw new NotFoundError(`No workspace "${workspaceId}"`);
+      const tree = fleet.tree(workspaceId);
+      // Live instances carry fresher state and usage than the last durable write.
+      const nodes = tree.nodes.map((n) => {
+        const live = orchestrator.instance(n.instanceId);
+        return live ? { ...n, state: live.state, usage: { ...live.usage } } : n;
+      });
+      const ws = workspaces.get(workspaceId)!;
+      const reviews = Object.values(ws.checkpoint.completedSteps)
+        .map((c) => c.review)
+        .filter((r): r is StepReview => Boolean(r));
+      return { ...tree, nodes, reviews };
+    },
+
+    observatory(): Observatory {
+      const byWs = new Map(fleet.usageByWorkspace().map((u) => [u.workspaceId, u]));
+      const rows: Observatory["workspaces"] = [];
+      for (const ws of workspaces.list()) {
+        const u = byWs.get(ws.id);
+        if (!u) continue;
+        const reviews = Object.values(ws.checkpoint.completedSteps).map((c) => c.review).filter((r): r is StepReview => Boolean(r));
+        const f = governor.fleetUsage?.(ws.id);
+        rows.push({
+          ...u,
+          label: ws.label,
+          status: ws.status,
+          messages: relay.count(ws.id),
+          reviews: {
+            survived: reviews.filter((r) => r.verdict === "survived").length,
+            unresolved: reviews.filter((r) => r.verdict === "unresolved").length,
+            unreviewed: reviews.filter((r) => r.verdict === "unreviewed").length,
+          },
+          ...(f ? { fleet: { usage: f.usage, ...(f.exceeded ? { exceeded: f.exceeded } : {}) } } : {}),
+        });
+      }
+      rows.sort((a, b) => b.lastActivity.localeCompare(a.lastActivity));
+      const zero = (): AgentUsage => ({ inputTokens: 0, outputTokens: 0, toolCalls: 0, turns: 0, wallMs: 0 });
+      const totals = { ...zero(), agents: 0, workspaces: rows.length, messages: 0 };
+      for (const r of rows) {
+        for (const k of Object.keys(r.usage) as (keyof AgentUsage)[]) totals[k] += r.usage[k];
+        totals.agents += r.agents;
+        totals.messages += r.messages;
+      }
+      const agentMap = new Map<string, Observatory["agents"][number]>();
+      for (const n of fleet.nodes()) {
+        const a = agentMap.get(n.agentId) ?? { agentId: n.agentId, runs: 0, failures: 0, usage: zero() };
+        a.runs++;
+        if (n.state === "failed" || n.state === "terminated") a.failures++;
+        for (const k of Object.keys(a.usage) as (keyof AgentUsage)[]) a.usage[k] += n.usage[k] ?? 0;
+        agentMap.set(n.agentId, a);
+      }
+      return {
+        generatedAt: new Date().toISOString(),
+        totals,
+        fleetBudget: { ...config.fleetBudget },
+        workspaces: rows,
+        agents: [...agentMap.values()].sort((a, b) => b.usage.inputTokens + b.usage.outputTokens - (a.usage.inputTokens + a.usage.outputTokens) || b.runs - a.runs),
+        governor: governor.snapshot(),
+      };
+    },
+
+    workQueue(): WorkQueue {
+      const owner = (chain: string[]) => chain[0] ?? `user:${config.userId}`;
+      const snap = governor.snapshot();
+      return {
+        generatedAt: new Date().toISOString(),
+        approvals: tools.approvals("pending").map((a) => ({
+          id: a.id,
+          tool: a.tool,
+          requestedBy: a.principal.chain[a.principal.chain.length - 1] ?? "unknown",
+          ...(a.principal.workspaceId ? { workspaceId: a.principal.workspaceId } : {}),
+          createdAt: a.createdAt,
+          ...(a.detail ? { detail: a.detail } : {}),
+        })),
+        running: orchestrator.instances({ state: ["summoned", "active", "collaborating"] }).map((i) => ({
+          instanceId: i.instanceId,
+          agentId: i.agentId,
+          name: i.name,
+          ...(i.workspaceId ? { workspaceId: i.workspaceId } : {}),
+          state: i.state,
+          ...(i.role ? { role: i.role } : {}),
+          ...(i.stepId ? { stepId: i.stepId } : {}),
+          ...(i.round !== undefined ? { round: i.round } : {}),
+          owner: owner(i.principal.chain),
+          ...(i.startedAt ? { startedAt: i.startedAt } : {}),
+        })),
+        workspaces: workspaces
+          .list()
+          .filter((w) => w.status === "running" || w.status === "ready")
+          .map((w) => ({ id: w.id, label: w.label, status: w.status, owner: `user:${config.userId}`, createdAt: w.createdAt, steps: w.plan.length, completedSteps: Object.keys(w.checkpoint.completedSteps).length })),
+        admission: { queued: snap.queued, running: snap.running, lanes: snap.lanes },
+      };
     },
 
     reapproveMcpTool(toolName: string) {

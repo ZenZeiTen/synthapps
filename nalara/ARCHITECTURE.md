@@ -37,8 +37,12 @@ in-process equivalents behind the same interfaces, so the whole OS runs from one
 | File watcher | `src/search/watcher.ts` | `createFileWatcher({ root, index, bus, debounceMs? })` |
 | Governor: admission, budgets, AIMD, loop detection | `src/agents/governor.ts` | `createGovernor({ maxLanes, bus?, audit? })` |
 | Audit ledger | `src/kernel/audit.ts` | `createAuditLog({ db })` |
+| Secret store (credentials for MCP servers, redaction) | `src/kernel/secrets.ts` | `createSecretStore({ dataDir? \| file? })` |
+| Fleet store: process tree, fleet memory | `src/fleet/store.ts` | `createFleetStore({ db })` |
+| Relay (the only agent-to-agent message channel) | `src/fleet/relay.ts` | `createRelay({ db, bus, audit, charge? })` |
+| Evidence checks for critic findings | `src/fleet/evidence.ts` | `createEvidenceChecker(root)` |
 | Action journal (undo) | `src/kernel/journal.ts` | `createActionJournal({ db, root, bus? })` |
-| Tools layer + policy (8) | `src/tools/registry.ts` | `createToolRegistry({ bus, audit, governor?, policy?, maxDelegationDepth? })` |
+| Tools layer + policy (8) | `src/tools/registry.ts` | `createToolRegistry({ bus, audit, governor?, policy?, maxDelegationDepth?, redact? })` |
 | Built-in tools | `src/tools/builtin.ts` | `registerBuiltinTools({ registry, root, index, memory, journal, outputDirFor, testCommand?, deployCommand? })` |
 | MCP client (8) | `src/tools/mcp.ts` | `createMcpManager({ registry, graph, bus })` |
 | Claude provider | `src/llm/anthropic.ts` | `createAnthropicProvider({ model, effort, client? })`, `hasClaudeCredentials(env?)` |
@@ -46,15 +50,50 @@ in-process equivalents behind the same interfaces, so the whole OS runs from one
 | Intent Engine (3.1) | `src/intent/engine.ts`, `src/intent/catalog.ts` | `createIntentEngine({ llm, index, memory, tools, bus, agents })` |
 | Agent catalog (6) | `src/agents/catalog.ts` | `AGENT_CATALOG`, `AGENT_ALIASES`, `findAgent()` |
 | Offline agent skills | `src/agents/skills/*.ts` | `runOfflineSkill(name, ctx)` in `src/agents/skills/index.ts` |
-| Agent Orchestrator + Scheduler + Commander (3.2) | `src/agents/orchestrator.ts`, `src/agents/commander.ts` | `createOrchestrator({ bus, graph, memory, tools, llm, index, root, maxConcurrent, getWorkspace })` |
+| Agent Orchestrator + Scheduler + Commander (3.2), adversarial review (build, attack, converge) | `src/agents/orchestrator.ts`, `src/agents/commander.ts` | `createOrchestrator({ bus, graph, memory, tools, llm, index, root, maxConcurrent, getWorkspace, fleet?, relay?, adversarial?, checkEvidence? })` |
 | Workspace Generator (3.3) | `src/workspace/generator.ts` | `createWorkspaceGenerator({ db, graph, bus, root, dataDir, index, memory })` |
 | Radial OS (5) | `src/kernel/radial.ts` | used by the kernel |
 | Workflows | `src/kernel/workflows.ts` | loads `<root>/.nalara/workflows/*.json` plus built-ins |
 | Config | `src/kernel/config.ts` | `loadConfig(overrides)` |
 | Kernel (composition root) | `src/kernel/kernel.ts` | `createKernel(config, deps?)` |
 | HTTP + SSE server | `src/server/http.ts` | `createHttpServer(kernel, { staticDir? })` |
-| CLI | `src/cli.ts` | `nalara serve \| intent \| search \| status \| agents` |
-| Nalara UI: Neural Core scene and Field view (4, 5) | `web/` | Vite app |
+| CLI | `src/cli.ts` | `nalara serve \| intent \| search \| status \| agents \| tree \| observatory \| queue \| secret` |
+| Nalara UI: Neural Core scene and Field view (4, 5); Fleet and Observatory panels | `web/` | Vite app |
+
+## Fleets
+
+A workspace run is a **fleet**: every agent instance it spawns, with a parent
+link, a role (`worker`, `builder`, `critic`, `commander`, `triggered`), a plan
+step and a round. The fleet store keeps that process tree and, after each
+reviewed step, a **fleet record** (verdict, rounds, open challenges, the files
+it touched). Later agents working on the same files get the open records in
+their pinned context ("Fleet memory").
+
+Builder steps (by default Fullstack Engineer, Systems Architect, Gameplay
+Architect, Translator, Localization Expert, Writer and Documentation; see
+`DEFAULT_ADVERSARIAL` in `src/kernel/config.ts`) go through adversarial review:
+
+1. **Build.** The builder runs its step (round 1).
+2. **Attack.** Its critics (for example Code Reviewer and Security Agent) run
+   as its children. Each critic finding is checked against the project: does
+   the cited file exist inside the root, and does the cited line exist?
+3. **Converge.** A finding blocks only when its severity is at or above
+   `blockingSeverity` (default `high`), it cites one of this step's own
+   artifacts, and its evidence is verified. Blocking challenges go back to a
+   new builder round (as data, never as instructions). The step ends as
+   `survived` (a round with no blocking challenge), `unresolved` (blocking
+   challenges still open when rounds run out or the review stops early) or
+   `unreviewed` (the review stopped before any challenge: no artifacts, no
+   critic completed, the relay refused a message, or the kernel halted).
+
+The Commander merges critic outputs with the rest and adds a high finding for
+every unresolved step. `NALARA_ADVERSARIAL=0` or `adversarial.enabled: false`
+in `nalara.config.json` turns the review off.
+
+Every hop (spawn, handoff, challenge, verdict, result) is a relay message: one
+SQLite table, audited, published as `relay.message`, capped in size, and
+charged to the fleet budget. Agents have no tool to send one; only the
+orchestrator does.
 
 ## Conventions
 

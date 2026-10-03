@@ -1,4 +1,4 @@
-import type { AgentBudget, AgentUsage, AuditLog, EventBus, Governor, Priority } from "../kernel/types";
+import type { AgentBudget, AgentUsage, AuditLog, EventBus, FleetBudget, FleetUsage, Governor, Priority } from "../kernel/types";
 
 const PRIORITY_RANK: Record<Priority, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
 const FAILURES_TO_OPEN = 5;
@@ -22,6 +22,26 @@ interface InstanceState {
   budget?: AgentBudget;
   repeats: Map<string, number>;
   exceeded?: string;
+  fleetId?: string;
+}
+
+interface FleetState {
+  budget?: FleetBudget;
+  usage: FleetUsage;
+  exceeded?: string;
+}
+
+const zeroFleet = (): FleetUsage => ({ agents: 0, inputTokens: 0, outputTokens: 0, toolCalls: 0, messages: 0 });
+
+/** The first fleet dimension over its limit, or undefined. */
+export function fleetOverrun(u: FleetUsage, b: FleetBudget | undefined): string | undefined {
+  if (!b) return undefined;
+  if (u.agents > b.maxAgents) return `agents ${u.agents} > ${b.maxAgents}`;
+  if (u.inputTokens > b.maxInputTokens) return `input tokens ${u.inputTokens} > ${b.maxInputTokens}`;
+  if (u.outputTokens > b.maxOutputTokens) return `output tokens ${u.outputTokens} > ${b.maxOutputTokens}`;
+  if (u.toolCalls > b.maxToolCalls) return `tool calls ${u.toolCalls} > ${b.maxToolCalls}`;
+  if (u.messages > b.maxMessages) return `relay messages ${u.messages} > ${b.maxMessages}`;
+  return undefined;
 }
 
 const zeroUsage = (): AgentUsage => ({ inputTokens: 0, outputTokens: 0, toolCalls: 0, turns: 0, wallMs: 0 });
@@ -35,6 +55,8 @@ const zeroUsage = (): AgentUsage => ({ inputTokens: 0, outputTokens: 0, toolCall
  *   After `cooldownMs` it goes half_open and admits one probe; "ok" closes it, any failure re-opens it.
  * - wallMs is measured by the governor from the instance's first admit/charge; a passed wallMs is ignored.
  * - Repeat detection: identical toolKey counted per instance; exceeded when count > maxRepeatCalls.
+ * - Fleet budgets: an instance assigned to a fleet (one workspace run) also charges the fleet. Once any fleet
+ *   dimension is over its limit, every instance of that fleet is over budget on its next charge.
  * Clock and timers are injectable for deterministic tests.
  */
 export function createGovernor(opts: {
@@ -68,6 +90,19 @@ export function createGovernor(opts: {
   let cooldownTimer: TimerHandle | undefined;
   const queue: Waiter[] = [];
   const instances = new Map<string, InstanceState>();
+  const fleets = new Map<string, FleetState>();
+
+  const fleet = (id: string): FleetState => {
+    let f = fleets.get(id);
+    if (!f) fleets.set(id, (f = { usage: zeroFleet() }));
+    return f;
+  };
+
+  function exceedFleet(id: string, f: FleetState, reason: string) {
+    f.exceeded = reason;
+    opts.bus?.publish("budget.exceeded", { fleetId: id, workspaceId: id, reason: `fleet budget: ${reason}`, usage: { ...f.usage } }, { source: "governor", correlationId: id });
+    opts.audit?.append({ kind: "budget", principal: null, subject: id, outcome: "denied", detail: { fleet: true, reason, usage: { ...f.usage } } });
+  }
 
   const state = (id: string, startClock = true): InstanceState => {
     let s = instances.get(id);
@@ -171,6 +206,21 @@ export function createGovernor(opts: {
         s.repeats.set(usage.toolKey, repeats);
       }
       if (s.exceeded) return { exceeded: true, reason: s.exceeded };
+      if (s.fleetId) {
+        const f = fleet(s.fleetId);
+        f.usage.inputTokens += usage.inputTokens ?? 0;
+        f.usage.outputTokens += usage.outputTokens ?? 0;
+        f.usage.toolCalls += usage.toolCalls ?? 0;
+        if (!f.exceeded) {
+          const over = fleetOverrun(f.usage, f.budget);
+          if (over) exceedFleet(s.fleetId, f, over);
+        }
+        if (f.exceeded) {
+          const reason = `fleet budget: ${f.exceeded}`;
+          exceed(instanceId, s, reason);
+          return { exceeded: true, reason };
+        }
+      }
       const b = s.budget;
       if (!b) return { exceeded: false };
       const reason =
@@ -219,6 +269,38 @@ export function createGovernor(opts: {
 
     release(instanceId) {
       instances.delete(instanceId);
+    },
+
+    setFleetBudget(fleetId, budget) {
+      fleets.set(fleetId, { budget: { ...budget }, usage: zeroFleet() });
+    },
+
+    assignFleet(instanceId, fleetId) {
+      const s = state(instanceId, false);
+      s.fleetId = fleetId;
+      const f = fleet(fleetId);
+      f.usage.agents++;
+      if (!f.exceeded) {
+        const over = fleetOverrun(f.usage, f.budget);
+        if (over) exceedFleet(fleetId, f, over);
+      }
+      return f.exceeded ? { exceeded: true, reason: `fleet budget: ${f.exceeded}` } : { exceeded: false };
+    },
+
+    chargeFleet(fleetId, usage) {
+      const f = fleet(fleetId);
+      f.usage.messages += usage.messages ?? 0;
+      if (!f.exceeded) {
+        const over = fleetOverrun(f.usage, f.budget);
+        if (over) exceedFleet(fleetId, f, over);
+      }
+      return f.exceeded ? { exceeded: true, reason: `fleet budget: ${f.exceeded}` } : { exceeded: false };
+    },
+
+    fleetUsage(fleetId) {
+      const f = fleets.get(fleetId);
+      if (!f) return undefined;
+      return { ...(f.budget ? { budget: { ...f.budget } } : {}), usage: { ...f.usage }, ...(f.exceeded ? { exceeded: f.exceeded } : {}) };
     },
   };
 }

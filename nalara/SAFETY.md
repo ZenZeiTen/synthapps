@@ -18,7 +18,7 @@ not present in the installed copy of the skill, so that step was not run.
 |---|---|---|---|---|
 | 27 catalog agents (5 system, 8 engineering, 9 creative, 4 business, plus Planner and Documentation) | Claude (`claude-opus-5` default) or offline skills | per-agent tool globs | project files under the root, memory, graph | the local user (**Fact**: single-user kernel) |
 | Trigger engine | none | spawns agents | events | the user, via configured rules |
-| MCP servers | n/a | their own tools | external systems | the user (credentials in server env) |
+| MCP servers | n/a | their own tools | external systems | the user (credentials from the secret store, filled in at connect time) |
 | Human user | n/a | HTTP API / CLI / UI | everything | self |
 
 **Assumption:** one human user per kernel. Multi-user tenancy is out of scope.
@@ -55,17 +55,17 @@ call, tool call and memory write passes one of two gates.
 | # | Primitive | Mechanism in Nalara | Enforced by | Status |
 |---|---|---|---|---|
 | 1 | Agent lifecycle | Instance = definition + principal + budget + scope; states dormant → summoned → active → collaborating → completed/failed/terminated → archived | platform (orchestrator) | built |
-| 2 | Orchestrator | Priority admission (urgent > high > normal > low, FIFO within), lane cap, AIMD on 429/529, circuit breaker, multi-dimensional budget, repeat-call loop detection, zombie reaping on maxWallMs | platform (Governor) | built |
+| 2 | Orchestrator | Priority admission (urgent > high > normal > low, FIFO within), lane cap, AIMD on 429/529, circuit breaker, multi-dimensional budget per agent and per fleet (agents, tokens, tool calls, relay messages for one workspace run), repeat-call loop detection, zombie reaping on maxWallMs | platform (Governor) | built |
 | 3 | Skills registry | Catalog is code (frozen at runtime); user agent files in `.nalara/agents/*.json` are schema-validated and hashed at load | platform | built (no signing: **Assumption** acceptable for a single-user kernel) |
 | 4 | Tool mediation | ToolRegistry on every call; reversibility class and scope per tool (register below) | platform | built |
 | 5 | Context management | Minimum-fidelity set pinned in the system prompt (task, constraints, file list, plan step); tool results capped at 20 000 chars; bounded turns | platform (agent loop) | partial: no paging |
-| 6 | Agent-to-agent comms | No direct channel. Outputs reach the Commander and trigger rules as data, wrapped as untrusted; trigger task text comes from rule templates | platform | built |
+| 6 | Agent-to-agent comms | No direct channel and no messaging tool. The orchestrator relays spawn, handoff, challenge, verdict and result messages through one audited, size-capped, budget-charged relay; challenges reach a builder as data, wrapped as untrusted. Outputs reach the Commander and trigger rules the same way; trigger task text comes from rule templates | platform (relay) | built |
 | 7 | Agent memory | Records carry source and timestamps; agent writes are `proposed` until a human confirms; the Memory Agent stores only platform facts (status, agents, finding counts), never agent-authored text, as active memory | platform | built (no record-level ACL: single user) |
 | 8 | Identity and authZ | `Principal` with delegation chain on every call; per-instance tool scope set at spawn, never inherited; depth limit `maxDelegationDepth` (default 3) | platform | built (no OAuth token exchange: all tools are local or use server-held credentials) |
-| 9 | Guardrails | Deterministic rules only: deny > allow > mode × reversibility; path confinement (realpath) to the root; secrets never passed to child processes | platform | built |
-| 10 | Failure detection | Agent output validated against a schema; empty or zero-confidence outputs flagged by Commander; audit ledger agents cannot write | platform | built |
+| 9 | Guardrails | Deterministic rules only: deny > allow > mode × reversibility; path confinement (realpath) to the root; secrets never passed to child processes. MCP credentials live in a 0600 secret store and are written into a server's env, headers, URL or arguments only at connect time (`${secret:NAME}`); stored values are removed from tool results, events, the audit ledger and every HTTP and SSE response | platform (gateway) | built |
+| 10 | Failure detection | Agent output validated against a schema; empty or zero-confidence outputs flagged by Commander; builder steps attacked by critic agents, with only evidence-checked challenges (cited file and line exist in the project) able to block; unresolved steps reported as high findings; audit ledger agents cannot write | platform | built |
 | 11 | Saga and checkpoint | Workspace checkpoint after each plan step; resume skips finished steps; irreversible calls fenced by an idempotency key naming the operation (workspace, step, tool, input hash, occurrence), so a resumed step cannot repeat a deploy even if it makes other calls first; compensable writes undoable from the journal | platform | built |
-| 12 | Trajectory observability | Every event carries workspace and instance ids; tool events carry the principal chain; full event history in SQLite | platform | built |
+| 12 | Trajectory observability | Every event carries workspace and instance ids; tool events carry the principal chain; full event history in SQLite; process tree per workspace (parent, role, step, round); Observatory (usage per fleet and agent) and work queue over HTTP, CLI and UI | platform | built |
 | 13 | AI-aware proxy | MCP tools pass through the registry; tool definition hashes (name, description, schema and the derived action, reversibility and scope) recorded at connect; a changed definition, including a flipped readOnlyHint, is disabled until re-approved | platform | built |
 
 ## 4. Tool register
@@ -115,6 +115,14 @@ agents cannot learn across runs until a human confirms their memory.
   `proc.*` tools run child processes with a scrubbed environment, a timeout and
   the root as cwd, but without namespaces or cgroups. Do not point Nalara at
   code you would not run yourself.
+- **Secrets are stored in plain text** in `<dataDir>/secrets.json` (mode
+  0600), not in an OS keychain. Values shorter than 6 characters are not
+  redacted from output. An MCP server receives the resolved value; what it
+  does with it is up to that server.
+- **Evidence checks are structural.** A critic's finding counts as verified
+  when the cited file and line exist, not when the claim is true. A wrong but
+  well-cited high finding can still send a builder back for another round, at
+  most `maxRounds` times.
 - **No context paging.** Long agent runs are bounded by turns and result caps
   instead.
 - **Chaos tests** (stale memory, tool failure, crash and resume, injected

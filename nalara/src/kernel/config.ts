@@ -10,7 +10,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { userInfo } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
-import type { AgentBudget, Effort, McpServerConfig, NalaraConfig, ToolPolicy } from "./types";
+import type { AdversarialConfig, AgentBudget, Effort, FleetBudget, Finding, McpServerConfig, NalaraConfig, ToolPolicy } from "./types";
 
 export const CONFIG_FILE = "nalara.config.json";
 export const DEFAULT_PORT = 7437;
@@ -25,6 +25,36 @@ export const DEFAULT_BUDGET: AgentBudget = {
   maxWallMs: 15 * 60_000,
   maxRepeatCalls: 3,
 };
+
+/** Whole-fleet budget per workspace run: generous enough for a plan with critics, small enough to stop a runaway. */
+export const DEFAULT_FLEET_BUDGET: FleetBudget = {
+  maxAgents: 40,
+  maxInputTokens: 4_000_000,
+  maxOutputTokens: 600_000,
+  maxToolCalls: 600,
+  maxMessages: 400,
+};
+
+/**
+ * Critics that shadow builder steps. Only agents that produce artifacts are builders; each is attacked by the agents
+ * whose job is to break that kind of work. Other steps run once, as before.
+ */
+export const DEFAULT_ADVERSARIAL: AdversarialConfig = {
+  enabled: true,
+  maxRounds: 3,
+  blockingSeverity: "high",
+  critics: {
+    fullstack_engineer: ["code_reviewer", "security_agent"],
+    systems_architect: ["security_agent"],
+    gameplay_architect: ["code_reviewer"],
+    translator: ["localization_qa"],
+    localization_expert: ["localization_qa"],
+    writer: ["seo_reviewer"],
+    documentation: ["code_reviewer"],
+  },
+};
+
+const SEVERITIES: Finding["severity"][] = ["critical", "high", "medium", "low", "info"];
 
 const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
 const POLICY_MODES: ToolPolicy["mode"][] = ["auto", "ask", "readonly"];
@@ -138,6 +168,34 @@ function budget(value: unknown, where: string): Partial<AgentBudget> {
   return out;
 }
 
+function fleetBudget(value: unknown, where: string): Partial<FleetBudget> {
+  if (!isObj(value)) throw new ConfigError(`${where} must be an object`);
+  const keys = Object.keys(DEFAULT_FLEET_BUDGET) as (keyof FleetBudget)[];
+  noUnknownKeys(value, keys, where);
+  const out: Partial<FleetBudget> = {};
+  for (const key of keys) if (value[key] !== undefined) out[key] = int(1)(value[key], `${where}.${key}`) as number;
+  return out;
+}
+
+function adversarial(value: unknown, where: string): Partial<AdversarialConfig> {
+  if (!isObj(value)) throw new ConfigError(`${where} must be an object`);
+  noUnknownKeys(value, ["enabled", "maxRounds", "blockingSeverity", "critics"], where);
+  const out: Partial<AdversarialConfig> = {};
+  if (value.enabled !== undefined) out.enabled = bool(value.enabled, `${where}.enabled`);
+  if (value.maxRounds !== undefined) out.maxRounds = int(1, 10)(value.maxRounds, `${where}.maxRounds`) as number;
+  if (value.blockingSeverity !== undefined) {
+    if (!SEVERITIES.includes(value.blockingSeverity as Finding["severity"])) throw new ConfigError(`${where}.blockingSeverity must be one of ${SEVERITIES.join(", ")}`);
+    out.blockingSeverity = value.blockingSeverity as Finding["severity"];
+  }
+  if (value.critics !== undefined) {
+    if (!isObj(value.critics)) throw new ConfigError(`${where}.critics must be an object of agent id -> critic agent ids`);
+    const critics: Record<string, string[]> = {};
+    for (const [builder, list] of Object.entries(value.critics)) critics[builder] = strings(list, `${where}.critics.${builder}`);
+    out.critics = critics;
+  }
+  return out;
+}
+
 /** Keys the config file may set. `root` is not one of them: the file lives in the root. */
 const FILE_FIELDS: Record<string, Checker> = {
   dataDir: str,
@@ -160,6 +218,8 @@ const FILE_FIELDS: Record<string, Checker> = {
   testCommand: str,
   procTimeoutMs: int(1000),
   deployCommand: str,
+  adversarial,
+  fleetBudget,
 };
 
 /** Parses and validates the config file's JSON. Exported for tests. */
@@ -192,6 +252,7 @@ function fromEnv(env: NodeJS.ProcessEnv): Partial<NalaraConfig> & { toolPolicy?:
   if (env.NALARA_HOST?.trim()) out.host = env.NALARA_HOST.trim();
   if (env.NALARA_MODEL?.trim()) out.model = env.NALARA_MODEL.trim();
   if (env.NALARA_OFFLINE === "1" || env.NALARA_OFFLINE === "true") out.useClaude = false;
+  if (env.NALARA_ADVERSARIAL === "0" || env.NALARA_ADVERSARIAL === "false") out.adversarial = { enabled: false } as AdversarialConfig;
   if (env.NALARA_POLICY?.trim()) {
     const mode = env.NALARA_POLICY.trim() as ToolPolicy["mode"];
     if (!POLICY_MODES.includes(mode)) throw new ConfigError(`NALARA_POLICY must be one of ${POLICY_MODES.join(", ")}`);
@@ -200,9 +261,11 @@ function fromEnv(env: NodeJS.ProcessEnv): Partial<NalaraConfig> & { toolPolicy?:
   return out;
 }
 
-export type ConfigOverrides = Partial<Omit<NalaraConfig, "budget" | "toolPolicy">> & {
+export type ConfigOverrides = Partial<Omit<NalaraConfig, "budget" | "toolPolicy" | "adversarial" | "fleetBudget">> & {
   budget?: Partial<AgentBudget>;
   toolPolicy?: Partial<ToolPolicy>;
+  adversarial?: Partial<AdversarialConfig>;
+  fleetBudget?: Partial<FleetBudget>;
 };
 
 /**
@@ -230,12 +293,14 @@ export function loadConfig(overrides: ConfigOverrides = {}, env: NodeJS.ProcessE
     userId: defaultUserId(),
     maxDelegationDepth: 3,
     budget: { ...DEFAULT_BUDGET },
+    adversarial: { ...DEFAULT_ADVERSARIAL, critics: { ...DEFAULT_ADVERSARIAL.critics } },
+    fleetBudget: { ...DEFAULT_FLEET_BUDGET },
   };
 
   const layers = [readConfigFile(root), fromEnv(env), overrides as Partial<NalaraConfig>];
   let config: NalaraConfig = defaults;
   for (const layer of layers) {
-    const { budget: b, toolPolicy: p, mcpServers: m, ...rest } = layer as ConfigOverrides;
+    const { budget: b, toolPolicy: p, mcpServers: m, adversarial: adv, fleetBudget: fb, ...rest } = layer as ConfigOverrides;
     const defined = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
     config = {
       ...config,
@@ -243,6 +308,9 @@ export function loadConfig(overrides: ConfigOverrides = {}, env: NodeJS.ProcessE
       budget: { ...config.budget, ...(b ?? {}) },
       toolPolicy: { ...config.toolPolicy, ...(p ?? {}) },
       mcpServers: { ...config.mcpServers, ...(m ?? {}) },
+      // critics replace the whole map when given: a project that names its own critics means exactly those.
+      adversarial: { ...config.adversarial, ...(adv ?? {}), critics: { ...(adv?.critics ?? config.adversarial.critics) } },
+      fleetBudget: { ...config.fleetBudget, ...(fb ?? {}) },
     };
   }
   config.root = root;
