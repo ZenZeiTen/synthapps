@@ -75,9 +75,10 @@ test('the checker reports errors with a hint and flags common mistakes', () => {
     assert.match(text, /timeline duration is 0/);
 
     const glow = join(dir, 'glow.real');
-    writeFileSync(glow, 'background { intensity: 0.2 }\nbulb { position: [0, 2, 0] }\nfilm { halation: 0.3 }\nground { }\n');
+    writeFileSync(glow, 'background { intensity: 0.2 }\nbulb { position: [0, 2, 0] }\nfilm { bloom: 0.06, halation: 0.3 }\nground { }\n');
     const r3 = JSON.parse(check(glow, '--json').out);
-    assert.ok(r3.warnings.some((w) => /orange haze/.test(w)), r3.warnings.join('\n'));
+    assert.ok(r3.warnings.some((w) => /bloom 0.06 with lamps/.test(w)), r3.warnings.join('\n'));
+    assert.ok(!r3.warnings.some((w) => /halation/.test(w)), 'halation is safe with lamps in view');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
