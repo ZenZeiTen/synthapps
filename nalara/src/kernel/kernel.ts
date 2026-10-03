@@ -61,6 +61,9 @@ import type {
 } from "./types";
 
 export const KERNEL_VERSION: string = (() => {
+  // The desktop build (scripts/build-app.ts) replaces this with a literal: a bundle has no package.json beside it.
+  const bundled = process.env.NALARA_BUNDLED_VERSION;
+  if (bundled) return bundled;
   try {
     const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version?: string };
     return pkg.version ?? "0.0.0";

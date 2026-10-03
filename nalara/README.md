@@ -15,7 +15,49 @@ classification, planning and agents. The Claude path is tested against a
 stand-in client only: no real API call has been made from this repository's
 tests.
 
-## Quick start
+## Desktop app (double-click)
+
+Nalara also comes as one file you double-click, like a game. Nothing else needs
+to be installed: the file carries its own copy of Node.js, the kernel, the UI and
+a sample project.
+
+| System | File | How to start it |
+|---|---|---|
+| Windows 10/11 (x64) | `Nalara-win-x64.exe` | Double-click. The first time, Windows SmartScreen says it "protected your PC": click **More info**, then **Run anyway**. |
+| macOS 11+ (Apple Silicon) | `Nalara-darwin-arm64.zip` | Double-click the zip, then **Nalara.app**. The first time, macOS says it cannot verify the developer: open **System Settings → Privacy & Security** and click **Open Anyway**. |
+| macOS 11+ (Intel) | `Nalara-darwin-x64.zip` | As above. |
+| Linux (x64) | `Nalara-linux-x64.tar.gz` | Unpack, then double-click `Nalara-linux-x64` or run `./Nalara-linux-x64`. |
+
+The warnings appear because the files are not signed with a paid Apple or
+Microsoft developer certificate. They are built from this repository by
+[`.github/workflows/nalara-app.yml`](../.github/workflows/nalara-app.yml): run it
+from the Actions tab (or push a `nalara-v*` tag to attach the files to a
+release) and download them from the run's artifacts.
+
+What happens when you start it:
+
+- Your home folder for Nalara is `Nalara` in your user folder (for example
+  `C:\Users\you\Nalara`). The first start creates it with a sample project
+  inside. Put the projects you want Nalara to work on in this folder.
+- The Neural Core opens in its own window (Edge, Chrome, Chromium or Brave in
+  app mode, with no tabs or address bar). Without any of those, it opens in your
+  default browser.
+- Closing the window stops Nalara about 20 seconds later; plans that were still
+  running resume next time. Starting it again while it runs just opens another
+  window.
+- On Windows a console window shows what Nalara is doing; keep it open. Without
+  a console (the Mac app), the same text goes to `Nalara/.nalara/app.log`.
+- It runs offline unless `ANTHROPIC_API_KEY` is set in the environment.
+
+Options (from a terminal): `--fullscreen`, `--root DIR`, `--port N`,
+`--no-open`, `--stay` (keep running after the window closes), `--offline`,
+`--check` (self-test), `--help`.
+
+To build the file yourself: `npm install`, then `npm run build:app` (for the
+computer you are on) or `npm run build:app -- --target win-x64` (a Windows build
+from Linux or macOS). macOS builds need a Mac. Output goes to `dist-app/`.
+
+## Quick start (from source)
 
 Requires Node.js 22.13 or newer.
 

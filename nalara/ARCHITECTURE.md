@@ -57,6 +57,7 @@ in-process equivalents behind the same interfaces, so the whole OS runs from one
 | Config | `src/kernel/config.ts` | `loadConfig(overrides)` |
 | Kernel (composition root) | `src/kernel/kernel.ts` | `createKernel(config, deps?)` |
 | HTTP + SSE server | `src/server/http.ts` | `createHttpServer(kernel, { staticDir? })` |
+| Desktop app launcher (one executable: kernel, UI, app window, auto-stop) | `src/app/launcher.ts`, `src/app/bundle.ts` | built by `scripts/build-app.ts` (`npm run build:app`) into a Node single executable application |
 | CLI | `src/cli.ts` | `nalara serve \| intent \| search \| status \| agents \| tree \| observatory \| queue \| secret` |
 | Nalara UI: Neural Core scene and Field view (4, 5); Fleet and Observatory panels | `web/` | Vite app |
 

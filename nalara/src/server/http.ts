@@ -130,6 +130,8 @@ export interface NeuralHttpServer {
   listen(port?: number, host?: string): Promise<{ url: string; port: number; host: string }>;
   /** Ends SSE streams and closes the server. Does not stop the kernel. */
   close(): Promise<void>;
+  /** Open event streams: each open Nalara window holds one. */
+  liveClients(): number;
   url(): string | undefined;
 }
 
@@ -795,6 +797,9 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
           resolvePromise({ url: `http://${h}:${actual}`, port: actual, host });
         });
       });
+    },
+    liveClients() {
+      return sseClients.size;
     },
     close() {
       for (const res of sseClients) res.end();
