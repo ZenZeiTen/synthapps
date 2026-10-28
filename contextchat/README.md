@@ -35,6 +35,16 @@ This writes `dist/contextchat-1.0.0.zip`. In WordPress go to **Plugins → Add N
 
 Requirements: WordPress 6.2 or newer, PHP 7.4 or newer. WooCommerce is optional.
 
+## Releasing
+
+Update `RELEASE_NOTES.md` and the `Version:` line in `contextchat.php`, merge, then push a tag named after that version, for example:
+
+```bash
+git tag contextchat-v1.0.0 && git push origin contextchat-v1.0.0
+```
+
+The workflow then runs every test, builds the zip, and publishes a GitHub release with `RELEASE_NOTES.md` as its description. It refuses a tag that does not match the `Version:` line in `contextchat.php`.
+
 ## For developers
 
 Filters:

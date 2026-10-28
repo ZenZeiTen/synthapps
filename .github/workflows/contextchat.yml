@@ -8,6 +8,10 @@ on:
       - ".github/workflows/contextchat.yml"
   push:
     branches: [main]
+    # Pushing a tag named contextchat-v<version> builds, tests and publishes a release.
+    # Path filters are not applied to tag pushes.
+    tags:
+      - "contextchat-v*"
     paths:
       - "contextchat/**"
 
@@ -65,3 +69,37 @@ jobs:
         with:
           name: contextchat-plugin
           path: contextchat/dist/*.zip
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/contextchat-v')
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches the plugin version
+        run: |
+          version="$(sed -n 's/^ \* Version: *//p' contextchat/plugin/contextchat/contextchat.php | tr -d '[:space:]')"
+          if [ "contextchat-v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the plugin version $version." >&2
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: contextchat-plugin
+          path: files
+      - name: Create the release, or add the zip to it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A release drafted on GitHub's "Draft a new release" page already exists when this runs: upload into it.
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" files/*.zip --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" files/*.zip \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "ContextChat ${GITHUB_REF_NAME#contextchat-v}" \
+              --notes-file contextchat/RELEASE_NOTES.md
+          fi
