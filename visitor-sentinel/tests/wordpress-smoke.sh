@@ -67,18 +67,25 @@ FRAUD=$(wp db query "SELECT COUNT(*) FROM wp_vsen_clicks WHERE status = 2" --ski
 [ "$FRAUD" = "1" ] || fail "expected the no-JavaScript landing to be fraudulent, got $FRAUD"
 echo "server landing scored: $(wp db query "SELECT fraud_score, fraud_reasons FROM wp_vsen_clicks WHERE status = 2" --skip-column-names)"
 
-# Every admin screen loads for an administrator without PHP errors.
-JAR="$WORK/cookies.txt"
-rm -f "$JAR"
-curl -s -c "$JAR" -b 'wordpress_test_cookie=WP%20Cookie%20check' -o /dev/null \
-	--data 'log=admin&pwd=admin&testcookie=1&rememberme=forever' "$URL/wp-login.php"
+# Every admin screen loads for an administrator without PHP errors. The auth cookies come
+# from WP-CLI, which is sturdier than posting the login form.
+COOKIES=$(wp eval 'echo AUTH_COOKIE . "=" . wp_generate_auth_cookie( 1, time() + 3600, "auth" ) . "; " . LOGGED_IN_COOKIE . "=" . wp_generate_auth_cookie( 1, time() + 3600, "logged_in" );')
+admin_page() {
+	local html
+	html=$(curl -s -b "$COOKIES" "$URL/wp-admin/admin.php?page=$1")
+	if ! contains "$html" "$2"; then
+		echo "--- start of $1 response ---"
+		head -c 3000 <<<"$html"
+		echo
+		echo "--- end ---"
+		fail "admin page $1 did not render"
+	fi
+}
 for PAGE in vsen-dashboard vsen-visitors vsen-fraud vsen-blocklist vsen-settings "vsen-dashboard&range=today" "vsen-fraud&view=fraud" "vsen-visitors&view=bots"; do
-	HTML=$(curl -s -b "$JAR" "$URL/wp-admin/admin.php?page=$PAGE")
-	contains "$HTML" 'vsen-wrap' || fail "admin page $PAGE did not render"
+	admin_page "$PAGE" 'vsen-wrap'
 done
 VISITOR=$(wp db query "SELECT id FROM wp_vsen_visitors LIMIT 1" --skip-column-names)
-HTML=$(curl -s -b "$JAR" "$URL/wp-admin/admin.php?page=vsen-visitors&visitor=$VISITOR")
-contains "$HTML" 'vsen-timeline' || fail "visitor page"
+admin_page "vsen-visitors&visitor=$VISITOR" 'vsen-timeline'
 
 if [ -f wp/wp-content/debug.log ] && grep -i 'visitor-sentinel' wp/wp-content/debug.log; then
 	fail "PHP notices from the plugin"
