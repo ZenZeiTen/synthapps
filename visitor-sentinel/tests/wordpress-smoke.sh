@@ -41,9 +41,12 @@ trap 'kill $SERVER 2>/dev/null || true' EXIT
 for _ in $(seq 1 50); do curl -s -o /dev/null "$URL/" && break; sleep 0.2; done
 
 fail() { echo "FAIL: $*"; [ -f wp/wp-content/debug.log ] && cat wp/wp-content/debug.log; exit 1; }
+# grep reads a string, not a pipe: with pipefail, `curl | grep -q` fails when grep exits early.
+contains() { grep -q -- "$2" <<<"$1"; }
 
 # The tracker is on public pages.
-curl -s -A "$UA" "$URL/" | grep -q 'visitor-sentinel/assets/js/tracker.js' || fail "tracker script not enqueued"
+HOME_HTML=$(curl -s -A "$UA" "$URL/")
+contains "$HOME_HTML" 'visitor-sentinel/assets/js/tracker.js' || fail "tracker script not enqueued"
 
 # A client without JavaScript lands from an ad: recorded on the server.
 curl -s -o /dev/null -A 'curl/8.4.0' "$URL/?gclid=SMOKESERVER0001"
@@ -53,7 +56,7 @@ REPLY=$(curl -s -A "$UA" -H 'Accept-Language: en' -H 'Content-Type: text/plain' 
 	--data "{\"e\":\"pv\",\"u\":\"$URL/?gclid=SMOKEBROWSER001\",\"r\":\"https://www.google.com/\",\"ti\":\"Home\",\"v\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"s\":\"\",\"sw\":1920,\"sh\":1080,\"wd\":0}" \
 	"$URL/?rest_route=/visitor-sentinel/v1/collect")
 echo "collect reply: $REPLY"
-echo "$REPLY" | grep -q '"ok":true' || fail "collect endpoint"
+contains "$REPLY" '"ok":true' || fail "collect endpoint"
 
 CLICKS=$(wp db query "SELECT COUNT(*) FROM wp_vsen_clicks WHERE click_type = 'ad_landing'" --skip-column-names)
 [ "$CLICKS" = "2" ] || fail "expected 2 ad landings, got $CLICKS"
@@ -71,10 +74,11 @@ curl -s -c "$JAR" -b 'wordpress_test_cookie=WP%20Cookie%20check' -o /dev/null \
 	--data 'log=admin&pwd=admin&testcookie=1&rememberme=forever' "$URL/wp-login.php"
 for PAGE in vsen-dashboard vsen-visitors vsen-fraud vsen-blocklist vsen-settings "vsen-dashboard&range=today" "vsen-fraud&view=fraud" "vsen-visitors&view=bots"; do
 	HTML=$(curl -s -b "$JAR" "$URL/wp-admin/admin.php?page=$PAGE")
-	echo "$HTML" | grep -q 'vsen-wrap' || fail "admin page $PAGE did not render"
+	contains "$HTML" 'vsen-wrap' || fail "admin page $PAGE did not render"
 done
 VISITOR=$(wp db query "SELECT id FROM wp_vsen_visitors LIMIT 1" --skip-column-names)
-curl -s -b "$JAR" "$URL/wp-admin/admin.php?page=vsen-visitors&visitor=$VISITOR" | grep -q 'vsen-timeline' || fail "visitor page"
+HTML=$(curl -s -b "$JAR" "$URL/wp-admin/admin.php?page=vsen-visitors&visitor=$VISITOR")
+contains "$HTML" 'vsen-timeline' || fail "visitor page"
 
 if [ -f wp/wp-content/debug.log ] && grep -i 'visitor-sentinel' wp/wp-content/debug.log; then
 	fail "PHP notices from the plugin"

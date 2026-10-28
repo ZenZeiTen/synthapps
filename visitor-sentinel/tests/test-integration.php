@@ -449,3 +449,15 @@ function test_session_duration_uses_measured_page_time() {
 	vsen_collect( array( 'e' => 'eng', 'pv' => $pv['pv'], 't' => $pv['t'], 'tt' => 95000 ) );
 	check_same( 95, (int) vsen_db()->get_var( 'SELECT duration FROM wp_vsen_sessions' ) );
 }
+
+function test_auto_block_when_a_later_score_crosses_the_threshold() {
+	// A client without JavaScript first scores 75 (bot, missing headers): fraudulent but below
+	// the auto-block threshold of 80. At the final check "no JavaScript" lifts it to 100.
+	vsen_visit( array( 'gclid' => 'CROSSINGCLICK1' ), array( 'HTTP_USER_AGENT' => 'curl/8.4.0', 'HTTP_ACCEPT_LANGUAGE' => '' ) );
+	check_same( 75, (int) vsen_db()->get_var( 'SELECT fraud_score FROM wp_vsen_clicks' ) );
+	check_same( 0, vsen_count( 'blocklist' ) );
+	vsen_db()->query( "UPDATE wp_vsen_clicks SET created_at = '" . Repository::now( -1200 ) . "'" );
+	Cron::finalize_clicks();
+	check_same( 100, (int) vsen_db()->get_var( 'SELECT fraud_score FROM wp_vsen_clicks' ) );
+	check_same( 1, vsen_count( 'blocklist' ), 'blocked once the score crosses the threshold' );
+}

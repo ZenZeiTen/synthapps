@@ -89,10 +89,13 @@ final class Fraud_Service {
 			$this->repo->refresh_visitor_score( (int) $click->visitor_id );
 		}
 
-		// Act only when the click first becomes fraudulent, so re-scoring never re-blocks an IP
+		// Block when the score first reaches the threshold, so re-scoring never re-blocks an IP
 		// that an administrator has since unblocked.
-		if ( Fraud_Engine::STATUS_FRAUD === (int) $result['status'] && Fraud_Engine::STATUS_FRAUD !== (int) $click->status ) {
+		$threshold = (int) Settings::get( 'auto_block_threshold' );
+		if ( $update['fraud_score'] >= $threshold && (int) $click->fraud_score < $threshold ) {
 			$this->maybe_auto_block( $click, $update['fraud_score'], $result['reasons'], $this->signals( $click ) );
+		}
+		if ( Fraud_Engine::STATUS_FRAUD === (int) $result['status'] && Fraud_Engine::STATUS_FRAUD !== (int) $click->status ) {
 			/**
 			 * Fires when a click is scored as fraudulent.
 			 *
@@ -190,7 +193,7 @@ final class Fraud_Service {
 	 * @param array  $signals Stored signals.
 	 */
 	private function maybe_auto_block( $click, $score, $reasons, $signals ) {
-		if ( ! Settings::get( 'auto_block' ) || $score < (int) Settings::get( 'auto_block_threshold' ) ) {
+		if ( ! Settings::get( 'auto_block' ) ) {
 			return;
 		}
 		// Never auto-block allowlisted IPs or search and ad platform crawlers.

@@ -74,7 +74,7 @@ in Google Ads "IP exclusions" format. An hourly email digest reports new fraud.
 php tests/run.php
 ```
 
-The test suite has 53 unit and integration tests. They run the real plugin code against a
+The test suite has 54 unit and integration tests. They run the real plugin code against a
 SQLite-backed `$wpdb` and a small stub of WordPress, because every query is written to run on both
 MySQL and SQLite. Any PHP warning or notice fails a test.
 
