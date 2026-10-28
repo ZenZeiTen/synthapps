@@ -22,6 +22,7 @@ Most chat buttons open WhatsApp with an empty message, and the first reply is al
 * **WooCommerce.** An "Ask about this product" button under Add to cart, sending the product name, price, SKU and link.
 * **Shortcode and block.** [contextchat] and a "ContextChat button" block for any page, using the same context and routing.
 * **Analytics without tracking people.** Clicks by day, page, agent, button and device, with CSV export. No IP addresses, cookies or message text are stored. Optional events for Google Analytics and Tag Manager.
+* **Bahasa Indonesia included.** Full Indonesian translation, used automatically when the site language is Indonesian.
 * **Fast and accessible.** One small script and stylesheet with no jQuery, loaded only where a button appears. Every button is a real link that works before the script loads. Keyboard and screen reader friendly, respects reduced motion, has a dark mode, and turns into a bottom sheet on phones.
 
 WhatsApp is a trademark of WhatsApp LLC. This plugin is not affiliated with or endorsed by WhatsApp LLC.

@@ -56,6 +56,11 @@ require_once ABSPATH . 'wp-settings.php';
 PHP
 
 rm -f "$SITE/wp-content/database/.ht.sqlite"   # the build ships a pre-installed database
+# WordPress only offers a language whose core files are installed. An empty catalogue stands in
+# for WordPress's own Indonesian pack so the plugin's id_ID translation can be tested.
+mkdir -p "$SITE/wp-content/languages"
+php -r 'file_put_contents($argv[1], pack("V7", 0x950412de, 0, 0, 28, 28, 0, 28));' "$SITE/wp-content/languages/id_ID.mo"
+
 ln -s "$PLUGIN" "$SITE/wp-content/plugins/contextchat"
 cp "$HERE/fake-woocommerce.php" "$SITE/wp-content/plugins/fake-woocommerce.php"
 echo "WordPress ready in $SITE"

@@ -1,0 +1,39 @@
+{
+ "domain": "messages",
+ "locale_data": {
+  "messages": {
+   "": {
+    "domain": "messages",
+    "lang": "id_ID",
+    "plural-forms": "nplurals=1; plural=0;"
+   },
+   "ContextChat button": [
+    "Tombol ContextChat"
+   ],
+   "A chat button for WhatsApp that sends the page context with the message.": [
+    "Tombol chat WhatsApp yang menyertakan konteks halaman di dalam pesan."
+   ],
+   "Chat on WhatsApp": [
+    "Chat via WhatsApp"
+   ],
+   "Chat settings": [
+    "Pengaturan chat"
+   ],
+   "Agent": [
+    "Agen"
+   ],
+   "Follow context rules": [
+    "Ikuti aturan konteks"
+   ],
+   "Message": [
+    "Pesan"
+   ],
+   "Leave empty to use your context rules. Placeholders such as {page_title} work here.": [
+    "Kosongkan untuk memakai aturan konteks. Placeholder seperti {page_title} dapat dipakai di sini."
+   ],
+   "Button text": [
+    "Teks tombol"
+   ]
+  }
+ }
+}

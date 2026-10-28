@@ -16,7 +16,7 @@ msgstr ""
 msgid "A chat button for WhatsApp that sends the page context with the message."
 msgstr ""
 
-#: assets/js/block.js:19 includes/class-frontend.php:233 includes/class-frontend.php:340
+#: assets/js/block.js:19 includes/class-frontend.php:233 includes/class-frontend.php:341
 msgid "Chat on WhatsApp"
 msgstr ""
 
@@ -662,7 +662,7 @@ msgstr ""
 msgid "Out of stock"
 msgstr ""
 
-#: includes/class-context.php:281
+#: includes/class-context.php:286
 #, php-format
 msgid "Search results for \"%s\""
 msgstr ""
@@ -687,11 +687,11 @@ msgstr ""
 msgid "Support"
 msgstr ""
 
-#: includes/class-frontend.php:433
+#: includes/class-frontend.php:434
 msgid "Online"
 msgstr ""
 
-#: includes/class-frontend.php:434
+#: includes/class-frontend.php:435
 msgid "Offline – replies when we are back"
 msgstr ""
 

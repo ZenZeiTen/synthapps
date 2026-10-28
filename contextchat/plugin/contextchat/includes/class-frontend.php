@@ -311,6 +311,7 @@ class ContextChat_Frontend {
 			CONTEXTCHAT_VERSION,
 			true
 		);
+		wp_set_script_translations( 'contextchat-block', 'contextchat', CONTEXTCHAT_DIR . 'languages' );
 		wp_register_style( 'contextchat-editor', CONTEXTCHAT_URL . 'assets/css/contextchat.css', array(), CONTEXTCHAT_VERSION );
 		wp_localize_script(
 			'contextchat-block',

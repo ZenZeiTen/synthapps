@@ -18,6 +18,7 @@ So the first message you receive reads *"Hi Budi! I need a sworn translation for
 - **WooCommerce** "Ask about this product" button with name, price, SKU and link.
 - **Shortcode and block**: `[contextchat text="Chat with us" agent="rina"]` and a "ContextChat button" block.
 - **Privacy-friendly analytics**: clicks by day, page, agent, button and device; CSV export; optional Google Analytics / Tag Manager events. No IP addresses, cookies or message text are stored.
+- **Translated into Indonesian** (Bahasa Indonesia), including the block editor strings. The plugin follows the site language set under Settings → General.
 - **Fast and accessible**: one small script with no jQuery, loaded only where a button shows; every button is a real link that works without JavaScript; keyboard and screen-reader support; reduced-motion and dark-mode aware; a bottom sheet on phones; works with page caching.
 
 | Opening hours | Analytics |
@@ -56,6 +57,16 @@ How it fits together:
 - `includes/class-analytics.php` – click table, the public `POST /wp-json/contextchat/v1/click` endpoint (validated and rate limited), reports.
 - `includes/class-admin.php`, `class-settings.php` – settings screen and strict sanitising of every saved value.
 
+## Translations
+
+`plugin/contextchat/languages/` holds the template (`contextchat.pot`) and the Indonesian translation (`contextchat-id_ID.po`). After changing strings in the code or editing a `.po` file, run:
+
+```bash
+npm run i18n
+```
+
+This refreshes the template and rebuilds the `.mo` file (PHP strings) and the `.json` file (block editor strings) for every language. To add a language, copy `contextchat.pot` to `contextchat-<locale>.po`, translate it, and run the same command.
+
 ## Tests
 
 ```bash
@@ -65,7 +76,7 @@ npm run test:e2e   # browser tests against a real WordPress site
 
 The PHP and JavaScript template engines are checked against the same cases in `tests/fixtures/templates.json`, so the link built on the server and the one built in the browser always say the same thing.
 
-The browser tests build a throwaway WordPress 6.5 site on SQLite (from the `@wp-playground/wordpress-builds` npm package, so neither MySQL nor wordpress.org is needed), start PHP's built-in server, and drive Chromium through: rule routing, editing the message, campaign tags, hidden pages, the product button, phones, opening hours, direct mode, saving settings through the admin form, the analytics screen, endpoint validation and rate limiting, and finally a clean uninstall. Any PHP notice from the plugin fails the run.
+The browser tests build a throwaway WordPress 6.5 site on SQLite (from the `@wp-playground/wordpress-builds` npm package, so neither MySQL nor wordpress.org is needed), start PHP's built-in server, and drive Chromium through: rule routing, the Indonesian translation, editing the message, campaign tags, hidden pages, the product button, phones, opening hours, direct mode, saving settings through the admin form, the analytics screen, endpoint validation and rate limiting, and finally a clean uninstall. Any PHP notice from the plugin fails the run.
 
 Limits of the test setup, stated plainly:
 

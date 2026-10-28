@@ -260,6 +260,24 @@ test( 'direct mode skips the panel', async () => {
 	}
 } );
 
+test( 'Indonesian: front-end and block editor strings are translated', async () => {
+	const info = JSON.parse( execFileSync( 'php', [ path.join( __dirname, 'set-language.php' ), SITE, 'id_ID' ] ).toString() );
+	try {
+		assert.equal( info.locale, 'id_ID' );
+		assert.deepEqual( info.block[ 'ContextChat button' ], [ 'Tombol ContextChat' ] );
+
+		const page = await newPage();
+		await page.goto( BASE + '/contact/' );
+		await page.locator( '.ctxc-launcher' ).click();
+		assert.equal( await page.locator( '.ctxc-close' ).getAttribute( 'aria-label' ), 'Tutup jendela chat' );
+		assert.equal( await page.locator( '.ctxc-composer-label' ).textContent(), 'Pesan Anda' );
+		assert.equal( await page.locator( '.ctxc-agents' ).getAttribute( 'aria-label' ), 'Pilih yang ingin Anda hubungi' );
+		await page.context().close();
+	} finally {
+		execFileSync( 'php', [ path.join( __dirname, 'set-language.php' ), SITE, '' ] );
+	}
+} );
+
 test( 'admin: settings save through the form and analytics count the clicks', async () => {
 	const page = await newPage();
 	await page.goto( BASE + '/wp-login.php' );
