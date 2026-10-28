@@ -1,0 +1,18 @@
+{
+  "name": "contextchat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Development tooling for the ContextChat WordPress plugin: unit tests, browser tests and the release zip.",
+  "scripts": {
+    "test": "php tests/php/unit.php && node --test tests/js/engine.test.js",
+    "test:e2e": "tests/e2e/run.sh",
+    "build": "scripts/build-zip.sh"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "GPL-2.0-or-later"
+}
