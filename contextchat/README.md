@@ -37,13 +37,12 @@ Requirements: WordPress 6.2 or newer, PHP 7.4 or newer. WooCommerce is optional.
 
 ## Releasing
 
-Update `RELEASE_NOTES.md` and the `Version:` line in `contextchat.php`, merge, then push a tag named after that version, for example:
+1. Update `RELEASE_NOTES.md` and the `Version:` line in `contextchat.php`, and merge to `main`.
+2. On GitHub, open **Actions → ContextChat plugin → Run workflow**, keep the branch on `main`, tick **Publish a release**, and click **Run workflow**.
 
-```bash
-git tag contextchat-v1.0.0 && git push origin contextchat-v1.0.0
-```
+The run tests everything, builds the zip, and publishes the release `contextchat-v<version>` with `RELEASE_NOTES.md` as its description, creating the tag on the tested commit. The run's summary links to the release.
 
-The workflow then runs every test, builds the zip, and publishes a GitHub release with `RELEASE_NOTES.md` as its description. It refuses a tag that does not match the `Version:` line in `contextchat.php`.
+Pushing a tag yourself works too (`git tag contextchat-v1.0.0 && git push origin contextchat-v1.0.0`); the workflow refuses a tag that does not match the `Version:` line. If a release with that tag already exists, even as a draft, the zip is added to it and a draft is published.
 
 ## For developers
 
