@@ -1,0 +1,87 @@
+name: Visitor Sentinel
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "visitor-sentinel/**"
+      - ".github/workflows/visitor-sentinel.yml"
+  push:
+    branches: [main]
+    paths:
+      - "visitor-sentinel/**"
+      - ".github/workflows/visitor-sentinel.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.0", "8.1", "8.2", "8.3"]
+    defaults:
+      run:
+        working-directory: visitor-sentinel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite
+          coverage: none
+      - name: Lint
+        run: find visitor-sentinel tests -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Unit and integration tests
+        run: php tests/run.php
+
+  browser:
+    name: Browser end-to-end
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: visitor-sentinel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - run: node tests/e2e/browser.test.cjs
+
+  wordpress:
+    name: WordPress + MySQL smoke test
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -proot" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli
+          tools: none
+          coverage: none
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+      - run: bash visitor-sentinel/tests/wordpress-smoke.sh
+        env:
+          WORK: ${{ runner.temp }}/wp-smoke
