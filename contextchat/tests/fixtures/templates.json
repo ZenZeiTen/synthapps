@@ -1,0 +1,86 @@
+[
+  {
+    "name": "fills a placeholder",
+    "template": "Hi, I'm on {page_title}.",
+    "vars": { "page_title": "Visa Translation" },
+    "expected": "Hi, I'm on Visa Translation."
+  },
+  {
+    "name": "default message with every value present",
+    "template": "Hi! I have a question about \"{page_title}\" ({page_url}).",
+    "vars": { "page_title": "Sworn Translation", "page_url": "https://example.com/sworn/" },
+    "expected": "Hi! I have a question about \"Sworn Translation\" (https://example.com/sworn/)."
+  },
+  {
+    "name": "empty values leave no empty quotes or brackets behind",
+    "template": "Hi! I have a question about \"{page_title}\" ({page_url}).",
+    "vars": {},
+    "expected": "Hi! I have a question about."
+  },
+  {
+    "name": "fallback used when the value is empty",
+    "template": "I'd like to know more about {product_name|your services}.",
+    "vars": { "product_name": "" },
+    "expected": "I'd like to know more about your services."
+  },
+  {
+    "name": "fallback ignored when the value is present",
+    "template": "I'd like to know more about {product_name|your services}.",
+    "vars": { "product_name": "Certified Translation" },
+    "expected": "I'd like to know more about Certified Translation."
+  },
+  {
+    "name": "unknown placeholders disappear",
+    "template": "Hello {nobody_knows_this} team!",
+    "vars": {},
+    "expected": "Hello team!"
+  },
+  {
+    "name": "placeholder names are case-insensitive",
+    "template": "Page: {Page_Title}",
+    "vars": { "page_title": "Pricing" },
+    "expected": "Page: Pricing"
+  },
+  {
+    "name": "values are trimmed",
+    "template": "Agent: {agent_name}!",
+    "vars": { "agent_name": "  Rina  " },
+    "expected": "Agent: Rina!"
+  },
+  {
+    "name": "dangling separators before a full stop are removed",
+    "template": "About {a}, {b}.",
+    "vars": {},
+    "expected": "About."
+  },
+  {
+    "name": "line breaks are kept but long gaps shrink",
+    "template": "Line one {x}\r\n\r\n\r\n\r\nLine two",
+    "vars": {},
+    "expected": "Line one\n\nLine two"
+  },
+  {
+    "name": "empty curly quotes are removed",
+    "template": "Interested in “{product_name}” today",
+    "vars": {},
+    "expected": "Interested in today"
+  },
+  {
+    "name": "unicode and emoji pass through",
+    "template": "Halo 👋 saya tertarik dengan {product_name} — {product_price}",
+    "vars": { "product_name": "Terjemahan Tersumpah", "product_price": "Rp150.000" },
+    "expected": "Halo 👋 saya tertarik dengan Terjemahan Tersumpah — Rp150.000"
+  },
+  {
+    "name": "braces that are not placeholders stay",
+    "template": "Use {a b} and { } literally",
+    "vars": {},
+    "expected": "Use {a b} and { } literally"
+  },
+  {
+    "name": "campaign context",
+    "template": "Hi! Came from {utm_source|your site} ({utm_campaign}) about {page_title}.",
+    "vars": { "utm_source": "instagram", "utm_campaign": "visa-season", "page_title": "Visa" },
+    "expected": "Hi! Came from instagram (visa-season) about Visa."
+  }
+]
