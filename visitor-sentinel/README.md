@@ -8,6 +8,13 @@ and **fraudulent click detection** for paid ad clicks and on-site ads.
 | [visitor-sentinel/](visitor-sentinel/) | The plugin. Zip this folder to install it. |
 | [tests/](tests/) | Unit and integration tests, a browser end-to-end test, and a real-WordPress smoke test |
 
+Installable zips are attached to the
+[Visitor Sentinel releases](https://github.com/ZenZeiTen/synthapps/releases?q=visitor-sentinel).
+To publish one, raise `Version` in `visitor-sentinel.php`, update [RELEASE_NOTES.md](RELEASE_NOTES.md),
+then on the Actions page run the **Visitor Sentinel** workflow on `main` with **Publish a release**
+ticked. It runs every test, builds `visitor-sentinel-<version>.zip` and publishes release
+`visitor-sentinel-v<version>`. Pushing a tag with that name does the same.
+
 ## What it does
 
 **IP address tracking.** Each visitor's IP, country (from Cloudflare or any geolocation service
