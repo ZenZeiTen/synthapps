@@ -69,7 +69,7 @@ All attributes are optional. Without `agent` the button follows your context rul
 == Changelog ==
 
 = 1.0.1 =
-* WordPress no longer accepts updates for ContextChat from WordPress.org, so an unrelated plugin with the same folder name can never replace it.
+* Fix: WordPress can no longer offer an unrelated plugin from WordPress.org as an "update" to ContextChat. WordPress matches updates by folder name, so a WordPress.org plugin also named "contextchat" would have replaced this one. The plugin now opts out of WordPress.org updates and removes any such offer already cached on the site.
 
 = 1.0.0 =
 * First release.

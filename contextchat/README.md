@@ -35,7 +35,7 @@ This writes `dist/contextchat-1.0.1.zip`. In WordPress go to **Plugins → Add N
 
 Requirements: WordPress 6.2 or newer, PHP 7.4 or newer. WooCommerce is optional.
 
-ContextChat is not on WordPress.org, so it opts out of WordPress.org updates (`Update URI: false`, and it drops any cached offer). An unrelated WordPress.org plugin in a folder named `contextchat` can therefore never be offered as an "update" that would replace it. Update ContextChat by uploading a newer zip and choosing **Replace current with uploaded**.
+ContextChat is not on WordPress.org, so it opts out of WordPress.org updates (`Update URI: false`, and it drops any cached offer). A WordPress.org plugin in a folder of the same name can never replace it. To update, upload a newer zip and choose **Replace current with uploaded**.
 
 ## Releasing
 
@@ -87,7 +87,7 @@ npm run test:e2e   # browser tests against a real WordPress site
 
 The PHP and JavaScript template engines are checked against the same cases in `tests/fixtures/templates.json`, so the link built on the server and the one built in the browser always say the same thing.
 
-The browser tests build a throwaway WordPress 6.5 site on SQLite (from the `@wp-playground/wordpress-builds` npm package, so neither MySQL nor wordpress.org is needed), start PHP's built-in server, and drive Chromium through: rule routing, the Indonesian translation, editing the message, campaign tags, hidden pages, the product button, phones, opening hours, direct mode, saving settings through the admin form, the analytics screen, endpoint validation and rate limiting, and finally a clean uninstall. Any PHP notice from the plugin fails the run.
+The browser tests build a throwaway WordPress 6.5 site on SQLite (from the `@wp-playground/wordpress-builds` npm package, so neither MySQL nor wordpress.org is needed), start PHP's built-in server, and drive Chromium through: rule routing, the Indonesian translation, editing the message, campaign tags, hidden pages, the product button, phones, opening hours, direct mode, saving settings through the admin form, the analytics screen, endpoint validation and rate limiting, a cached WordPress.org update offer for the `contextchat` folder (which must show as `none` in `wp plugin list`), and finally a clean uninstall. Any PHP notice from the plugin fails the run. The update-offer check needs WP-CLI: set `WP_CLI` (for example `WP_CLI="php wp-cli.phar"`) or have `wp` on your PATH; without it the check is skipped. CI always runs it.
 
 Limits of the test setup, stated plainly:
 

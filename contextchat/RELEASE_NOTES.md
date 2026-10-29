@@ -8,9 +8,16 @@ Requires WordPress 6.2 or newer and PHP 7.4 or newer. WooCommerce is optional.
 
 ## What's new in 1.0.1
 
-- ContextChat no longer accepts updates from WordPress.org. WordPress pairs updates with plugins by folder name, so an unrelated WordPress.org plugin in a folder named `contextchat` could otherwise be offered as an "update", and accepting it would replace ContextChat.
+- ContextChat opts out of WordPress.org updates. It is not hosted on WordPress.org, and WordPress matches updates by folder name, so a WordPress.org plugin that also used the folder `contextchat` would have been offered here as an "update", and accepting it would have replaced ContextChat. The plugin now tells WordPress not to ask WordPress.org about it, and removes any such offer already stored on the site.
+- If WordPress shows "A new version is available" for ContextChat, do not update from that notice. New versions of ContextChat come only as zips from this page.
 
-To update from 1.0.0, upload the 1.0.1 zip in **Plugins → Add New → Upload Plugin** and choose **Replace current with uploaded**. Your settings, agents and click statistics stay. Do not delete ContextChat first: deleting it removes its settings and statistics.
+### Updating from 1.0.0
+
+1. Download `contextchat-1.0.1.zip` below.
+2. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and click **Install Now**.
+3. WordPress says the plugin is already installed. Click **Replace current with uploaded**.
+
+Your settings, agents, rules and click analytics stay as they are. Nothing else changes.
 
 ## What's in 1.0.0
 

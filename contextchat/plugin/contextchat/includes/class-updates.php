@@ -1,11 +1,6 @@
 <?php
 /**
- * Keeps WordPress.org from offering another plugin as an update to this one.
- *
- * WordPress matches update offers by plugin folder. ContextChat is not hosted on WordPress.org,
- * so any plugin there in a folder named contextchat would be offered as an "update", and
- * accepting it would replace ContextChat. The Update URI header asks WordPress.org not to offer
- * updates; this filter also removes an offer a site has already cached.
+ * Updates: keep WordPress.org from offering another plugin as an update to this one.
  *
  * @package ContextChat
  */
@@ -13,7 +8,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Updates.
+ * Update offers.
  */
 class ContextChat_Updates {
 
@@ -25,7 +20,11 @@ class ContextChat_Updates {
 	}
 
 	/**
-	 * Remove any update offered for this plugin.
+	 * Remove any update WordPress.org offers for this plugin. ContextChat is not hosted on
+	 * WordPress.org, and WordPress matches updates by folder name, so a WordPress.org plugin in a
+	 * folder named "contextchat" would be offered here and "update now" would replace this plugin
+	 * with it. The Update URI header asks WordPress.org not to offer updates; this also clears an
+	 * offer already cached on the site.
 	 *
 	 * @param mixed $transient Value of the update_plugins site transient.
 	 * @return mixed
