@@ -1,0 +1,8 @@
+.cwtk-intro { max-width: 760px; font-size: 14px; }
+.cwtk-modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; max-width: 1100px; margin: 16px 0; }
+.cwtk-module { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 16px 18px; }
+.cwtk-module.is-on { border-color: #2271b1; box-shadow: 0 0 0 1px #2271b1; }
+.cwtk-module p { margin: 8px 0 0; color: #50575e; }
+.cwtk-module__switch { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.cwtk-module__paused { color: #996800 !important; }
+.cwtk-heading { margin: 8px 0 0; font-size: 1.1em; }

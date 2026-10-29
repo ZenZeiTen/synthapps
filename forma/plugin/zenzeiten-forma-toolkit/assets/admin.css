@@ -1,8 +1,0 @@
-.zzft-intro { max-width: 760px; font-size: 14px; }
-.zzft-modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; max-width: 1100px; margin: 16px 0; }
-.zzft-module { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 16px 18px; }
-.zzft-module.is-on { border-color: #2271b1; box-shadow: 0 0 0 1px #2271b1; }
-.zzft-module p { margin: 8px 0 0; color: #50575e; }
-.zzft-module__switch { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
-.zzft-module__paused { color: #996800 !important; }
-.zzft-heading { margin: 8px 0 0; font-size: 1.1em; }

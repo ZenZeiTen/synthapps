@@ -1,0 +1,62 @@
+<?php
+/**
+ * Title: About: story and promises
+ * Slug: corbelwise/about-split
+ * Categories: corbelwise-sections
+ * Keywords: about, story, mission, values, checklist
+ * Viewport Width: 1400
+ * Description: A short company story next to a card with a checklist of promises.
+ *
+ * @package Corbelwise
+ */
+
+?>
+<!-- wp:group {"align":"full","style":{"spacing":{"padding":{"top":"var:preset|spacing|70","bottom":"var:preset|spacing|70"},"margin":{"top":"0","bottom":"0"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group alignfull" style="margin-top:0;margin-bottom:0;padding-top:var(--wp--preset--spacing--70);padding-bottom:var(--wp--preset--spacing--70)"><!-- wp:columns {"align":"wide","style":{"spacing":{"blockGap":{"top":"var:preset|spacing|50","left":"var:preset|spacing|70"}}}} -->
+<div class="wp-block-columns alignwide"><!-- wp:column {"style":{"spacing":{"blockGap":"var:preset|spacing|30"}}} -->
+<div class="wp-block-column"><!-- wp:paragraph {"className":"is-style-corbelwise-eyebrow"} -->
+<p class="is-style-corbelwise-eyebrow"><?php esc_html_e( 'Our story', 'corbelwise' ); ?></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading"><?php esc_html_e( 'Small enough to care, experienced enough to deliver.', 'corbelwise' ); ?></h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><?php esc_html_e( 'We started with a simple idea: treat every client the way we would want to be treated. Today we are a close team of specialists, and that idea still guides every decision we make.', 'corbelwise' ); ?></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"textColor":"muted"} -->
+<p class="has-muted-color has-text-color"><?php esc_html_e( 'We keep our promises, explain things in plain language and take responsibility for the result.', 'corbelwise' ); ?></p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column {"verticalAlignment":"center"} -->
+<div class="wp-block-column is-vertically-aligned-center"><!-- wp:group {"className":"is-style-corbelwise-card","backgroundColor":"surface","style":{"spacing":{"blockGap":"var:preset|spacing|30"}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group is-style-corbelwise-card has-surface-background-color has-background"><!-- wp:heading {"level":3,"fontSize":"large"} -->
+<h3 class="wp-block-heading has-large-font-size"><?php esc_html_e( 'What you can expect', 'corbelwise' ); ?></h3>
+<!-- /wp:heading -->
+
+<!-- wp:list {"className":"is-style-corbelwise-checklist"} -->
+<ul class="is-style-corbelwise-checklist"><!-- wp:list-item -->
+<li><?php esc_html_e( 'A named contact for every project', 'corbelwise' ); ?></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><?php esc_html_e( 'Written quotes with fixed prices', 'corbelwise' ); ?></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><?php esc_html_e( 'Honest timelines, kept', 'corbelwise' ); ?></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><?php esc_html_e( 'Plain language, no jargon', 'corbelwise' ); ?></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><?php esc_html_e( 'Help after the work is done', 'corbelwise' ); ?></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:buttons {"style":{"spacing":{"margin":{"top":"var:preset|spacing|20"}}}} -->
+<div class="wp-block-buttons" style="margin-top:var(--wp--preset--spacing--20)"><!-- wp:button -->
+<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="<?php echo esc_url( home_url( '/contact/' ) ); ?>"><?php esc_html_e( 'Work with us', 'corbelwise' ); ?></a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons --></div>
+<!-- /wp:group --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns --></div>
+<!-- /wp:group -->
