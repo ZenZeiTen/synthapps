@@ -1,9 +1,9 @@
-=== Visitor Sentinel ===
+=== ZenZeiTen Visitor Guard ===
 Contributors: zenzeiten
 Tags: analytics, click fraud, ip tracking, visitor tracking, ad protection
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -11,7 +11,7 @@ Visitor analytics with IP address tracking, page activity tracking and fraudulen
 
 == Description ==
 
-Visitor Sentinel records who visits your site, what they do on each page, and whether the clicks you pay for come from people.
+Visitor Guard records who visits your site, what they do on each page, and whether the clicks you pay for come from people.
 
 = IP address tracking =
 
@@ -59,9 +59,9 @@ Clicks inside ad iframes such as AdSense are detected too.
 
 == Installation ==
 
-1. Upload the `visitor-sentinel` folder to `/wp-content/plugins/`, or upload the zip under Plugins > Add New.
+1. Upload the `zenzeiten-visitor-guard` folder to `/wp-content/plugins/`, or upload the zip under Plugins > Add New.
 2. Activate the plugin.
-3. Open Visitor Sentinel > Settings. If your site is behind Cloudflare, tick "This site is behind Cloudflare". Behind another proxy, choose its header and enter its addresses.
+3. Open Visitor Guard > Settings. If your site is behind Cloudflare, tick "This site is behind Cloudflare". Behind another proxy, choose its header and enter its addresses.
 4. List your ad units under "Ad elements", or wrap ad code in `[vsen_ad label="sidebar"]...[/vsen_ad]`.
 
 == Frequently Asked Questions ==
@@ -72,7 +72,7 @@ Yes. The tracker reports through the REST API from the browser, and ad hiding fo
 
 = Does it block my ad clicks on Google Ads? =
 
-No plugin can stop Google from charging for a click that already happened. Visitor Sentinel finds fraudulent clicks, hides ads from the sources, and exports their IPs in the format of the Google Ads campaign "IP exclusions" setting (up to 500 per campaign), so the same sources stop seeing your ads. Use the fraud report as evidence when you ask the ad network for a refund.
+No plugin can stop Google from charging for a click that already happened. Visitor Guard finds fraudulent clicks, hides ads from the sources, and exports their IPs in the format of the Google Ads campaign "IP exclusions" setting (up to 500 per campaign), so the same sources stop seeing your ads. Use the fraud report as evidence when you ask the ad network for a refund.
 
 = How do I track custom events? =
 
@@ -87,6 +87,11 @@ Add `data-vsen-track="label"` to an element, or call `VisitorSentinel.track('lab
 * `vsen_blocked_request` action: fires before a blocked visitor is refused.
 
 == Changelog ==
+
+= 1.1.0 =
+* Renamed from Visitor Sentinel to ZenZeiTen Visitor Guard, in the folder zenzeiten-visitor-guard. An unrelated WordPress.org plugin uses the old folder name, and WordPress offered it as an "update" that replaced this plugin.
+* The plugin no longer accepts updates from WordPress.org.
+* While the old Visitor Sentinel copy is active, this plugin waits and asks for it to be removed. Settings and data carry over.
 
 = 1.0.0 =
 * First release.

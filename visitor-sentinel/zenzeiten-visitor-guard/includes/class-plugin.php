@@ -39,6 +39,10 @@ final class Plugin {
 	public function boot() {
 		add_action( 'plugins_loaded', array( 'VisitorSentinel\\Installer', 'maybe_upgrade' ) );
 		add_action( 'init', array( $this, 'load_textdomain' ) );
+		// Activation normally schedules cron, but switching from the old Visitor Sentinel folder
+		// activates this copy while the old one runs, and the old one clears cron when it is removed.
+		add_action( 'init', array( 'VisitorSentinel\\Cron', 'schedule' ) );
+		add_filter( 'site_transient_update_plugins', array( __CLASS__, 'drop_wporg_update' ) );
 
 		( new Tracker() )->register();
 		( new Protection() )->register();
@@ -62,10 +66,31 @@ final class Plugin {
 	}
 
 	/**
+	 * Remove any update WordPress.org offers for this plugin. WordPress.org hosts an unrelated
+	 * plugin in a folder of the same name, and WordPress matches updates by folder, so "update
+	 * now" would replace this plugin with that one. The Update URI header asks WordPress.org not
+	 * to offer updates; this also clears an offer already cached on the site.
+	 *
+	 * @param mixed $transient Value of the update_plugins site transient.
+	 * @return mixed
+	 */
+	public static function drop_wporg_update( $transient ) {
+		if ( is_object( $transient ) ) {
+			$file = plugin_basename( VSEN_FILE );
+			foreach ( array( 'response', 'no_update' ) as $list ) {
+				if ( isset( $transient->$list ) && is_array( $transient->$list ) ) {
+					unset( $transient->{$list}[ $file ] );
+				}
+			}
+		}
+		return $transient;
+	}
+
+	/**
 	 * Load translations.
 	 */
 	public function load_textdomain() {
-		load_plugin_textdomain( 'visitor-sentinel', false, dirname( plugin_basename( VSEN_FILE ) ) . '/languages' );
+		load_plugin_textdomain( 'zenzeiten-visitor-guard', false, dirname( plugin_basename( VSEN_FILE ) ) . '/languages' );
 	}
 
 	/**
@@ -75,7 +100,7 @@ final class Plugin {
 	 */
 	public static function capability() {
 		/**
-		 * Filter the capability for Visitor Sentinel's admin screens.
+		 * Filter the capability for Visitor Guard's admin screens.
 		 *
 		 * @param string $capability Capability.
 		 */

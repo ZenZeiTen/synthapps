@@ -41,14 +41,14 @@ final class Visitors_Table extends \WP_List_Table {
 	public function get_columns() {
 		return array(
 			'cb'          => '<input type="checkbox" />',
-			'ip'          => __( 'Visitor', 'visitor-sentinel' ),
-			'device'      => __( 'Device', 'visitor-sentinel' ),
-			'sessions'    => __( 'Sessions', 'visitor-sentinel' ),
-			'pageviews'   => __( 'Pageviews', 'visitor-sentinel' ),
-			'clicks'      => __( 'Clicks', 'visitor-sentinel' ),
-			'fraud_score' => __( 'Fraud score', 'visitor-sentinel' ),
-			'first_seen'  => __( 'First seen', 'visitor-sentinel' ),
-			'last_seen'   => __( 'Last seen', 'visitor-sentinel' ),
+			'ip'          => __( 'Visitor', 'zenzeiten-visitor-guard' ),
+			'device'      => __( 'Device', 'zenzeiten-visitor-guard' ),
+			'sessions'    => __( 'Sessions', 'zenzeiten-visitor-guard' ),
+			'pageviews'   => __( 'Pageviews', 'zenzeiten-visitor-guard' ),
+			'clicks'      => __( 'Clicks', 'zenzeiten-visitor-guard' ),
+			'fraud_score' => __( 'Fraud score', 'zenzeiten-visitor-guard' ),
+			'first_seen'  => __( 'First seen', 'zenzeiten-visitor-guard' ),
+			'last_seen'   => __( 'Last seen', 'zenzeiten-visitor-guard' ),
 		);
 	}
 
@@ -75,8 +75,8 @@ final class Visitors_Table extends \WP_List_Table {
 	 */
 	protected function get_bulk_actions() {
 		return array(
-			'block'   => __( 'Block IP', 'visitor-sentinel' ),
-			'unblock' => __( 'Unblock IP', 'visitor-sentinel' ),
+			'block'   => __( 'Block IP', 'zenzeiten-visitor-guard' ),
+			'unblock' => __( 'Unblock IP', 'zenzeiten-visitor-guard' ),
 		);
 	}
 
@@ -89,10 +89,10 @@ final class Visitors_Table extends \WP_List_Table {
 		$counts  = Repository::instance()->visitor_view_counts();
 		$current = $this->current_filter();
 		$labels  = array(
-			'all'        => __( 'All', 'visitor-sentinel' ),
-			'humans'     => __( 'Humans', 'visitor-sentinel' ),
-			'bots'       => __( 'Bots', 'visitor-sentinel' ),
-			'suspicious' => __( 'Suspicious', 'visitor-sentinel' ),
+			'all'        => __( 'All', 'zenzeiten-visitor-guard' ),
+			'humans'     => __( 'Humans', 'zenzeiten-visitor-guard' ),
+			'bots'       => __( 'Bots', 'zenzeiten-visitor-guard' ),
+			'suspicious' => __( 'Suspicious', 'zenzeiten-visitor-guard' ),
 		);
 		$views   = array();
 		foreach ( $labels as $key => $label ) {
@@ -144,7 +144,7 @@ final class Visitors_Table extends \WP_List_Table {
 	 * Empty message.
 	 */
 	public function no_items() {
-		esc_html_e( 'No visitors recorded yet. Visits appear here as soon as someone opens a page with the tracker.', 'visitor-sentinel' );
+		esc_html_e( 'No visitors recorded yet. Visits appear here as soon as someone opens a page with the tracker.', 'zenzeiten-visitor-guard' );
 	}
 
 	/**
@@ -171,18 +171,18 @@ final class Visitors_Table extends \WP_List_Table {
 			$html .= ' <span class="vsen-country" title="' . esc_attr( $item->country ) . '">' . esc_html( Admin::flag( $item->country ) . ' ' . $item->country ) . '</span>';
 		}
 		if ( (int) $item->is_bot ) {
-			$html .= ' <span class="vsen-pill">' . esc_html__( 'Bot', 'visitor-sentinel' ) . '</span>';
+			$html .= ' <span class="vsen-pill">' . esc_html__( 'Bot', 'zenzeiten-visitor-guard' ) . '</span>';
 		}
 		if ( $blocked ) {
-			$html .= ' <span class="vsen-pill vsen-pill--fraud">' . esc_html__( 'Blocked', 'visitor-sentinel' ) . '</span>';
+			$html .= ' <span class="vsen-pill vsen-pill--fraud">' . esc_html__( 'Blocked', 'zenzeiten-visitor-guard' ) . '</span>';
 		}
 		$actions = array(
-			'view' => '<a href="' . esc_url( $link ) . '">' . esc_html__( 'View activity', 'visitor-sentinel' ) . '</a>',
+			'view' => '<a href="' . esc_url( $link ) . '">' . esc_html__( 'View activity', 'zenzeiten-visitor-guard' ) . '</a>',
 		);
 		if ( '' !== (string) $item->ip_hash ) {
 			$actions['block'] = $blocked
-				? '<a href="' . esc_url( Admin::action_url( 'unblock_visitor', array( 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Unblock IP', 'visitor-sentinel' ) . '</a>'
-				: '<a class="vsen-danger" href="' . esc_url( Admin::action_url( 'block_visitor', array( 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Block IP', 'visitor-sentinel' ) . '</a>';
+				? '<a href="' . esc_url( Admin::action_url( 'unblock_visitor', array( 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Unblock IP', 'zenzeiten-visitor-guard' ) . '</a>'
+				: '<a class="vsen-danger" href="' . esc_url( Admin::action_url( 'block_visitor', array( 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Block IP', 'zenzeiten-visitor-guard' ) . '</a>';
 		}
 		return $html . $this->row_actions( $actions );
 	}

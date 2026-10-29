@@ -1,5 +1,5 @@
 /**
- * Visitor Sentinel admin: dashboard chart, live visitors and confirm prompts.
+ * Visitor Guard admin: dashboard chart, live visitors and confirm prompts.
  */
 ( function () {
 	'use strict';

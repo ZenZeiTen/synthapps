@@ -1,18 +1,22 @@
-# Visitor Sentinel
+# ZenZeiTen Visitor Guard
 
 A WordPress plugin for visitor analytics with **IP address tracking**, **page activity tracking**
 and **fraudulent click detection** for paid ad clicks and on-site ads.
 
 | Path | What it is |
 |---|---|
-| [visitor-sentinel/](visitor-sentinel/) | The plugin. Zip this folder to install it. |
+| [zenzeiten-visitor-guard/](zenzeiten-visitor-guard/) | The plugin. Zip this folder to install it. |
 | [tests/](tests/) | Unit and integration tests, a browser end-to-end test, and a real-WordPress smoke test |
 
+Before 1.1.0 the plugin was called Visitor Sentinel and lived in a `visitor-sentinel` folder. It was
+renamed because an unrelated WordPress.org plugin uses that folder name. The code, settings, tables and
+release tags (`visitor-sentinel-v*`) keep the old internal names, so data carries over.
+
 Installable zips are attached to the
-[Visitor Sentinel releases](https://github.com/ZenZeiTen/synthapps/releases?q=visitor-sentinel).
-To publish one, raise `Version` in `visitor-sentinel.php`, update [RELEASE_NOTES.md](RELEASE_NOTES.md),
-then on the Actions page run the **Visitor Sentinel** workflow on `main` with **Publish a release**
-ticked. It runs every test, builds `visitor-sentinel-<version>.zip` and publishes release
+[releases](https://github.com/ZenZeiTen/synthapps/releases?q=visitor-sentinel).
+To publish one, raise `Version` in `zenzeiten-visitor-guard.php`, update [RELEASE_NOTES.md](RELEASE_NOTES.md),
+then on the Actions page run the **ZenZeiTen Visitor Guard** workflow on `main` with **Publish a release**
+ticked. It runs every test, builds `zenzeiten-visitor-guard-<version>.zip` and publishes release
 `visitor-sentinel-v<version>`. Pushing a tag with that name does the same.
 
 ## What it does
@@ -74,6 +78,9 @@ in Google Ads "IP exclusions" format. An hourly email digest reports new fraud.
   URLs that carry click IDs, but check yours.
 - Without a persistent object cache, the rate limiter stores short-lived transients in the
   options table.
+- The plugin opts out of WordPress.org updates (`Update URI: false`, and it drops any cached offer),
+  so a WordPress.org plugin with the same folder name can never replace it. Update it by uploading a
+  newer zip with **Replace current with uploaded**.
 
 ## Tests
 
@@ -97,7 +104,8 @@ fraud and blocked, and has its ads hidden on the same page and the next one.
 DB_HOST=127.0.0.1 DB_USER=root DB_PASS=root bash tests/wordpress-smoke.sh
 ```
 
-This installs WordPress on MySQL with WP-CLI, activates the plugin, records a server-side and a
+This installs WordPress on MySQL with WP-CLI, switches from an old `visitor-sentinel` copy to the
+renamed plugin (data kept, cron rescheduled, no WordPress.org update offered), records a server-side and a
 browser-reported ad landing, runs cron, and loads every admin screen as an administrator. The
 [CI workflow](../.github/workflows/visitor-sentinel.yml) runs all three, with the unit tests on
 PHP 7.4 to 8.3.

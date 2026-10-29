@@ -50,7 +50,7 @@ $path    = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
 
 if ( '/tracker.js' === $path ) {
 	header( 'Content-Type: application/javascript' );
-	readfile( dirname( __DIR__, 2 ) . '/visitor-sentinel/assets/js/tracker.js' );
+	readfile( dirname( __DIR__, 2 ) . '/zenzeiten-visitor-guard/assets/js/tracker.js' );
 	exit;
 }
 
