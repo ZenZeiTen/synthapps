@@ -2,9 +2,15 @@ A WordPress plugin with a chat button for WhatsApp. It fills in each message wit
 
 ## Install
 
-Download `contextchat-1.0.0.zip` below. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your WhatsApp number with country code, or add agents.
+Download `contextchat-1.0.1.zip` below. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your WhatsApp number with country code, or add agents.
 
 Requires WordPress 6.2 or newer and PHP 7.4 or newer. WooCommerce is optional.
+
+## What's new in 1.0.1
+
+- ContextChat no longer accepts updates from WordPress.org. WordPress pairs updates with plugins by folder name, so an unrelated WordPress.org plugin in a folder named `contextchat` could otherwise be offered as an "update", and accepting it would replace ContextChat.
+
+To update from 1.0.0, upload the 1.0.1 zip in **Plugins → Add New → Upload Plugin** and choose **Replace current with uploaded**. Your settings, agents and click statistics stay. Do not delete ContextChat first: deleting it removes its settings and statistics.
 
 ## What's in 1.0.0
 

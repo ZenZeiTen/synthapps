@@ -10,6 +10,12 @@ define( 'ABSPATH', __DIR__ . '/' );
 $plugin = dirname( __DIR__, 2 ) . '/plugin/contextchat';
 require $plugin . '/includes/class-template.php';
 require $plugin . '/includes/class-context.php';
+require $plugin . '/includes/class-updates.php';
+
+define( 'CONTEXTCHAT_FILE', $plugin . '/contextchat.php' );
+function plugin_basename( $file ) {
+	return basename( dirname( $file ) ) . '/' . basename( $file );
+}
 
 $failures = 0;
 $count    = 0;
@@ -93,6 +99,20 @@ $rules = array(
 );
 check( 'rules: first match wins', ContextChat_Context::first_match( $rules, $env )['id'], 'r2' );
 check( 'rules: no match', ContextChat_Context::first_match( array( $rules[0] ), $env ), null );
+
+// Updates: WordPress.org must never offer another plugin named contextchat as an update.
+$transient = (object) array(
+	'response'  => array(
+		'contextchat/contextchat.php' => (object) array( 'new_version' => '9.9.9' ),
+		'akismet/akismet.php'         => (object) array( 'new_version' => '5.4' ),
+	),
+	'no_update' => array( 'contextchat/contextchat.php' => (object) array( 'new_version' => '9.9.9' ) ),
+);
+$updates   = ContextChat_Updates::drop_wporg_update( $transient );
+check( 'updates: an offer for this plugin is dropped, others stay', array_keys( $updates->response ), array( 'akismet/akismet.php' ) );
+check( 'updates: this plugin is removed from no_update too', $updates->no_update, array() );
+check( 'updates: a missing transient stays missing', ContextChat_Updates::drop_wporg_update( false ), false );
+check( 'updates: the header opts out of WordPress.org updates', false !== strpos( file_get_contents( CONTEXTCHAT_FILE ), "\n * Update URI:        false\n" ), true );
 
 echo "\n{$count} checks, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

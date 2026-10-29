@@ -23,6 +23,7 @@ done
 
 status=0
 CTXC_BASE="$BASE" CTXC_SITE="$SITE" CTXC_SHOTS="${1:-}" node --test --test-concurrency=1 "$HERE/browser.test.js" || status=$?
+php "$HERE/update-check.php" "$SITE" || status=1
 php "$HERE/uninstall-check.php" "$SITE" || status=1
 
 # PHP notices or warnings from the plugin fail the run.
