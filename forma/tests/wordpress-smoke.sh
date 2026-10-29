@@ -33,8 +33,12 @@ define( 'WP_DEBUG_DISPLAY', false );
 PHP
 wp db reset --yes >/dev/null 2>&1 || wp db create
 wp core install --url="$URL" --title="Smoke Studio" --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+# The site is served from the WordPress folder itself, so both addresses are the bare URL. Some
+# WP-CLI and WordPress combinations store a guessed site address, which WordPress then redirects to.
+wp option update home "$URL" >/dev/null
+wp option update siteurl "$URL" >/dev/null
 wp rewrite structure '/%postname%/' --hard >/dev/null
-echo "WordPress $(wp core version), PHP $(php -r 'echo PHP_VERSION;')"
+echo "WordPress $(wp core version), PHP $(php -r 'echo PHP_VERSION;'), home $(wp option get home), siteurl $(wp option get siteurl)"
 
 ln -s "$FORMA/theme/zenzeiten-forma" wp/wp-content/themes/zenzeiten-forma
 ln -s "$FORMA/plugin/zenzeiten-forma-toolkit" wp/wp-content/plugins/zenzeiten-forma-toolkit
