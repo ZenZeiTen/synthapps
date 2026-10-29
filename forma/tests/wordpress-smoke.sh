@@ -48,6 +48,13 @@ trap 'kill $SERVER 2>/dev/null || true' EXIT
 for _ in $(seq 1 50); do curl -s -o /dev/null "$URL/" && break; sleep 0.2; done
 
 fail() { echo "FAIL: $*"; [ -f wp/wp-content/debug.log ] && cat wp/wp-content/debug.log; exit 1; }
+# Show what a page returned, for a failure that is not a PHP error.
+show() {
+	echo "--- $1: HTTP $(curl -s -o /dev/null -w '%{http_code} -> %{redirect_url}' "$1") ---"
+	head -c 2500 <<<"$2"
+	echo
+	echo "--- end ---"
+}
 # grep reads a string, not a pipe: with pipefail, `curl | grep -q` fails when grep exits early.
 contains() { grep -q -- "$2" <<<"$1"; }
 
@@ -83,9 +90,9 @@ for PAGE in "/" "/about/" "/services/" "/pricing/" "/contact/" "$POST_URL" "/?s=
 	TARGET="$PAGE"
 	case "$PAGE" in http*) ;; *) TARGET="$URL$PAGE" ;; esac
 	HTML=$(curl -s "$TARGET")
-	contains "$HTML" 'data-color-scheme="auto"' || fail "$PAGE: no colour scheme attribute"
-	contains "$HTML" 'zzforma-header' || fail "$PAGE: theme header missing"
-	contains "$HTML" 'application/ld+json' || [ "$PAGE" = "/?s=projects" ] || fail "$PAGE: no structured data"
+	contains "$HTML" 'data-color-scheme="auto"' || { show "$TARGET" "$HTML"; fail "$PAGE: no colour scheme attribute"; }
+	contains "$HTML" 'zzforma-header' || { show "$TARGET" "$HTML"; fail "$PAGE: theme header missing"; }
+	contains "$HTML" 'application/ld+json' || [ "$PAGE" = "/?s=projects" ] || { show "$TARGET" "$HTML"; fail "$PAGE: no structured data"; }
 	if contains "$HTML" 'critical error' || contains "$HTML" 'Fatal error'; then fail "$PAGE: PHP error"; fi
 done
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$URL/no-such-page/")" = "404" ] || fail "404 page status"
