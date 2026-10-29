@@ -1,0 +1,73 @@
+{
+	"$schema": "https://schemas.wp.org/wp/6.5/theme.json",
+	"version": 2,
+	"title": "Noir",
+	"settings": {
+		"color": {
+			"palette": [
+				{
+					"slug": "base",
+					"name": "Base",
+					"color": "#0E0E0D"
+				},
+				{
+					"slug": "surface",
+					"name": "Surface",
+					"color": "#1A1918"
+				},
+				{
+					"slug": "contrast",
+					"name": "Contrast",
+					"color": "#F1EEE7"
+				},
+				{
+					"slug": "muted",
+					"name": "Muted text",
+					"color": "#A8A296"
+				},
+				{
+					"slug": "accent",
+					"name": "Accent",
+					"color": "#CFAE6E"
+				},
+				{
+					"slug": "accent-strong",
+					"name": "Accent (strong)",
+					"color": "#E2C68D"
+				},
+				{
+					"slug": "on-accent",
+					"name": "Text on accent",
+					"color": "#17130A"
+				},
+				{
+					"slug": "border",
+					"name": "Border",
+					"color": "#2E2C29"
+				}
+			]
+		},
+		"custom": {
+			"dark": {
+				"base": "#0E0E0D",
+				"surface": "#1A1918",
+				"contrast": "#F1EEE7",
+				"muted": "#A8A296",
+				"accent": "#CFAE6E",
+				"accentStrong": "#E2C68D",
+				"onAccent": "#17130A",
+				"border": "#2E2C29"
+			}
+		}
+	},
+	"styles": {
+		"elements": {
+			"heading": {
+				"typography": {
+					"fontWeight": "400",
+					"letterSpacing": "-0.01em"
+				}
+			}
+		}
+	}
+}

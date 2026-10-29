@@ -1,0 +1,12 @@
+.cwtk-ai-preview { margin-top: 12px; padding: 12px; border: 1px solid #dcdcde; border-radius: 4px; background: #f6f7f7; }
+.cwtk-ai-preview__body { max-height: 320px; overflow: auto; font-size: 13px; line-height: 1.5; }
+.cwtk-ai-preview__body > :first-child { margin-top: 0; }
+.cwtk-ai-preview__actions { display: flex; gap: 8px; margin-top: 10px; }
+.cwtk-ai-preview p { margin: 0 0 8px; }
+.cwtk-ai-row { margin: 8px 0; }
+.cwtk-ai-hint, .cwtk-ai-footnote { color: #757575; font-size: 12px; }
+.cwtk-ai-footnote { padding: 0 16px 16px; }
+.cwtk-ai-titles { margin: 8px 0 0; }
+.cwtk-ai-titles li { margin-bottom: 4px; }
+.cwtk-ai-titles .components-button.is-link { text-align: left; height: auto; white-space: normal; }
+.cwtk-ai-error { margin: 12px 16px 0; }

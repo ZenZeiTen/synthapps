@@ -1,0 +1,73 @@
+{
+	"$schema": "https://schemas.wp.org/wp/6.5/theme.json",
+	"version": 2,
+	"title": "Ember",
+	"settings": {
+		"color": {
+			"palette": [
+				{
+					"slug": "base",
+					"name": "Base",
+					"color": "#FCF8F3"
+				},
+				{
+					"slug": "surface",
+					"name": "Surface",
+					"color": "#F5EBDF"
+				},
+				{
+					"slug": "contrast",
+					"name": "Contrast",
+					"color": "#2A1A12"
+				},
+				{
+					"slug": "muted",
+					"name": "Muted text",
+					"color": "#6B5547"
+				},
+				{
+					"slug": "accent",
+					"name": "Accent",
+					"color": "#A8431F"
+				},
+				{
+					"slug": "accent-strong",
+					"name": "Accent (strong)",
+					"color": "#82331A"
+				},
+				{
+					"slug": "on-accent",
+					"name": "Text on accent",
+					"color": "#FFFFFF"
+				},
+				{
+					"slug": "border",
+					"name": "Border",
+					"color": "#EADBCB"
+				}
+			]
+		},
+		"custom": {
+			"dark": {
+				"base": "#17110D",
+				"surface": "#221914",
+				"contrast": "#F5EDE5",
+				"muted": "#BCA999",
+				"accent": "#F29A72",
+				"accentStrong": "#F7BB9E",
+				"onAccent": "#2A1206",
+				"border": "#3A2C23"
+			}
+		}
+	},
+	"styles": {
+		"elements": {
+			"heading": {
+				"typography": {
+					"fontWeight": "600",
+					"letterSpacing": "-0.02em"
+				}
+			}
+		}
+	}
+}
