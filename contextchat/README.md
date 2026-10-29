@@ -31,7 +31,7 @@ So the first message you receive reads *"Hi Budi! I need a sworn translation for
 npm run build
 ```
 
-This writes `dist/contextchat-1.0.1.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
+This writes `dist/contextchat-1.0.2.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
 
 Requirements: WordPress 6.2 or newer, PHP 7.4 or newer. WooCommerce is optional.
 
@@ -44,7 +44,7 @@ ContextChat is not on WordPress.org, so it opts out of WordPress.org updates (`U
 
 The run tests everything, builds the zip, and publishes the release `contextchat-v<version>` with `RELEASE_NOTES.md` as its description, creating the tag on the tested commit. The run's summary links to the release.
 
-Pushing a tag yourself works too (`git tag contextchat-v1.0.1 && git push origin contextchat-v1.0.1`); the workflow refuses a tag that does not match the `Version:` line. If a release with that tag already exists, even as a draft, the zip is added to it and a draft is published.
+Pushing a tag yourself works too (`git tag contextchat-v1.0.2 && git push origin contextchat-v1.0.2`); the workflow refuses a tag that does not match the `Version:` line. If a release with that tag already exists, even as a draft, the zip is added to it and a draft is published.
 
 ## For developers
 

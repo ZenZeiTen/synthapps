@@ -3,7 +3,7 @@
  * Plugin Name:       ContextChat – Smart Chat Button for WhatsApp
  * Plugin URI:        https://github.com/ZenZeiTen/synthapps/tree/main/contextchat
  * Description:       A fast, accessible chat button for WhatsApp that pre-fills every message with the page, product and campaign the visitor came from, and routes it to the right agent.
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            NSXSFT
@@ -20,7 +20,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CONTEXTCHAT_VERSION', '1.0.1' );
+define( 'CONTEXTCHAT_VERSION', '1.0.2' );
 define( 'CONTEXTCHAT_DB_VERSION', '1' );
 define( 'CONTEXTCHAT_FILE', __FILE__ );
 define( 'CONTEXTCHAT_DIR', plugin_dir_path( __FILE__ ) );
