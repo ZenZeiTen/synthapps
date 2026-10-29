@@ -232,8 +232,8 @@ function register_rest_route( $ns, $route, $args ) { return true; }
 function register_setting( ...$args ) {}
 function load_plugin_textdomain( ...$args ) { return true; }
 function plugin_dir_path( $file ) { return dirname( $file ) . '/'; }
-function plugin_dir_url( $file ) { return 'https://example.com/wp-content/plugins/visitor-sentinel/'; }
-function plugin_basename( $file ) { return 'visitor-sentinel/visitor-sentinel.php'; }
+function plugin_dir_url( $file ) { return 'https://example.com/wp-content/plugins/zenzeiten-visitor-guard/'; }
+function plugin_basename( $file ) { return 'zenzeiten-visitor-guard/zenzeiten-visitor-guard.php'; }
 function is_admin() { return false; }
 function wp_doing_cron() { return false; }
 function wp_doing_ajax() { return false; }
@@ -364,8 +364,8 @@ final class WP_REST_Response {
 
 $GLOBALS['wpdb'] = new Fake_Wpdb();
 $_SERVER         = array( 'REMOTE_ADDR' => '127.0.0.1', 'REQUEST_METHOD' => 'GET' );
-require dirname( __DIR__ ) . '/visitor-sentinel/visitor-sentinel.php';
-require dirname( __DIR__ ) . '/visitor-sentinel/includes/admin/class-admin.php';
+require dirname( __DIR__ ) . '/zenzeiten-visitor-guard/zenzeiten-visitor-guard.php';
+require dirname( __DIR__ ) . '/zenzeiten-visitor-guard/includes/admin/class-admin.php';
 
 /**
  * Fresh database, options and request state.

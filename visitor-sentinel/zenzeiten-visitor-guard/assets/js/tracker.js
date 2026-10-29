@@ -1,5 +1,5 @@
 /**
- * Visitor Sentinel tracker.
+ * Visitor Guard tracker.
  *
  * Records the pageview, time on page, scroll depth, interactions and clicks, and reports the
  * browser signals the fraud engine uses. No dependencies, no cookies; an optional random ID in

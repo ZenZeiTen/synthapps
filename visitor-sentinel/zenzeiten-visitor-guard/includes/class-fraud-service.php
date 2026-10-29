@@ -203,7 +203,7 @@ final class Fraud_Service {
 		$labels = Fraud_Engine::labels();
 		$first  = isset( $reasons[0], $labels[ $reasons[0] ] ) ? $labels[ $reasons[0] ] : '';
 		/* translators: 1: fraud score, 2: main reason */
-		$reason = sprintf( __( 'Automatic: score %1$d. %2$s', 'visitor-sentinel' ), $score, $first );
+		$reason = sprintf( __( 'Automatic: score %1$d. %2$s', 'zenzeiten-visitor-guard' ), $score, $first );
 		Protection::block_hash( $click->ip_hash, $click->ip, $reason, 'auto', $score, (int) Settings::get( 'block_duration_days' ) );
 	}
 }

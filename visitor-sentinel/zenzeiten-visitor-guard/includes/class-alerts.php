@@ -59,21 +59,21 @@ final class Alerts {
 				$click->created_at,
 				'' !== (string) $click->ip ? $click->ip : substr( (string) $click->ip_hash, 0, 12 ),
 				'' !== (string) $click->network ? $click->network : $click->click_type,
-				__( 'score', 'visitor-sentinel' ),
+				__( 'score', 'zenzeiten-visitor-guard' ),
 				(int) $click->fraud_score,
 				implode( '; ', $reasons )
 			);
 		}
 		if ( $more ) {
-			$lines[] = __( '- ...and more. See the dashboard for the full list.', 'visitor-sentinel' );
+			$lines[] = __( '- ...and more. See the dashboard for the full list.', 'zenzeiten-visitor-guard' );
 		}
 
 		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		/* translators: 1: site name, 2: number of clicks */
-		$subject = sprintf( __( '[%1$s] Visitor Sentinel: %2$d fraudulent clicks detected', 'visitor-sentinel' ), $site, count( $clicks ) );
-		$body    = __( 'Visitor Sentinel scored these ad clicks as fraudulent:', 'visitor-sentinel' ) . "\n\n"
+		$subject = sprintf( __( '[%1$s] Visitor Guard: %2$d fraudulent clicks detected', 'zenzeiten-visitor-guard' ), $site, count( $clicks ) );
+		$body    = __( 'Visitor Guard scored these ad clicks as fraudulent:', 'zenzeiten-visitor-guard' ) . "\n\n"
 			. implode( "\n", $lines ) . "\n\n"
-			. __( 'Review them here:', 'visitor-sentinel' ) . ' ' . admin_url( 'admin.php?page=vsen-fraud&view=fraud' ) . "\n";
+			. __( 'Review them here:', 'zenzeiten-visitor-guard' ) . ' ' . admin_url( 'admin.php?page=vsen-fraud&view=fraud' ) . "\n";
 
 		return (bool) wp_mail( $to, $subject, $body );
 	}

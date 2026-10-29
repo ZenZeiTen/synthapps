@@ -106,7 +106,7 @@ final class Protection {
 	public static function block_manual( $value, $reason, $days ) {
 		$parsed = IP::parse_range( $value );
 		if ( ! $parsed ) {
-			return __( 'That is not a valid IP address or CIDR range.', 'visitor-sentinel' );
+			return __( 'That is not a valid IP address or CIDR range.', 'zenzeiten-visitor-guard' );
 		}
 		$single  = false === strpos( $parsed['canonical'], '/' );
 		$expires = $days > 0 ? Repository::now( DAY_IN_SECONDS * (int) $days ) : null;
@@ -213,8 +213,8 @@ final class Protection {
 		do_action( 'vsen_blocked_request', Request_Context::current() );
 		nocache_headers();
 		wp_die(
-			esc_html__( 'Access from your network has been restricted because of unusual activity. If you think this is a mistake, please contact the site owner.', 'visitor-sentinel' ),
-			esc_html__( 'Access restricted', 'visitor-sentinel' ),
+			esc_html__( 'Access from your network has been restricted because of unusual activity. If you think this is a mistake, please contact the site owner.', 'zenzeiten-visitor-guard' ),
+			esc_html__( 'Access restricted', 'zenzeiten-visitor-guard' ),
 			array( 'response' => 403 )
 		);
 	}

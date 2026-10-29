@@ -13,9 +13,9 @@ defined( 'ABSPATH' ) || exit;
 ?>
 <div class="wrap vsen-wrap">
 	<div class="vsen-header">
-		<h1><?php esc_html_e( 'Visitors', 'visitor-sentinel' ); ?></h1>
+		<h1><?php esc_html_e( 'Visitors', 'zenzeiten-visitor-guard' ); ?></h1>
 		<div class="vsen-header__actions">
-			<a class="button" href="<?php echo esc_url( Admin::action_url( 'export', array( 'what' => 'visitors' ) ) ); ?>"><?php esc_html_e( 'Export CSV', 'visitor-sentinel' ); ?></a>
+			<a class="button" href="<?php echo esc_url( Admin::action_url( 'export', array( 'what' => 'visitors' ) ) ); ?>"><?php esc_html_e( 'Export CSV', 'zenzeiten-visitor-guard' ); ?></a>
 		</div>
 	</div>
 	<?php $table->views(); ?>
@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
 		if ( '' !== $vsen_view ) {
 			echo '<input type="hidden" name="view" value="' . esc_attr( $vsen_view ) . '" />';
 		}
-		$table->search_box( __( 'Search IP or user agent', 'visitor-sentinel' ), 'vsen-visitor-search' );
+		$table->search_box( __( 'Search IP or user agent', 'zenzeiten-visitor-guard' ), 'vsen-visitor-search' );
 		$table->display();
 		?>
 	</form>

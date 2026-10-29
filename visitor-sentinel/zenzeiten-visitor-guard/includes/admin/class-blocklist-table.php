@@ -41,11 +41,11 @@ final class Blocklist_Table extends \WP_List_Table {
 	public function get_columns() {
 		return array(
 			'cb'         => '<input type="checkbox" />',
-			'ip_range'   => __( 'IP or range', 'visitor-sentinel' ),
-			'reason'     => __( 'Reason', 'visitor-sentinel' ),
-			'source'     => __( 'Added', 'visitor-sentinel' ),
-			'created_at' => __( 'Since', 'visitor-sentinel' ),
-			'expires_at' => __( 'Expires', 'visitor-sentinel' ),
+			'ip_range'   => __( 'IP or range', 'zenzeiten-visitor-guard' ),
+			'reason'     => __( 'Reason', 'zenzeiten-visitor-guard' ),
+			'source'     => __( 'Added', 'zenzeiten-visitor-guard' ),
+			'created_at' => __( 'Since', 'zenzeiten-visitor-guard' ),
+			'expires_at' => __( 'Expires', 'zenzeiten-visitor-guard' ),
 		);
 	}
 
@@ -55,7 +55,7 @@ final class Blocklist_Table extends \WP_List_Table {
 	 * @return array
 	 */
 	protected function get_bulk_actions() {
-		return array( 'remove' => __( 'Remove', 'visitor-sentinel' ) );
+		return array( 'remove' => __( 'Remove', 'zenzeiten-visitor-guard' ) );
 	}
 
 	/**
@@ -85,7 +85,7 @@ final class Blocklist_Table extends \WP_List_Table {
 	 * Empty message.
 	 */
 	public function no_items() {
-		esc_html_e( 'The blocklist is empty.', 'visitor-sentinel' );
+		esc_html_e( 'The blocklist is empty.', 'zenzeiten-visitor-guard' );
 	}
 
 	/**
@@ -109,10 +109,10 @@ final class Blocklist_Table extends \WP_List_Table {
 		$expired = $item->expires_at && strtotime( $item->expires_at . ' UTC' ) <= time();
 		$html    = '<strong class="vsen-ip">' . esc_html( $label ) . '</strong>';
 		if ( $expired ) {
-			$html .= ' <span class="vsen-pill">' . esc_html__( 'Expired', 'visitor-sentinel' ) . '</span>';
+			$html .= ' <span class="vsen-pill">' . esc_html__( 'Expired', 'zenzeiten-visitor-guard' ) . '</span>';
 		}
 		$actions = array(
-			'remove' => '<a class="vsen-danger" href="' . esc_url( Admin::action_url( 'unblock', array( 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Remove', 'visitor-sentinel' ) . '</a>',
+			'remove' => '<a class="vsen-danger" href="' . esc_url( Admin::action_url( 'unblock', array( 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Remove', 'zenzeiten-visitor-guard' ) . '</a>',
 		);
 		return $html . $this->row_actions( $actions );
 	}
@@ -125,9 +125,9 @@ final class Blocklist_Table extends \WP_List_Table {
 	 */
 	protected function column_source( $item ) {
 		if ( 'auto' === $item->source ) {
-			return '<span class="vsen-pill vsen-pill--suspicious">' . esc_html__( 'Automatically', 'visitor-sentinel' ) . '</span> ' . Admin::score_badge( (int) $item->score );
+			return '<span class="vsen-pill vsen-pill--suspicious">' . esc_html__( 'Automatically', 'zenzeiten-visitor-guard' ) . '</span> ' . Admin::score_badge( (int) $item->score );
 		}
-		return '<span class="vsen-pill">' . esc_html__( 'Manually', 'visitor-sentinel' ) . '</span>';
+		return '<span class="vsen-pill">' . esc_html__( 'Manually', 'zenzeiten-visitor-guard' ) . '</span>';
 	}
 
 	/**
@@ -144,7 +144,7 @@ final class Blocklist_Table extends \WP_List_Table {
 			case 'created_at':
 				return esc_html( Admin::local_time( $item->created_at ) );
 			case 'expires_at':
-				return $item->expires_at ? esc_html( Admin::local_time( $item->expires_at ) ) : esc_html__( 'Never', 'visitor-sentinel' );
+				return $item->expires_at ? esc_html( Admin::local_time( $item->expires_at ) ) : esc_html__( 'Never', 'zenzeiten-visitor-guard' );
 		}
 		return '';
 	}

@@ -214,14 +214,15 @@ function test_wporg_update_offer_is_dropped() {
 	VisitorSentinel\Plugin::instance()->boot();
 	$transient = (object) array(
 		'response'  => array(
-			'visitor-sentinel/visitor-sentinel.php' => (object) array( 'new_version' => '3.0.3' ),
+			'zenzeiten-visitor-guard/zenzeiten-visitor-guard.php' => (object) array( 'new_version' => '3.0.3' ),
 			'akismet/akismet.php'                   => (object) array( 'new_version' => '5.4' ),
 		),
-		'no_update' => array( 'visitor-sentinel/visitor-sentinel.php' => (object) array( 'new_version' => '3.0.3' ) ),
+		'no_update' => array( 'zenzeiten-visitor-guard/zenzeiten-visitor-guard.php' => (object) array( 'new_version' => '3.0.3' ) ),
 	);
 	$out = apply_filters( 'site_transient_update_plugins', $transient );
 	check_same( array( 'akismet/akismet.php' ), array_keys( $out->response ), 'only the same-named plugin is dropped' );
 	check_same( array(), $out->no_update );
 	check_same( false, apply_filters( 'site_transient_update_plugins', false ), 'a missing transient stays missing' );
 	check( false !== strpos( file_get_contents( VSEN_FILE ), "\n * Update URI:        false\n" ), 'header opts out of WordPress.org updates' );
+	check( in_array( array( 'VisitorSentinel\\Cron', 'schedule' ), WP_Stub::$filters['init'], true ), 'cron is rescheduled after a switch from the old folder' );
 }

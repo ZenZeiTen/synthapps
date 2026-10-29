@@ -60,12 +60,12 @@ final class Admin {
 		$cap   = Plugin::capability();
 		$hooks = array();
 
-		add_menu_page( __( 'Visitor Sentinel', 'visitor-sentinel' ), __( 'Visitor Sentinel', 'visitor-sentinel' ), $cap, self::SLUG, array( $this, 'page_dashboard' ), 'dashicons-shield-alt', 58 );
-		$hooks[] = add_submenu_page( self::SLUG, __( 'Dashboard', 'visitor-sentinel' ), __( 'Dashboard', 'visitor-sentinel' ), $cap, self::SLUG, array( $this, 'page_dashboard' ) );
-		$hooks[] = add_submenu_page( self::SLUG, __( 'Visitors', 'visitor-sentinel' ), __( 'Visitors', 'visitor-sentinel' ), $cap, 'vsen-visitors', array( $this, 'page_visitors' ) );
-		$hooks[] = add_submenu_page( self::SLUG, __( 'Click Fraud', 'visitor-sentinel' ), __( 'Click Fraud', 'visitor-sentinel' ), $cap, 'vsen-fraud', array( $this, 'page_fraud' ) );
-		$hooks[] = add_submenu_page( self::SLUG, __( 'Blocklist', 'visitor-sentinel' ), __( 'Blocklist', 'visitor-sentinel' ), $cap, 'vsen-blocklist', array( $this, 'page_blocklist' ) );
-		$hooks[] = add_submenu_page( self::SLUG, __( 'Settings', 'visitor-sentinel' ), __( 'Settings', 'visitor-sentinel' ), $cap, 'vsen-settings', array( $this, 'page_settings' ) );
+		add_menu_page( __( 'Visitor Guard', 'zenzeiten-visitor-guard' ), __( 'Visitor Guard', 'zenzeiten-visitor-guard' ), $cap, self::SLUG, array( $this, 'page_dashboard' ), 'dashicons-shield-alt', 58 );
+		$hooks[] = add_submenu_page( self::SLUG, __( 'Dashboard', 'zenzeiten-visitor-guard' ), __( 'Dashboard', 'zenzeiten-visitor-guard' ), $cap, self::SLUG, array( $this, 'page_dashboard' ) );
+		$hooks[] = add_submenu_page( self::SLUG, __( 'Visitors', 'zenzeiten-visitor-guard' ), __( 'Visitors', 'zenzeiten-visitor-guard' ), $cap, 'vsen-visitors', array( $this, 'page_visitors' ) );
+		$hooks[] = add_submenu_page( self::SLUG, __( 'Click Fraud', 'zenzeiten-visitor-guard' ), __( 'Click Fraud', 'zenzeiten-visitor-guard' ), $cap, 'vsen-fraud', array( $this, 'page_fraud' ) );
+		$hooks[] = add_submenu_page( self::SLUG, __( 'Blocklist', 'zenzeiten-visitor-guard' ), __( 'Blocklist', 'zenzeiten-visitor-guard' ), $cap, 'vsen-blocklist', array( $this, 'page_blocklist' ) );
+		$hooks[] = add_submenu_page( self::SLUG, __( 'Settings', 'zenzeiten-visitor-guard' ), __( 'Settings', 'zenzeiten-visitor-guard' ), $cap, 'vsen-settings', array( $this, 'page_settings' ) );
 
 		// Bulk actions are handled before any output so they can redirect.
 		add_action( 'load-' . $hooks[1], array( $this, 'load_visitors' ) );
@@ -80,7 +80,7 @@ final class Admin {
 	 * @return array
 	 */
 	public function action_links( $links ) {
-		array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=vsen-settings' ) ) . '">' . esc_html__( 'Settings', 'visitor-sentinel' ) . '</a>' );
+		array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=vsen-settings' ) ) . '">' . esc_html__( 'Settings', 'zenzeiten-visitor-guard' ) . '</a>' );
 		return $links;
 	}
 
@@ -118,14 +118,14 @@ final class Admin {
 				'liveUrl' => esc_url_raw( rest_url( Tracker::REST_NAMESPACE . '/live' ) ),
 				'nonce'   => wp_create_nonce( 'wp_rest' ),
 				'i18n'    => array(
-					'pageviews' => __( 'Pageviews', 'visitor-sentinel' ),
-					'visitors'  => __( 'Visitors', 'visitor-sentinel' ),
-					'ads'       => __( 'Ad clicks', 'visitor-sentinel' ),
-					'fraud'     => __( 'Fraudulent', 'visitor-sentinel' ),
-					'nobody'    => __( 'Nobody is on the site right now.', 'visitor-sentinel' ),
-					'paid'      => __( 'Paid', 'visitor-sentinel' ),
-					'ago'       => __( '%s ago', 'visitor-sentinel' ),
-					'confirm'   => __( 'Are you sure? This cannot be undone.', 'visitor-sentinel' ),
+					'pageviews' => __( 'Pageviews', 'zenzeiten-visitor-guard' ),
+					'visitors'  => __( 'Visitors', 'zenzeiten-visitor-guard' ),
+					'ads'       => __( 'Ad clicks', 'zenzeiten-visitor-guard' ),
+					'fraud'     => __( 'Fraudulent', 'zenzeiten-visitor-guard' ),
+					'nobody'    => __( 'Nobody is on the site right now.', 'zenzeiten-visitor-guard' ),
+					'paid'      => __( 'Paid', 'zenzeiten-visitor-guard' ),
+					'ago'       => __( '%s ago', 'zenzeiten-visitor-guard' ),
+					'confirm'   => __( 'Are you sure? This cannot be undone.', 'zenzeiten-visitor-guard' ),
 				),
 			)
 		);
@@ -175,7 +175,7 @@ final class Admin {
 			$repo    = Repository::instance();
 			$visitor = $repo->get_visitor( $visitor_id );
 			if ( ! $visitor ) {
-				wp_die( esc_html__( 'Visitor not found.', 'visitor-sentinel' ) );
+				wp_die( esc_html__( 'Visitor not found.', 'zenzeiten-visitor-guard' ) );
 			}
 			$sessions  = $repo->visitor_sessions( $visitor_id );
 			$pageviews = $repo->visitor_pageviews( $visitor_id );
@@ -273,7 +273,7 @@ final class Admin {
 				continue;
 			}
 			if ( 'block' === $action ) {
-				Protection::block_hash( $visitor->ip_hash, $visitor->ip, __( 'Blocked from the visitor list', 'visitor-sentinel' ), 'manual', (int) $visitor->fraud_score, (int) Settings::get( 'block_duration_days' ) );
+				Protection::block_hash( $visitor->ip_hash, $visitor->ip, __( 'Blocked from the visitor list', 'zenzeiten-visitor-guard' ), 'manual', (int) $visitor->fraud_score, (int) Settings::get( 'block_duration_days' ) );
 				++$count;
 			} elseif ( 'unblock' === $action ) {
 				Protection::unblock_hash( $visitor->ip_hash );
@@ -364,7 +364,7 @@ final class Admin {
 				if ( '' === (string) $click->ip_hash ) {
 					return false;
 				}
-				Protection::block_hash( $click->ip_hash, $click->ip, __( 'Blocked from the click list', 'visitor-sentinel' ), 'manual', (int) $click->fraud_score, (int) Settings::get( 'block_duration_days' ) );
+				Protection::block_hash( $click->ip_hash, $click->ip, __( 'Blocked from the click list', 'zenzeiten-visitor-guard' ), 'manual', (int) $click->fraud_score, (int) Settings::get( 'block_duration_days' ) );
 				return true;
 			default:
 				return false;
@@ -413,7 +413,7 @@ final class Admin {
 			case 'block_visitor':
 				$visitor = $repo->get_visitor( isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0 );
 				if ( $visitor && '' !== (string) $visitor->ip_hash ) {
-					Protection::block_hash( $visitor->ip_hash, $visitor->ip, __( 'Blocked by an administrator', 'visitor-sentinel' ), 'manual', (int) $visitor->fraud_score, (int) Settings::get( 'block_duration_days' ) );
+					Protection::block_hash( $visitor->ip_hash, $visitor->ip, __( 'Blocked by an administrator', 'zenzeiten-visitor-guard' ), 'manual', (int) $visitor->fraud_score, (int) Settings::get( 'block_duration_days' ) );
 				}
 				$this->redirect( $back, 'blocked', 1 );
 				break;
@@ -490,7 +490,7 @@ final class Admin {
 		$what = 'clicks' === $what ? 'clicks' : 'visitors';
 		$rows = (array) Repository::instance()->export_rows( $what );
 		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="visitor-sentinel-' . $what . '-' . $stamp . '.csv"' );
+		header( 'Content-Disposition: attachment; filename="visitor-guard-' . $what . '-' . $stamp . '.csv"' );
 		$out = fopen( 'php://output', 'w' );
 		if ( ! empty( $rows ) ) {
 			fputcsv( $out, array_keys( $rows[0] ) );
@@ -544,18 +544,18 @@ final class Admin {
 		$count = isset( $_GET['vsen_count'] ) ? absint( $_GET['vsen_count'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$map   = array(
 			/* translators: %d: number of IPs */
-			'blocked'      => array( 'success', _n( '%d IP blocked.', '%d IPs blocked.', $count, 'visitor-sentinel' ) ),
+			'blocked'      => array( 'success', _n( '%d IP blocked.', '%d IPs blocked.', $count, 'zenzeiten-visitor-guard' ) ),
 			/* translators: %d: number of IPs */
-			'unblocked'    => array( 'success', _n( '%d block removed.', '%d blocks removed.', $count, 'visitor-sentinel' ) ),
+			'unblocked'    => array( 'success', _n( '%d block removed.', '%d blocks removed.', $count, 'zenzeiten-visitor-guard' ) ),
 			/* translators: %d: number of clicks */
-			'marked_valid' => array( 'success', _n( '%d click marked as valid.', '%d clicks marked as valid.', $count, 'visitor-sentinel' ) ),
+			'marked_valid' => array( 'success', _n( '%d click marked as valid.', '%d clicks marked as valid.', $count, 'zenzeiten-visitor-guard' ) ),
 			/* translators: %d: number of clicks */
-			'marked_fraud' => array( 'success', _n( '%d click confirmed as fraud.', '%d clicks confirmed as fraud.', $count, 'visitor-sentinel' ) ),
+			'marked_fraud' => array( 'success', _n( '%d click confirmed as fraud.', '%d clicks confirmed as fraud.', $count, 'zenzeiten-visitor-guard' ) ),
 			/* translators: %d: number of clicks */
-			'rescored'     => array( 'success', _n( '%d pending click given its final score.', '%d pending clicks given their final score.', $count, 'visitor-sentinel' ) ),
-			'purged'       => array( 'success', __( 'All tracking data was deleted. The blocklist was kept.', 'visitor-sentinel' ) ),
-			'invalid_ip'   => array( 'error', __( 'That is not a valid IP address or CIDR range.', 'visitor-sentinel' ) ),
-			'failed'       => array( 'error', __( 'Nothing was changed.', 'visitor-sentinel' ) ),
+			'rescored'     => array( 'success', _n( '%d pending click given its final score.', '%d pending clicks given their final score.', $count, 'zenzeiten-visitor-guard' ) ),
+			'purged'       => array( 'success', __( 'All tracking data was deleted. The blocklist was kept.', 'zenzeiten-visitor-guard' ) ),
+			'invalid_ip'   => array( 'error', __( 'That is not a valid IP address or CIDR range.', 'zenzeiten-visitor-guard' ) ),
+			'failed'       => array( 'error', __( 'Nothing was changed.', 'zenzeiten-visitor-guard' ) ),
 		);
 		if ( ! isset( $map[ $code ] ) ) {
 			return;
@@ -686,7 +686,7 @@ final class Admin {
 	 */
 	private function require_cap() {
 		if ( ! current_user_can( Plugin::capability() ) ) {
-			wp_die( esc_html__( 'Sorry, you are not allowed to access this page.', 'visitor-sentinel' ), 403 );
+			wp_die( esc_html__( 'Sorry, you are not allowed to access this page.', 'zenzeiten-visitor-guard' ), 403 );
 		}
 	}
 
@@ -746,21 +746,21 @@ final class Admin {
 	 */
 	public static function status_pill( $click ) {
 		if ( ! in_array( $click->click_type, Repository::AD_TYPES, true ) ) {
-			return '<span class="vsen-pill">' . esc_html__( 'Activity', 'visitor-sentinel' ) . '</span>';
+			return '<span class="vsen-pill">' . esc_html__( 'Activity', 'zenzeiten-visitor-guard' ) . '</span>';
 		}
 		$labels = array(
-			Fraud_Engine::STATUS_CLEAN      => array( 'clean', __( 'Clean', 'visitor-sentinel' ) ),
-			Fraud_Engine::STATUS_SUSPICIOUS => array( 'suspicious', __( 'Suspicious', 'visitor-sentinel' ) ),
-			Fraud_Engine::STATUS_FRAUD      => array( 'fraud', __( 'Fraudulent', 'visitor-sentinel' ) ),
+			Fraud_Engine::STATUS_CLEAN      => array( 'clean', __( 'Clean', 'zenzeiten-visitor-guard' ) ),
+			Fraud_Engine::STATUS_SUSPICIOUS => array( 'suspicious', __( 'Suspicious', 'zenzeiten-visitor-guard' ) ),
+			Fraud_Engine::STATUS_FRAUD      => array( 'fraud', __( 'Fraudulent', 'zenzeiten-visitor-guard' ) ),
 		);
 		$label  = isset( $labels[ (int) $click->status ] ) ? $labels[ (int) $click->status ] : $labels[0];
 		$extra  = '';
 		if ( 1 === (int) $click->reviewed ) {
-			$extra = ' ' . __( '(reviewed)', 'visitor-sentinel' );
+			$extra = ' ' . __( '(reviewed)', 'zenzeiten-visitor-guard' );
 		} elseif ( 2 === (int) $click->reviewed ) {
-			$extra = ' ' . __( '(confirmed)', 'visitor-sentinel' );
+			$extra = ' ' . __( '(confirmed)', 'zenzeiten-visitor-guard' );
 		} elseif ( ! (int) $click->finalized ) {
-			$extra = ' ' . __( '(pending)', 'visitor-sentinel' );
+			$extra = ' ' . __( '(pending)', 'zenzeiten-visitor-guard' );
 		}
 		return '<span class="vsen-pill vsen-pill--' . esc_attr( $label[0] ) . '">' . esc_html( $label[1] . $extra ) . '</span>';
 	}
@@ -788,11 +788,11 @@ final class Admin {
 	 */
 	public static function click_type_label( $type ) {
 		$labels = array(
-			'ad_landing' => __( 'Paid ad visit', 'visitor-sentinel' ),
-			'ad_click'   => __( 'On-site ad click', 'visitor-sentinel' ),
-			'outbound'   => __( 'Outbound link', 'visitor-sentinel' ),
-			'download'   => __( 'Download', 'visitor-sentinel' ),
-			'tracked'    => __( 'Tracked element', 'visitor-sentinel' ),
+			'ad_landing' => __( 'Paid ad visit', 'zenzeiten-visitor-guard' ),
+			'ad_click'   => __( 'On-site ad click', 'zenzeiten-visitor-guard' ),
+			'outbound'   => __( 'Outbound link', 'zenzeiten-visitor-guard' ),
+			'download'   => __( 'Download', 'zenzeiten-visitor-guard' ),
+			'tracked'    => __( 'Tracked element', 'zenzeiten-visitor-guard' ),
 		);
 		return isset( $labels[ $type ] ) ? $labels[ $type ] : (string) $type;
 	}

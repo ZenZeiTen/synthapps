@@ -43,43 +43,43 @@ usort(
 $vsen_events = array_slice( $vsen_events, 0, 300 );
 
 $vsen_facts = array(
-	__( 'IP address', 'visitor-sentinel' ) => Admin::ip_label( $visitor->ip, $visitor->ip_hash ),
-	__( 'Country', 'visitor-sentinel' )    => '' !== (string) $visitor->country ? Admin::flag( $visitor->country ) . ' ' . $visitor->country : '—',
-	__( 'Device', 'visitor-sentinel' )     => ucfirst( (string) $visitor->device ),
-	__( 'Browser', 'visitor-sentinel' )    => $visitor->browser,
-	__( 'System', 'visitor-sentinel' )     => $visitor->os,
-	__( 'First seen', 'visitor-sentinel' ) => Admin::local_time( $visitor->first_seen ),
-	__( 'Last seen', 'visitor-sentinel' )  => Admin::local_time( $visitor->last_seen ),
-	__( 'Sessions', 'visitor-sentinel' )   => number_format_i18n( (int) $visitor->sessions ),
-	__( 'Pageviews', 'visitor-sentinel' )  => number_format_i18n( (int) $visitor->pageviews ),
-	__( 'Clicks', 'visitor-sentinel' )     => number_format_i18n( (int) $visitor->clicks ),
+	__( 'IP address', 'zenzeiten-visitor-guard' ) => Admin::ip_label( $visitor->ip, $visitor->ip_hash ),
+	__( 'Country', 'zenzeiten-visitor-guard' )    => '' !== (string) $visitor->country ? Admin::flag( $visitor->country ) . ' ' . $visitor->country : '—',
+	__( 'Device', 'zenzeiten-visitor-guard' )     => ucfirst( (string) $visitor->device ),
+	__( 'Browser', 'zenzeiten-visitor-guard' )    => $visitor->browser,
+	__( 'System', 'zenzeiten-visitor-guard' )     => $visitor->os,
+	__( 'First seen', 'zenzeiten-visitor-guard' ) => Admin::local_time( $visitor->first_seen ),
+	__( 'Last seen', 'zenzeiten-visitor-guard' )  => Admin::local_time( $visitor->last_seen ),
+	__( 'Sessions', 'zenzeiten-visitor-guard' )   => number_format_i18n( (int) $visitor->sessions ),
+	__( 'Pageviews', 'zenzeiten-visitor-guard' )  => number_format_i18n( (int) $visitor->pageviews ),
+	__( 'Clicks', 'zenzeiten-visitor-guard' )     => number_format_i18n( (int) $visitor->clicks ),
 );
 if ( (int) $visitor->user_id > 0 ) {
 	$vsen_user = get_userdata( (int) $visitor->user_id );
 	if ( $vsen_user ) {
-		$vsen_facts[ __( 'User', 'visitor-sentinel' ) ] = $vsen_user->user_login;
+		$vsen_facts[ __( 'User', 'zenzeiten-visitor-guard' ) ] = $vsen_user->user_login;
 	}
 }
 ?>
 <div class="wrap vsen-wrap">
-	<p><a href="<?php echo esc_url( admin_url( 'admin.php?page=vsen-visitors' ) ); ?>">&larr; <?php esc_html_e( 'All visitors', 'visitor-sentinel' ); ?></a></p>
+	<p><a href="<?php echo esc_url( admin_url( 'admin.php?page=vsen-visitors' ) ); ?>">&larr; <?php esc_html_e( 'All visitors', 'zenzeiten-visitor-guard' ); ?></a></p>
 	<div class="vsen-header">
 		<h1>
 			<span class="vsen-ip"><?php echo esc_html( Admin::ip_label( $visitor->ip, $visitor->ip_hash ) ); ?></span>
 			<?php echo Admin::score_badge( (int) $visitor->fraud_score ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in score_badge(). ?>
 			<?php if ( (int) $visitor->is_bot ) : ?>
-				<span class="vsen-pill"><?php esc_html_e( 'Bot', 'visitor-sentinel' ); ?></span>
+				<span class="vsen-pill"><?php esc_html_e( 'Bot', 'zenzeiten-visitor-guard' ); ?></span>
 			<?php endif; ?>
 			<?php if ( $vsen_blocked ) : ?>
-				<span class="vsen-pill vsen-pill--fraud"><?php esc_html_e( 'Blocked', 'visitor-sentinel' ); ?></span>
+				<span class="vsen-pill vsen-pill--fraud"><?php esc_html_e( 'Blocked', 'zenzeiten-visitor-guard' ); ?></span>
 			<?php endif; ?>
 		</h1>
 		<div class="vsen-header__actions">
 			<?php if ( '' !== (string) $visitor->ip_hash ) : ?>
 				<?php if ( $vsen_blocked ) : ?>
-					<a class="button" href="<?php echo esc_url( Admin::action_url( 'unblock_visitor', array( 'id' => (int) $visitor->id ) ) ); ?>"><?php esc_html_e( 'Unblock IP', 'visitor-sentinel' ); ?></a>
+					<a class="button" href="<?php echo esc_url( Admin::action_url( 'unblock_visitor', array( 'id' => (int) $visitor->id ) ) ); ?>"><?php esc_html_e( 'Unblock IP', 'zenzeiten-visitor-guard' ); ?></a>
 				<?php else : ?>
-					<a class="button vsen-button-danger" href="<?php echo esc_url( Admin::action_url( 'block_visitor', array( 'id' => (int) $visitor->id ) ) ); ?>"><?php esc_html_e( 'Block IP', 'visitor-sentinel' ); ?></a>
+					<a class="button vsen-button-danger" href="<?php echo esc_url( Admin::action_url( 'block_visitor', array( 'id' => (int) $visitor->id ) ) ); ?>"><?php esc_html_e( 'Block IP', 'zenzeiten-visitor-guard' ); ?></a>
 				<?php endif; ?>
 			<?php endif; ?>
 		</div>
@@ -87,7 +87,7 @@ if ( (int) $visitor->user_id > 0 ) {
 
 	<div class="vsen-grid vsen-grid--profile">
 		<div class="vsen-card">
-			<h2><?php esc_html_e( 'Profile', 'visitor-sentinel' ); ?></h2>
+			<h2><?php esc_html_e( 'Profile', 'zenzeiten-visitor-guard' ); ?></h2>
 			<dl class="vsen-facts">
 				<?php foreach ( $vsen_facts as $vsen_label => $vsen_value ) : ?>
 					<dt><?php echo esc_html( $vsen_label ); ?></dt>
@@ -100,22 +100,22 @@ if ( (int) $visitor->user_id > 0 ) {
 		</div>
 
 		<div class="vsen-card">
-			<h2><?php esc_html_e( 'Sessions', 'visitor-sentinel' ); ?></h2>
+			<h2><?php esc_html_e( 'Sessions', 'zenzeiten-visitor-guard' ); ?></h2>
 			<?php if ( empty( $sessions ) ) : ?>
-				<p class="vsen-muted"><?php esc_html_e( 'No browser sessions. This visitor was only seen by the server (no JavaScript).', 'visitor-sentinel' ); ?></p>
+				<p class="vsen-muted"><?php esc_html_e( 'No browser sessions. This visitor was only seen by the server (no JavaScript).', 'zenzeiten-visitor-guard' ); ?></p>
 			<?php else : ?>
 				<table class="vsen-mini">
 					<thead><tr>
-						<th><?php esc_html_e( 'Started', 'visitor-sentinel' ); ?></th>
-						<th><?php esc_html_e( 'Duration', 'visitor-sentinel' ); ?></th>
-						<th><?php esc_html_e( 'Pages', 'visitor-sentinel' ); ?></th>
-						<th><?php esc_html_e( 'Source', 'visitor-sentinel' ); ?></th>
-						<th><?php esc_html_e( 'Entry page', 'visitor-sentinel' ); ?></th>
+						<th><?php esc_html_e( 'Started', 'zenzeiten-visitor-guard' ); ?></th>
+						<th><?php esc_html_e( 'Duration', 'zenzeiten-visitor-guard' ); ?></th>
+						<th><?php esc_html_e( 'Pages', 'zenzeiten-visitor-guard' ); ?></th>
+						<th><?php esc_html_e( 'Source', 'zenzeiten-visitor-guard' ); ?></th>
+						<th><?php esc_html_e( 'Entry page', 'zenzeiten-visitor-guard' ); ?></th>
 					</tr></thead>
 					<tbody>
 					<?php foreach ( $sessions as $vsen_session ) : ?>
 						<?php
-						$vsen_source = '' !== (string) $vsen_session->utm_source ? $vsen_session->utm_source : ( '' !== (string) $vsen_session->referrer_host ? $vsen_session->referrer_host : __( 'direct', 'visitor-sentinel' ) );
+						$vsen_source = '' !== (string) $vsen_session->utm_source ? $vsen_session->utm_source : ( '' !== (string) $vsen_session->referrer_host ? $vsen_session->referrer_host : __( 'direct', 'zenzeiten-visitor-guard' ) );
 						?>
 						<tr>
 							<td><?php echo esc_html( Admin::local_time( $vsen_session->started_at ) ); ?></td>
@@ -124,7 +124,7 @@ if ( (int) $visitor->user_id > 0 ) {
 							<td>
 								<?php echo esc_html( $vsen_source ); ?>
 								<?php if ( (int) $vsen_session->is_paid ) : ?>
-									<span class="vsen-pill vsen-pill--paid"><?php echo esc_html( __( 'Paid', 'visitor-sentinel' ) . ( '' !== (string) $vsen_session->click_id_type ? ' · ' . str_replace( '_', ' ', $vsen_session->click_id_type ) : '' ) ); ?></span>
+									<span class="vsen-pill vsen-pill--paid"><?php echo esc_html( __( 'Paid', 'zenzeiten-visitor-guard' ) . ( '' !== (string) $vsen_session->click_id_type ? ' · ' . str_replace( '_', ' ', $vsen_session->click_id_type ) : '' ) ); ?></span>
 								<?php endif; ?>
 							</td>
 							<td class="vsen-url" title="<?php echo esc_attr( $vsen_session->entry_url ); ?>"><?php echo esc_html( (string) wp_parse_url( $vsen_session->entry_url, PHP_URL_PATH ) ); ?></td>
@@ -137,9 +137,9 @@ if ( (int) $visitor->user_id > 0 ) {
 	</div>
 
 	<div class="vsen-card">
-		<h2><?php esc_html_e( 'Activity', 'visitor-sentinel' ); ?></h2>
+		<h2><?php esc_html_e( 'Activity', 'zenzeiten-visitor-guard' ); ?></h2>
 		<?php if ( empty( $vsen_events ) ) : ?>
-			<p class="vsen-muted"><?php esc_html_e( 'No activity recorded.', 'visitor-sentinel' ); ?></p>
+			<p class="vsen-muted"><?php esc_html_e( 'No activity recorded.', 'zenzeiten-visitor-guard' ); ?></p>
 		<?php else : ?>
 			<ol class="vsen-timeline">
 				<?php foreach ( $vsen_events as $vsen_event ) : ?>
@@ -155,7 +155,7 @@ if ( (int) $visitor->user_id > 0 ) {
 									echo esc_html(
 										sprintf(
 											/* translators: 1: time on page, 2: scroll depth percentage, 3: interaction count */
-											__( '%1$s on page · scrolled %2$d%% · %3$d interactions', 'visitor-sentinel' ),
+											__( '%1$s on page · scrolled %2$d%% · %3$d interactions', 'zenzeiten-visitor-guard' ),
 											Admin::duration( (int) $vsen_row->time_on_page ),
 											(int) $vsen_row->max_scroll,
 											(int) $vsen_row->interactions

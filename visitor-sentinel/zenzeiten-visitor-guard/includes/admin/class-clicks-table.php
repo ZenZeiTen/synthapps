@@ -41,13 +41,13 @@ final class Clicks_Table extends \WP_List_Table {
 	public function get_columns() {
 		return array(
 			'cb'          => '<input type="checkbox" />',
-			'created_at'  => __( 'Time', 'visitor-sentinel' ),
-			'click_type'  => __( 'Click', 'visitor-sentinel' ),
-			'ip'          => __( 'IP', 'visitor-sentinel' ),
-			'target'      => __( 'Target', 'visitor-sentinel' ),
-			'fraud_score' => __( 'Score', 'visitor-sentinel' ),
-			'reasons'     => __( 'Why', 'visitor-sentinel' ),
-			'status'      => __( 'Status', 'visitor-sentinel' ),
+			'created_at'  => __( 'Time', 'zenzeiten-visitor-guard' ),
+			'click_type'  => __( 'Click', 'zenzeiten-visitor-guard' ),
+			'ip'          => __( 'IP', 'zenzeiten-visitor-guard' ),
+			'target'      => __( 'Target', 'zenzeiten-visitor-guard' ),
+			'fraud_score' => __( 'Score', 'zenzeiten-visitor-guard' ),
+			'reasons'     => __( 'Why', 'zenzeiten-visitor-guard' ),
+			'status'      => __( 'Status', 'zenzeiten-visitor-guard' ),
 		);
 	}
 
@@ -70,9 +70,9 @@ final class Clicks_Table extends \WP_List_Table {
 	 */
 	protected function get_bulk_actions() {
 		return array(
-			'valid' => __( 'Mark as valid', 'visitor-sentinel' ),
-			'fraud' => __( 'Confirm as fraud', 'visitor-sentinel' ),
-			'block' => __( 'Block IP', 'visitor-sentinel' ),
+			'valid' => __( 'Mark as valid', 'zenzeiten-visitor-guard' ),
+			'fraud' => __( 'Confirm as fraud', 'zenzeiten-visitor-guard' ),
+			'block' => __( 'Block IP', 'zenzeiten-visitor-guard' ),
 		);
 	}
 
@@ -95,13 +95,13 @@ final class Clicks_Table extends \WP_List_Table {
 		$counts  = Repository::instance()->click_view_counts();
 		$current = $this->current_filter();
 		$labels  = array(
-			'all'        => __( 'All ad clicks', 'visitor-sentinel' ),
-			'fraud'      => __( 'Fraudulent', 'visitor-sentinel' ),
-			'suspicious' => __( 'Suspicious', 'visitor-sentinel' ),
-			'clean'      => __( 'Clean', 'visitor-sentinel' ),
-			'landing'    => __( 'Paid ad visits', 'visitor-sentinel' ),
-			'onsite'     => __( 'On-site ads', 'visitor-sentinel' ),
-			'activity'   => __( 'Links & downloads', 'visitor-sentinel' ),
+			'all'        => __( 'All ad clicks', 'zenzeiten-visitor-guard' ),
+			'fraud'      => __( 'Fraudulent', 'zenzeiten-visitor-guard' ),
+			'suspicious' => __( 'Suspicious', 'zenzeiten-visitor-guard' ),
+			'clean'      => __( 'Clean', 'zenzeiten-visitor-guard' ),
+			'landing'    => __( 'Paid ad visits', 'zenzeiten-visitor-guard' ),
+			'onsite'     => __( 'On-site ads', 'zenzeiten-visitor-guard' ),
+			'activity'   => __( 'Links & downloads', 'zenzeiten-visitor-guard' ),
 		);
 		$views   = array();
 		foreach ( $labels as $key => $label ) {
@@ -143,7 +143,7 @@ final class Clicks_Table extends \WP_List_Table {
 	 * Empty message.
 	 */
 	public function no_items() {
-		esc_html_e( 'No clicks in this view yet. Paid ad visits (gclid, msclkid and similar) and clicks on ad elements appear here.', 'visitor-sentinel' );
+		esc_html_e( 'No clicks in this view yet. Paid ad visits (gclid, msclkid and similar) and clicks on ad elements appear here.', 'zenzeiten-visitor-guard' );
 	}
 
 	/**
@@ -167,14 +167,14 @@ final class Clicks_Table extends \WP_List_Table {
 		$actions = array();
 		if ( in_array( $item->click_type, Repository::AD_TYPES, true ) ) {
 			if ( 1 !== (int) $item->reviewed ) {
-				$actions['valid'] = '<a href="' . esc_url( Admin::action_url( 'click', array( 'verb' => 'valid', 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Mark valid', 'visitor-sentinel' ) . '</a>';
+				$actions['valid'] = '<a href="' . esc_url( Admin::action_url( 'click', array( 'verb' => 'valid', 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Mark valid', 'zenzeiten-visitor-guard' ) . '</a>';
 			}
 			if ( 2 !== (int) $item->reviewed ) {
-				$actions['fraud'] = '<a href="' . esc_url( Admin::action_url( 'click', array( 'verb' => 'fraud', 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Confirm fraud', 'visitor-sentinel' ) . '</a>';
+				$actions['fraud'] = '<a href="' . esc_url( Admin::action_url( 'click', array( 'verb' => 'fraud', 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Confirm fraud', 'zenzeiten-visitor-guard' ) . '</a>';
 			}
 		}
 		if ( '' !== (string) $item->ip_hash && ! Admin::hash_blocked( $item->ip_hash ) ) {
-			$actions['block'] = '<a class="vsen-danger" href="' . esc_url( Admin::action_url( 'click', array( 'verb' => 'block', 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Block IP', 'visitor-sentinel' ) . '</a>';
+			$actions['block'] = '<a class="vsen-danger" href="' . esc_url( Admin::action_url( 'click', array( 'verb' => 'block', 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Block IP', 'zenzeiten-visitor-guard' ) . '</a>';
 		}
 		return $html . $this->row_actions( $actions );
 	}
@@ -211,7 +211,7 @@ final class Clicks_Table extends \WP_List_Table {
 			$html .= '<br><span class="vsen-muted">' . esc_html( trim( ucfirst( (string) $item->device ) . ' · ' . $item->browser, ' ·' ) ) . '</span>';
 		}
 		if ( '' !== (string) $item->ip_hash && Admin::hash_blocked( $item->ip_hash ) ) {
-			$html .= ' <span class="vsen-pill vsen-pill--fraud">' . esc_html__( 'Blocked', 'visitor-sentinel' ) . '</span>';
+			$html .= ' <span class="vsen-pill vsen-pill--fraud">' . esc_html__( 'Blocked', 'zenzeiten-visitor-guard' ) . '</span>';
 		}
 		return $html;
 	}
@@ -231,7 +231,7 @@ final class Clicks_Table extends \WP_List_Table {
 		}
 		if ( 'ad_click' === $item->click_type && (int) $item->time_to_click >= 0 ) {
 			/* translators: %s: seconds */
-			$html .= '<br><span class="vsen-muted">' . esc_html( sprintf( __( 'clicked after %ss', 'visitor-sentinel' ), number_format_i18n( $item->time_to_click / 1000, 1 ) ) ) . '</span>';
+			$html .= '<br><span class="vsen-muted">' . esc_html( sprintf( __( 'clicked after %ss', 'zenzeiten-visitor-guard' ), number_format_i18n( $item->time_to_click / 1000, 1 ) ) ) . '</span>';
 		}
 		return $html;
 	}

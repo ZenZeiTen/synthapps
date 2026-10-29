@@ -39,6 +39,9 @@ final class Plugin {
 	public function boot() {
 		add_action( 'plugins_loaded', array( 'VisitorSentinel\\Installer', 'maybe_upgrade' ) );
 		add_action( 'init', array( $this, 'load_textdomain' ) );
+		// Activation normally schedules cron, but switching from the old Visitor Sentinel folder
+		// activates this copy while the old one runs, and the old one clears cron when it is removed.
+		add_action( 'init', array( 'VisitorSentinel\\Cron', 'schedule' ) );
 		add_filter( 'site_transient_update_plugins', array( __CLASS__, 'drop_wporg_update' ) );
 
 		( new Tracker() )->register();
@@ -87,7 +90,7 @@ final class Plugin {
 	 * Load translations.
 	 */
 	public function load_textdomain() {
-		load_plugin_textdomain( 'visitor-sentinel', false, dirname( plugin_basename( VSEN_FILE ) ) . '/languages' );
+		load_plugin_textdomain( 'zenzeiten-visitor-guard', false, dirname( plugin_basename( VSEN_FILE ) ) . '/languages' );
 	}
 
 	/**
@@ -97,7 +100,7 @@ final class Plugin {
 	 */
 	public static function capability() {
 		/**
-		 * Filter the capability for Visitor Sentinel's admin screens.
+		 * Filter the capability for Visitor Guard's admin screens.
 		 *
 		 * @param string $capability Capability.
 		 */
