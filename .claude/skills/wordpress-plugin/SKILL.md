@@ -1,11 +1,11 @@
 ---
 name: wordpress-plugin
-description: "Build, test, release and support a WordPress plugin in this repository: naming and slug checks, structure, security, a SQLite test harness, a real WordPress smoke test in CI, release zips, upgrades and renames, and diagnosing user reports. Use when creating or changing a WordPress plugin, publishing a plugin zip, or answering a user's plugin error."
+description: "Build, test, release and support a WordPress plugin: naming and slug checks, structure, security, a SQLite test harness, a real WordPress smoke test in CI, release zips, upgrades and renames, and diagnosing user reports. Use when creating or changing a WordPress plugin, publishing a plugin zip, or answering a user's plugin error."
 ---
 
 # WordPress plugins
 
-Lessons from building Visitor Sentinel, now ZenZeiTen Visitor Guard (`visitor-sentinel/`), and ContextChat (`contextchat/`). The Visitor Guard code is the worked example for every section below. Read the matching file before you write your own version.
+Lessons from building Visitor Sentinel, now ZenZeiTen Visitor Guard, and ContextChat in the GitHub repository `ZenZeiTen/synthapps`. File paths below are in that repository. The Visitor Guard code (`visitor-sentinel/`) is the worked example for every section, so read the matching file before you write your own version. Without access to the repository, follow the rules as written.
 
 ## 1. Pick a name that cannot collide (do this first)
 
