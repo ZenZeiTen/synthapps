@@ -1,6 +1,6 @@
 {
   "name": "contextchat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Development tooling for the ContextChat WordPress plugin: unit tests, browser tests and the release zip.",
   "scripts": {

@@ -61,6 +61,11 @@ jobs:
           node-version: "22.x"
           cache: npm
           cache-dependency-path: contextchat/package-lock.json
+      - name: Check whether WordPress.org has a plugin in a folder named contextchat
+        # Information only: the plugin already refuses WordPress.org updates either way.
+        run: |
+          reply="$(curl -s "https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request%5Bslug%5D=contextchat&request%5Bfields%5D%5Bsections%5D=0" | head -c 300 || true)"
+          echo "WordPress.org reply for slug contextchat: $reply"
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm test
