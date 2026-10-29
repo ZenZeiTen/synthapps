@@ -1,0 +1,17 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "zenzeiten-forma/color-scheme-toggle",
+	"title": "Light/dark switch",
+	"category": "theme",
+	"icon": "admin-appearance",
+	"description": "A button that lets visitors switch between the light and dark palette. Shown only when the switch is enabled under Appearance → Forma.",
+	"keywords": [ "dark mode", "light mode", "color scheme" ],
+	"textdomain": "zenzeiten-forma",
+	"supports": {
+		"html": false,
+		"spacing": { "margin": true }
+	},
+	"editorScript": "file:./index.js",
+	"render": "file:./render.php"
+}

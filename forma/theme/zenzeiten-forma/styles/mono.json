@@ -1,0 +1,115 @@
+{
+	"$schema": "https://schemas.wp.org/wp/6.5/theme.json",
+	"version": 2,
+	"title": "Mono",
+	"settings": {
+		"color": {
+			"palette": [
+				{
+					"slug": "base",
+					"name": "Base",
+					"color": "#FFFFFF"
+				},
+				{
+					"slug": "surface",
+					"name": "Surface",
+					"color": "#F4F4F4"
+				},
+				{
+					"slug": "contrast",
+					"name": "Contrast",
+					"color": "#0A0A0A"
+				},
+				{
+					"slug": "muted",
+					"name": "Muted text",
+					"color": "#575757"
+				},
+				{
+					"slug": "accent",
+					"name": "Accent",
+					"color": "#0A0A0A"
+				},
+				{
+					"slug": "accent-strong",
+					"name": "Accent (strong)",
+					"color": "#333333"
+				},
+				{
+					"slug": "on-accent",
+					"name": "Text on accent",
+					"color": "#FFFFFF"
+				},
+				{
+					"slug": "border",
+					"name": "Border",
+					"color": "#E3E3E3"
+				}
+			]
+		},
+		"custom": {
+			"dark": {
+				"base": "#0B0B0B",
+				"surface": "#171717",
+				"contrast": "#F5F5F5",
+				"muted": "#A3A3A3",
+				"accent": "#F5F5F5",
+				"accentStrong": "#D4D4D4",
+				"onAccent": "#0B0B0B",
+				"border": "#2A2A2A"
+			}
+		}
+	},
+	"styles": {
+		"typography": {
+			"fontFamily": "var(--wp--preset--font-family--system)"
+		},
+		"elements": {
+			"heading": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--system)",
+					"fontWeight": "650",
+					"letterSpacing": "-0.03em"
+				}
+			},
+			"button": {
+				"border": {
+					"radius": "var(--wp--custom--radius--small)"
+				},
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--system)"
+				}
+			},
+			"h5": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--system)"
+				}
+			},
+			"h6": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--system)"
+				}
+			}
+		},
+		"blocks": {
+			"core/site-title": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--system)",
+					"fontWeight": "700",
+					"letterSpacing": "-0.03em"
+				}
+			},
+			"core/quote": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--system)"
+				}
+			},
+			"core/pullquote": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--system)",
+					"fontWeight": "600"
+				}
+			}
+		}
+	}
+}

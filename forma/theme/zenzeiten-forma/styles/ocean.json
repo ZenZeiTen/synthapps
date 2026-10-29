@@ -1,0 +1,94 @@
+{
+	"$schema": "https://schemas.wp.org/wp/6.5/theme.json",
+	"version": 2,
+	"title": "Ocean",
+	"settings": {
+		"color": {
+			"palette": [
+				{
+					"slug": "base",
+					"name": "Base",
+					"color": "#F7F9FB"
+				},
+				{
+					"slug": "surface",
+					"name": "Surface",
+					"color": "#EAF0F5"
+				},
+				{
+					"slug": "contrast",
+					"name": "Contrast",
+					"color": "#0D1B2A"
+				},
+				{
+					"slug": "muted",
+					"name": "Muted text",
+					"color": "#4E5D6C"
+				},
+				{
+					"slug": "accent",
+					"name": "Accent",
+					"color": "#0A6C95"
+				},
+				{
+					"slug": "accent-strong",
+					"name": "Accent (strong)",
+					"color": "#07506F"
+				},
+				{
+					"slug": "on-accent",
+					"name": "Text on accent",
+					"color": "#FFFFFF"
+				},
+				{
+					"slug": "border",
+					"name": "Border",
+					"color": "#D6DFE7"
+				}
+			]
+		},
+		"custom": {
+			"dark": {
+				"base": "#0B1520",
+				"surface": "#13212F",
+				"contrast": "#E8EEF4",
+				"muted": "#9AABBB",
+				"accent": "#5CC2EB",
+				"accentStrong": "#8AD6F2",
+				"onAccent": "#062231",
+				"border": "#22344A"
+			}
+		}
+	},
+	"styles": {
+		"elements": {
+			"heading": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--body)",
+					"fontWeight": "600",
+					"letterSpacing": "-0.025em"
+				}
+			}
+		},
+		"blocks": {
+			"core/site-title": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--body)",
+					"fontWeight": "700",
+					"letterSpacing": "-0.02em"
+				}
+			},
+			"core/quote": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--body)"
+				}
+			},
+			"core/pullquote": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--body)",
+					"fontWeight": "500"
+				}
+			}
+		}
+	}
+}

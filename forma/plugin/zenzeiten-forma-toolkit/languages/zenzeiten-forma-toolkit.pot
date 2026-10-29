@@ -1,0 +1,920 @@
+# Copyright (C) 2026 ZenZeiTen
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenZeiTen Forma Toolkit 1.0.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"X-Domain: zenzeiten-forma-toolkit\n"
+
+#: assets/ai-editor.js:53
+msgid "The request failed. Please try again."
+msgstr ""
+
+#: assets/ai-editor.js:66
+msgid "Working…"
+msgstr ""
+
+#: assets/ai-editor.js:91
+msgid "Write a draft"
+msgstr ""
+
+#: assets/ai-editor.js:93
+msgid "What should the page say?"
+msgstr ""
+
+#: assets/ai-editor.js:94
+msgid "A few lines are enough: the topic, who it is for and the main points."
+msgstr ""
+
+#: assets/ai-editor.js:100
+msgid "Write draft"
+msgstr ""
+
+#: assets/ai-editor.js:122
+msgid "Use this draft"
+msgstr ""
+
+#: assets/ai-editor.js:122
+msgid "Insert at the end"
+msgstr ""
+
+#: assets/ai-editor.js:123 assets/ai-editor.js:188
+msgid "Discard"
+msgstr ""
+
+#: assets/ai-editor.js:145
+msgid "Rewrite the selected blocks"
+msgstr ""
+
+#: assets/ai-editor.js:146
+msgid "Select one or more paragraphs, headings or lists in the editor."
+msgstr ""
+
+#: assets/ai-editor.js:148
+msgid "How"
+msgstr ""
+
+#: assets/ai-editor.js:151
+msgid "Make it clearer"
+msgstr ""
+
+#: assets/ai-editor.js:152
+msgid "Make it shorter"
+msgstr ""
+
+#: assets/ai-editor.js:153
+msgid "Make it longer"
+msgstr ""
+
+#: assets/ai-editor.js:154
+msgid "Fix spelling and grammar"
+msgstr ""
+
+#: assets/ai-editor.js:155
+msgid "Friendlier tone"
+msgstr ""
+
+#: assets/ai-editor.js:156
+msgid "More formal tone"
+msgstr ""
+
+#: assets/ai-editor.js:162
+msgid "Extra instruction (optional)"
+msgstr ""
+
+#: assets/ai-editor.js:167
+msgid "Rewrite"
+msgstr ""
+
+#: assets/ai-editor.js:187
+msgid "Replace"
+msgstr ""
+
+#: assets/ai-editor.js:211
+msgid "Excerpt, description and title"
+msgstr ""
+
+#: assets/ai-editor.js:212
+msgid "Write some content first."
+msgstr ""
+
+#: assets/ai-editor.js:216
+msgid "Write an excerpt"
+msgstr ""
+
+#: assets/ai-editor.js:226
+msgid "Use as excerpt"
+msgstr ""
+
+#: assets/ai-editor.js:234
+msgid "Write a search description"
+msgstr ""
+
+#: assets/ai-editor.js:244
+msgid "Use as search description"
+msgstr ""
+
+#: assets/ai-editor.js:254
+msgid "Suggest titles"
+msgstr ""
+
+#: assets/ai-editor.js:283 assets/ai-editor.js:284 includes/modules/class-ai.php:53
+msgid "Writing assistant"
+msgstr ""
+
+#: assets/ai-editor.js:289
+msgid "Powered by Claude. Always read AI-written text before you publish it."
+msgstr ""
+
+#: assets/seo-panel.js:26
+#, php-format
+msgid "%d characters. Search engines usually show about 155, so the end may be cut off."
+msgstr ""
+
+#: assets/seo-panel.js:27
+#, php-format
+msgid "%d characters. Aim for 120 to 155."
+msgstr ""
+
+#: assets/seo-panel.js:31
+msgid "Search description"
+msgstr ""
+
+#: assets/seo-panel.js:33
+msgid "Shown under the title in search results and in shared links. Leave empty to use the excerpt."
+msgstr ""
+
+#: includes/ai/class-anthropic.php:52
+msgid "Claude Opus 5.5: best quality"
+msgstr ""
+
+#: includes/ai/class-anthropic.php:53
+msgid "Claude Sonnet 5.5: balanced quality and cost"
+msgstr ""
+
+#: includes/ai/class-anthropic.php:54
+msgid "Claude Haiku 5.5: fastest and lowest cost"
+msgstr ""
+
+#: includes/ai/class-anthropic.php:103
+msgid "No Anthropic API key is set."
+msgstr ""
+
+#: includes/ai/class-anthropic.php:129
+msgid "Could not reach the AI service. Please try again."
+msgstr ""
+
+#: includes/ai/class-anthropic.php:138
+msgid "The AI service refused the API key. Check the key in Forma → AI assistant."
+msgstr ""
+
+#: includes/ai/class-anthropic.php:141
+msgid "The AI service is receiving too many requests from this site. Please try again in a minute."
+msgstr ""
+
+#: includes/ai/class-anthropic.php:144
+msgid "The AI service is busy. Please try again shortly."
+msgstr ""
+
+#: includes/ai/class-anthropic.php:147
+#, php-format
+msgid "The AI request failed (error %d)."
+msgstr ""
+
+#: includes/ai/class-anthropic.php:152
+msgid "The AI declined this request. Try rephrasing it."
+msgstr ""
+
+#: includes/ai/class-anthropic.php:164
+msgid "The AI returned no text. Please try again."
+msgstr ""
+
+#: includes/class-admin.php:51 includes/class-admin.php:145
+msgid "Forma Toolkit"
+msgstr ""
+
+#: includes/class-admin.php:52
+msgid "Forma"
+msgstr ""
+
+#: includes/class-admin.php:89
+msgid "Login protection: when someone fails to log in, a salted hash of their IP address is kept for up to the lockout period to block repeated guessing. The address itself is not stored."
+msgstr ""
+
+#: includes/class-admin.php:90
+msgid "AI chat (if enabled): messages typed into the chat assistant, together with excerpts of this website's public pages, are sent to Anthropic to generate an answer. This site does not store the conversation. Anthropic processes the data under its commercial terms and privacy policy."
+msgstr ""
+
+#. Plugin Name of the plugin
+#: includes/class-admin.php:91 zenzeiten-forma-toolkit.php
+msgid "ZenZeiTen Forma Toolkit"
+msgstr ""
+
+#: includes/class-admin.php:101
+msgid "Settings"
+msgstr ""
+
+#: includes/class-admin.php:123
+msgid "Modules"
+msgstr ""
+
+#: includes/class-admin.php:129
+msgid "Advanced"
+msgstr ""
+
+#: includes/class-admin.php:138
+msgid "Sorry, you are not allowed to manage these settings."
+msgstr ""
+
+#: includes/class-admin.php:147
+msgid "Toolkit sections"
+msgstr ""
+
+#: includes/class-admin.php:186
+msgid "Switch on only what you need. A module that is off adds no code to your pages."
+msgstr ""
+
+#: includes/class-admin.php:280
+#, php-format
+msgid "Set in wp-config.php (%s)."
+msgstr ""
+
+#: includes/class-admin.php:285
+#, php-format
+msgid "Saved: ends in %s. Leave empty to keep it."
+msgstr ""
+
+#: includes/class-admin.php:288
+msgid "Remove the saved key"
+msgstr ""
+
+#: includes/class-settings.php:49
+msgid "Delete all toolkit settings and data when the plugin is deleted"
+msgstr ""
+
+#: includes/class-settings.php:50
+msgid "Leave this off if you might reinstall the plugin. Deactivating never deletes anything."
+msgstr ""
+
+#: includes/modules/class-ai.php:38
+msgid "AI assistant"
+msgstr ""
+
+#: includes/modules/class-ai.php:43
+msgid "Optional, powered by Claude from Anthropic. A writing assistant in the editor drafts, rewrites and summarises your content; a chat for visitors answers questions from your own pages and business details. Needs your own Anthropic API key; usage is billed to you by Anthropic."
+msgstr ""
+
+#: includes/modules/class-ai.php:50
+msgid "Connection"
+msgstr ""
+
+#: includes/modules/class-ai.php:50
+msgid "Create a key in the Anthropic Console (console.anthropic.com) under API keys. For extra safety, define it in wp-config.php instead: define( 'ZZFT_ANTHROPIC_API_KEY', 'your-key' );"
+msgstr ""
+
+#: includes/modules/class-ai.php:51
+msgid "Anthropic API key"
+msgstr ""
+
+#: includes/modules/class-ai.php:51
+msgid "Stored encrypted with your site's secret keys."
+msgstr ""
+
+#: includes/modules/class-ai.php:53
+msgid "Opens from the sparkle icon in the top bar of the post and page editor. Available to everyone who can edit posts."
+msgstr ""
+
+#: includes/modules/class-ai.php:54
+msgid "Show the writing assistant in the editor"
+msgstr ""
+
+#: includes/modules/class-ai.php:55 includes/modules/class-ai.php:69
+msgid "Model"
+msgstr ""
+
+#: includes/modules/class-ai.php:56
+msgid "Your writing style"
+msgstr ""
+
+#: includes/modules/class-ai.php:56
+msgid "For example: \"Warm and direct. We say 'we' and 'you'. No jargon. British spelling.\""
+msgstr ""
+
+#: includes/modules/class-ai.php:58
+msgid "Visitor chat"
+msgstr ""
+
+#: includes/modules/class-ai.php:58
+msgid "Answers visitors' questions using your business details, your instructions below and your published pages. Conversations are not stored on your site."
+msgstr ""
+
+#: includes/modules/class-ai.php:59
+msgid "Turn on the visitor chat"
+msgstr ""
+
+#: includes/modules/class-ai.php:62
+msgid "Where it appears"
+msgstr ""
+
+#: includes/modules/class-ai.php:64
+msgid "Button in the corner of every page"
+msgstr ""
+
+#: includes/modules/class-ai.php:65
+msgid "Only where I place the [forma_ai_chat] shortcode"
+msgstr ""
+
+#: includes/modules/class-ai.php:69
+msgid "Every visitor message is one request. Claude Haiku 5.5 costs far less per message than Claude Opus 5.5 and is a good fit for a busy site."
+msgstr ""
+
+#: includes/modules/class-ai.php:70
+msgid "Chat title"
+msgstr ""
+
+#: includes/modules/class-ai.php:70
+msgid "Ask us anything"
+msgstr ""
+
+#: includes/modules/class-ai.php:71
+msgid "Greeting"
+msgstr ""
+
+#: includes/modules/class-ai.php:71
+msgid "Hello! I can answer questions about our services, prices and opening hours. What would you like to know?"
+msgstr ""
+
+#: includes/modules/class-ai.php:72
+msgid "What the assistant should know"
+msgstr ""
+
+#: includes/modules/class-ai.php:72
+msgid "Facts, policies and answers to common questions, plus anything it must not say. For example: \"We do not take bookings by chat; send people to the contact page. Delivery takes 3 to 5 days.\""
+msgstr ""
+
+#: includes/modules/class-ai.php:73
+msgid "Let the assistant read your published pages and posts to answer"
+msgstr ""
+
+#: includes/modules/class-ai.php:74
+msgid "Note under the chat"
+msgstr ""
+
+#: includes/modules/class-ai.php:74
+msgid "Answers are written by AI and can be wrong. Please do not share personal or payment details."
+msgstr ""
+
+#: includes/modules/class-ai.php:75
+msgid "Messages per visitor per hour"
+msgstr ""
+
+#: includes/modules/class-ai.php:76
+msgid "Messages per day for the whole site"
+msgstr ""
+
+#: includes/modules/class-ai.php:76
+msgid "A hard cap that keeps costs predictable. The chat says it is unavailable once the cap is reached and starts again tomorrow."
+msgstr ""
+
+#: includes/modules/class-ai.php:120
+msgid "Add an Anthropic API key under Forma → AI assistant to start."
+msgstr ""
+
+#: includes/modules/class-ai.php:232
+msgid "The writing assistant is switched off."
+msgstr ""
+
+#: includes/modules/class-ai.php:236
+msgid "There is no text to work with."
+msgstr ""
+
+#: includes/modules/class-ai.php:239
+msgid "You have reached the hourly limit for the writing assistant. Please try again later."
+msgstr ""
+
+#: includes/modules/class-ai.php:280
+msgid "The chat is not available."
+msgstr ""
+
+#: includes/modules/class-ai.php:284
+msgid "Requests from other sites are not accepted."
+msgstr ""
+
+#: includes/modules/class-ai.php:287
+msgid "This page is out of date. Please reload it and try again."
+msgstr ""
+
+#: includes/modules/class-ai.php:295
+msgid "You have sent a lot of messages. Please wait a little before asking again, or contact us directly."
+msgstr ""
+
+#: includes/modules/class-ai.php:298
+msgid "The chat is resting for today. Please contact us directly and we will be glad to help."
+msgstr ""
+
+#: includes/modules/class-ai.php:342
+msgid "The message could not be read."
+msgstr ""
+
+#: includes/modules/class-ai.php:356
+msgid "Please keep each message short."
+msgstr ""
+
+#: includes/modules/class-ai.php:384
+msgid "Sorry, the assistant could not answer just now. Please try again, or contact us directly."
+msgstr ""
+
+#: includes/modules/class-ai.php:444
+msgid "Chat with us"
+msgstr ""
+
+#: includes/modules/class-ai.php:445
+msgid "Close chat"
+msgstr ""
+
+#: includes/modules/class-ai.php:446
+msgid "Type your question…"
+msgstr ""
+
+#: includes/modules/class-ai.php:447
+msgid "Send"
+msgstr ""
+
+#: includes/modules/class-ai.php:448
+msgid "Writing an answer…"
+msgstr ""
+
+#: includes/modules/class-ai.php:449
+msgid "Sorry, something went wrong. Please try again."
+msgstr ""
+
+#: includes/modules/class-ai.php:450
+msgid "You"
+msgstr ""
+
+#: includes/modules/class-ai.php:451
+msgid "Assistant"
+msgstr ""
+
+#: includes/modules/class-ai.php:452
+msgid "Please keep your message under 600 characters."
+msgstr ""
+
+#: includes/modules/class-ai.php:498
+msgid "Connected."
+msgstr ""
+
+#: includes/modules/class-ai.php:500
+#, php-format
+msgid "Today: %1$d chat messages, %2$d writing requests."
+msgstr ""
+
+#: includes/modules/class-ai.php:501
+msgid "Send a test request"
+msgstr ""
+
+#: includes/modules/class-ai.php:516
+msgid "Sorry, you are not allowed to do that."
+msgstr ""
+
+#: includes/modules/class-ai.php:544
+#, php-format
+msgid "It works. %s answered."
+msgstr ""
+
+#: includes/modules/class-announcement.php:24
+msgid "Announcement bar"
+msgstr ""
+
+#: includes/modules/class-announcement.php:29
+msgid "A slim message at the top of every page for offers, holiday hours or news. Visitors can close it, and it can start and stop on set dates."
+msgstr ""
+
+#: includes/modules/class-announcement.php:35
+msgid "Message"
+msgstr ""
+
+#: includes/modules/class-announcement.php:35
+msgid "Keep it short. Bold, italic and links are allowed."
+msgstr ""
+
+#: includes/modules/class-announcement.php:36
+msgid "Button link"
+msgstr ""
+
+#: includes/modules/class-announcement.php:37
+msgid "Button text"
+msgstr ""
+
+#: includes/modules/class-announcement.php:40
+msgid "Colours"
+msgstr ""
+
+#: includes/modules/class-announcement.php:42
+msgid "Accent colour"
+msgstr ""
+
+#: includes/modules/class-announcement.php:43
+msgid "Dark"
+msgstr ""
+
+#: includes/modules/class-announcement.php:44
+msgid "Soft"
+msgstr ""
+
+#: includes/modules/class-announcement.php:48
+msgid "Let visitors close the bar"
+msgstr ""
+
+#: includes/modules/class-announcement.php:48
+msgid "A closed bar stays closed for that visitor until you change the message."
+msgstr ""
+
+#: includes/modules/class-announcement.php:49
+msgid "Show from"
+msgstr ""
+
+#: includes/modules/class-announcement.php:49
+msgid "Optional. Dates use the site's time zone."
+msgstr ""
+
+#: includes/modules/class-announcement.php:50
+msgid "Show until (including this day)"
+msgstr ""
+
+#: includes/modules/class-announcement.php:94
+msgid "Announcement"
+msgstr ""
+
+#: includes/modules/class-announcement.php:101
+msgid "Close announcement"
+msgstr ""
+
+#: includes/modules/class-business.php:40
+msgid "Business details"
+msgstr ""
+
+#: includes/modules/class-business.php:45
+msgid "Your name, address, phone, email, opening hours and social profiles, entered once. Show them anywhere with a shortcode; search engines get them as structured data when the SEO module is on; the AI assistant uses them to answer questions."
+msgstr ""
+
+#: includes/modules/class-business.php:56
+msgid "Business name"
+msgstr ""
+
+#: includes/modules/class-business.php:56
+msgid "Leave empty to use the site title."
+msgstr ""
+
+#: includes/modules/class-business.php:59
+msgid "Kind of business"
+msgstr ""
+
+#: includes/modules/class-business.php:60
+msgid "Used for search engines. Choose \"Online business\" if customers never visit you in person."
+msgstr ""
+
+#: includes/modules/class-business.php:62
+msgid "Local business (general)"
+msgstr ""
+
+#: includes/modules/class-business.php:63
+msgid "Professional service"
+msgstr ""
+
+#: includes/modules/class-business.php:64
+msgid "Legal service"
+msgstr ""
+
+#: includes/modules/class-business.php:65
+msgid "Accounting"
+msgstr ""
+
+#: includes/modules/class-business.php:66
+msgid "Financial service"
+msgstr ""
+
+#: includes/modules/class-business.php:67
+msgid "Medical or health practice"
+msgstr ""
+
+#: includes/modules/class-business.php:68
+msgid "Health and beauty"
+msgstr ""
+
+#: includes/modules/class-business.php:69
+msgid "Restaurant or café"
+msgstr ""
+
+#: includes/modules/class-business.php:70
+msgid "Shop"
+msgstr ""
+
+#: includes/modules/class-business.php:71
+msgid "Home services and construction"
+msgstr ""
+
+#: includes/modules/class-business.php:72
+msgid "Automotive"
+msgstr ""
+
+#: includes/modules/class-business.php:73
+msgid "Education and training"
+msgstr ""
+
+#: includes/modules/class-business.php:74
+msgid "Travel"
+msgstr ""
+
+#: includes/modules/class-business.php:75
+msgid "Online business (no visiting address)"
+msgstr ""
+
+#: includes/modules/class-business.php:79
+msgid "What you do"
+msgstr ""
+
+#: includes/modules/class-business.php:79
+msgid "One or two sentences. Used in structured data and by the AI assistant."
+msgstr ""
+
+#: includes/modules/class-business.php:80
+msgid "Phone"
+msgstr ""
+
+#: includes/modules/class-business.php:80
+msgid "In international format, for example +62 21 555 0100."
+msgstr ""
+
+#: includes/modules/class-business.php:81
+msgid "Email"
+msgstr ""
+
+#: includes/modules/class-business.php:82
+msgid "Street address"
+msgstr ""
+
+#: includes/modules/class-business.php:83
+msgid "City"
+msgstr ""
+
+#: includes/modules/class-business.php:84
+msgid "State or province"
+msgstr ""
+
+#: includes/modules/class-business.php:85
+msgid "Postcode"
+msgstr ""
+
+#: includes/modules/class-business.php:86
+msgid "Country"
+msgstr ""
+
+#: includes/modules/class-business.php:86
+msgid "Two-letter code such as ID, US or DE."
+msgstr ""
+
+#: includes/modules/class-business.php:87
+msgid "Map link"
+msgstr ""
+
+#: includes/modules/class-business.php:87
+msgid "A link to your location on a map service."
+msgstr ""
+
+#: includes/modules/class-business.php:88
+msgid "Opening hours"
+msgstr ""
+
+#: includes/modules/class-business.php:88
+msgid "One line per entry, for example \"Monday to Friday: 9:00 to 17:00\"."
+msgstr ""
+
+#: includes/modules/class-business.php:89
+msgid "Price range"
+msgstr ""
+
+#: includes/modules/class-business.php:89
+msgid "Optional, for example \"$$\" or \"Rp 100.000 to Rp 500.000\"."
+msgstr ""
+
+#: includes/modules/class-business.php:90
+msgid "Social profiles"
+msgstr ""
+
+#: includes/modules/class-business.php:90
+msgid "Full addresses of your profiles. Empty ones are skipped."
+msgstr ""
+
+#: includes/modules/class-business.php:268
+msgid "View on map"
+msgstr ""
+
+#: includes/modules/class-performance.php:24
+msgid "Performance"
+msgstr ""
+
+#: includes/modules/class-performance.php:29
+msgid "Lighter pages: removes the emoji script, unused header tags and other extras, and calms background requests."
+msgstr ""
+
+#: includes/modules/class-performance.php:42
+msgid "Remove the emoji script and styles"
+msgstr ""
+
+#: includes/modules/class-performance.php:43
+msgid "Every current browser shows emoji on its own. Saves a script and a style on every page."
+msgstr ""
+
+#: includes/modules/class-performance.php:48
+msgid "Remove unused tags from the page header"
+msgstr ""
+
+#: includes/modules/class-performance.php:49
+msgid "Removes the RSD, Windows Live Writer, shortlink and previous/next post links. Feeds and REST API links stay."
+msgstr ""
+
+#: includes/modules/class-performance.php:54
+msgid "Stop other sites from embedding your posts as cards"
+msgstr ""
+
+#: includes/modules/class-performance.php:55
+msgid "Removes the embed discovery links and script. You can still embed YouTube and other services in your own pages."
+msgstr ""
+
+#: includes/modules/class-performance.php:60
+msgid "Background \"heartbeat\" requests"
+msgstr ""
+
+#: includes/modules/class-performance.php:61
+msgid "WordPress polls the server while you are logged in. Slowing it down reduces server load on busy sites."
+msgstr ""
+
+#: includes/modules/class-performance.php:63
+msgid "WordPress default"
+msgstr ""
+
+#: includes/modules/class-performance.php:64
+msgid "Every 60 seconds"
+msgstr ""
+
+#: includes/modules/class-performance.php:65
+msgid "Only in the admin area"
+msgstr ""
+
+#: includes/modules/class-performance.php:71
+msgid "Revisions kept per post"
+msgstr ""
+
+#: includes/modules/class-performance.php:72
+msgid "0 keeps WordPress's setting (unlimited unless wp-config.php says otherwise). A limit keeps the database small."
+msgstr ""
+
+#: includes/modules/class-performance.php:79
+msgid "Do not ping your own site when you link to your own posts"
+msgstr ""
+
+#: includes/modules/class-performance.php:84
+msgid "Do not load jQuery Migrate on the front end"
+msgstr ""
+
+#: includes/modules/class-performance.php:85
+msgid "Only needed by very old plugins. The Forma theme uses no jQuery at all. Check your site after switching this on."
+msgstr ""
+
+#: includes/modules/class-security.php:24
+msgid "Security"
+msgstr ""
+
+#: includes/modules/class-security.php:29
+msgid "Hardening that stays out of your way: protective browser headers, login guessing protection, and fewer details about your site for attackers to collect."
+msgstr ""
+
+#: includes/modules/class-security.php:42
+msgid "Send protective browser headers"
+msgstr ""
+
+#: includes/modules/class-security.php:43
+msgid "Stops other sites from showing yours in a frame, stops browsers guessing file types, and limits what is shared when visitors follow a link away."
+msgstr ""
+
+#: includes/modules/class-security.php:48
+msgid "Tell browsers to always use HTTPS (HSTS)"
+msgstr ""
+
+#: includes/modules/class-security.php:49
+msgid "Only switch this on when the whole site works over HTTPS. Browsers remember it for a year."
+msgstr ""
+
+#: includes/modules/class-security.php:54
+msgid "Hide the WordPress version number"
+msgstr ""
+
+#: includes/modules/class-security.php:59
+msgid "Hide usernames from visitors"
+msgstr ""
+
+#: includes/modules/class-security.php:60
+msgid "Blocks the ?author= trick, the public users list in the REST API and the users sitemap for people who are not logged in."
+msgstr ""
+
+#: includes/modules/class-security.php:65
+msgid "Use one error message for a wrong username or a wrong password"
+msgstr ""
+
+#: includes/modules/class-security.php:66
+msgid "So the login form does not confirm which usernames exist."
+msgstr ""
+
+#: includes/modules/class-security.php:71
+msgid "Pause logins after repeated failures from the same address"
+msgstr ""
+
+#: includes/modules/class-security.php:76
+msgid "Failed logins allowed"
+msgstr ""
+
+#: includes/modules/class-security.php:83
+msgid "Pause length (minutes)"
+msgstr ""
+
+#: includes/modules/class-security.php:90
+msgid "Turn off XML-RPC"
+msgstr ""
+
+#: includes/modules/class-security.php:91
+msgid "An old remote-publishing interface that attackers like to target. Leave it on if you use the Jetpack plugin or a desktop app that needs it."
+msgstr ""
+
+#: includes/modules/class-security.php:96
+msgid "Turn off the theme and plugin file editors in the admin area"
+msgstr ""
+
+#: includes/modules/class-security.php:97
+msgid "If an admin account is ever compromised, it cannot be used to change PHP files from the browser."
+msgstr ""
+
+#: includes/modules/class-security.php:297
+msgid "<strong>Error:</strong> The username or password is incorrect."
+msgstr ""
+
+#. translators:%d: minutes.
+#: includes/modules/class-security.php:258
+#, php-format
+msgid "Too many failed login attempts. Please try again in %d minute."
+msgid_plural "Too many failed login attempts. Please try again in %d minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/modules/class-seo.php:28
+msgid "SEO and sharing"
+msgstr ""
+
+#: includes/modules/class-seo.php:33
+msgid "Search and sharing essentials: a description for every page, preview cards for social networks and messaging apps, and structured data that tells search engines who you are."
+msgstr ""
+
+#: includes/modules/class-seo.php:44
+msgid "Add preview cards for social networks and messaging apps (Open Graph and X)"
+msgstr ""
+
+#: includes/modules/class-seo.php:45
+msgid "Add structured data: your business, the site, articles and breadcrumbs"
+msgstr ""
+
+#: includes/modules/class-seo.php:46
+msgid "Default share image"
+msgstr ""
+
+#: includes/modules/class-seo.php:46
+msgid "Used when a page has no featured image. 1200 × 630 pixels works everywhere."
+msgstr ""
+
+#: includes/modules/class-seo.php:47
+msgid "X (Twitter) username"
+msgstr ""
+
+#: includes/modules/class-seo.php:48
+msgid "Keep search results and empty pages out of search engines"
+msgstr ""
+
+#: includes/modules/class-seo.php:48
+msgid "Adds \"noindex\" to your site's search results and \"page not found\" pages."
+msgstr ""
+
+#: includes/modules/class-seo.php:83
+#, php-format
+msgid "%s is active, so this module adds nothing to your pages to avoid duplicate tags. The page descriptions you wrote are kept."
+msgstr ""
+
+#: includes/modules/class-seo.php:383
+msgid "Home"
+msgstr ""
+
+#. Description of the plugin
+#: zenzeiten-forma-toolkit.php
+msgid "Switchable modules for a fast, secure business site: performance and security settings, SEO and structured data, business details, an announcement bar and an optional AI assistant powered by Claude. Made for the ZenZeiTen Forma theme; works with any theme."
+msgstr ""

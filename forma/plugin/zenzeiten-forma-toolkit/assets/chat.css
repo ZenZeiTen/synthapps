@@ -1,0 +1,210 @@
+/* Forma visitor chat. Uses the theme's palette when available, with neutral fallbacks. */
+.zzft-chat {
+	--zzft-bg: var(--wp--preset--color--base, #fff);
+	--zzft-surface: var(--wp--preset--color--surface, #f3f3f1);
+	--zzft-text: var(--wp--preset--color--contrast, #16150f);
+	--zzft-muted: var(--wp--preset--color--muted, #5c5950);
+	--zzft-accent: var(--wp--preset--color--accent, #22408f);
+	--zzft-on-accent: var(--wp--preset--color--on-accent, #fff);
+	--zzft-border: var(--wp--preset--color--border, #e2ded5);
+	font-family: var(--wp--preset--font-family--body, system-ui, sans-serif);
+	font-size: 0.9375rem;
+	line-height: 1.5;
+	color: var(--zzft-text);
+}
+
+.zzft-chat__sr {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+.zzft-chat--floating {
+	position: fixed;
+	right: 1.25rem;
+	bottom: 1.25rem;
+	z-index: 9999;
+}
+
+.zzft-chat__launcher {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 3.5rem;
+	height: 3.5rem;
+	border: 0;
+	border-radius: 50%;
+	background: var(--zzft-accent);
+	color: var(--zzft-on-accent);
+	box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.35);
+	cursor: pointer;
+	transition: transform 160ms ease;
+}
+
+.zzft-chat__launcher:hover {
+	transform: translateY(-2px);
+}
+
+.zzft-chat__launcher:focus-visible,
+.zzft-chat__send:focus-visible,
+.zzft-chat__close:focus-visible {
+	outline: 2px solid var(--zzft-accent);
+	outline-offset: 3px;
+}
+
+.zzft-chat__panel {
+	display: flex;
+	flex-direction: column;
+	background: var(--zzft-bg);
+	border: 1px solid var(--zzft-border);
+	border-radius: 1rem;
+	overflow: hidden;
+}
+
+.zzft-chat__panel[hidden] {
+	display: none;
+}
+
+.zzft-chat--floating .zzft-chat__panel {
+	position: absolute;
+	right: 0;
+	bottom: 4.5rem;
+	width: min(24rem, calc(100vw - 2.5rem));
+	height: min(34rem, calc(100vh - 7rem));
+	box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.35);
+}
+
+.zzft-chat--inline .zzft-chat__panel {
+	height: 32rem;
+	max-width: 44rem;
+}
+
+.zzft-chat__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	padding: 0.85rem 1rem;
+	background: var(--zzft-accent);
+	color: var(--zzft-on-accent);
+}
+
+.zzft-chat__title {
+	margin: 0;
+	color: inherit;
+	font-family: inherit;
+	font-size: 1rem;
+	font-weight: 600;
+	letter-spacing: 0;
+	line-height: 1.3;
+}
+
+.zzft-chat__close {
+	display: inline-flex;
+	padding: 0.25rem;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+}
+
+.zzft-chat__log {
+	flex: 1;
+	overflow-y: auto;
+	padding: 1rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+
+.zzft-chat__msg {
+	max-width: 85%;
+	padding: 0.6rem 0.85rem;
+	border-radius: 0.9rem;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.zzft-chat__msg--assistant {
+	align-self: flex-start;
+	background: var(--zzft-surface);
+	border-bottom-left-radius: 0.3rem;
+}
+
+.zzft-chat__msg--user {
+	align-self: flex-end;
+	background: var(--zzft-accent);
+	color: var(--zzft-on-accent);
+	border-bottom-right-radius: 0.3rem;
+}
+
+.zzft-chat__msg a {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.zzft-chat__msg.is-waiting {
+	color: var(--zzft-muted);
+	font-style: italic;
+}
+
+.zzft-chat__msg.is-error {
+	border: 1px solid var(--zzft-border);
+	background: transparent;
+}
+
+.zzft-chat__form {
+	display: flex;
+	align-items: flex-end;
+	gap: 0.5rem;
+	margin: 0;
+	padding: 0.75rem;
+	border-top: 1px solid var(--zzft-border);
+}
+
+.zzft-chat__input {
+	flex: 1;
+	min-height: 2.5rem;
+	max-height: 8.75rem;
+	padding: 0.55rem 0.75rem;
+	border: 1px solid var(--zzft-border);
+	border-radius: 0.6rem;
+	background: var(--zzft-bg);
+	color: var(--zzft-text);
+	font: inherit;
+	resize: none;
+}
+
+.zzft-chat__send {
+	padding: 0.6rem 1rem;
+	border: 0;
+	border-radius: 0.6rem;
+	background: var(--zzft-accent);
+	color: var(--zzft-on-accent);
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.zzft-chat__send:disabled {
+	opacity: 0.6;
+	cursor: wait;
+}
+
+.zzft-chat__note {
+	margin: 0;
+	padding: 0 0.85rem 0.75rem;
+	color: var(--zzft-muted);
+	font-size: 0.75rem;
+	line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.zzft-chat__launcher {
+		transition: none;
+	}
+}
