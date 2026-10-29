@@ -64,7 +64,28 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm test
+      # The end-to-end run asks WP-CLI whether WordPress would offer an update for this plugin.
+      - name: Install WP-CLI
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/wp-cli.phar" https://github.com/wp-cli/wp-cli/releases/download/v2.11.0/wp-cli-2.11.0.phar
+          php "$RUNNER_TEMP/wp-cli.phar" --version
+          echo "WP_CLI=php $RUNNER_TEMP/wp-cli.phar" >> "$GITHUB_ENV"
       - run: npm run test:e2e -- "$RUNNER_TEMP/screens"
+      # Report only: Update URI and the update filter keep a same-named WordPress.org plugin from
+      # being offered here, but a taken slug is still a reason to consider renaming the plugin.
+      - name: Is the contextchat slug taken on WordPress.org?
+        run: |
+          reply="$(curl -gsS -m 20 'https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]=contextchat&request[fields][sections]=0' || true)"
+          if [ -z "$reply" ] || ! jq -e . > /dev/null 2>&1 <<< "$reply"; then
+            msg="Could not reach api.wordpress.org to check the contextchat slug."
+          elif jq -e '.error' > /dev/null <<< "$reply"; then
+            msg="The contextchat slug is free on WordPress.org ($(jq -r '.error' <<< "$reply"))."
+          else
+            msg="The contextchat slug is TAKEN on WordPress.org: $(jq -r '"\(.name) \(.version) by \(.author | gsub("<[^>]*>"; ""))" | gsub("[\\r\\n]"; " ")' <<< "$reply")."
+            echo "::warning::$msg"
+          fi
+          echo "$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

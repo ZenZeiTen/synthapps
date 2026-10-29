@@ -44,7 +44,7 @@ def main():
         "# This file is distributed under the GPL-2.0-or-later.",
         'msgid ""',
         'msgstr ""',
-        '"Project-Id-Version: ContextChat 1.0.0\\n"',
+        '"Project-Id-Version: ContextChat 1.0.1\\n"',
         '"MIME-Version: 1.0\\n"',
         '"Content-Type: text/plain; charset=UTF-8\\n"',
         '"Content-Transfer-Encoding: 8bit\\n"',

@@ -4,7 +4,7 @@ Tags: whatsapp, chat, click to chat, woocommerce, contact
 Requires at least: 6.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,9 @@ Other filters: `contextchat_message`, `contextchat_agents`, `contextchat_should_
 All attributes are optional. Without `agent` the button follows your context rules; without `message` it uses the rule or default message.
 
 == Changelog ==
+
+= 1.0.1 =
+* Fix: WordPress can no longer offer an unrelated plugin from WordPress.org as an "update" to ContextChat. WordPress matches updates by folder name, so a WordPress.org plugin also named "contextchat" would have replaced this one. The plugin now opts out of WordPress.org updates and removes any such offer already cached on the site.
 
 = 1.0.0 =
 * First release.

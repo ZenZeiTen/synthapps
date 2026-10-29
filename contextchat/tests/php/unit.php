@@ -10,6 +10,23 @@ define( 'ABSPATH', __DIR__ . '/' );
 $plugin = dirname( __DIR__, 2 ) . '/plugin/contextchat';
 require $plugin . '/includes/class-template.php';
 require $plugin . '/includes/class-context.php';
+require $plugin . '/includes/class-updates.php';
+
+// Just enough of WordPress's hook and plugin API for ContextChat_Updates.
+define( 'CONTEXTCHAT_FILE', $plugin . '/contextchat.php' );
+$filters = array();
+function add_filter( $hook, $callback ) {
+	$GLOBALS['filters'][ $hook ][] = $callback;
+}
+function apply_filters( $hook, $value ) {
+	foreach ( isset( $GLOBALS['filters'][ $hook ] ) ? $GLOBALS['filters'][ $hook ] : array() as $callback ) {
+		$value = call_user_func( $callback, $value );
+	}
+	return $value;
+}
+function plugin_basename( $file ) {
+	return basename( dirname( $file ) ) . '/' . basename( $file );
+}
 
 $failures = 0;
 $count    = 0;
@@ -93,6 +110,21 @@ $rules = array(
 );
 check( 'rules: first match wins', ContextChat_Context::first_match( $rules, $env )['id'], 'r2' );
 check( 'rules: no match', ContextChat_Context::first_match( array( $rules[0] ), $env ), null );
+
+// Updates: WordPress.org must not offer a same-named plugin as an update to this one.
+ContextChat_Updates::init();
+$transient = (object) array(
+	'response'  => array(
+		'contextchat/contextchat.php' => (object) array( 'new_version' => '9.9.9' ),
+		'akismet/akismet.php'         => (object) array( 'new_version' => '5.4' ),
+	),
+	'no_update' => array( 'contextchat/contextchat.php' => (object) array( 'new_version' => '9.9.9' ) ),
+);
+$out = apply_filters( 'site_transient_update_plugins', $transient );
+check( 'updates: only the same-named plugin is dropped from offers', array_keys( $out->response ), array( 'akismet/akismet.php' ) );
+check( 'updates: the same-named plugin is dropped from no_update', $out->no_update, array() );
+check( 'updates: a missing transient stays missing', apply_filters( 'site_transient_update_plugins', false ), false );
+check( 'updates: header opts out of WordPress.org updates', false !== strpos( file_get_contents( CONTEXTCHAT_FILE ), "\n * Update URI:        false\n" ), true );
 
 echo "\n{$count} checks, {$failures} failed\n";
 exit( $failures ? 1 : 0 );
