@@ -35,6 +35,12 @@ wp core install --url="$URL" --title=Smoke --admin_user=admin --admin_password=a
 ln -s "$PLUGIN" wp/wp-content/plugins/visitor-sentinel
 wp plugin activate visitor-sentinel
 
+# WordPress.org hosts an unrelated plugin in a folder of the same name. WordPress must not offer
+# it as an update, because updating would replace this plugin with that one.
+UPDATE=$(wp plugin list --name=visitor-sentinel --field=update)
+echo "WordPress.org raw offer: $(wp eval '$t = get_option( "_site_transient_update_plugins" ); $r = is_object( $t ) && isset( $t->response["visitor-sentinel/visitor-sentinel.php"] ) ? $t->response["visitor-sentinel/visitor-sentinel.php"] : null; echo $r ? "version " . $r->new_version : "none";')"
+[ "$UPDATE" = "none" ] || { echo "FAIL: WordPress offers an update for visitor-sentinel ($UPDATE)"; exit 1; }
+
 php -S "127.0.0.1:$PORT" -t wp >/dev/null 2>&1 &
 SERVER=$!
 trap 'kill $SERVER 2>/dev/null || true' EXIT

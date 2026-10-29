@@ -74,6 +74,9 @@ in Google Ads "IP exclusions" format. An hourly email digest reports new fraud.
   URLs that carry click IDs, but check yours.
 - Without a persistent object cache, the rate limiter stores short-lived transients in the
   options table.
+- WordPress.org hosts an unrelated plugin in a folder with the same name. The plugin opts out of
+  WordPress.org updates (`Update URI: false`, and it drops any cached offer), so updates come only
+  from uploading a newer zip with **Replace current with uploaded**.
 
 ## Tests
 

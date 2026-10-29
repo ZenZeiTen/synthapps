@@ -3,12 +3,13 @@
  * Plugin Name:       Visitor Sentinel
  * Plugin URI:        https://github.com/ZenZeiTen/synthapps/tree/main/visitor-sentinel
  * Description:       Visitor analytics with IP address tracking, page activity tracking and fraudulent click detection for paid ad clicks and on-site ads.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            ZenZeiTen
  * License:           MIT
  * License URI:       https://opensource.org/licenses/MIT
+ * Update URI:        false
  * Text Domain:       visitor-sentinel
  * Domain Path:       /languages
  *
@@ -17,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VSEN_VERSION', '1.0.0' );
+define( 'VSEN_VERSION', '1.0.1' );
 define( 'VSEN_DB_VERSION', '1' );
 define( 'VSEN_FILE', __FILE__ );
 define( 'VSEN_DIR', plugin_dir_path( __FILE__ ) );

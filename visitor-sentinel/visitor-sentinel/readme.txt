@@ -3,7 +3,7 @@ Contributors: zenzeiten
 Tags: analytics, click fraud, ip tracking, visitor tracking, ad protection
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -87,6 +87,9 @@ Add `data-vsen-track="label"` to an element, or call `VisitorSentinel.track('lab
 * `vsen_blocked_request` action: fires before a blocked visitor is refused.
 
 == Changelog ==
+
+= 1.0.1 =
+* WordPress no longer offers to "update" this plugin to an unrelated WordPress.org plugin that uses the same folder name. Updating would have replaced Visitor Sentinel with that plugin.
 
 = 1.0.0 =
 * First release.
