@@ -3,7 +3,7 @@ Contributors: zenzeiten
 Tags: security, firewall, brute force, ip blocking, backup
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -49,12 +49,17 @@ Every request from a visitor is checked against 18 attack signatures before your
 
 == Installation ==
 
-1. In WordPress, go to Plugins > Add New > Upload Plugin and upload zenzeiten-bastion-1.0.0.zip.
+1. In WordPress, go to Plugins > Add New > Upload Plugin and upload the zenzeiten-bastion zip file.
 2. Activate the plugin. The address you activate it from is protected from automatic blocks.
 3. Open Bastion > Settings. If your site is behind Cloudflare, tick "This site is behind Cloudflare" and check that "Your address as Bastion sees it" shows your real address.
 4. Open Bastion > Backups and click "Back up now" for a first backup.
+5. If you use a page-cache plugin, clear its cache, then check the site in a private window.
 
 == Frequently Asked Questions ==
+
+= Visitors see a blank page after I install or update Bastion =
+
+A page-cache plugin (Jetpack Boost, WP Rocket, LiteSpeed Cache, or the page cache in an SEO or speed suite) may still be serving a copy of the page saved before or during the change. Clear that plugin's cache, then reload the site in a private window.
 
 = I locked myself out =
 
@@ -85,6 +90,14 @@ Blocked addresses are checked from a small cached list without a database query.
 Nothing, unless you tick "Delete the log, blocks, settings and all backups when the plugin is deleted" in Settings first.
 
 == Changelog ==
+
+= 1.0.2 =
+* Docs: after installing or updating, clear any page cache; a stale cached page can show visitors a blank page.
+* Fix: pages could show blank to visitors who were not logged in, alongside plugins that cache pages or decide who the visitor is (for example Jetpack and Jetpack Boost). The firewall now recognises logged-in editors from their login cookie instead of asking WordPress for the current user before other plugins have loaded.
+
+= 1.0.1 =
+* Fix: a security check that hits an error is now skipped and reported, instead of leaving visitors with a blank page. Administrators see the error details in a notice in wp-admin.
+* Tested on PHP 8.4.
 
 = 1.0.0 =
 * First release: firewall, live attack monitor, automatic IP blocking with escalation, login protection, user enumeration and XML-RPC hardening, email alerts, administrator account watch, and database backups with verified restore and automatic rollback, plus WP-CLI commands.

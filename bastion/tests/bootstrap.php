@@ -12,6 +12,8 @@
 // phpcs:disable
 
 error_reporting( E_ALL );
+// Errors the plugin records with error_log() would otherwise clutter the test output.
+ini_set( 'error_log', '/dev/null' );
 set_error_handler(
 	function ( $severity, $message, $file, $line ) {
 		throw new ErrorException( $message, 0, $severity, $file, $line );
@@ -43,6 +45,8 @@ final class WP_Stub {
 	public static $is_404     = false;
 	/** True while simulating code that runs before after_setup_theme, when translating is an error. */
 	public static $early      = false;
+	/** How often the plugin asked WordPress for the current user (which settles it for the request). */
+	public static $current_user_lookups = 0;
 
 	public static function reset() {
 		self::$options    = array();
@@ -54,6 +58,7 @@ final class WP_Stub {
 		self::$user       = null;
 		self::$is_404     = false;
 		self::$early      = false;
+		self::$current_user_lookups = 0;
 	}
 }
 
@@ -347,9 +352,9 @@ function set_transient( $name, $value, $ttl = 0 ) { WP_Stub::$transients[ $name 
 function delete_transient( $name ) { unset( WP_Stub::$transients[ $name ] ); return true; }
 function wp_using_ext_object_cache() { return false; }
 
-function is_user_logged_in() { return null !== WP_Stub::$user; }
+function is_user_logged_in() { ++WP_Stub::$current_user_lookups; return null !== WP_Stub::$user; }
 function get_current_user_id() { return WP_Stub::$user ? WP_Stub::$user->ID : 0; }
-function wp_get_current_user() { return WP_Stub::$user ? WP_Stub::$user : (object) array( 'ID' => 0, 'roles' => array() ); }
+function wp_get_current_user() { ++WP_Stub::$current_user_lookups; return WP_Stub::$user ? WP_Stub::$user : (object) array( 'ID' => 0, 'roles' => array() ); }
 function wp_roles() {
 	return new class() {
 		public function get_names() {
@@ -428,7 +433,16 @@ function is_trackback() { return false; }
 function plugin_dir_url( $file ) { return 'https://example.com/wp-content/plugins/zenzeiten-bastion/'; }
 function plugin_basename( $file ) { return 'zenzeiten-bastion/zenzeiten-bastion.php'; }
 function is_admin() { return false; }
+function wp_validate_auth_cookie( $cookie = '', $scheme = '' ) { return WP_Stub::$user ? WP_Stub::$user->ID : false; }
+function user_can( $user_id, $cap ) { return WP_Stub::$user && (int) WP_Stub::$user->ID === (int) $user_id && zbst_role_can( WP_Stub::$user, $cap ); }
+function zbst_role_can( $user, $cap ) {
+	if ( in_array( 'administrator', $user->roles, true ) ) {
+		return true;
+	}
+	return 'unfiltered_html' === $cap && in_array( 'editor', $user->roles, true );
+}
 function current_user_can( $cap ) {
+	++WP_Stub::$current_user_lookups;
 	if ( ! WP_Stub::$user ) {
 		return false;
 	}

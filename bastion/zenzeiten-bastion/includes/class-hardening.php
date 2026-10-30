@@ -19,14 +19,15 @@ final class Hardening {
 	 * Register hooks.
 	 */
 	public static function register() {
-		add_action( 'wp_login_failed', array( __CLASS__, 'login_failed' ), 10, 1 );
-		add_action( 'wp_login', array( __CLASS__, 'login_ok' ), 10, 2 );
-		add_filter( 'login_errors', array( __CLASS__, 'login_errors' ) );
-		add_action( 'template_redirect', array( __CLASS__, 'template_redirect' ), 0 );
-		add_filter( 'rest_pre_dispatch', array( __CLASS__, 'rest_users' ), 10, 3 );
-		add_filter( 'xmlrpc_enabled', array( __CLASS__, 'xmlrpc_enabled' ) );
-		add_filter( 'xmlrpc_methods', array( __CLASS__, 'xmlrpc_methods' ) );
-		add_action( 'init', array( __CLASS__, 'xmlrpc_off' ), 0 );
+		// Wrapped: an error in a check is recorded and skipped, never shown to visitors.
+		add_action( 'wp_login_failed', Guard::wrap( array( __CLASS__, 'login_failed' ) ), 10, 1 );
+		add_action( 'wp_login', Guard::wrap( array( __CLASS__, 'login_ok' ) ), 10, 2 );
+		add_filter( 'login_errors', Guard::wrap( array( __CLASS__, 'login_errors' ) ) );
+		add_action( 'template_redirect', Guard::wrap( array( __CLASS__, 'template_redirect' ) ), 0 );
+		add_filter( 'rest_pre_dispatch', Guard::wrap( array( __CLASS__, 'rest_users' ) ), 10, 3 );
+		add_filter( 'xmlrpc_enabled', Guard::wrap( array( __CLASS__, 'xmlrpc_enabled' ) ) );
+		add_filter( 'xmlrpc_methods', Guard::wrap( array( __CLASS__, 'xmlrpc_methods' ) ) );
+		add_action( 'init', Guard::wrap( array( __CLASS__, 'xmlrpc_off' ) ), 0 );
 	}
 
 	/**
@@ -169,7 +170,7 @@ final class Hardening {
 	 * @return array
 	 */
 	public static function xmlrpc_methods( $methods ) {
-		if ( 'allow' !== Settings::get( 'xmlrpc' ) ) {
+		if ( 'allow' !== Settings::get( 'xmlrpc' ) && is_array( $methods ) ) {
 			unset( $methods['system.multicall'] );
 		}
 		return $methods;
@@ -199,7 +200,7 @@ final class Hardening {
 	 */
 	public static function rate_limit() {
 		$limit = (int) Settings::get( 'rate_limit' );
-		if ( $limit <= 0 || is_user_logged_in() || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
+		if ( $limit <= 0 || Guard::cookie_user_id() || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
 			return;
 		}
 		$ip    = Request::ip();

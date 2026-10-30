@@ -18,13 +18,79 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Guard {
 
+	const ERROR_OPTION = 'zbst_last_error';
+
 	/**
 	 * Register hooks.
 	 */
 	public static function register() {
 		// As early as a regular plugin can run: after all plugins are loaded and before any of
 		// them does work on plugins_loaded.
-		add_action( 'plugins_loaded', array( __CLASS__, 'early' ), -1000 );
+		add_action( 'plugins_loaded', self::wrap( array( __CLASS__, 'early' ) ), -1000 );
+	}
+
+	/**
+	 * Wrap a hook callback so an error inside it is recorded and skipped instead of stopping the
+	 * page. A security check that fails must never take the site down: the request carries on
+	 * unchecked, and the error is shown to administrators so it can be reported and fixed.
+	 *
+	 * @param callable $callback Callback.
+	 * @return \Closure
+	 */
+	public static function wrap( $callback ) {
+		return function ( ...$args ) use ( $callback ) {
+			try {
+				return call_user_func_array( $callback, $args );
+			} catch ( \Error $e ) {
+				self::record_error( $e );
+				// Filters get their value back unchanged; actions ignore the return value.
+				return $args ? $args[0] : null;
+			}
+		};
+	}
+
+	/**
+	 * Remember the latest error for the admin notice and write it to the PHP error log, at most
+	 * once a minute so a busy site does not write on every request.
+	 *
+	 * @param \Throwable $e Error.
+	 */
+	public static function record_error( $e ) {
+		$message = get_class( $e ) . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
+		$last    = get_option( self::ERROR_OPTION );
+		if ( is_array( $last ) && isset( $last['time'], $last['message'] ) && $last['message'] === $message && time() - (int) $last['time'] < 60 ) {
+			return;
+		}
+		error_log( 'ZenZeiTen Bastion skipped a check after an error: ' . $message ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- reported to the site owner.
+		update_option(
+			self::ERROR_OPTION,
+			array(
+				'time'    => time(),
+				'message' => Request::clip( $message, 1000 ),
+				'url'     => Request::uri(),
+				'version' => ZBST_VERSION,
+				'php'     => PHP_VERSION,
+			),
+			false
+		);
+	}
+
+	/**
+	 * ID of the user the request's login cookie belongs to, or 0.
+	 *
+	 * The guard runs before other plugins finish loading. Asking WordPress for the current user
+	 * there (current_user_can(), is_user_logged_in()) would settle who the visitor is before
+	 * plugins that hook into that decision, or that cache pages for logged-out visitors, are
+	 * ready. That broke pages for logged-out visitors on a live site. This reads the cookie
+	 * without setting the current user.
+	 *
+	 * @return int
+	 */
+	public static function cookie_user_id() {
+		if ( ! function_exists( 'wp_validate_auth_cookie' ) ) {
+			return 0;
+		}
+		return (int) wp_validate_auth_cookie( '', 'logged_in' );
 	}
 
 	/**

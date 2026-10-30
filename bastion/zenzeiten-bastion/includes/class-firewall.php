@@ -212,7 +212,8 @@ final class Firewall {
 	 */
 	public static function run() {
 		$mode = Settings::get( 'firewall_mode' );
-		if ( 'off' === $mode || current_user_can( 'unfiltered_html' ) ) {
+		$user = Guard::cookie_user_id();
+		if ( 'off' === $mode || ( $user && user_can( $user, 'unfiltered_html' ) ) ) {
 			return;
 		}
 		$match = self::inspect( self::current_request(), (array) Settings::get( 'disabled_rules' ) );

@@ -10,6 +10,7 @@ namespace ZenZeiTenBastion\Admin;
 use ZenZeiTenBastion\Backup;
 use ZenZeiTenBastion\Blocklist;
 use ZenZeiTenBastion\Firewall;
+use ZenZeiTenBastion\Guard;
 use ZenZeiTenBastion\IP;
 use ZenZeiTenBastion\Log;
 use ZenZeiTenBastion\Plugin;
@@ -32,7 +33,8 @@ final class Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( ZBST_FILE ), array( $this, 'action_links' ) );
-		foreach ( array( 'block', 'unblock', 'forget', 'backup_now', 'download', 'restore', 'delete_backup', 'upload', 'save_settings' ) as $action ) {
+		add_action( 'admin_notices', array( $this, 'error_notice' ) );
+		foreach ( array( 'block', 'unblock', 'forget', 'backup_now', 'download', 'restore', 'delete_backup', 'upload', 'save_settings', 'clear_error' ) as $action ) {
 			add_action( 'admin_post_zbst_' . $action, array( $this, 'handle_' . $action ) );
 		}
 	}
@@ -234,6 +236,33 @@ final class Admin {
 			delete_transient( $key );
 			printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', 'error' === $notice[0] ? 'error' : 'success', esc_html( $notice[1] ) );
 		}
+	}
+
+	/**
+	 * Tell administrators when a check hit an error and was skipped, with the details to report.
+	 */
+	public function error_notice() {
+		$error = get_option( Guard::ERROR_OPTION );
+		if ( ! is_array( $error ) || empty( $error['message'] ) || ! current_user_can( Plugin::capability() ) ) {
+			return;
+		}
+		echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'ZenZeiTen Bastion skipped a security check because of an error.', 'zenzeiten-bastion' ) . '</strong> '
+			. esc_html__( 'Your site kept working. Please send these details to the plugin\'s developer:', 'zenzeiten-bastion' ) . '</p>'
+			. '<p><code>' . esc_html( $error['message'] ) . '</code></p><p>'
+			/* translators: 1: date and time, 2: page address, 3: plugin version, 4: PHP version */
+			. esc_html( sprintf( __( 'Last seen %1$s on %2$s (Bastion %3$s, PHP %4$s).', 'zenzeiten-bastion' ), wp_date( 'Y-m-d H:i', (int) $error['time'] ), $error['url'], $error['version'], $error['php'] ) )
+			. '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="zbst_clear_error" />';
+		wp_nonce_field( 'zbst_clear_error' );
+		echo '<p><button class="button">' . esc_html__( 'Clear this message', 'zenzeiten-bastion' ) . '</button></p></form></div>';
+	}
+
+	/**
+	 * Clear the error notice.
+	 */
+	public function handle_clear_error() {
+		$this->guard( 'zbst_clear_error' );
+		delete_option( Guard::ERROR_OPTION );
+		$this->back( 'zbst-dashboard', 'success', __( 'Message cleared.', 'zenzeiten-bastion' ) );
 	}
 
 	/**

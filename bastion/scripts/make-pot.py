@@ -44,7 +44,7 @@ def main():
         "# This file is distributed under the MIT license.",
         'msgid ""',
         'msgstr ""',
-        '"Project-Id-Version: ZenZeiTen Bastion 1.0.0\\n"',
+        '"Project-Id-Version: ZenZeiTen Bastion 1.0.2\\n"',
         '"MIME-Version: 1.0\\n"',
         '"Content-Type: text/plain; charset=UTF-8\\n"',
         '"Content-Transfer-Encoding: 8bit\\n"',

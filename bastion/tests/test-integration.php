@@ -380,3 +380,73 @@ function test_early_request_path_never_translates() {
 	check( Alerts::flush() );
 	check( false !== strpos( WP_Stub::$mail[0]['body'], '198.51.100.160' ) );
 }
+
+// ---------------------------------------------------------------------------------------------
+// A failing check never takes the site down.
+// ---------------------------------------------------------------------------------------------
+
+function test_an_error_in_a_check_is_skipped_and_reported() {
+	$calls  = 0;
+	$broken = Guard::wrap(
+		function ( $value ) use ( &$calls ) {
+			++$calls;
+			return undefined_function_in_a_check( $value );
+		}
+	);
+	// A filter gets its value back unchanged, and the page carries on.
+	check_same( 'original', $broken( 'original' ) );
+	$error = get_option( Guard::ERROR_OPTION );
+	check( is_array( $error ) && false !== strpos( $error['message'], 'undefined_function_in_a_check' ), 'error recorded' );
+	check_same( ZBST_VERSION, $error['version'] );
+
+	// The same error again within a minute does not rewrite the option on every request.
+	update_option( Guard::ERROR_OPTION, array_merge( $error, array( 'url' => '/marker' ) ) );
+	$broken( 'again' );
+	check_same( '/marker', get_option( Guard::ERROR_OPTION )['url'] );
+	check_same( 2, $calls );
+
+	// Refusing a request is not an error: it still stops the request.
+	$deny    = Guard::wrap( array( 'ZenZeiTenBastion\\Guard', 'early' ) );
+	zbst_request( '198.51.100.170', array( 'id' => '1 UNION SELECT 1' ) );
+	$stopped = 0;
+	try {
+		$deny();
+	} catch ( Zbst_Stop $e ) {
+		$stopped = $e->status;
+	}
+	check_same( 403, $stopped );
+}
+
+function test_hooks_are_registered_wrapped() {
+	ZenZeiTenBastion\Plugin::instance()->boot();
+	foreach ( array( 'plugins_loaded', 'template_redirect', 'wp_login_failed', 'xmlrpc_methods' ) as $hook ) {
+		$closures = array_filter(
+			WP_Stub::$filters[ $hook ],
+			function ( $cb ) {
+				return $cb instanceof Closure;
+			}
+		);
+		check( count( $closures ) > 0, "{$hook} callback is not wrapped" );
+	}
+	// A broken value from another plugin no longer breaks the XML-RPC filter.
+	check_same( 'not-an-array', ZenZeiTenBastion\Hardening::xmlrpc_methods( 'not-an-array' ) );
+}
+
+function test_guard_does_not_settle_the_current_user() {
+	// The guard runs on plugins_loaded. Asking WordPress for the current user there fixes it for
+	// the whole request before other plugins (page caches among them) are ready; a live site's
+	// public pages went blank. The guard reads the login cookie instead.
+	update_option( Settings::OPTION, array_merge( Settings::all(), array( 'rate_limit' => 100 ) ) );
+	Settings::flush();
+	foreach ( array( array( 's' => 'shoes' ), array( 'id' => '1 UNION SELECT 1' ) ) as $get ) {
+		zbst_request( '198.51.100.180', $get );
+		WP_Stub::$current_user_lookups = 0;
+		zbst_run_guard();
+		check_same( 0, WP_Stub::$current_user_lookups, 'guard asked WordPress for the current user' );
+	}
+	// Editors are still recognised by their cookie and not inspected.
+	WP_Stub::$user = (object) array( 'ID' => 3, 'roles' => array( 'editor' ) );
+	zbst_request( '198.51.100.181', array( 'html' => '<script>ok()</script>' ) );
+	check_same( 0, zbst_run_guard() );
+	check_same( 0, WP_Stub::$current_user_lookups );
+}
