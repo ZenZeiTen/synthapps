@@ -1,0 +1,1053 @@
+# Copyright (C) 2026 ZenZeiTen
+# This file is distributed under the MIT license.
+msgid ""
+msgstr ""
+"Project-Id-Version: ZenZeiTen Bastion 1.0.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Domain: zenzeiten-bastion\n"
+
+#: includes/admin/class-admin.php:151 includes/admin/class-admin.php:151
+msgid "Bastion"
+msgstr ""
+
+#: includes/admin/class-admin.php:152 includes/admin/class-admin.php:152
+msgid "Live monitor"
+msgstr ""
+
+#: includes/admin/class-admin.php:153 includes/admin/class-admin.php:153 includes/admin/views/events.php:24
+msgid "Attack log"
+msgstr ""
+
+#: includes/admin/class-admin.php:154 includes/admin/class-admin.php:154
+msgid "Blocked IPs"
+msgstr ""
+
+#: includes/admin/class-admin.php:155 includes/admin/class-admin.php:155
+msgid "Backups"
+msgstr ""
+
+#: includes/admin/class-admin.php:156 includes/admin/class-admin.php:156 includes/admin/class-admin.php:166
+msgid "Settings"
+msgstr ""
+
+#: includes/admin/class-admin.php:189
+msgid "Paused"
+msgstr ""
+
+#: includes/admin/class-admin.php:190 includes/admin/views/dashboard.php:74
+msgid "Live"
+msgstr ""
+
+#: includes/admin/class-admin.php:191
+msgid "Connection lost, retrying…"
+msgstr ""
+
+#: includes/admin/class-admin.php:192
+msgid "No events yet. Attacks will appear here as they happen."
+msgstr ""
+
+#: includes/admin/class-admin.php:193 includes/admin/views/blocks.php:42 includes/admin/views/dashboard.php:107
+msgid "Block"
+msgstr ""
+
+#: includes/admin/class-admin.php:194
+msgid "Replace the whole database with this backup? A safety backup of the current database is taken first and restored automatically if anything fails."
+msgstr ""
+
+#: includes/admin/class-admin.php:195
+msgid "Delete this backup permanently?"
+msgstr ""
+
+#: includes/admin/class-admin.php:209
+msgid "Sorry, you are not allowed to do that."
+msgstr ""
+
+#: includes/admin/class-admin.php:258
+msgid "That would block your own address, so it was not blocked."
+msgstr ""
+
+#: includes/admin/class-admin.php:260
+msgid "Blocked by an administrator"
+msgstr ""
+
+#: includes/admin/class-admin.php:263
+msgid "Enter a valid IP address or range that is not on the allowlist."
+msgstr ""
+
+#: includes/admin/class-admin.php:276
+#, php-format
+msgid "Blocked %s."
+msgstr ""
+
+#: includes/admin/class-admin.php:295
+#, php-format
+msgid "Unblocked %s."
+msgstr ""
+
+#: includes/admin/class-admin.php:297
+msgid "That address is not blocked."
+msgstr ""
+
+#: includes/admin/class-admin.php:306
+msgid "Block removed and its history forgotten."
+msgstr ""
+
+#: includes/admin/class-admin.php:319
+#, php-format
+msgid "Backup created: %1$d tables, %2$d rows."
+msgstr ""
+
+#: includes/admin/class-admin.php:330 includes/class-backup.php:325
+msgid "That backup does not exist."
+msgstr ""
+
+#: includes/admin/class-admin.php:352
+#, php-format
+msgid "Database restored from %1$s. The database as it was before is saved as %2$s. If the site uses a different login now, sign in again."
+msgstr ""
+
+#: includes/admin/class-admin.php:361
+msgid "Backup deleted."
+msgstr ""
+
+#: includes/admin/class-admin.php:372
+msgid "Choose a backup file to upload. If you did, it may be larger than the server allows."
+msgstr ""
+
+#: includes/admin/class-admin.php:379
+#, php-format
+msgid "Backup uploaded as %s. You can restore it from the list."
+msgstr ""
+
+#: includes/admin/class-admin.php:391
+msgid "Settings saved."
+msgstr ""
+
+#: includes/admin/class-admin.php:399
+msgid "Sorry, you are not allowed to access this page."
+msgstr ""
+
+#: includes/admin/views/backups.php:17
+msgid "Scheduled"
+msgstr ""
+
+#: includes/admin/views/backups.php:18 includes/admin/views/blocks.php:21
+msgid "Manual"
+msgstr ""
+
+#: includes/admin/views/backups.php:19
+msgid "Before an update"
+msgstr ""
+
+#: includes/admin/views/backups.php:20
+msgid "Safety (before a restore)"
+msgstr ""
+
+#: includes/admin/views/backups.php:21
+msgid "WP-CLI"
+msgstr ""
+
+#: includes/admin/views/backups.php:22
+msgid "Uploaded"
+msgstr ""
+
+#: includes/admin/views/backups.php:25
+msgid "every day"
+msgstr ""
+
+#: includes/admin/views/backups.php:26
+msgid "every week"
+msgstr ""
+
+#: includes/admin/views/backups.php:27
+msgid "never (automatic backups are off)"
+msgstr ""
+
+#: includes/admin/views/backups.php:32 includes/admin/views/settings.php:174
+msgid "Database backups"
+msgstr ""
+
+#: includes/admin/views/backups.php:36
+msgid "Back up now"
+msgstr ""
+
+#: includes/admin/views/backups.php:48
+#, php-format
+msgid "Automatic backups run %1$s; the newest %2$d are kept."
+msgstr ""
+
+#: includes/admin/views/backups.php:52
+#, php-format
+msgid "Next: %s."
+msgstr ""
+
+#: includes/admin/views/backups.php:55
+msgid "A backup is also taken before WordPress installs updates."
+msgstr ""
+
+#: includes/admin/views/backups.php:58 includes/admin/views/dashboard.php:34
+msgid "Change"
+msgstr ""
+
+#: includes/admin/views/backups.php:63
+msgid "Created"
+msgstr ""
+
+#: includes/admin/views/backups.php:64
+msgid "Type"
+msgstr ""
+
+#: includes/admin/views/backups.php:65
+msgid "Tables"
+msgstr ""
+
+#: includes/admin/views/backups.php:66
+msgid "Rows"
+msgstr ""
+
+#: includes/admin/views/backups.php:67
+msgid "Size"
+msgstr ""
+
+#: includes/admin/views/backups.php:68
+msgid "Backup ID"
+msgstr ""
+
+#: includes/admin/views/backups.php:73
+msgid "No backups yet. Click \"Back up now\" to make the first one."
+msgstr ""
+
+#: includes/admin/views/backups.php:84
+msgid "Download"
+msgstr ""
+
+#: includes/admin/views/backups.php:89 includes/class-log.php:63
+msgid "Restore"
+msgstr ""
+
+#: includes/admin/views/backups.php:95
+msgid "Delete"
+msgstr ""
+
+#: includes/admin/views/backups.php:104
+msgid "Upload a backup"
+msgstr ""
+
+#: includes/admin/views/backups.php:105
+msgid "Add a .sql.gz file downloaded from this plugin, for example after moving to a new server. It is checked, added to the list, and can then be restored."
+msgstr ""
+
+#: includes/admin/views/backups.php:110
+msgid "Upload"
+msgstr ""
+
+#: includes/admin/views/backups.php:115
+msgid "If the admin area stops working"
+msgstr ""
+
+#: includes/admin/views/backups.php:116
+msgid "Restore from the command line with WP-CLI. A safety backup is taken first and restored automatically if anything fails:"
+msgstr ""
+
+#: includes/admin/views/backups.php:119
+msgid "Backups are stored in a private, randomly named folder inside the uploads folder. Download copies regularly and keep them somewhere else as well: a backup on the same server does not help if the server itself is lost."
+msgstr ""
+
+#: includes/admin/views/blocks.php:19
+msgid "Automatic"
+msgstr ""
+
+#: includes/admin/views/blocks.php:20
+msgid "Login lockout"
+msgstr ""
+
+#: includes/admin/views/blocks.php:25
+msgid "Blocked IP addresses"
+msgstr ""
+
+#: includes/admin/views/blocks.php:29
+msgid "Block an address"
+msgstr ""
+
+#: includes/admin/views/blocks.php:33
+msgid "IP address or range"
+msgstr ""
+
+#: includes/admin/views/blocks.php:34
+msgid "Duration"
+msgstr ""
+
+#: includes/admin/views/blocks.php:35 includes/admin/views/blocks.php:93
+msgid "1 hour"
+msgstr ""
+
+#: includes/admin/views/blocks.php:36 includes/admin/views/blocks.php:93
+msgid "1 day"
+msgstr ""
+
+#: includes/admin/views/blocks.php:37 includes/admin/views/blocks.php:93
+msgid "1 week"
+msgstr ""
+
+#: includes/admin/views/blocks.php:38 includes/admin/views/blocks.php:93
+msgid "30 days"
+msgstr ""
+
+#: includes/admin/views/blocks.php:39
+msgid "Permanently"
+msgstr ""
+
+#: includes/admin/views/blocks.php:41
+msgid "Reason (optional)"
+msgstr ""
+
+#: includes/admin/views/blocks.php:41 includes/admin/views/blocks.php:52
+msgid "Reason"
+msgstr ""
+
+#: includes/admin/views/blocks.php:45
+#, php-format
+msgid "Your address is %s. It cannot be blocked from here, and addresses administrators signed in from are spared from automatic blocks."
+msgstr ""
+
+#: includes/admin/views/blocks.php:50 includes/admin/views/dashboard.php:79 includes/admin/views/dashboard.php:96 includes/admin/views/events.php:42 includes/admin/views/events.php:52
+msgid "IP address"
+msgstr ""
+
+#: includes/admin/views/blocks.php:51
+msgid "Source"
+msgstr ""
+
+#: includes/admin/views/blocks.php:53
+msgid "Blocked"
+msgstr ""
+
+#: includes/admin/views/blocks.php:54
+msgid "Until"
+msgstr ""
+
+#: includes/admin/views/blocks.php:55
+msgid "Offences"
+msgstr ""
+
+#: includes/admin/views/blocks.php:56
+msgid "Requests refused"
+msgstr ""
+
+#: includes/admin/views/blocks.php:61
+msgid "No addresses are blocked right now."
+msgstr ""
+
+#: includes/admin/views/blocks.php:69
+msgid "Permanent"
+msgstr ""
+
+#: includes/admin/views/blocks.php:77 includes/class-log.php:61
+msgid "Unblock"
+msgstr ""
+
+#: includes/admin/views/blocks.php:83
+msgid "Unblock and forget past offences"
+msgstr ""
+
+#: includes/admin/views/blocks.php:83
+msgid "Forget"
+msgstr ""
+
+#: includes/admin/views/blocks.php:93
+#, php-format
+msgid "Automatic blocks grow longer for repeat offenders: %1$s, then %2$s, then %3$s, then %4$s."
+msgstr ""
+
+#: includes/admin/views/dashboard.php:21
+msgid "Attacks blocked (24 h)"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:22
+msgid "Firewall hits (24 h)"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:23
+msgid "Failed logins (24 h)"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:24
+msgid "IPs blocked now"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:28
+msgid "Bastion live monitor"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:33
+msgid "The firewall is switched off. Attacks are not inspected."
+msgstr ""
+
+#: includes/admin/views/dashboard.php:33
+msgid "The firewall is in log-only mode: attacks are recorded but not blocked."
+msgstr ""
+
+#: includes/admin/views/dashboard.php:50
+#, php-format
+msgid "%s ago"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:52
+msgid "Never"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:56
+msgid "Last database backup"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:61
+msgid "Threats per hour, last 24 hours"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:62
+msgid "Bar chart of threats per hour"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:73
+msgid "Live attack feed"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:78 includes/admin/views/events.php:50
+msgid "Time"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:80 includes/admin/views/events.php:53
+msgid "Event"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:81 includes/admin/views/events.php:55
+msgid "Request"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:82 includes/admin/views/events.php:56
+msgid "Details"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:90
+msgid "Top attacking IPs (24 h)"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:92
+msgid "No attacks in the last 24 hours."
+msgstr ""
+
+#: includes/admin/views/dashboard.php:97
+msgid "Events"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:98
+msgid "Score"
+msgstr ""
+
+#: includes/admin/views/events.php:30
+msgid "All events"
+msgstr ""
+
+#: includes/admin/views/events.php:36
+msgid "Any severity"
+msgstr ""
+
+#: includes/admin/views/events.php:39
+#, php-format
+msgid "%s and above"
+msgstr ""
+
+#: includes/admin/views/events.php:43
+msgid "Filter"
+msgstr ""
+
+#: includes/admin/views/events.php:51
+msgid "Severity"
+msgstr ""
+
+#: includes/admin/views/events.php:54
+msgid "Action"
+msgstr ""
+
+#: includes/admin/views/events.php:60
+msgid "No events match."
+msgstr ""
+
+#: includes/admin/views/events.php:70
+msgid "User:"
+msgstr ""
+
+#: includes/admin/views/settings.php:45
+msgid "Bastion settings"
+msgstr ""
+
+#: includes/admin/views/settings.php:52
+msgid "Firewall"
+msgstr ""
+
+#: includes/admin/views/settings.php:55
+msgid "Mode"
+msgstr ""
+
+#: includes/admin/views/settings.php:59
+msgid "Protect: block attacks"
+msgstr ""
+
+#: includes/admin/views/settings.php:60
+msgid "Log only: record attacks without blocking (use for a few days if you worry about false alarms)"
+msgstr ""
+
+#: includes/admin/views/settings.php:61 includes/admin/views/settings.php:182
+msgid "Off"
+msgstr ""
+
+#: includes/admin/views/settings.php:67
+msgid "Administrators and editors, who may post any HTML, are never inspected."
+msgstr ""
+
+#: includes/admin/views/settings.php:71
+msgid "Rules"
+msgstr ""
+
+#: includes/admin/views/settings.php:77
+msgid "Untick a rule only if it blocks something legitimate on your site; the attack log shows which rule matched."
+msgstr ""
+
+#: includes/admin/views/settings.php:82
+msgid "Automatic IP blocking"
+msgstr ""
+
+#: includes/admin/views/settings.php:85
+msgid "Automatic blocking"
+msgstr ""
+
+#: includes/admin/views/settings.php:86
+msgid "Block addresses whose threat score reaches the threshold"
+msgstr ""
+
+#: includes/admin/views/settings.php:86
+msgid "Each attack adds to the address's score: critical 10, high 5, medium 3, failed login 2."
+msgstr ""
+
+#: includes/admin/views/settings.php:89
+msgid "Threshold"
+msgstr ""
+
+#: includes/admin/views/settings.php:93
+msgid "points within"
+msgstr ""
+
+#: includes/admin/views/settings.php:95 includes/admin/views/settings.php:145
+msgid "minutes"
+msgstr ""
+
+#: includes/admin/views/settings.php:97
+msgid "Blocks last 1 hour, then 1 day, 1 week and 30 days for repeat offenders."
+msgstr ""
+
+#: includes/admin/views/settings.php:101 includes/class-log.php:57
+msgid "404 flood"
+msgstr ""
+
+#: includes/admin/views/settings.php:105
+msgid "missing pages per minute count as a scan (0 turns this off)"
+msgstr ""
+
+#: includes/admin/views/settings.php:110 includes/class-log.php:58
+msgid "Rate limit"
+msgstr ""
+
+#: includes/admin/views/settings.php:114
+msgid "requests per minute per visitor (0 turns this off)"
+msgstr ""
+
+#: includes/admin/views/settings.php:116
+msgid "Visitors over the limit get \"429 Too many requests\". Logged-in users are not limited. Keep this off, or well above 120, unless your host has a persistent object cache."
+msgstr ""
+
+#: includes/admin/views/settings.php:120
+msgid "Your own addresses"
+msgstr ""
+
+#: includes/admin/views/settings.php:121
+msgid "Never block automatically an address an administrator signed in from in the last 30 days"
+msgstr ""
+
+#: includes/admin/views/settings.php:124
+msgid "Allowlist"
+msgstr ""
+
+#: includes/admin/views/settings.php:128
+#, php-format
+msgid "Addresses or ranges (one per line, e.g. 203.0.113.0/24) that are never inspected or blocked: your office, uptime monitors, payment gateway callbacks. Your current address is %s."
+msgstr ""
+
+#: includes/admin/views/settings.php:133
+msgid "Login protection"
+msgstr ""
+
+#: includes/admin/views/settings.php:136
+msgid "Lockout"
+msgstr ""
+
+#: includes/admin/views/settings.php:139
+msgid "After"
+msgstr ""
+
+#: includes/admin/views/settings.php:141
+msgid "failed logins within"
+msgstr ""
+
+#: includes/admin/views/settings.php:143
+msgid "minutes, block the address for"
+msgstr ""
+
+#: includes/admin/views/settings.php:150
+msgid "Hardening"
+msgstr ""
+
+#: includes/admin/views/settings.php:152
+msgid "Show one login error that does not reveal whether a username exists"
+msgstr ""
+
+#: includes/admin/views/settings.php:153
+msgid "Stop visitors from listing usernames (?author=N scans and the REST API user list)"
+msgstr ""
+
+#: includes/admin/views/settings.php:157 includes/class-log.php:56
+msgid "XML-RPC"
+msgstr ""
+
+#: includes/admin/views/settings.php:161
+msgid "Allow pingbacks only; refuse password logins and multicall (recommended)"
+msgstr ""
+
+#: includes/admin/views/settings.php:162
+msgid "Allow everything (needed by some old apps)"
+msgstr ""
+
+#: includes/admin/views/settings.php:163
+msgid "Switch off completely"
+msgstr ""
+
+#: includes/admin/views/settings.php:169
+msgid "The Jetpack plugin and the WordPress mobile app need XML-RPC logins; choose \"Allow everything\" if you use them."
+msgstr ""
+
+#: includes/admin/views/settings.php:177
+msgid "Schedule"
+msgstr ""
+
+#: includes/admin/views/settings.php:180
+msgid "Every day"
+msgstr ""
+
+#: includes/admin/views/settings.php:181
+msgid "Every week"
+msgstr ""
+
+#: includes/admin/views/settings.php:185
+msgid "Keep the newest"
+msgstr ""
+
+#: includes/admin/views/settings.php:187
+msgid "backups"
+msgstr ""
+
+#: includes/admin/views/settings.php:192
+msgid "Options"
+msgstr ""
+
+#: includes/admin/views/settings.php:194
+msgid "Back up before WordPress installs updates to plugins, themes or core"
+msgstr ""
+
+#: includes/admin/views/settings.php:195
+msgid "Leave the attack log out of backups (keeps them small; a restore keeps the current log)"
+msgstr ""
+
+#: includes/admin/views/settings.php:200
+msgid "Alerts"
+msgstr ""
+
+#: includes/admin/views/settings.php:203
+msgid "Email alerts"
+msgstr ""
+
+#: includes/admin/views/settings.php:205
+msgid "Send email alerts"
+msgstr ""
+
+#: includes/admin/views/settings.php:205
+msgid "Backup failures and restores are always reported while alerts are on."
+msgstr ""
+
+#: includes/admin/views/settings.php:206
+msgid "When addresses are blocked automatically (at most one email every 15 minutes)"
+msgstr ""
+
+#: includes/admin/views/settings.php:207
+msgid "When a new administrator account appears"
+msgstr ""
+
+#: includes/admin/views/settings.php:211
+msgid "Send to"
+msgstr ""
+
+#: includes/admin/views/settings.php:216
+msgid "Visitor IP address"
+msgstr ""
+
+#: includes/admin/views/settings.php:219
+msgid "Behind a proxy"
+msgstr ""
+
+#: includes/admin/views/settings.php:221
+msgid "This site is behind Cloudflare"
+msgstr ""
+
+#: includes/admin/views/settings.php:223
+msgid "Header with the visitor address"
+msgstr ""
+
+#: includes/admin/views/settings.php:226
+msgid "None (use the connection address)"
+msgstr ""
+
+#: includes/admin/views/settings.php:230
+msgid "Trusted proxy addresses"
+msgstr ""
+
+#: includes/admin/views/settings.php:232
+msgid "The header is believed only from these addresses (Cloudflare's are built in). Getting this wrong makes every visitor look like your proxy, so check that your own address below is right after saving."
+msgstr ""
+
+#: includes/admin/views/settings.php:234
+#, php-format
+msgid "Your address as Bastion sees it: %s"
+msgstr ""
+
+#: includes/admin/views/settings.php:239
+msgid "Data"
+msgstr ""
+
+#: includes/admin/views/settings.php:242
+msgid "Keep the attack log for"
+msgstr ""
+
+#: includes/admin/views/settings.php:243
+msgid "days"
+msgstr ""
+
+#: includes/admin/views/settings.php:246
+msgid "Uninstall"
+msgstr ""
+
+#: includes/admin/views/settings.php:247
+msgid "Delete the log, blocks, settings and all backups when the plugin is deleted"
+msgstr ""
+
+#: includes/admin/views/settings.php:247
+msgid "Leave this off if you may reinstall the plugin."
+msgstr ""
+
+#: includes/admin/views/settings.php:251
+msgid "Save settings"
+msgstr ""
+
+#: includes/class-alerts.php:61
+msgid "permanent"
+msgstr ""
+
+#: includes/class-alerts.php:62
+msgid "until"
+msgstr ""
+
+#: includes/class-alerts.php:66
+msgid "ZenZeiTen Bastion blocked these addresses automatically:"
+msgstr ""
+
+#: includes/class-alerts.php:67
+msgid "Review or lift blocks here:"
+msgstr ""
+
+#: includes/class-backup.php:43
+msgid "Could not create the backup folder. Check that the uploads folder is writable."
+msgstr ""
+
+#: includes/class-backup.php:87
+msgid "Another backup or restore is running. Try again in a few minutes."
+msgstr ""
+
+#: includes/class-backup.php:101 includes/class-backup.php:463
+msgid "Could not write the backup file."
+msgstr ""
+
+#: includes/class-backup.php:116
+msgid "Backup failed"
+msgstr ""
+
+#: includes/class-backup.php:117
+msgid "Database backup failed"
+msgstr ""
+
+#: includes/class-backup.php:140
+#, php-format
+msgid "Backup created: %1$d tables, %2$d rows (%3$s)"
+msgstr ""
+
+#: includes/class-backup.php:160
+#, php-format
+msgid "Could not read the structure of table %s."
+msgstr ""
+
+#: includes/class-backup.php:288
+msgid "The backup file is missing."
+msgstr ""
+
+#: includes/class-backup.php:291
+msgid "The backup file does not match its checksum. It may be damaged or altered."
+msgstr ""
+
+#: includes/class-backup.php:309
+msgid "The backup file is incomplete."
+msgstr ""
+
+#: includes/class-backup.php:338
+#, php-format
+msgid "Restore cancelled: the safety backup of the current database failed (%s)."
+msgstr ""
+
+#: includes/class-backup.php:354
+#, php-format
+msgid "Automatic rollback also failed: %s. Restore the safety backup by hand."
+msgstr ""
+
+#: includes/class-backup.php:355
+msgid "The database was rolled back automatically to how it was before the restore."
+msgstr ""
+
+#: includes/class-backup.php:357
+msgid "Restore failed"
+msgstr ""
+
+#: includes/class-backup.php:358
+msgid "Database restore failed"
+msgstr ""
+
+#: includes/class-backup.php:367
+#, php-format
+msgid "Database restored from %1$s (safety backup %2$s)"
+msgstr ""
+
+#: includes/class-backup.php:369
+msgid "Database restored"
+msgstr ""
+
+#: includes/class-backup.php:369
+#, php-format
+msgid "The database was restored from backup %1$s. The database as it was just before is saved as backup %2$s."
+msgstr ""
+
+#: includes/class-backup.php:387
+msgid "Could not open the backup file."
+msgstr ""
+
+#: includes/class-backup.php:403
+msgid "unknown database error"
+msgstr ""
+
+#: includes/class-backup.php:407
+#, php-format
+msgid "Statement %1$d failed: %2$s"
+msgstr ""
+
+#: includes/class-backup.php:445
+msgid "That file is not a backup made by ZenZeiTen Bastion."
+msgstr ""
+
+#: includes/class-backup.php:455
+#, php-format
+msgid "That backup uses the table prefix %1$s, but this site uses %2$s, so restoring it would not change this site."
+msgstr ""
+
+#: includes/class-cron.php:97
+#, php-format
+msgid "New administrator accounts: %s"
+msgstr ""
+
+#: includes/class-cron.php:111
+msgid "New administrator account"
+msgstr ""
+
+#: includes/class-cron.php:112
+msgid "If you did not add this account, your site may be compromised: delete the account, change all passwords and consider restoring a backup."
+msgstr ""
+
+#: includes/class-firewall.php:67
+msgid "SQL injection: UNION SELECT"
+msgstr ""
+
+#: includes/class-firewall.php:68
+msgid "SQL injection: time-based probe"
+msgstr ""
+
+#: includes/class-firewall.php:69
+msgid "SQL injection: always-true condition"
+msgstr ""
+
+#: includes/class-firewall.php:70
+msgid "SQL injection: schema or file access"
+msgstr ""
+
+#: includes/class-firewall.php:71
+msgid "Cross-site scripting: script tag"
+msgstr ""
+
+#: includes/class-firewall.php:72
+msgid "Cross-site scripting: event handler or embedded document"
+msgstr ""
+
+#: includes/class-firewall.php:73
+msgid "Cross-site scripting: script URL"
+msgstr ""
+
+#: includes/class-firewall.php:74
+msgid "Path traversal"
+msgstr ""
+
+#: includes/class-firewall.php:75
+msgid "System file access"
+msgstr ""
+
+#: includes/class-firewall.php:76
+msgid "PHP stream wrapper"
+msgstr ""
+
+#: includes/class-firewall.php:77
+msgid "Command injection"
+msgstr ""
+
+#: includes/class-firewall.php:78
+msgid "PHP code injection"
+msgstr ""
+
+#: includes/class-firewall.php:79
+msgid "Template or JNDI injection"
+msgstr ""
+
+#: includes/class-firewall.php:80
+msgid "PHP object injection"
+msgstr ""
+
+#: includes/class-firewall.php:81
+msgid "Null byte"
+msgstr ""
+
+#: includes/class-firewall.php:82
+msgid "Script file upload"
+msgstr ""
+
+#: includes/class-firewall.php:83
+msgid "Probe for a sensitive file"
+msgstr ""
+
+#: includes/class-firewall.php:84
+msgid "Known attack tool"
+msgstr ""
+
+#: includes/class-hardening.php:49
+msgid "Through XML-RPC"
+msgstr ""
+
+#: includes/class-hardening.php:56
+#, php-format
+msgid "%1$d failed logins in %2$d minutes"
+msgstr ""
+
+#: includes/class-hardening.php:91
+msgid "Error:"
+msgstr ""
+
+#: includes/class-hardening.php:91
+msgid "The username or password is incorrect."
+msgstr ""
+
+#: includes/class-hardening.php:109
+msgid "Author ID scan"
+msgstr ""
+
+#: includes/class-hardening.php:122
+#, php-format
+msgid "More than %d missing pages in one minute"
+msgstr ""
+
+#: includes/class-hardening.php:149
+msgid "REST API user list"
+msgstr ""
+
+#: includes/class-hardening.php:152
+msgid "Sorry, you are not allowed to list users."
+msgstr ""
+
+#: includes/class-hardening.php:188
+msgid "XML-RPC is switched off"
+msgstr ""
+
+#: includes/class-hardening.php:191
+msgid "XML-RPC is not available on this site."
+msgstr ""
+
+#: includes/class-log.php:51
+msgid "Firewall rule"
+msgstr ""
+
+#: includes/class-log.php:52
+msgid "Failed login"
+msgstr ""
+
+#: includes/class-log.php:53
+msgid "Administrator login"
+msgstr ""
+
+#: includes/class-log.php:54
+msgid "Blocked address"
+msgstr ""
+
+#: includes/class-log.php:55
+msgid "User enumeration"
+msgstr ""
+
+#: includes/class-log.php:59
+msgid "Automatic block"
+msgstr ""
+
+#: includes/class-log.php:60
+msgid "Manual block"
+msgstr ""
+
+#: includes/class-log.php:62
+msgid "Backup"
+msgstr ""
+
+#: includes/class-log.php:64
+msgid "Administrator change"
+msgstr ""
+
+#: includes/class-log.php:75
+msgid "Info"
+msgstr ""
+
+#: includes/class-log.php:76
+msgid "Medium"
+msgstr ""
+
+#: includes/class-log.php:77
+msgid "High"
+msgstr ""
+
+#: includes/class-log.php:78
+msgid "Critical"
+msgstr ""

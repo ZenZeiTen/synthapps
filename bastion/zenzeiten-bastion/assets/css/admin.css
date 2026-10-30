@@ -1,0 +1,47 @@
+/* ZenZeiTen Bastion admin */
+.zbst-wrap { max-width: 1400px; }
+.zbst-title .dashicons { font-size: 28px; width: 28px; height: 28px; color: #2271b1; vertical-align: -4px; }
+.zbst-heading-action { display: inline; }
+.zbst-heading-action .page-title-action { cursor: pointer; }
+
+.zbst-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+.zbst-card { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 16px; }
+.zbst-card-value { font-size: 30px; font-weight: 600; line-height: 1.2; color: #1d2327; font-variant-numeric: tabular-nums; }
+.zbst-card-small { font-size: 18px; padding: 7px 0; }
+.zbst-card-label { color: #646970; margin-top: 4px; }
+
+.zbst-panel { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 4px 16px 16px; margin: 16px 0; min-width: 0; }
+.zbst-panel h2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 15px; }
+.zbst-columns { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+.zbst-columns .zbst-panel { margin: 0; }
+@media (max-width: 1100px) { .zbst-columns { grid-template-columns: minmax(0, 1fr); } }
+
+.zbst-chart { display: flex; align-items: flex-end; gap: 3px; height: 120px; padding-top: 8px; border-bottom: 1px solid #dcdcde; }
+.zbst-bar { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.zbst-bar span { display: block; width: 100%; min-height: 2px; background: #d63638; border-radius: 3px 3px 0 0; transition: height .4s ease; }
+
+.zbst-feed td, .zbst-events td { vertical-align: top; }
+.zbst-request { word-break: break-all; max-width: 380px; font-family: Consolas, Monaco, monospace; font-size: 12px; }
+.zbst-request small { font-family: inherit; color: #646970; }
+.zbst-feed tr.zbst-new { animation: zbst-flash 2.5s ease-out; }
+@keyframes zbst-flash { from { background: #fcf0d0; } to { background: transparent; } }
+.zbst-block-link { font-size: 12px; }
+
+.zbst-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #f0f0f1; color: #50575e; white-space: nowrap; }
+.zbst-badge-2 { background: #fcf9e8; color: #8a6d00; }
+.zbst-badge-3 { background: #fcf0f1; color: #b32d2e; }
+.zbst-badge-4 { background: #d63638; color: #fff; }
+
+.zbst-toggle .zbst-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #8c8f94; margin-right: 4px; vertical-align: 0; }
+.zbst-toggle.is-live .zbst-dot { background: #00a32a; animation: zbst-pulse 1.6s infinite; }
+.zbst-toggle.is-offline .zbst-dot { background: #d63638; }
+@keyframes zbst-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .zbst-toggle.is-live .zbst-dot, .zbst-feed tr.zbst-new { animation: none; } }
+
+.zbst-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+.zbst-count { color: #646970; }
+.zbst-inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.zbst-actions { white-space: nowrap; }
+.zbst-actions form { display: inline; }
+.zbst-rules label, .zbst-radio { display: block; margin: 4px 0; }
+.zbst-wrap pre { background: #f6f7f7; padding: 10px 12px; border-radius: 6px; overflow-x: auto; }

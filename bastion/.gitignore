@@ -1,0 +1,4 @@
+.wp-smoke/
+node_modules/
+*.zip
+dist/

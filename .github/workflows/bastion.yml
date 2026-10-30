@@ -1,0 +1,179 @@
+name: ZenZeiTen Bastion
+
+on:
+  # The "Run workflow" button on the Actions page. With "Publish a release" ticked, a run on main
+  # tests, builds and publishes release bastion-v<Version from zenzeiten-bastion.php>.
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a release of the version in zenzeiten-bastion.php (run on main)"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - "bastion/**"
+      - ".github/workflows/bastion.yml"
+  push:
+    branches: [main]
+    # Pushing a tag named bastion-v<version> also tests, builds and publishes a release.
+    # Path filters are not applied to tag pushes.
+    tags:
+      - "bastion-v*"
+    paths:
+      - "bastion/**"
+      - ".github/workflows/bastion.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  slug:
+    name: Slug is free on WordPress.org
+    runs-on: ubuntu-latest
+    steps:
+      # WordPress offers updates by folder name. If WordPress.org ever hosts a plugin called
+      # zenzeiten-bastion, sites would be offered it as an "update" that replaces this plugin.
+      - name: Check
+        run: |
+          reply="$(curl -sSg --retry 3 'https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]=zenzeiten-bastion')"
+          echo "$reply" | head -c 300; echo
+          if ! echo "$reply" | grep -q '"error"'; then
+            echo "::error::WordPress.org hosts a plugin with the slug zenzeiten-bastion." >&2
+            exit 1
+          fi
+
+  tests:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.0", "8.1", "8.2", "8.3"]
+    defaults:
+      run:
+        working-directory: bastion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite, zlib
+          coverage: none
+      - name: Lint
+        run: find zenzeiten-bastion tests -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Unit and integration tests
+        run: php tests/run.php
+      - name: Translation template is current
+        if: matrix.php == '8.3'
+        run: |
+          python3 scripts/make-pot.py
+          git diff --exit-code -- zenzeiten-bastion/languages/zenzeiten-bastion.pot
+
+  browser:
+    name: Browser end-to-end
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bastion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - run: node tests/e2e/browser.test.cjs
+
+  wordpress:
+    name: WordPress + MySQL smoke test
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -proot" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli, zlib
+          tools: none
+          coverage: none
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+      - run: bash bastion/tests/wordpress-smoke.sh
+        env:
+          WORK: ${{ runner.temp }}/wp-smoke
+
+  build:
+    name: Build plugin zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Zip the plugin folder
+        run: |
+          version="$(sed -n 's/^ \* Version: *//p' bastion/zenzeiten-bastion/zenzeiten-bastion.php | tr -d '[:space:]')"
+          mkdir -p dist
+          (cd bastion && zip -qr "../dist/zenzeiten-bastion-$version.zip" zenzeiten-bastion -x '*.DS_Store')
+          # WordPress installs the zip into its top folder, which must be the plugin slug.
+          unzip -l "dist/zenzeiten-bastion-$version.zip" | grep -q ' zenzeiten-bastion/zenzeiten-bastion.php$'
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bastion-plugin
+          path: dist/*.zip
+
+  release:
+    name: Publish release
+    # A pushed bastion-v* tag, or the Run workflow button on main with "Publish a release" ticked.
+    if: >-
+      startsWith(github.ref, 'refs/tags/bastion-v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
+    needs: [slug, tests, browser, wordpress, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Work out the release tag from the plugin version
+        run: |
+          version="$(sed -n 's/^ \* Version: *//p' bastion/zenzeiten-bastion/zenzeiten-bastion.php | tr -d '[:space:]')"
+          tag="bastion-v$version"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$tag" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the plugin version $version." >&2
+            exit 1
+          fi
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: bastion-plugin
+          path: files
+      - name: Create the release, or add the zip to it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" files/*.zip --repo "$GITHUB_REPOSITORY" --clobber
+            if [ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = "true" ]; then
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft=false
+            fi
+          else
+            gh release create "$TAG" files/*.zip \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "ZenZeiTen Bastion ${TAG#bastion-v}" \
+              --notes-file bastion/RELEASE_NOTES.md
+          fi
+          echo "Published: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
