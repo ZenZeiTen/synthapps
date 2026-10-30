@@ -35,7 +35,7 @@ jobs:
       # zenzeiten-bastion, sites would be offered it as an "update" that replaces this plugin.
       - name: Check
         run: |
-          reply="$(curl -sS --retry 3 'https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]=zenzeiten-bastion')"
+          reply="$(curl -sSg --retry 3 'https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]=zenzeiten-bastion')"
           echo "$reply" | head -c 300; echo
           if ! echo "$reply" | grep -q '"error"'; then
             echo "::error::WordPress.org hosts a plugin with the slug zenzeiten-bastion." >&2
