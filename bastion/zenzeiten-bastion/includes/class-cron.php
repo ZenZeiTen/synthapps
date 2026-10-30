@@ -23,6 +23,7 @@ final class Cron {
 	public static function register() {
 		add_action( self::HOURLY, array( __CLASS__, 'hourly' ) );
 		add_action( self::BACKUP, array( __CLASS__, 'backup' ) );
+		add_action( Alerts::FLUSH_HOOK, array( 'ZenZeiTenBastion\\Alerts', 'flush' ) );
 	}
 
 	/**
@@ -53,6 +54,7 @@ final class Cron {
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::BACKUP );
+		wp_clear_scheduled_hook( Alerts::FLUSH_HOOK );
 	}
 
 	/**

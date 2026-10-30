@@ -36,3 +36,4 @@ foreach ( array( 'zbst_settings', 'zbst_db_version', 'zbst_block_index', 'zbst_a
 }
 wp_clear_scheduled_hook( 'zbst_hourly' );
 wp_clear_scheduled_hook( 'zbst_backup' );
+wp_clear_scheduled_hook( 'zbst_flush_alerts' );

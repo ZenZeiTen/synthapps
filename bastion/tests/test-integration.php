@@ -354,3 +354,29 @@ function test_cron_schedule_follows_settings() {
 	Cron::schedule();
 	check_same( false, wp_get_schedule( 'zbst_backup' ) );
 }
+
+function test_early_request_path_never_translates() {
+	// Everything Guard::early() can reach runs on plugins_loaded, before WordPress allows
+	// translations: a firewall block, an automatic block with its alert, a refused blocked
+	// address and the rate limit.
+	update_option( Settings::OPTION, array_merge( Settings::all(), array( 'rate_limit' => 2 ) ) );
+	Settings::flush();
+	WP_Stub::$early = true;
+	$codes          = array();
+	foreach ( array( '1 UNION SELECT 1', "1' AND SLEEP(5)--", 'hello' ) as $q ) {
+		zbst_request( '198.51.100.160', array( 'q' => $q ) );
+		$codes[] = zbst_run_guard();
+	}
+	for ( $i = 0; $i < 4; $i++ ) {
+		zbst_request( '198.51.100.161' );
+		$codes[] = zbst_run_guard();
+	}
+	WP_Stub::$early = false;
+	check_same( array( 403, 403, 403, 0, 0, 429, 429 ), $codes );
+	check_same( '198.51.100.160', Blocklist::match( '198.51.100.160' ) );
+	// The alert email waits for cron, where translations are available.
+	check_same( array(), WP_Stub::$mail );
+	check( false !== wp_next_scheduled( Alerts::FLUSH_HOOK ) );
+	check( Alerts::flush() );
+	check( false !== strpos( WP_Stub::$mail[0]['body'], '198.51.100.160' ) );
+}

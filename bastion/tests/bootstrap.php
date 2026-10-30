@@ -41,6 +41,8 @@ final class WP_Stub {
 	public static $home       = 'https://example.com';
 	public static $uploads    = '';
 	public static $is_404     = false;
+	/** True while simulating code that runs before after_setup_theme, when translating is an error. */
+	public static $early      = false;
 
 	public static function reset() {
 		self::$options    = array();
@@ -51,6 +53,7 @@ final class WP_Stub {
 		self::$users      = array();
 		self::$user       = null;
 		self::$is_404     = false;
+		self::$early      = false;
 	}
 }
 
@@ -375,13 +378,13 @@ function esc_url( $url ) { return htmlspecialchars( (string) $url, ENT_QUOTES );
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_textarea( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
-function __( $s, $d = null ) { return $s; }
-function _e( $s, $d = null ) { echo $s; }
-function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single : $plural; }
-function esc_html__( $s, $d = null ) { return esc_html( $s ); }
-function esc_attr__( $s, $d = null ) { return esc_attr( $s ); }
-function esc_html_e( $s, $d = null ) { echo esc_html( $s ); }
-function esc_attr_e( $s, $d = null ) { echo esc_attr( $s ); }
+function __( $s, $d = null ) { zbst_i18n_check( $s ); return $s; }
+function _e( $s, $d = null ) { zbst_i18n_check( $s ); echo $s; }
+function _n( $single, $plural, $n, $d = null ) { zbst_i18n_check( $single ); return 1 === (int) $n ? $single : $plural; }
+function esc_html__( $s, $d = null ) { zbst_i18n_check( $s ); return esc_html( $s ); }
+function esc_attr__( $s, $d = null ) { zbst_i18n_check( $s ); return esc_attr( $s ); }
+function esc_html_e( $s, $d = null ) { zbst_i18n_check( $s ); echo esc_html( $s ); }
+function esc_attr_e( $s, $d = null ) { zbst_i18n_check( $s ); echo esc_attr( $s ); }
 function wp_json_encode( $data, $flags = 0 ) { return json_encode( $data, $flags ); }
 function wp_parse_url( $url, $component = -1 ) { return parse_url( (string) $url, $component ); }
 function home_url( $path = '' ) { return WP_Stub::$home . ( '' !== $path ? '/' . ltrim( $path, '/' ) : '' ); }
@@ -449,6 +452,16 @@ function wp_get_schedule( $hook ) { return isset( WP_Stub::$cron[ $hook ] ) ? WP
 function wp_schedule_event( $time, $recurrence, $hook ) { WP_Stub::$cron[ $hook ] = array( $time, $recurrence ); return true; }
 function wp_clear_scheduled_hook( $hook ) { unset( WP_Stub::$cron[ $hook ] ); return 1; }
 function nocache_headers() {}
+function did_action( $hook ) { return 'after_setup_theme' === $hook ? ( WP_Stub::$early ? 0 : 1 ) : 1; }
+function wp_schedule_single_event( $time, $hook ) { WP_Stub::$cron[ $hook ] = array( $time, false ); return true; }
+/**
+ * WordPress 6.7+ warns when a plugin translates before after_setup_theme.
+ */
+function zbst_i18n_check( $text ) {
+	if ( WP_Stub::$early ) {
+		throw new LogicException( 'Translated before after_setup_theme: ' . $text );
+	}
+}
 function status_header( $status ) { throw new Zbst_Stop( $status ); }
 function wp_safe_redirect( $url, $status = 302 ) { throw new Zbst_Stop( $status, $url ); }
 function check_admin_referer( $action ) { return 1; }

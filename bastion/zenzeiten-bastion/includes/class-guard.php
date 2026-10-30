@@ -12,6 +12,9 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Threat scoring, automatic blocking and request denial.
+ *
+ * This code runs on plugins_loaded, before WordPress may load translations (it warns from 6.7 on),
+ * so the text it stores and shows is plain English. The admin screens translate what they can.
  */
 final class Guard {
 
@@ -57,12 +60,11 @@ final class Guard {
 						'type'     => 'blocked',
 						'severity' => Log::SEVERITY_LOW,
 						'action'   => 'blocked',
-						/* translators: %s: blocked address or range */
-						'details'  => sprintf( __( 'Request from blocked %s refused', 'zenzeiten-bastion' ), $blocked ),
+						'details'  => 'Request from blocked ' . $blocked . ' refused',
 					)
 				);
 			}
-			self::deny( 403, __( 'Your access to this site has been blocked.', 'zenzeiten-bastion' ) );
+			self::deny( 403, 'Your access to this site has been blocked.' );
 		}
 		Hardening::rate_limit();
 		Firewall::run();
@@ -84,8 +86,7 @@ final class Guard {
 		if ( $score < (int) Settings::get( 'score_threshold' ) ) {
 			return null;
 		}
-		/* translators: 1: threat score, 2: minutes */
-		$reason = sprintf( __( 'Threat score %1$d in %2$d minutes', 'zenzeiten-bastion' ), $score, (int) Settings::get( 'score_window' ) );
+		$reason = sprintf( 'Threat score %1$d in %2$d minutes', $score, (int) Settings::get( 'score_window' ) );
 		return self::auto_block( $ip, 'auto', $reason, null );
 	}
 
@@ -106,7 +107,7 @@ final class Guard {
 		if ( ! $block ) {
 			return null;
 		}
-		$until = $block['expires_at'] ? $block['expires_at'] . ' UTC' : __( 'permanently', 'zenzeiten-bastion' );
+		$until = $block['expires_at'] ? $block['expires_at'] . ' UTC' : 'permanently';
 		Log::add(
 			array(
 				'ip'       => $block['ip'],
@@ -114,8 +115,7 @@ final class Guard {
 				'severity' => Log::SEVERITY_HIGH,
 				'score'    => 0,
 				'action'   => 'locked',
-				/* translators: 1: reason, 2: offence number, 3: end time */
-				'details'  => sprintf( __( '%1$s (offence %2$d, until %3$s)', 'zenzeiten-bastion' ), $reason, $block['offenses'], $until ),
+				'details'  => sprintf( '%1$s (offence %2$d, until %3$s)', $reason, $block['offenses'], $until ),
 			)
 		);
 		Alerts::queue_block( $block );
@@ -143,7 +143,7 @@ final class Guard {
 	}
 
 	/**
-	 * Refuse the request and stop.
+	 * Refuse the request and stop. The page is in English: it is shown before translations load.
 	 *
 	 * @param int    $status  HTTP status.
 	 * @param string $message Message for the visitor.
@@ -159,10 +159,10 @@ final class Guard {
 			}
 		}
 		$reference = gmdate( 'Y-m-d H:i:s' ) . ' UTC · ' . Request::ip();
-		echo '<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . esc_html__( 'Access denied', 'zenzeiten-bastion' ) . '</title>'
+		echo '<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Access denied</title>'
 			. '<style>body{font:16px/1.5 system-ui,sans-serif;background:#f4f5f7;color:#1d2327;display:flex;min-height:100vh;margin:0;align-items:center;justify-content:center}main{background:#fff;padding:32px 40px;border-radius:12px;max-width:480px;box-shadow:0 2px 12px rgba(0,0,0,.08)}h1{font-size:22px;margin:0 0 8px}small{color:#646970}</style>'
-			. '</head><body><main><h1>' . esc_html__( 'Access denied', 'zenzeiten-bastion' ) . '</h1><p>' . esc_html( $message ) . '</p><p><small>'
-			. esc_html__( 'If you think this is a mistake, contact the site owner and quote this reference:', 'zenzeiten-bastion' ) . ' ' . esc_html( $reference ) . '</small></p></main></body></html>';
+			. '</head><body><main><h1>Access denied</h1><p>' . esc_html( $message ) . '</p><p><small>'
+			. 'If you think this is a mistake, contact the site owner and quote this reference: ' . esc_html( $reference ) . '</small></p></main></body></html>';
 		exit;
 	}
 }

@@ -8,124 +8,124 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Domain: zenzeiten-bastion\n"
 
-#: includes/admin/class-admin.php:146 includes/admin/class-admin.php:146
+#: includes/admin/class-admin.php:151 includes/admin/class-admin.php:151
 msgid "Bastion"
 msgstr ""
 
-#: includes/admin/class-admin.php:147 includes/admin/class-admin.php:147
+#: includes/admin/class-admin.php:152 includes/admin/class-admin.php:152
 msgid "Live monitor"
 msgstr ""
 
-#: includes/admin/class-admin.php:148 includes/admin/class-admin.php:148 includes/admin/views/events.php:23
+#: includes/admin/class-admin.php:153 includes/admin/class-admin.php:153 includes/admin/views/events.php:24
 msgid "Attack log"
 msgstr ""
 
-#: includes/admin/class-admin.php:149 includes/admin/class-admin.php:149
+#: includes/admin/class-admin.php:154 includes/admin/class-admin.php:154
 msgid "Blocked IPs"
 msgstr ""
 
-#: includes/admin/class-admin.php:150 includes/admin/class-admin.php:150
+#: includes/admin/class-admin.php:155 includes/admin/class-admin.php:155
 msgid "Backups"
 msgstr ""
 
-#: includes/admin/class-admin.php:151 includes/admin/class-admin.php:151 includes/admin/class-admin.php:161
+#: includes/admin/class-admin.php:156 includes/admin/class-admin.php:156 includes/admin/class-admin.php:166
 msgid "Settings"
 msgstr ""
 
-#: includes/admin/class-admin.php:184
+#: includes/admin/class-admin.php:189
 msgid "Paused"
 msgstr ""
 
-#: includes/admin/class-admin.php:185 includes/admin/views/dashboard.php:74
+#: includes/admin/class-admin.php:190 includes/admin/views/dashboard.php:74
 msgid "Live"
 msgstr ""
 
-#: includes/admin/class-admin.php:186
+#: includes/admin/class-admin.php:191
 msgid "Connection lost, retrying…"
 msgstr ""
 
-#: includes/admin/class-admin.php:187
+#: includes/admin/class-admin.php:192
 msgid "No events yet. Attacks will appear here as they happen."
 msgstr ""
 
-#: includes/admin/class-admin.php:188 includes/admin/views/blocks.php:42 includes/admin/views/dashboard.php:107
+#: includes/admin/class-admin.php:193 includes/admin/views/blocks.php:42 includes/admin/views/dashboard.php:107
 msgid "Block"
 msgstr ""
 
-#: includes/admin/class-admin.php:189
+#: includes/admin/class-admin.php:194
 msgid "Replace the whole database with this backup? A safety backup of the current database is taken first and restored automatically if anything fails."
 msgstr ""
 
-#: includes/admin/class-admin.php:190
+#: includes/admin/class-admin.php:195
 msgid "Delete this backup permanently?"
 msgstr ""
 
-#: includes/admin/class-admin.php:204
+#: includes/admin/class-admin.php:209
 msgid "Sorry, you are not allowed to do that."
 msgstr ""
 
-#: includes/admin/class-admin.php:253
+#: includes/admin/class-admin.php:258
 msgid "That would block your own address, so it was not blocked."
 msgstr ""
 
-#: includes/admin/class-admin.php:255
+#: includes/admin/class-admin.php:260
 msgid "Blocked by an administrator"
 msgstr ""
 
-#: includes/admin/class-admin.php:258
+#: includes/admin/class-admin.php:263
 msgid "Enter a valid IP address or range that is not on the allowlist."
 msgstr ""
 
-#: includes/admin/class-admin.php:271
+#: includes/admin/class-admin.php:276
 #, php-format
 msgid "Blocked %s."
 msgstr ""
 
-#: includes/admin/class-admin.php:290
+#: includes/admin/class-admin.php:295
 #, php-format
 msgid "Unblocked %s."
 msgstr ""
 
-#: includes/admin/class-admin.php:292
+#: includes/admin/class-admin.php:297
 msgid "That address is not blocked."
 msgstr ""
 
-#: includes/admin/class-admin.php:301
+#: includes/admin/class-admin.php:306
 msgid "Block removed and its history forgotten."
 msgstr ""
 
-#: includes/admin/class-admin.php:314
+#: includes/admin/class-admin.php:319
 #, php-format
 msgid "Backup created: %1$d tables, %2$d rows."
 msgstr ""
 
-#: includes/admin/class-admin.php:325 includes/class-backup.php:325
+#: includes/admin/class-admin.php:330 includes/class-backup.php:325
 msgid "That backup does not exist."
 msgstr ""
 
-#: includes/admin/class-admin.php:347
+#: includes/admin/class-admin.php:352
 #, php-format
 msgid "Database restored from %1$s. The database as it was before is saved as %2$s. If the site uses a different login now, sign in again."
 msgstr ""
 
-#: includes/admin/class-admin.php:356
+#: includes/admin/class-admin.php:361
 msgid "Backup deleted."
 msgstr ""
 
-#: includes/admin/class-admin.php:367
+#: includes/admin/class-admin.php:372
 msgid "Choose a backup file to upload. If you did, it may be larger than the server allows."
 msgstr ""
 
-#: includes/admin/class-admin.php:374
+#: includes/admin/class-admin.php:379
 #, php-format
 msgid "Backup uploaded as %s. You can restore it from the list."
 msgstr ""
 
-#: includes/admin/class-admin.php:386
+#: includes/admin/class-admin.php:391
 msgid "Settings saved."
 msgstr ""
 
-#: includes/admin/class-admin.php:394
+#: includes/admin/class-admin.php:399
 msgid "Sorry, you are not allowed to access this page."
 msgstr ""
 
@@ -312,7 +312,7 @@ msgstr ""
 msgid "Your address is %s. It cannot be blocked from here, and addresses administrators signed in from are spared from automatic blocks."
 msgstr ""
 
-#: includes/admin/views/blocks.php:50 includes/admin/views/dashboard.php:79 includes/admin/views/dashboard.php:96 includes/admin/views/events.php:41 includes/admin/views/events.php:51
+#: includes/admin/views/blocks.php:50 includes/admin/views/dashboard.php:79 includes/admin/views/dashboard.php:96 includes/admin/views/events.php:42 includes/admin/views/events.php:52
 msgid "IP address"
 msgstr ""
 
@@ -414,19 +414,19 @@ msgstr ""
 msgid "Live attack feed"
 msgstr ""
 
-#: includes/admin/views/dashboard.php:78 includes/admin/views/events.php:49
+#: includes/admin/views/dashboard.php:78 includes/admin/views/events.php:50
 msgid "Time"
 msgstr ""
 
-#: includes/admin/views/dashboard.php:80 includes/admin/views/events.php:52
+#: includes/admin/views/dashboard.php:80 includes/admin/views/events.php:53
 msgid "Event"
 msgstr ""
 
-#: includes/admin/views/dashboard.php:81 includes/admin/views/events.php:54
+#: includes/admin/views/dashboard.php:81 includes/admin/views/events.php:55
 msgid "Request"
 msgstr ""
 
-#: includes/admin/views/dashboard.php:82 includes/admin/views/events.php:55
+#: includes/admin/views/dashboard.php:82 includes/admin/views/events.php:56
 msgid "Details"
 msgstr ""
 
@@ -446,36 +446,36 @@ msgstr ""
 msgid "Score"
 msgstr ""
 
-#: includes/admin/views/events.php:29
+#: includes/admin/views/events.php:30
 msgid "All events"
 msgstr ""
 
-#: includes/admin/views/events.php:35
+#: includes/admin/views/events.php:36
 msgid "Any severity"
 msgstr ""
 
-#: includes/admin/views/events.php:38
+#: includes/admin/views/events.php:39
 #, php-format
 msgid "%s and above"
 msgstr ""
 
-#: includes/admin/views/events.php:42
+#: includes/admin/views/events.php:43
 msgid "Filter"
 msgstr ""
 
-#: includes/admin/views/events.php:50
+#: includes/admin/views/events.php:51
 msgid "Severity"
 msgstr ""
 
-#: includes/admin/views/events.php:53
+#: includes/admin/views/events.php:54
 msgid "Action"
 msgstr ""
 
-#: includes/admin/views/events.php:59
+#: includes/admin/views/events.php:60
 msgid "No events match."
 msgstr ""
 
-#: includes/admin/views/events.php:69
+#: includes/admin/views/events.php:70
 msgid "User:"
 msgstr ""
 
@@ -757,19 +757,19 @@ msgstr ""
 msgid "Save settings"
 msgstr ""
 
-#: includes/class-alerts.php:54
+#: includes/class-alerts.php:61
 msgid "permanent"
 msgstr ""
 
-#: includes/class-alerts.php:55
+#: includes/class-alerts.php:62
 msgid "until"
 msgstr ""
 
-#: includes/class-alerts.php:59
+#: includes/class-alerts.php:66
 msgid "ZenZeiTen Bastion blocked these addresses automatically:"
 msgstr ""
 
-#: includes/class-alerts.php:60
+#: includes/class-alerts.php:67
 msgid "Review or lift blocks here:"
 msgstr ""
 
@@ -873,129 +873,89 @@ msgstr ""
 msgid "That backup uses the table prefix %1$s, but this site uses %2$s, so restoring it would not change this site."
 msgstr ""
 
-#: includes/class-cron.php:95
+#: includes/class-cron.php:96
 #, php-format
 msgid "New administrator accounts: %s"
 msgstr ""
 
-#: includes/class-cron.php:109
+#: includes/class-cron.php:110
 msgid "New administrator account"
 msgstr ""
 
-#: includes/class-cron.php:110
+#: includes/class-cron.php:111
 msgid "If you did not add this account, your site may be compromised: delete the account, change all passwords and consider restoring a backup."
 msgstr ""
 
-#: includes/class-firewall.php:36
+#: includes/class-firewall.php:67
 msgid "SQL injection: UNION SELECT"
 msgstr ""
 
-#: includes/class-firewall.php:37
+#: includes/class-firewall.php:68
 msgid "SQL injection: time-based probe"
 msgstr ""
 
-#: includes/class-firewall.php:38
+#: includes/class-firewall.php:69
 msgid "SQL injection: always-true condition"
 msgstr ""
 
-#: includes/class-firewall.php:39
+#: includes/class-firewall.php:70
 msgid "SQL injection: schema or file access"
 msgstr ""
 
-#: includes/class-firewall.php:40
+#: includes/class-firewall.php:71
 msgid "Cross-site scripting: script tag"
 msgstr ""
 
-#: includes/class-firewall.php:41
+#: includes/class-firewall.php:72
 msgid "Cross-site scripting: event handler or embedded document"
 msgstr ""
 
-#: includes/class-firewall.php:42
+#: includes/class-firewall.php:73
 msgid "Cross-site scripting: script URL"
 msgstr ""
 
-#: includes/class-firewall.php:43
+#: includes/class-firewall.php:74
 msgid "Path traversal"
 msgstr ""
 
-#: includes/class-firewall.php:44
+#: includes/class-firewall.php:75
 msgid "System file access"
 msgstr ""
 
-#: includes/class-firewall.php:45
+#: includes/class-firewall.php:76
 msgid "PHP stream wrapper"
 msgstr ""
 
-#: includes/class-firewall.php:46
+#: includes/class-firewall.php:77
 msgid "Command injection"
 msgstr ""
 
-#: includes/class-firewall.php:47
+#: includes/class-firewall.php:78
 msgid "PHP code injection"
 msgstr ""
 
-#: includes/class-firewall.php:48
+#: includes/class-firewall.php:79
 msgid "Template or JNDI injection"
 msgstr ""
 
-#: includes/class-firewall.php:49
+#: includes/class-firewall.php:80
 msgid "PHP object injection"
 msgstr ""
 
-#: includes/class-firewall.php:50
+#: includes/class-firewall.php:81
 msgid "Null byte"
 msgstr ""
 
-#: includes/class-firewall.php:51
+#: includes/class-firewall.php:82
 msgid "Script file upload"
 msgstr ""
 
-#: includes/class-firewall.php:52
+#: includes/class-firewall.php:83
 msgid "Probe for a sensitive file"
 msgstr ""
 
-#: includes/class-firewall.php:53
+#: includes/class-firewall.php:84
 msgid "Known attack tool"
-msgstr ""
-
-#: includes/class-firewall.php:200
-#, php-format
-msgid "%1$s in %2$s: %3$s"
-msgstr ""
-
-#: includes/class-firewall.php:204
-msgid "This request was blocked by the site firewall."
-msgstr ""
-
-#: includes/class-guard.php:61
-#, php-format
-msgid "Request from blocked %s refused"
-msgstr ""
-
-#: includes/class-guard.php:65
-msgid "Your access to this site has been blocked."
-msgstr ""
-
-#: includes/class-guard.php:88
-#, php-format
-msgid "Threat score %1$d in %2$d minutes"
-msgstr ""
-
-#: includes/class-guard.php:109
-msgid "permanently"
-msgstr ""
-
-#: includes/class-guard.php:118
-#, php-format
-msgid "%1$s (offence %2$d, until %3$s)"
-msgstr ""
-
-#: includes/class-guard.php:162 includes/class-guard.php:164
-msgid "Access denied"
-msgstr ""
-
-#: includes/class-guard.php:165
-msgid "If you think this is a mistake, contact the site owner and quote this reference:"
 msgstr ""
 
 #: includes/class-hardening.php:49
@@ -1038,15 +998,6 @@ msgstr ""
 
 #: includes/class-hardening.php:191
 msgid "XML-RPC is not available on this site."
-msgstr ""
-
-#: includes/class-hardening.php:216
-#, php-format
-msgid "More than %d requests in one minute"
-msgstr ""
-
-#: includes/class-hardening.php:220
-msgid "Too many requests. Please wait a minute and try again."
 msgstr ""
 
 #: includes/class-log.php:51

@@ -18,6 +18,7 @@ final class Alerts {
 	const QUEUE    = 'zbst_alert_queue';
 	const LAST     = 'zbst_alert_last';
 	const INTERVAL = 900;
+	const FLUSH_HOOK = 'zbst_flush_alerts';
 
 	/**
 	 * Add an automatic block to the next alert, and send it if enough time has passed.
@@ -36,7 +37,13 @@ final class Alerts {
 			'time'    => time(),
 		);
 		update_option( self::QUEUE, array_slice( $queue, -50 ), false );
-		self::flush();
+		// Blocks made by the firewall happen before WordPress may load translations, which the
+		// email needs, so cron sends those a moment later.
+		if ( did_action( 'after_setup_theme' ) ) {
+			self::flush();
+		} elseif ( ! wp_next_scheduled( self::FLUSH_HOOK ) ) {
+			wp_schedule_single_event( time(), self::FLUSH_HOOK );
+		}
 	}
 
 	/**

@@ -110,6 +110,11 @@ final class Admin {
 	public static function event_for_js( array $row ) {
 		$types      = Log::types();
 		$severities = Log::severities();
+		$labels     = Firewall::labels();
+		$details    = (string) ( '' !== $row['details'] ? $row['details'] : $row['username'] );
+		if ( isset( $labels[ $row['rule'] ] ) ) {
+			$details = $labels[ $row['rule'] ] . ' · ' . $details;
+		}
 		return array(
 			'id'       => (int) $row['id'],
 			'time'     => self::local_time( $row['created_at'], 'H:i:s' ),
@@ -119,7 +124,7 @@ final class Admin {
 			'level'    => isset( $severities[ (int) $row['severity'] ] ) ? $severities[ (int) $row['severity'] ] : '',
 			'action'   => (string) $row['action'],
 			'request'  => trim( $row['method'] . ' ' . $row['uri'] ),
-			'details'  => (string) ( '' !== $row['details'] ? $row['details'] : $row['username'] ),
+			'details'  => $details,
 		);
 	}
 
@@ -452,7 +457,7 @@ final class Admin {
 	public function page_settings() {
 		$this->can_view();
 		$s      = Settings::all();
-		$rules  = Firewall::rules();
+		$rules  = Firewall::labels();
 		$own_ip = Request::ip();
 		include __DIR__ . '/views/settings.php';
 	}

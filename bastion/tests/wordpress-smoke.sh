@@ -103,7 +103,8 @@ admin_page zbst-blocks '198.51.100.7' >/dev/null
 admin_page zbst-settings 'zbst[firewall_mode]' >/dev/null
 BACKUPS=$(admin_page zbst-backups 'Back up now')
 
-REST_NONCE=$(sed -n 's/.*"nonce":"\([a-z0-9]*\)".*/\1/p' <<<"$DASH" | head -n1)
+# Read the nonce from the plugin's own settings; WordPress prints other nonces (heartbeat) too.
+REST_NONCE=$(grep 'var zbstAdmin' <<<"$DASH" | sed -n 's/.*"nonce":"\([a-z0-9]*\)".*/\1/p' | head -n1)
 [ -n "$REST_NONCE" ] || fail "no REST nonce on the dashboard"
 LIVE=$(curl -s -b "$COOKIES" -H "X-WP-Nonce: $REST_NONCE" "$URL/?rest_route=/zenzeiten-bastion/v1/live&after=0")
 contains "$LIVE" '"events"' && contains "$LIVE" '198.51.100.7' || fail "live endpoint: $LIVE"

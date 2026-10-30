@@ -5,7 +5,7 @@
  * @package ZenZeiTenBastion
  *
  * @var array  $s      Settings.
- * @var array  $rules  Firewall rules.
+ * @var array  $rules  Firewall rule labels.
  * @var string $own_ip The administrator's address as the plugin sees it.
  */
 
@@ -71,8 +71,8 @@ $zbst_number = function ( array $s, $key, $min, $max ) {
 				<th scope="row"><?php esc_html_e( 'Rules', 'zenzeiten-bastion' ); ?></th>
 				<td class="zbst-rules">
 					<input type="hidden" name="zbst[enabled_rules][]" value="" />
-					<?php foreach ( $rules as $zbst_id => $zbst_rule ) : ?>
-						<label><input type="checkbox" name="zbst[enabled_rules][]" value="<?php echo esc_attr( $zbst_id ); ?>" <?php checked( ! in_array( $zbst_id, $s['disabled_rules'], true ) ); ?> /> <?php echo esc_html( $zbst_rule[0] ); ?> <code><?php echo esc_html( $zbst_id ); ?></code></label>
+					<?php foreach ( $rules as $zbst_id => $zbst_label ) : ?>
+						<label><input type="checkbox" name="zbst[enabled_rules][]" value="<?php echo esc_attr( $zbst_id ); ?>" <?php checked( ! in_array( $zbst_id, $s['disabled_rules'], true ) ); ?> /> <?php echo esc_html( $zbst_label ); ?> <code><?php echo esc_html( $zbst_id ); ?></code></label>
 					<?php endforeach; ?>
 					<p class="description"><?php esc_html_e( 'Untick a rule only if it blocks something legitimate on your site; the attack log shows which rule matched.', 'zenzeiten-bastion' ); ?></p>
 				</td>

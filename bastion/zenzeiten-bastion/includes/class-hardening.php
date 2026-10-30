@@ -194,7 +194,8 @@ final class Hardening {
 
 	/**
 	 * Limit how many requests one address may make per minute. Logged-in users and cron are not
-	 * counted; static files never reach WordPress.
+	 * counted; static files never reach WordPress. Runs before translations load, so its text is
+	 * plain English.
 	 */
 	public static function rate_limit() {
 		$limit = (int) Settings::get( 'rate_limit' );
@@ -212,11 +213,10 @@ final class Hardening {
 					'type'     => 'rate_limit',
 					'severity' => Log::SEVERITY_HIGH,
 					'action'   => 'blocked',
-					/* translators: %d: requests per minute */
-					'details'  => sprintf( __( 'More than %d requests in one minute', 'zenzeiten-bastion' ), $limit ),
+					'details'  => sprintf( 'More than %d requests in one minute', $limit ),
 				)
 			);
 		}
-		Guard::deny( 429, __( 'Too many requests. Please wait a minute and try again.', 'zenzeiten-bastion' ) );
+		Guard::deny( 429, 'Too many requests. Please wait a minute and try again.' );
 	}
 }

@@ -27,30 +27,61 @@ final class Firewall {
 	 * The rules. Targets: path (URL path), uri (path and query), args (query, form and JSON body
 	 * keys and values), cookies, ua (user agent), files (uploaded file names).
 	 *
-	 * @return array Rule ID => label, severity, targets, pattern.
+	 * The firewall runs before WordPress may load translations, so the rules carry no text;
+	 * labels() names them for the admin screens.
+	 *
+	 * @return array Rule ID => severity, targets, pattern.
 	 */
 	public static function rules() {
 		$c = Log::SEVERITY_CRITICAL;
 		$h = Log::SEVERITY_HIGH;
 		return array(
-			'sqli-union'      => array( __( 'SQL injection: UNION SELECT', 'zenzeiten-bastion' ), $c, array( 'args', 'cookies', 'uri' ), '/\bunion\b[\s(]+(?:all[\s(]+|distinct[\s(]+)?select\b/i' ),
-			'sqli-blind'      => array( __( 'SQL injection: time-based probe', 'zenzeiten-bastion' ), $c, array( 'args', 'cookies', 'uri' ), '/\b(?:sleep|benchmark|pg_sleep)\s*\(\s*\d|\bwaitfor\s+delay\s+\'/i' ),
-			'sqli-tautology'  => array( __( 'SQL injection: always-true condition', 'zenzeiten-bastion' ), $c, array( 'args', 'cookies' ), '/[\'"`)]\s*(?:or|and|\|\||&&)\s*[\'"`(]{0,2}\s*(\w+)\s*[\'"`)]?\s*(?:=|like)\s*[\'"`(]{0,2}\s*\1\b/i' ),
-			'sqli-schema'     => array( __( 'SQL injection: schema or file access', 'zenzeiten-bastion' ), $c, array( 'args', 'cookies', 'uri' ), '/\binformation_schema\b|\bload_file\s*\(|\binto\s+(?:out|dump)file\b|@@(?:version|datadir|hostname)\b|\bextractvalue\s*\(|\bupdatexml\s*\(/i' ),
-			'xss-script'      => array( __( 'Cross-site scripting: script tag', 'zenzeiten-bastion' ), $h, array( 'args', 'uri' ), '/<\s*script\b|<\s*\/\s*script\s*>/i' ),
-			'xss-tag'         => array( __( 'Cross-site scripting: event handler or embedded document', 'zenzeiten-bastion' ), $h, array( 'args', 'uri' ), '/<[a-z][^>]*?[\s\/]on[a-z]{3,}\s*=|<\s*(?:iframe|object|embed|svg|math|base)\b/i' ),
-			'xss-scheme'      => array( __( 'Cross-site scripting: script URL', 'zenzeiten-bastion' ), $h, array( 'args', 'uri' ), '/(?:^|["\'=(])\s*(?:java|vb)script\s*:/i' ),
-			'lfi-traversal'   => array( __( 'Path traversal', 'zenzeiten-bastion' ), $h, array( 'args', 'uri' ), '/(?:\.\.[\/\\\\]){2,}|(?:^|[\/\\\\=])\.\.[\/\\\\](?:etc|proc|windows|wp-config)/i' ),
-			'lfi-files'       => array( __( 'System file access', 'zenzeiten-bastion' ), $c, array( 'args', 'uri' ), '/\/etc\/(?:passwd|shadow|hosts)\b|\/proc\/self\/|\bwin\.ini\b|\bboot\.ini\b/i' ),
-			'lfi-wrapper'     => array( __( 'PHP stream wrapper', 'zenzeiten-bastion' ), $c, array( 'args', 'uri' ), '/\b(?:php|phar|expect|zip|glob):\/\//i' ),
-			'rce-shell'       => array( __( 'Command injection', 'zenzeiten-bastion' ), $c, array( 'args', 'cookies', 'uri' ), '/(?:[;|`]|\$\()\s*(?:cat|wget|curl|nc|ncat|bash|zsh|chmod|python[23]?|perl|whoami|uname)(?:\s+(?:-{1,2}[a-z]|\/|https?:\/\/|\d+\s)|\s*(?:`|\)|;|\||$))/i' ),
-			'rce-php'         => array( __( 'PHP code injection', 'zenzeiten-bastion' ), $c, array( 'args', 'cookies' ), '/<\?php\b|\b(?:eval|assert|system|passthru|shell_exec|proc_open|popen)\s*\(\s*(?:\$_|\$\{|base64_decode|gzinflate|str_rot13)/i' ),
-			'rce-template'    => array( __( 'Template or JNDI injection', 'zenzeiten-bastion' ), $c, array( 'args', 'cookies', 'uri', 'ua' ), '/\$\{\s*jndi\s*:|\{\{\s*\d+\s*\*\s*\d+\s*\}\}|\$\{\s*\d+\s*\*\s*\d+\s*\}/i' ),
-			'php-object'      => array( __( 'PHP object injection', 'zenzeiten-bastion' ), $c, array( 'args', 'cookies' ), '/(?:^|[;{])\s*[OC]:\d+:"[a-z0-9_\\\\]+":\d+:\{/i' ),
-			'null-byte'       => array( __( 'Null byte', 'zenzeiten-bastion' ), $h, array( 'args', 'uri' ), '/\x00/' ),
-			'upload-script'   => array( __( 'Script file upload', 'zenzeiten-bastion' ), $c, array( 'files' ), '/\.(?:php[0-9s]?|pht(?:ml)?|phar|shtml|cgi|pl|asp|aspx|jsp|htaccess|user\.ini)(?:\.|$)/i' ),
-			'sensitive-file'  => array( __( 'Probe for a sensitive file', 'zenzeiten-bastion' ), $h, array( 'path' ), '/(?:^|\/)(?:wp-config\.php.+|\.env(?:\.[a-z]+)?$|\.git\/|\.svn\/|\.hg\/|\.htpasswd$|\.DS_Store$|phpinfo\.php$|(?:db|database|dump|backup)[\w.-]*\.(?:sql|sql\.gz|zip|tar\.gz)$|wp-content\/debug\.log$)/i' ),
-			'scanner-ua'      => array( __( 'Known attack tool', 'zenzeiten-bastion' ), $h, array( 'ua' ), '/\b(?:sqlmap|nikto|wpscan|acunetix|nessus|openvas|masscan|zgrab|nuclei|dirbuster|gobuster|ffuf|wfuzz|hydra|jorgee|zmeu|morfeus|netsparker|w3af|havij|appscan|fimap|commix|nmap scripting engine)\b/i' ),
+			'sqli-union'      => array( $c, array( 'args', 'cookies', 'uri' ), '/\bunion\b[\s(]+(?:all[\s(]+|distinct[\s(]+)?select\b/i' ),
+			'sqli-blind'      => array( $c, array( 'args', 'cookies', 'uri' ), '/\b(?:sleep|benchmark|pg_sleep)\s*\(\s*\d|\bwaitfor\s+delay\s+\'/i' ),
+			'sqli-tautology'  => array( $c, array( 'args', 'cookies' ), '/[\'"`)]\s*(?:or|and|\|\||&&)\s*[\'"`(]{0,2}\s*(\w+)\s*[\'"`)]?\s*(?:=|like)\s*[\'"`(]{0,2}\s*\1\b/i' ),
+			'sqli-schema'     => array( $c, array( 'args', 'cookies', 'uri' ), '/\binformation_schema\b|\bload_file\s*\(|\binto\s+(?:out|dump)file\b|@@(?:version|datadir|hostname)\b|\bextractvalue\s*\(|\bupdatexml\s*\(/i' ),
+			'xss-script'      => array( $h, array( 'args', 'uri' ), '/<\s*script\b|<\s*\/\s*script\s*>/i' ),
+			'xss-tag'         => array( $h, array( 'args', 'uri' ), '/<[a-z][^>]*?[\s\/]on[a-z]{3,}\s*=|<\s*(?:iframe|object|embed|svg|math|base)\b/i' ),
+			'xss-scheme'      => array( $h, array( 'args', 'uri' ), '/(?:^|["\'=(])\s*(?:java|vb)script\s*:/i' ),
+			'lfi-traversal'   => array( $h, array( 'args', 'uri' ), '/(?:\.\.[\/\\\\]){2,}|(?:^|[\/\\\\=])\.\.[\/\\\\](?:etc|proc|windows|wp-config)/i' ),
+			'lfi-files'       => array( $c, array( 'args', 'uri' ), '/\/etc\/(?:passwd|shadow|hosts)\b|\/proc\/self\/|\bwin\.ini\b|\bboot\.ini\b/i' ),
+			'lfi-wrapper'     => array( $c, array( 'args', 'uri' ), '/\b(?:php|phar|expect|zip|glob):\/\//i' ),
+			'rce-shell'       => array( $c, array( 'args', 'cookies', 'uri' ), '/(?:[;|`]|\$\()\s*(?:cat|wget|curl|nc|ncat|bash|zsh|chmod|python[23]?|perl|whoami|uname)(?:\s+(?:-{1,2}[a-z]|\/|https?:\/\/|\d+\s)|\s*(?:`|\)|;|\||$))/i' ),
+			'rce-php'         => array( $c, array( 'args', 'cookies' ), '/<\?php\b|\b(?:eval|assert|system|passthru|shell_exec|proc_open|popen)\s*\(\s*(?:\$_|\$\{|base64_decode|gzinflate|str_rot13)/i' ),
+			'rce-template'    => array( $c, array( 'args', 'cookies', 'uri', 'ua' ), '/\$\{\s*jndi\s*:|\{\{\s*\d+\s*\*\s*\d+\s*\}\}|\$\{\s*\d+\s*\*\s*\d+\s*\}/i' ),
+			'php-object'      => array( $c, array( 'args', 'cookies' ), '/(?:^|[;{])\s*[OC]:\d+:"[a-z0-9_\\\\]+":\d+:\{/i' ),
+			'null-byte'       => array( $h, array( 'args', 'uri' ), '/\x00/' ),
+			'upload-script'   => array( $c, array( 'files' ), '/\.(?:php[0-9s]?|pht(?:ml)?|phar|shtml|cgi|pl|asp|aspx|jsp|htaccess|user\.ini)(?:\.|$)/i' ),
+			'sensitive-file'  => array( $h, array( 'path' ), '/(?:^|\/)(?:wp-config\.php.+|\.env(?:\.[a-z]+)?$|\.git\/|\.svn\/|\.hg\/|\.htpasswd$|\.DS_Store$|phpinfo\.php$|(?:db|database|dump|backup)[\w.-]*\.(?:sql|sql\.gz|zip|tar\.gz)$|wp-content\/debug\.log$)/i' ),
+			'scanner-ua'      => array( $h, array( 'ua' ), '/\b(?:sqlmap|nikto|wpscan|acunetix|nessus|openvas|masscan|zgrab|nuclei|dirbuster|gobuster|ffuf|wfuzz|hydra|jorgee|zmeu|morfeus|netsparker|w3af|havij|appscan|fimap|commix|nmap scripting engine)\b/i' ),
+		);
+	}
+
+	/**
+	 * Names of the rules, for the admin screens.
+	 *
+	 * @return array Rule ID => label.
+	 */
+	public static function labels() {
+		return array(
+			'sqli-union'     => __( 'SQL injection: UNION SELECT', 'zenzeiten-bastion' ),
+			'sqli-blind'     => __( 'SQL injection: time-based probe', 'zenzeiten-bastion' ),
+			'sqli-tautology' => __( 'SQL injection: always-true condition', 'zenzeiten-bastion' ),
+			'sqli-schema'    => __( 'SQL injection: schema or file access', 'zenzeiten-bastion' ),
+			'xss-script'     => __( 'Cross-site scripting: script tag', 'zenzeiten-bastion' ),
+			'xss-tag'        => __( 'Cross-site scripting: event handler or embedded document', 'zenzeiten-bastion' ),
+			'xss-scheme'     => __( 'Cross-site scripting: script URL', 'zenzeiten-bastion' ),
+			'lfi-traversal'  => __( 'Path traversal', 'zenzeiten-bastion' ),
+			'lfi-files'      => __( 'System file access', 'zenzeiten-bastion' ),
+			'lfi-wrapper'    => __( 'PHP stream wrapper', 'zenzeiten-bastion' ),
+			'rce-shell'      => __( 'Command injection', 'zenzeiten-bastion' ),
+			'rce-php'        => __( 'PHP code injection', 'zenzeiten-bastion' ),
+			'rce-template'   => __( 'Template or JNDI injection', 'zenzeiten-bastion' ),
+			'php-object'     => __( 'PHP object injection', 'zenzeiten-bastion' ),
+			'null-byte'      => __( 'Null byte', 'zenzeiten-bastion' ),
+			'upload-script'  => __( 'Script file upload', 'zenzeiten-bastion' ),
+			'sensitive-file' => __( 'Probe for a sensitive file', 'zenzeiten-bastion' ),
+			'scanner-ua'     => __( 'Known attack tool', 'zenzeiten-bastion' ),
 		);
 	}
 
@@ -59,7 +90,7 @@ final class Firewall {
 	 *
 	 * @param array $data     Keys: path, uri, args, cookies, ua, files. Each a string or a list of strings.
 	 * @param array $disabled Rule IDs to skip.
-	 * @return array|null The worst match (rule, label, severity, target, sample), or null.
+	 * @return array|null The worst match (rule, severity, target, sample), or null.
 	 */
 	public static function inspect( array $data, array $disabled = array() ) {
 		$worst = null;
@@ -67,7 +98,7 @@ final class Firewall {
 			if ( in_array( $id, $disabled, true ) ) {
 				continue;
 			}
-			list( $label, $severity, $targets, $pattern ) = $rule;
+			list( $severity, $targets, $pattern ) = $rule;
 			if ( $worst && $worst['severity'] >= $severity ) {
 				continue;
 			}
@@ -76,7 +107,6 @@ final class Firewall {
 					if ( preg_match( $pattern, $value, $m ) ) {
 						$worst = array(
 							'rule'     => $id,
-							'label'    => $label,
 							'severity' => $severity,
 							'target'   => $target,
 							'sample'   => Request::clip( $m[0], 80 ),
@@ -196,12 +226,11 @@ final class Firewall {
 				'severity' => $match['severity'],
 				'rule'     => $match['rule'],
 				'action'   => $block ? 'blocked' : 'logged',
-				/* translators: 1: rule name, 2: where it matched, 3: matched text */
-				'details'  => sprintf( __( '%1$s in %2$s: %3$s', 'zenzeiten-bastion' ), $match['label'], $match['target'], $match['sample'] ),
+				'details'  => $match['target'] . ': ' . $match['sample'],
 			)
 		);
 		if ( $block ) {
-			Guard::deny( 403, __( 'This request was blocked by the site firewall.', 'zenzeiten-bastion' ) );
+			Guard::deny( 403, 'This request was blocked by the site firewall.' );
 		}
 	}
 }
