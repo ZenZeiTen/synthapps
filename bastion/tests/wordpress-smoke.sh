@@ -74,6 +74,7 @@ front_ok() {
 }
 front_ok "visitor, default theme" -A 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0' -H 'X-Forwarded-For: 198.51.100.200'
 front_ok "administrator, default theme" -b "$COOKIES"
+front_ok "visitor on IPv6, like many phones" -A 'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36' -H 'X-Forwarded-For: 2001:db8:3c4d:15::1a2f'
 front_ok "visitor with typical cookies" -A 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' \
 	-H 'X-Forwarded-For: 198.51.100.201' \
 	-b '_ga=GA1.1.123456789.1700000000; _fbp=fb.1.1700000000000.123456789; __cf_bm=abc.def-1700000000-1.0.1.1-xyz; CookieConsent={stamp:%27k7Gm3Tq==%27%2Cnecessary:true%2Cpreferences:false%2Cstatistics:true%2Cmarketing:false%2Cmethod:%27explicit%27%2Cver:1%2Cutc:1700000000000%2Cregion:%27id%27}; wordpress_test_cookie=WP%20Cookie%20check'

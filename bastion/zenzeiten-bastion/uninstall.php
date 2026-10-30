@@ -31,7 +31,7 @@ if ( is_string( $zbst_key ) && preg_match( '/^[a-z0-9]{16}$/', $zbst_key ) ) {
 	}
 }
 
-foreach ( array( 'zbst_settings', 'zbst_db_version', 'zbst_block_index', 'zbst_admin_ips', 'zbst_admins', 'zbst_alert_queue', 'zbst_alert_last', 'zbst_last_backup', 'zbst_backup_key' ) as $zbst_option ) {
+foreach ( array( 'zbst_settings', 'zbst_db_version', 'zbst_block_index', 'zbst_admin_ips', 'zbst_admins', 'zbst_alert_queue', 'zbst_alert_last', 'zbst_last_backup', 'zbst_backup_key', 'zbst_last_error' ) as $zbst_option ) {
 	delete_option( $zbst_option );
 }
 wp_clear_scheduled_hook( 'zbst_hourly' );

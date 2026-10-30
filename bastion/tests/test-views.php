@@ -144,3 +144,19 @@ function test_settings_form_round_trip() {
 	check( ! in_array( 'xss-script', $s['disabled_rules'], true ) && in_array( 'rce-php', $s['disabled_rules'], true ) );
 	$_POST = array();
 }
+
+function test_error_notice_shows_escaped_details() {
+	WP_Stub::$user = (object) array( 'ID' => 1, 'roles' => array( 'administrator' ) );
+	$html          = zbst_render( array( new Admin(), 'error_notice' ) );
+	check_same( '', $html, 'no notice without an error' );
+	update_option(
+		ZenZeiTenBastion\Guard::ERROR_OPTION,
+		array( 'time' => time(), 'message' => 'Error: <script>x</script> in /a.php:1', 'url' => '/?q=<b>', 'version' => ZBST_VERSION, 'php' => PHP_VERSION )
+	);
+	$html = zbst_render( array( new Admin(), 'error_notice' ) );
+	check( false !== strpos( $html, 'skipped a security check' ) );
+	check( false !== strpos( $html, '&lt;script&gt;' ) && false === strpos( $html, '<script>x' ) && false === strpos( $html, '<b>' ) );
+	check( false !== strpos( $html, 'zbst_clear_error' ) );
+	WP_Stub::$user = (object) array( 'ID' => 5, 'roles' => array( 'subscriber' ) );
+	check_same( '', zbst_render( array( new Admin(), 'error_notice' ) ), 'hidden from users without the capability' );
+}

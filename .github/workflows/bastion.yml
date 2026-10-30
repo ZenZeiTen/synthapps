@@ -48,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ["7.4", "8.0", "8.1", "8.2", "8.3"]
+        php: ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4"]
     defaults:
       run:
         working-directory: bastion
@@ -64,7 +64,7 @@ jobs:
       - name: Unit and integration tests
         run: php tests/run.php
       - name: Translation template is current
-        if: matrix.php == '8.3'
+        if: matrix.php == '8.4'
         run: |
           python3 scripts/make-pot.py
           git diff --exit-code -- zenzeiten-bastion/languages/zenzeiten-bastion.pot
@@ -107,7 +107,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.3"
+          # The newest PHP sites run; a site on 8.4 reported a blank page that 8.3 did not show.
+          php-version: "8.4"
           extensions: mysqli, zlib
           tools: none
           coverage: none

@@ -2,130 +2,151 @@
 # This file is distributed under the MIT license.
 msgid ""
 msgstr ""
-"Project-Id-Version: ZenZeiTen Bastion 1.0.0\n"
+"Project-Id-Version: ZenZeiTen Bastion 1.0.1\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Domain: zenzeiten-bastion\n"
 
-#: includes/admin/class-admin.php:151 includes/admin/class-admin.php:151
+#: includes/admin/class-admin.php:153 includes/admin/class-admin.php:153
 msgid "Bastion"
 msgstr ""
 
-#: includes/admin/class-admin.php:152 includes/admin/class-admin.php:152
+#: includes/admin/class-admin.php:154 includes/admin/class-admin.php:154
 msgid "Live monitor"
 msgstr ""
 
-#: includes/admin/class-admin.php:153 includes/admin/class-admin.php:153 includes/admin/views/events.php:24
+#: includes/admin/class-admin.php:155 includes/admin/class-admin.php:155 includes/admin/views/events.php:24
 msgid "Attack log"
 msgstr ""
 
-#: includes/admin/class-admin.php:154 includes/admin/class-admin.php:154
+#: includes/admin/class-admin.php:156 includes/admin/class-admin.php:156
 msgid "Blocked IPs"
 msgstr ""
 
-#: includes/admin/class-admin.php:155 includes/admin/class-admin.php:155
+#: includes/admin/class-admin.php:157 includes/admin/class-admin.php:157
 msgid "Backups"
 msgstr ""
 
-#: includes/admin/class-admin.php:156 includes/admin/class-admin.php:156 includes/admin/class-admin.php:166
+#: includes/admin/class-admin.php:158 includes/admin/class-admin.php:158 includes/admin/class-admin.php:168
 msgid "Settings"
 msgstr ""
 
-#: includes/admin/class-admin.php:189
+#: includes/admin/class-admin.php:191
 msgid "Paused"
 msgstr ""
 
-#: includes/admin/class-admin.php:190 includes/admin/views/dashboard.php:74
+#: includes/admin/class-admin.php:192 includes/admin/views/dashboard.php:74
 msgid "Live"
 msgstr ""
 
-#: includes/admin/class-admin.php:191
+#: includes/admin/class-admin.php:193
 msgid "Connection lost, retrying…"
 msgstr ""
 
-#: includes/admin/class-admin.php:192
+#: includes/admin/class-admin.php:194
 msgid "No events yet. Attacks will appear here as they happen."
 msgstr ""
 
-#: includes/admin/class-admin.php:193 includes/admin/views/blocks.php:42 includes/admin/views/dashboard.php:107
+#: includes/admin/class-admin.php:195 includes/admin/views/blocks.php:42 includes/admin/views/dashboard.php:107
 msgid "Block"
 msgstr ""
 
-#: includes/admin/class-admin.php:194
+#: includes/admin/class-admin.php:196
 msgid "Replace the whole database with this backup? A safety backup of the current database is taken first and restored automatically if anything fails."
 msgstr ""
 
-#: includes/admin/class-admin.php:195
+#: includes/admin/class-admin.php:197
 msgid "Delete this backup permanently?"
 msgstr ""
 
-#: includes/admin/class-admin.php:209
+#: includes/admin/class-admin.php:211
 msgid "Sorry, you are not allowed to do that."
 msgstr ""
 
-#: includes/admin/class-admin.php:258
+#: includes/admin/class-admin.php:249
+msgid "ZenZeiTen Bastion skipped a security check because of an error."
+msgstr ""
+
+#: includes/admin/class-admin.php:250
+msgid "Your site kept working. Please send these details to the plugin's developer:"
+msgstr ""
+
+#: includes/admin/class-admin.php:253
+#, php-format
+msgid "Last seen %1$s on %2$s (Bastion %3$s, PHP %4$s)."
+msgstr ""
+
+#: includes/admin/class-admin.php:256
+msgid "Clear this message"
+msgstr ""
+
+#: includes/admin/class-admin.php:265
+msgid "Message cleared."
+msgstr ""
+
+#: includes/admin/class-admin.php:287
 msgid "That would block your own address, so it was not blocked."
 msgstr ""
 
-#: includes/admin/class-admin.php:260
+#: includes/admin/class-admin.php:289
 msgid "Blocked by an administrator"
 msgstr ""
 
-#: includes/admin/class-admin.php:263
+#: includes/admin/class-admin.php:292
 msgid "Enter a valid IP address or range that is not on the allowlist."
 msgstr ""
 
-#: includes/admin/class-admin.php:276
+#: includes/admin/class-admin.php:305
 #, php-format
 msgid "Blocked %s."
 msgstr ""
 
-#: includes/admin/class-admin.php:295
+#: includes/admin/class-admin.php:324
 #, php-format
 msgid "Unblocked %s."
 msgstr ""
 
-#: includes/admin/class-admin.php:297
+#: includes/admin/class-admin.php:326
 msgid "That address is not blocked."
 msgstr ""
 
-#: includes/admin/class-admin.php:306
+#: includes/admin/class-admin.php:335
 msgid "Block removed and its history forgotten."
 msgstr ""
 
-#: includes/admin/class-admin.php:319
+#: includes/admin/class-admin.php:348
 #, php-format
 msgid "Backup created: %1$d tables, %2$d rows."
 msgstr ""
 
-#: includes/admin/class-admin.php:330 includes/class-backup.php:325
+#: includes/admin/class-admin.php:359 includes/class-backup.php:325
 msgid "That backup does not exist."
 msgstr ""
 
-#: includes/admin/class-admin.php:352
+#: includes/admin/class-admin.php:381
 #, php-format
 msgid "Database restored from %1$s. The database as it was before is saved as %2$s. If the site uses a different login now, sign in again."
 msgstr ""
 
-#: includes/admin/class-admin.php:361
+#: includes/admin/class-admin.php:390
 msgid "Backup deleted."
 msgstr ""
 
-#: includes/admin/class-admin.php:372
+#: includes/admin/class-admin.php:401
 msgid "Choose a backup file to upload. If you did, it may be larger than the server allows."
 msgstr ""
 
-#: includes/admin/class-admin.php:379
+#: includes/admin/class-admin.php:408
 #, php-format
 msgid "Backup uploaded as %s. You can restore it from the list."
 msgstr ""
 
-#: includes/admin/class-admin.php:391
+#: includes/admin/class-admin.php:420
 msgid "Settings saved."
 msgstr ""
 
-#: includes/admin/class-admin.php:399
+#: includes/admin/class-admin.php:428
 msgid "Sorry, you are not allowed to access this page."
 msgstr ""
 
@@ -958,45 +979,45 @@ msgstr ""
 msgid "Known attack tool"
 msgstr ""
 
-#: includes/class-hardening.php:49
+#: includes/class-hardening.php:50
 msgid "Through XML-RPC"
 msgstr ""
 
-#: includes/class-hardening.php:56
+#: includes/class-hardening.php:57
 #, php-format
 msgid "%1$d failed logins in %2$d minutes"
 msgstr ""
 
-#: includes/class-hardening.php:91
+#: includes/class-hardening.php:92
 msgid "Error:"
 msgstr ""
 
-#: includes/class-hardening.php:91
+#: includes/class-hardening.php:92
 msgid "The username or password is incorrect."
 msgstr ""
 
-#: includes/class-hardening.php:109
+#: includes/class-hardening.php:110
 msgid "Author ID scan"
 msgstr ""
 
-#: includes/class-hardening.php:122
+#: includes/class-hardening.php:123
 #, php-format
 msgid "More than %d missing pages in one minute"
 msgstr ""
 
-#: includes/class-hardening.php:149
+#: includes/class-hardening.php:150
 msgid "REST API user list"
 msgstr ""
 
-#: includes/class-hardening.php:152
+#: includes/class-hardening.php:153
 msgid "Sorry, you are not allowed to list users."
 msgstr ""
 
-#: includes/class-hardening.php:188
+#: includes/class-hardening.php:189
 msgid "XML-RPC is switched off"
 msgstr ""
 
-#: includes/class-hardening.php:191
+#: includes/class-hardening.php:192
 msgid "XML-RPC is not available on this site."
 msgstr ""
 

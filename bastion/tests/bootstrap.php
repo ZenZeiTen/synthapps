@@ -12,6 +12,8 @@
 // phpcs:disable
 
 error_reporting( E_ALL );
+// Errors the plugin records with error_log() would otherwise clutter the test output.
+ini_set( 'error_log', '/dev/null' );
 set_error_handler(
 	function ( $severity, $message, $file, $line ) {
 		throw new ErrorException( $message, 0, $severity, $file, $line );
