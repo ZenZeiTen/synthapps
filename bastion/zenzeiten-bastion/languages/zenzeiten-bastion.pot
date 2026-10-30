@@ -873,16 +873,16 @@ msgstr ""
 msgid "That backup uses the table prefix %1$s, but this site uses %2$s, so restoring it would not change this site."
 msgstr ""
 
-#: includes/class-cron.php:96
+#: includes/class-cron.php:97
 #, php-format
 msgid "New administrator accounts: %s"
 msgstr ""
 
-#: includes/class-cron.php:110
+#: includes/class-cron.php:111
 msgid "New administrator account"
 msgstr ""
 
-#: includes/class-cron.php:111
+#: includes/class-cron.php:112
 msgid "If you did not add this account, your site may be compromised: delete the account, change all passwords and consider restoring a backup."
 msgstr ""
 
