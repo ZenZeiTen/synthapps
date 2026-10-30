@@ -58,6 +58,39 @@ for _ in $(seq 1 50); do curl -s -o /dev/null "$URL/" && break; sleep 0.2; done
 as() { local ip=$1; shift; curl -s -H "X-Forwarded-For: $ip" -A 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0' "$@"; }
 code_as() { local ip=$1; shift; status -H "X-Forwarded-For: $ip" -A 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0' "$@"; }
 
+# --- The site still renders ------------------------------------------------------------------------
+# A blank page with status 200 would pass a status check, so look for the page itself.
+COOKIES=$(wp eval 'echo AUTH_COOKIE . "=" . wp_generate_auth_cookie( 1, time() + 3600, "auth" ) . "; " . LOGGED_IN_COOKIE . "=" . wp_generate_auth_cookie( 1, time() + 3600, "logged_in" );')
+front_ok() {
+	local label=$1 html code
+	shift
+	code=$(curl -s -o "$WORK/front.html" -w '%{http_code}' "$@" "$URL/")
+	html=$(cat "$WORK/front.html")
+	echo "front page ($label): HTTP $code, $(wc -c <"$WORK/front.html") bytes"
+	if [ "$code" != "200" ] || ! contains "$html" '</html>' || ! contains "$html" '<title>'; then
+		echo "--- start of response ---"; head -c 2000 <<<"$html"; echo; echo "--- end ---"
+		fail "front page blank or broken ($label)"
+	fi
+}
+front_ok "visitor, default theme" -A 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0' -H 'X-Forwarded-For: 198.51.100.200'
+front_ok "administrator, default theme" -b "$COOKIES"
+front_ok "visitor with typical cookies" -A 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' \
+	-H 'X-Forwarded-For: 198.51.100.201' \
+	-b '_ga=GA1.1.123456789.1700000000; _fbp=fb.1.1700000000000.123456789; __cf_bm=abc.def-1700000000-1.0.1.1-xyz; CookieConsent={stamp:%27k7Gm3Tq==%27%2Cnecessary:true%2Cpreferences:false%2Cstatistics:true%2Cmarketing:false%2Cmethod:%27explicit%27%2Cver:1%2Cutc:1700000000000%2Cregion:%27id%27}; wordpress_test_cookie=WP%20Cookie%20check'
+
+# The other plugins and theme from this repository, which sites often run together with Bastion.
+REPO="$(cd "$HERE/../.." && pwd)"
+ln -s "$REPO/corbelwise/plugin/corbelwise-toolkit" wp/wp-content/plugins/corbelwise-toolkit
+ln -s "$REPO/visitor-sentinel/zenzeiten-visitor-guard" wp/wp-content/plugins/zenzeiten-visitor-guard
+ln -s "$REPO/contextchat/plugin/contextchat" wp/wp-content/plugins/contextchat
+ln -s "$REPO/corbelwise/theme/corbelwise" wp/wp-content/themes/corbelwise
+wp plugin activate corbelwise-toolkit zenzeiten-visitor-guard contextchat
+wp theme activate corbelwise
+front_ok "visitor, Corbelwise with the repository's plugins" -A 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0' -H 'X-Forwarded-For: 198.51.100.202'
+front_ok "administrator, Corbelwise with the repository's plugins" -b "$COOKIES"
+wp plugin deactivate corbelwise-toolkit zenzeiten-visitor-guard contextchat
+wp theme activate "$(wp theme list --field=name --status=inactive | grep '^twenty' | head -n1)"
+
 # --- Firewall and automatic blocking -------------------------------------------------------------
 [ "$(code_as 198.51.100.7 "$URL/?s=shoes")" = "200" ] || fail "normal request refused"
 [ "$(code_as 198.51.100.7 "$URL/?id=1%20UNION%20SELECT%20user_pass%20FROM%20wp_users")" = "403" ] || fail "SQL injection not blocked"
