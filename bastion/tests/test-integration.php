@@ -431,3 +431,22 @@ function test_hooks_are_registered_wrapped() {
 	// A broken value from another plugin no longer breaks the XML-RPC filter.
 	check_same( 'not-an-array', ZenZeiTenBastion\Hardening::xmlrpc_methods( 'not-an-array' ) );
 }
+
+function test_guard_does_not_settle_the_current_user() {
+	// The guard runs on plugins_loaded. Asking WordPress for the current user there fixes it for
+	// the whole request before other plugins (page caches among them) are ready; a live site's
+	// public pages went blank. The guard reads the login cookie instead.
+	update_option( Settings::OPTION, array_merge( Settings::all(), array( 'rate_limit' => 100 ) ) );
+	Settings::flush();
+	foreach ( array( array( 's' => 'shoes' ), array( 'id' => '1 UNION SELECT 1' ) ) as $get ) {
+		zbst_request( '198.51.100.180', $get );
+		WP_Stub::$current_user_lookups = 0;
+		zbst_run_guard();
+		check_same( 0, WP_Stub::$current_user_lookups, 'guard asked WordPress for the current user' );
+	}
+	// Editors are still recognised by their cookie and not inspected.
+	WP_Stub::$user = (object) array( 'ID' => 3, 'roles' => array( 'editor' ) );
+	zbst_request( '198.51.100.181', array( 'html' => '<script>ok()</script>' ) );
+	check_same( 0, zbst_run_guard() );
+	check_same( 0, WP_Stub::$current_user_lookups );
+}

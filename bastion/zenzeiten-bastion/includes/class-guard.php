@@ -76,6 +76,24 @@ final class Guard {
 	}
 
 	/**
+	 * ID of the user the request's login cookie belongs to, or 0.
+	 *
+	 * The guard runs before other plugins finish loading. Asking WordPress for the current user
+	 * there (current_user_can(), is_user_logged_in()) would settle who the visitor is before
+	 * plugins that hook into that decision, or that cache pages for logged-out visitors, are
+	 * ready. That broke pages for logged-out visitors on a live site. This reads the cookie
+	 * without setting the current user.
+	 *
+	 * @return int
+	 */
+	public static function cookie_user_id() {
+		if ( ! function_exists( 'wp_validate_auth_cookie' ) ) {
+			return 0;
+		}
+		return (int) wp_validate_auth_cookie( '', 'logged_in' );
+	}
+
+	/**
 	 * Requests that are never inspected or turned away: command line and the site calling itself.
 	 *
 	 * @return bool

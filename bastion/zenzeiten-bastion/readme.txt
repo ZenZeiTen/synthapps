@@ -3,7 +3,7 @@ Contributors: zenzeiten
 Tags: security, firewall, brute force, ip blocking, backup
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -85,6 +85,9 @@ Blocked addresses are checked from a small cached list without a database query.
 Nothing, unless you tick "Delete the log, blocks, settings and all backups when the plugin is deleted" in Settings first.
 
 == Changelog ==
+
+= 1.0.2 =
+* Fix: pages could show blank to visitors who were not logged in, alongside plugins that cache pages or decide who the visitor is (for example Jetpack and Jetpack Boost). The firewall now recognises logged-in editors from their login cookie instead of asking WordPress for the current user before other plugins have loaded.
 
 = 1.0.1 =
 * Fix: a security check that hits an error is now skipped and reported, instead of leaving visitors with a blank page. Administrators see the error details in a notice in wp-admin.

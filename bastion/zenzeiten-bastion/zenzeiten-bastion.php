@@ -3,7 +3,7 @@
  * Plugin Name:       ZenZeiTen Bastion
  * Plugin URI:        https://github.com/ZenZeiTen/synthapps/tree/main/bastion
  * Description:       Website security: a firewall against common attacks, real-time attack monitoring, automatic detection and blocking of attacking IP addresses, login protection, and automatic database backups with one-click restore and automatic rollback.
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            ZenZeiTen
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ZBST_VERSION', '1.0.1' );
+define( 'ZBST_VERSION', '1.0.2' );
 define( 'ZBST_DB_VERSION', '1' );
 define( 'ZBST_FILE', __FILE__ );
 define( 'ZBST_DIR', plugin_dir_path( __FILE__ ) );

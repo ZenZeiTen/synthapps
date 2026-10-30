@@ -200,7 +200,7 @@ final class Hardening {
 	 */
 	public static function rate_limit() {
 		$limit = (int) Settings::get( 'rate_limit' );
-		if ( $limit <= 0 || is_user_logged_in() || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
+		if ( $limit <= 0 || Guard::cookie_user_id() || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
 			return;
 		}
 		$ip    = Request::ip();
