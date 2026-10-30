@@ -10,7 +10,9 @@ ZenZeiTen Bastion 1.0.2 fixes a problem where visitors who were not logged in co
 
 1. Download `zenzeiten-bastion-1.0.2.zip` below.
 2. In WordPress, go to **Plugins > Add New > Upload Plugin**, choose the zip, click **Install Now**, then choose **Replace current with uploaded**.
-3. Activate the plugin, then open your site in a private window or on your phone, where you are not logged in, and check that it shows normally.
+3. Activate the plugin.
+4. If you use a page-cache plugin (Jetpack Boost, WP Rocket, LiteSpeed Cache, or the page cache in an SEO or speed suite), clear its cache. A copy of a page saved earlier can otherwise keep showing visitors a blank page.
+5. Open your site in a private window or on your phone, where you are not logged in, and check that it shows normally.
 
 Your settings, log, blocks and backups are kept.
 

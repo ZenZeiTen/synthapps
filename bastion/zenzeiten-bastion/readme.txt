@@ -53,8 +53,13 @@ Every request from a visitor is checked against 18 attack signatures before your
 2. Activate the plugin. The address you activate it from is protected from automatic blocks.
 3. Open Bastion > Settings. If your site is behind Cloudflare, tick "This site is behind Cloudflare" and check that "Your address as Bastion sees it" shows your real address.
 4. Open Bastion > Backups and click "Back up now" for a first backup.
+5. If you use a page-cache plugin, clear its cache, then check the site in a private window.
 
 == Frequently Asked Questions ==
+
+= Visitors see a blank page after I install or update Bastion =
+
+A page-cache plugin (Jetpack Boost, WP Rocket, LiteSpeed Cache, or the page cache in an SEO or speed suite) may still be serving a copy of the page saved before or during the change. Clear that plugin's cache, then reload the site in a private window.
 
 = I locked myself out =
 
@@ -87,6 +92,7 @@ Nothing, unless you tick "Delete the log, blocks, settings and all backups when 
 == Changelog ==
 
 = 1.0.2 =
+* Docs: after installing or updating, clear any page cache; a stale cached page can show visitors a blank page.
 * Fix: pages could show blank to visitors who were not logged in, alongside plugins that cache pages or decide who the visitor is (for example Jetpack and Jetpack Boost). The firewall now recognises logged-in editors from their login cookie instead of asking WordPress for the current user before other plugins have loaded.
 
 = 1.0.1 =
