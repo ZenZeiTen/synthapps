@@ -354,7 +354,8 @@ Verified on a Windows 11 PC (Python 3.14):
 
 - A real game played by clicking: in Virtual Cottage 2, Claude clicked "New Task", typed
   "Water the plants" (with the capital W) and confirmed it. This exercised window capture,
-  screenshot-to-screen pointer mapping and keyboard input on a real desktop.
+  screenshot-to-screen pointer mapping and keyboard input on a real desktop. A second run
+  went through the example's list of goals and then free play without problems.
 
 Not verified yet: a game played with the virtual controller, a fast real-time game, and a
 live RetroArch. Treat the first sessions on your machine as the real test. Start with
