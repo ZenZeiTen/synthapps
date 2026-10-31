@@ -7,14 +7,14 @@ Retroglot plays games from the DOS era to the PlayStation era on Windows, and tr
 | `Retroglot-Setup-<version>.exe` | You want it installed, with a Start menu entry and an uninstaller. |
 | `Retroglot-<version>-portable.exe` | You want to run it without installing (for example from a USB stick). |
 
-Both files contain the same app. Before publishing, the automated build installed and started it on Windows, downloaded the emulator, and booted the demo game.
+Both files contain the same app. Before publishing, the automated build started the app on a Windows machine, let it download the emulator and booted the demo game. The installer itself was built but not run by that test.
 
 ## First start
 
 1. **Windows says "Windows protected your PC"**: the app is not code-signed. Click **More info**, then **Run anyway**.
 2. On first start the app downloads the emulator (EmulatorJS and its cores, about 70 MB). This needs an internet connection once.
 3. To translate, open **Settings** and paste a Claude API key from [console.anthropic.com](https://console.anthropic.com). Playing games does not need a key.
-4. Try **Try the Japanese demo** on the home screen, then press **F2**.
+4. Click **Try the Japanese demo** on the home screen, start it, then press **F2**.
 
 Retroglot ships no games and no BIOS files. Use games you own.
 
