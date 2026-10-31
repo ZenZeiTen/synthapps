@@ -1,0 +1,42 @@
+# Example: a game played by clicking on screen (Virtual Cottage 2, a cozy focus app on Steam).
+# Claude clicks buttons it sees in the screenshot with mouse_to + MOUSE_LEFT; no key bindings
+# are needed. Written from a screenshot of the game's main screen.
+
+name = "Virtual Cottage 2"
+
+[game]
+title_contains = "VirtualCottage2"     # the window title shown in the taskbar
+fps = 60
+
+[input]
+device = "kbm"                         # keyboard and mouse: clicking is the main control
+focus_check = true
+
+[pacing]
+mode = "realtime"                      # nothing in it is time-critical, so no pause is needed
+
+[bindings]
+# none: everything is a click on a visible button
+
+[agent]
+goal = "Add a task named 'Water the plants' to the To-Do-List, if it is not there yet."
+goals = [
+    "Skip to the next song in the music player.",
+    "Tick off the 'Water the plants' task.",
+    "Open the paintbrush button at the bottom left and change one piece of decoration in the room.",
+    "Try the cloud button at the bottom right and describe what it changed.",
+]
+free_play = true          # after these, Claude chooses what to explore next, until a limit below
+notes = """
+The main screen shows a cozy room in the middle. Top left: the Focus timer (pause, stop,
+finish, minus and plus one minute). Top right: the To-Do-List with 'New Task', 'New Group',
+'Presets' and a delete icon. Bottom: room and decoration buttons on the left, the music player
+in the middle, weather and settings on the right.
+To type text into a field, click the field first, then press the letter keys (KEY_W, KEY_A ...,
+KEY_SPACE for a space, KEY_LEFTSHIFT held with a letter for a capital) and KEY_ENTER to confirm.
+Do not delete existing tasks and do not change the settings.
+"""
+effort = "low"
+max_turns = 120
+max_minutes = 30
+max_cost_usd = 2.0

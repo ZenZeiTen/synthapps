@@ -1,0 +1,41 @@
+# A Steam game played with a virtual keyboard and mouse, in real time.
+#
+# Keys are sent as hardware scan codes and the mouse moves relatively, which is what
+# DirectInput/raw-input games and first-person cameras need. On Windows, turn off
+# "Enhance pointer precision" so mouse_move distances are predictable.
+
+name = "Your game title"
+
+[game]
+title_contains = "Your game title"
+launch = "steam://rungameid/000000"
+fps = 60
+
+[input]
+device = "kbm"
+tick_hz = 120
+
+[pacing]
+mode = "realtime"
+pause_input = "KEY_ESC"                 # many PC games pause on Esc; remove if yours does not
+pause_settle_ms = 400
+
+[bindings]
+forward = "KEY_W"
+back = "KEY_S"
+left = "KEY_A"
+right = "KEY_D"
+jump = "KEY_SPACE"
+sprint = "KEY_LEFTSHIFT"
+interact = "KEY_E"
+attack = "MOUSE_LEFT"
+aim = "MOUSE_RIGHT"
+inventory = "KEY_TAB"
+
+[agent]
+goal = "Explore the starting area and complete the first objective."
+notes = "In the first turns, find out how far a mouse_move of dx=200 turns the camera and write it in your notes."
+effort = "low"
+max_turns = 200
+max_minutes = 30
+max_cost_usd = 4.0

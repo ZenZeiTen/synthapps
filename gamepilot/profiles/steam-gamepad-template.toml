@@ -1,0 +1,48 @@
+# A Steam game played with the virtual Xbox controller, in real time.
+#
+# The game keeps running while Claude thinks (a few seconds per turn). This suits turn-based
+# games, puzzle games, menus, strategy and slow exploration. For fast action games, set
+# pacing.pause_input so the agent pauses the game while it thinks.
+#
+# Steam Input: Steam sees the virtual pad as an Xbox 360 controller. If buttons come out
+# wrong, open the game's Properties > Controller and set "Disable Steam Input" (or use the
+# default Xbox layout).
+
+name = "Your game title"
+
+[game]
+title_contains = "Your game title"      # part of the game's window title
+launch = "steam://rungameid/000000"     # the game's Steam app ID (in its store page URL)
+fps = 60
+
+[input]
+device = "gamepad"
+tick_hz = 120                           # input updates per second; 120 is plenty for 60 fps games
+min_hold_frames = 2
+min_release_frames = 2
+focus_check = true                      # stop sending input when the game is not in front
+
+[pacing]
+mode = "realtime"
+# pause_input = "START"                 # tapped before and after each think, if the game pauses on it
+# pause_settle_ms = 300
+
+# Placeholders: copy the real layout from the game's controls menu.
+[bindings]
+confirm = "A"
+back = "B"
+interact = "X"
+menu = "START"
+move_forward = "LS_UP"
+move_back = "LS_DOWN"
+move_left = "LS_LEFT"
+move_right = "LS_RIGHT"
+
+[agent]
+goal = "Start a new game and complete the tutorial."
+notes = "Describe anything the model cannot see: control quirks, objectives, what to avoid."
+effort = "low"
+max_turns = 200
+max_minutes = 30
+max_cost_usd = 4.0
+allow_anticheat = false

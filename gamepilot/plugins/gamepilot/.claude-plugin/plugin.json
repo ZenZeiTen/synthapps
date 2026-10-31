@@ -1,0 +1,14 @@
+{
+  "name": "gamepilot",
+  "displayName": "gamepilot",
+  "version": "0.1.0",
+  "description": "Set up, run and troubleshoot gamepilot, an agent that plays Steam, PC and emulated games: Claude reads screenshots and drives a virtual Xbox controller or keyboard and mouse. Covers installation on Windows and Linux, automatic game detection, settings files, goals and free play, clicking games, RetroArch frame-by-frame play, safety limits and known errors.",
+  "author": {
+    "name": "ZenZeiTen",
+    "url": "https://github.com/ZenZeiTen"
+  },
+  "homepage": "https://github.com/ZenZeiTen/synthapps/tree/main/gamepilot",
+  "repository": "https://github.com/ZenZeiTen/synthapps",
+  "license": "MIT",
+  "keywords": ["games", "game-automation", "virtual-gamepad", "steam", "emulator", "retroarch", "computer-use", "vision"]
+}

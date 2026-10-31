@@ -37,6 +37,14 @@
       "version": "0.1.0",
       "category": "development",
       "keywords": ["playcanvas", "rendering", "video", "animation", "sprites", "game-assets", "gltf"]
+    },
+    {
+      "name": "gamepilot",
+      "source": "./gamepilot/plugins/gamepilot",
+      "description": "Set up, run and troubleshoot gamepilot, an agent that plays Steam, PC and emulated games: Claude reads screenshots and drives a virtual Xbox controller or keyboard and mouse. Covers installation, automatic game detection, settings files, goals and free play, clicking games, RetroArch, costs, safety limits and known errors.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": ["games", "game-automation", "virtual-gamepad", "steam", "emulator", "retroarch", "computer-use"]
     }
   ]
 }

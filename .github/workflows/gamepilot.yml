@@ -1,0 +1,45 @@
+name: gamepilot
+
+on:
+  pull_request:
+    paths:
+      - "gamepilot/**"
+      - ".github/workflows/gamepilot.yml"
+  push:
+    branches: [main]
+    paths:
+      - "gamepilot/**"
+      - ".github/workflows/gamepilot.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: ${{ matrix.os }}, Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.13"]
+    defaults:
+      run:
+        working-directory: gamepilot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Lint
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: pip install ruff && ruff check synthapps_gamepilot tests
+      - name: Tests (standard library only)
+        run: python -m unittest discover -s tests -t . -v
+      - name: Demo game
+        run: python -m synthapps_gamepilot demo
+      - name: Tests with the real SDK installed
+        if: matrix.python == '3.13'
+        run: |
+          pip install "anthropic>=2.3" Pillow
+          python -m unittest discover -s tests -t .
