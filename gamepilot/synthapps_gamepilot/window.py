@@ -93,6 +93,18 @@ def _process_key(name: str) -> str:
     return low[:-4] if low.endswith(".exe") else low
 
 
+def prefer_game(matches: list[tuple[object, str]]) -> object:
+    """From windows whose title matched, as (handle, owning program), pick the likely game.
+
+    A browser tab named "Stardew Valley Wiki - Google Chrome" contains the game's whole title,
+    so title matching alone can pick it; the first window not owned by a known non-game wins.
+    """
+    for handle, process in matches:
+        if _process_key(process) not in NOT_GAMES:
+            return handle
+    return matches[0][0]
+
+
 def candidate_windows(windows: list[WindowInfo] | None = None) -> list[WindowInfo]:
     """Windows that could be a game: big enough, not a known non-game program, not ours."""
     out = []
@@ -262,10 +274,16 @@ class Win32Window(WindowTracker):
         self.user32 = _user32()
 
     def _find(self, needle: str) -> int:
+        u = _user32()
+        matches = []
         for hwnd, title in _visible_windows():
             if needle.lower() in title.lower():
-                return hwnd
-        raise WindowNotFound(f"no visible window title contains {needle!r}")
+                pid = ctypes.c_uint32(0)
+                u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                matches.append((hwnd, _win_process(pid.value)))
+        if not matches:
+            raise WindowNotFound(f"no visible window title contains {needle!r}")
+        return int(prefer_game(matches))
 
     def rect(self) -> Rect:
         r = self._w.RECT()
@@ -333,7 +351,7 @@ class XdotoolWindow(WindowTracker):
         ids = out.split()
         if not ids:
             raise WindowNotFound(f"no visible window title contains {title_contains!r}")
-        self.wid = ids[0]
+        self.wid = str(prefer_game([(wid, self._process_of(wid)) for wid in ids]))
         self.found_title = self._run(["xdotool", "getwindowname", self.wid]).strip()
 
     @classmethod
@@ -343,6 +361,15 @@ class XdotoolWindow(WindowTracker):
         self.wid = wid
         self.found_title = self.title = self._run(["xdotool", "getwindowname", wid]).strip()
         return self
+
+    def _process_of(self, wid: str) -> str:
+        pid = self._run(["xdotool", "getwindowpid", wid]).strip()
+        if not pid.isdigit():
+            return ""
+        try:
+            return Path(f"/proc/{pid}/comm").read_text().strip()
+        except OSError:
+            return ""
 
     def rect(self) -> Rect:
         out = self._run(["xdotool", "getwindowgeometry", "--shell", self.wid])

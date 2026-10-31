@@ -25,6 +25,7 @@ This repository is also a Claude Code plugin marketplace:
 /plugin install gamedev-forge@synthapps
 /plugin install reality-js@synthapps
 /plugin install playcanvas-design@synthapps
+/plugin install gamepilot@synthapps
 ```
 
 | Plugin | What it adds |
@@ -32,3 +33,4 @@ This repository is also a Claude Code plugin marketplace:
 | `gamedev-forge` | A game director skill and 12 specialist skills, plus optional connectors (`gamedev-forge-connectors`). |
 | `reality-js` | A skill for writing, checking, rendering and speeding up reality.js scenes. |
 | `playcanvas-design` | A skill plus zero-dependency scripts that render PlayCanvas scenes frame-exactly and turn them into video, sprite sheets and GLB assets. |
+| `gamepilot` | A skill for setting up, running and troubleshooting gamepilot: install, automatic game detection, settings files, goals and free play, costs, safety and known errors. |

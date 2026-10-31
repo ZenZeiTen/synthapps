@@ -170,3 +170,25 @@ class SetupCommandTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PreferGameTest(unittest.TestCase):
+    def test_browser_tab_loses_to_the_game(self):
+        from synthapps_gamepilot.window import prefer_game
+
+        self.assertEqual(prefer_game([(1, "chrome.exe"), (2, "Stardew Valley.exe")]), 2)
+        self.assertEqual(prefer_game([(1, "firefox"), (2, "WindowsTerminal.exe")]), 1)  # no better choice
+        self.assertEqual(prefer_game([(5, "")]), 5)
+
+    def test_xdotool_lookup_skips_the_browser(self):
+        from synthapps_gamepilot.window import XdotoolWindow
+
+        answers = {
+            ("xdotool", "search", "--onlyvisible", "--name", "Stardew"): "11\n22\n",
+            ("xdotool", "getwindowpid", "11"): "",
+            ("xdotool", "getwindowpid", "22"): "",
+            ("xdotool", "getwindowname", "22"): "Stardew Valley",
+        }
+        with mock.patch.object(XdotoolWindow, "_process_of", lambda self, wid: {"11": "chrome"}.get(wid, "")):
+            w = XdotoolWindow("Stardew", run=lambda args: answers[tuple(args)])
+        self.assertEqual((w.wid, w.found_title), ("22", "Stardew Valley"))

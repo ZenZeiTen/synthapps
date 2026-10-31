@@ -127,6 +127,24 @@ KEY_ALIASES = {
     "ARROWUP": "UP", "ARROWDOWN": "DOWN", "ARROWLEFT": "LEFT", "ARROWRIGHT": "RIGHT",
 }
 
+#: Characters that ``type_text`` can type: char -> (key name, needs Shift). US keyboard layout:
+#: keys are sent by position, so on other layouts some symbols come out differently.
+TEXT_KEYS: dict[str, tuple[str, bool]] = {" ": ("SPACE", False), "\n": ("ENTER", False), "\t": ("TAB", False)}
+for _c in "abcdefghijklmnopqrstuvwxyz":
+    TEXT_KEYS[_c] = (_c.upper(), False)
+    TEXT_KEYS[_c.upper()] = (_c.upper(), True)
+for _c in "0123456789":
+    TEXT_KEYS[_c] = (_c, False)
+for _plain, _shifted, _key in (
+    ("-", "_", "MINUS"), ("=", "+", "EQUAL"), ("[", "{", "LEFTBRACE"), ("]", "}", "RIGHTBRACE"),
+    (";", ":", "SEMICOLON"), ("'", '"', "APOSTROPHE"), ("`", "~", "GRAVE"), ("\\", "|", "BACKSLASH"),
+    (",", "<", "COMMA"), (".", ">", "DOT"), ("/", "?", "SLASH"),
+):
+    TEXT_KEYS[_plain] = (_key, False)
+    TEXT_KEYS[_shifted] = (_key, True)
+for _c, _digit in zip("!@#$%^&*()", "1234567890", strict=True):
+    TEXT_KEYS[_c] = (_digit, True)
+
 # --- Mouse --------------------------------------------------------------------------
 
 #: name -> (Windows (down flag, up flag, mouseData), Linux evdev BTN_* code)

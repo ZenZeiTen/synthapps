@@ -6,6 +6,7 @@ import argparse
 import importlib.util
 import os
 import platform
+import re
 import subprocess
 import sys
 import time
@@ -26,6 +27,15 @@ def _countdown(seconds: int, what: str) -> None:
         time.sleep(1)
 
 
+def _version(dist: str) -> str:
+    try:
+        from importlib.metadata import version
+
+        return version(dist)
+    except Exception:  # noqa: BLE001 - not installed or no metadata
+        return ""
+
+
 # --- doctor -------------------------------------------------------------------------
 def cmd_doctor(args: argparse.Namespace) -> int:
     print(f"gamepilot {__version__} on {platform.system()} {platform.release()}, Python {platform.python_version()}")
@@ -37,6 +47,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                      ("PIL", "smaller screenshots (JPEG, resizing)"), ("psutil", "faster process scan")):
         ok = importlib.util.find_spec(mod) is not None
         print(f"  {mod:10} {'ok' if ok else 'missing'}  ({why})")
+    sdk = _version("anthropic")
+    if sdk:
+        major_minor = tuple(int(p) for p in re.findall(r"\d+", sdk)[:2])
+        note = "" if major_minor >= (2, 3) else "  (works; py -m pip install -U anthropic for the newest features)"
+        print(f"  anthropic version {sdk}{note}")
     key = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
     print(f"\nClaude credentials in environment: {'yes' if key else 'no (or use ant auth login)'}")
     if sys.platform.startswith("linux"):
@@ -426,6 +441,10 @@ def cmd_play(args: argparse.Namespace) -> int:
         if ra:
             ra.close()
     print(f"{result.status}: {result.reason}; {result.turns} turns, about ${result.cost_usd:.2f}")
+    if result.goals_reached:
+        print("Goals reached:")
+        for g in result.goals_reached:
+            print(f"  - {g}")
     return 0 if result.status in ("done", "stopped") else 1
 
 

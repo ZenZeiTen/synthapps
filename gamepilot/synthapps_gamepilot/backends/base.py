@@ -28,6 +28,12 @@ class InputState:
 
 NEUTRAL = InputState()
 
+MODIFIERS = {"KEY_LEFTSHIFT", "KEY_RIGHTSHIFT", "KEY_LEFTCTRL", "KEY_RIGHTCTRL", "KEY_LEFTALT", "KEY_RIGHTALT"}
+
+
+def _is_modifier(c: Control) -> bool:
+    return c.name in MODIFIERS
+
 
 class BackendUnavailable(RuntimeError):
     """The backend cannot run here; the message says what to install or enable."""
@@ -51,11 +57,13 @@ class Backend:
         if state.pointer is not None and self.supports_pointer:
             self._emit_pointer(*state.pointer)  # before any click in the same tick
             changed = True
-        for c in sorted(prev.held - state.held, key=lambda c: c.name):
+        # Modifiers (Shift, Ctrl, Alt) go down before other keys and come up after them,
+        # so Shift+A always reads as "A".
+        for c in sorted(prev.held - state.held, key=lambda c: (_is_modifier(c), c.name)):
             if self.supports(c):
                 self._emit_button(c, False)
                 changed = True
-        for c in sorted(state.held - prev.held, key=lambda c: c.name):
+        for c in sorted(state.held - prev.held, key=lambda c: (not _is_modifier(c), c.name)):
             if self.supports(c):
                 self._emit_button(c, True)
                 changed = True

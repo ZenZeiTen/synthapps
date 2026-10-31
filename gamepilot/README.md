@@ -257,6 +257,8 @@ to Claude as an error so it can correct itself.
   jumps to that spot inside the game window, then the step's buttons (such as `MOUSE_LEFT`)
   are pressed a frame later. This makes menu-driven and point-and-click games playable.
   On Linux it needs X11 and `xdotool`.
+- Typing: a step `{"type_text": "Read a book"}` types the text one key after another, with
+  Shift for capitals and symbols (US keyboard layout).
 - Goals: `goal` is the first thing to do and `goals = [...]` lists more, played in order.
   With `free_play = true`, Claude then keeps choosing something new to do until a turn,
   time or cost limit stops it. It is told what it has already done, so it does not repeat
@@ -321,6 +323,19 @@ Without installing, use `python -m synthapps_gamepilot` instead of `gamepilot`.
 | `safety.py` | Anti-cheat detection, kill switch, budgets |
 | `sim.py` | Gem Garden and its scripted bot |
 
+## Claude Code plugin
+
+This repository's plugin marketplace has a `gamepilot` plugin. Its skill teaches Claude to
+set gamepilot up for a player, write settings files, estimate costs and fix known errors:
+
+```
+/plugin marketplace add ZenZeiTen/synthapps
+/plugin install gamepilot@synthapps
+```
+
+`CLAUDE.md` in this folder holds the notes for changing the code: layout, conventions,
+checks and lessons learned.
+
 ## Tests
 
 ```bash
@@ -328,7 +343,7 @@ cd gamepilot
 python -m unittest discover -s tests -t .
 ```
 
-93 tests, standard library only (one runs only on Windows). They cover plan validation, frame timing (minimum
+99 tests, standard library only (one runs only on Windows). They cover plan validation, frame timing (minimum
 holds, release gaps, exact mouse totals, no drift), release on stop and on error, every
 backend against stand-ins for its driver library, the Claude request format and
 conversation handling with a fake client, a fake RetroArch over UDP, profiles, safety

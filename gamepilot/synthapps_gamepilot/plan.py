@@ -28,6 +28,8 @@ MAX_STEPS = 40
 MAX_STEP_MS = 5000
 MAX_PLAN_MS = 15000
 MAX_MOUSE = 5000
+MAX_TEXT = 200
+TYPE_KEY_MS = 30  # each typed character; the executor still holds it for at least min_hold_frames
 
 
 class PlanError(ValueError):
@@ -116,8 +118,32 @@ def _stick(value: Any, where: str) -> tuple[float, float]:
 
 _STEP_FIELDS = {
     "buttons", "left_stick", "right_stick", "left_trigger", "right_trigger",
-    "mouse_move", "mouse_to", "duration_ms", "release_after",
+    "mouse_move", "mouse_to", "duration_ms", "release_after", "type_text",
 }
+
+
+def parse_text(raw: Mapping[str, Any], index: int) -> list[Step]:
+    """Expand ``{"type_text": "..."}`` into one key press per character."""
+    where = f"steps[{index}]"
+    if set(raw) != {"type_text"}:
+        raise PlanError(f"{where}: a type_text step takes no other fields; put clicks and waits in their own steps")
+    text = raw["type_text"]
+    if not isinstance(text, str) or not text:
+        raise PlanError(f"{where}.type_text must be non-empty text")
+    if len(text) > MAX_TEXT:
+        raise PlanError(f"{where}.type_text may be at most {MAX_TEXT} characters; split it over several turns")
+    bad = sorted({c for c in text if c not in controls.TEXT_KEYS})
+    if bad:
+        raise PlanError(f"{where}.type_text has characters that cannot be typed: {''.join(bad)!r} "
+                        "(only characters on a US keyboard)")
+    steps = []
+    for c in text:
+        key, shift = controls.TEXT_KEYS[c]
+        held = {controls.resolve("KEY_" + key)}
+        if shift:
+            held.add(controls.resolve("KEY_LEFTSHIFT"))
+        steps.append(Step(controls=frozenset(held), duration_ms=TYPE_KEY_MS))
+    return steps
 
 
 def parse_step(raw: Any, bindings: Bindings, index: int) -> Step:
@@ -180,8 +206,13 @@ def parse_plan(raw_steps: Any, bindings: Bindings | None = None, intent: str = "
         raise PlanError("steps must be a list")
     if len(raw_steps) > MAX_STEPS:
         raise PlanError(f"a plan may have at most {MAX_STEPS} steps, got {len(raw_steps)}")
-    steps = tuple(parse_step(s, bindings, i) for i, s in enumerate(raw_steps))
-    plan = Plan(steps, intent)
+    steps: list[Step] = []
+    for i, s in enumerate(raw_steps):
+        if isinstance(s, Mapping) and "type_text" in s:
+            steps.extend(parse_text(s, i))
+        else:
+            steps.append(parse_step(s, bindings, i))
+    plan = Plan(tuple(steps), intent)
     if plan.duration_ms > MAX_PLAN_MS:
         raise PlanError(
             f"a plan may last at most {MAX_PLAN_MS} ms, this one lasts {plan.duration_ms} ms; "

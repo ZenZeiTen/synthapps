@@ -42,6 +42,7 @@ class RunResult:
     turns: int
     cost_usd: float
     log: list[dict[str, Any]] = field(default_factory=list)
+    goals_reached: list[str] = field(default_factory=list)
 
 
 class _Throttled:
@@ -289,7 +290,8 @@ class GameAgent:
         finally:
             self.backend.release_all()
             self.log(f"finished: {status} ({reason}); all inputs released")
-        return RunResult(status, reason, self.budget.turns, self.budget.cost_usd, self.records)
+        reached = list(self.goals_done) + ([self.goal] if status == "done" else [])
+        return RunResult(status, reason, self.budget.turns, self.budget.cost_usd, self.records, reached)
 
     def _act(self, decision: Decision, entry: dict[str, Any]) -> tuple[str, bool]:
         notes = []

@@ -85,11 +85,13 @@ STEP_SCHEMA = {
             "additionalProperties": False,
             "description": "Move the pointer to this pixel position in the newest screenshot before the step's buttons are pressed.",
         },
-        "duration_ms": {"type": "integer", "minimum": 1, "maximum": MAX_STEP_MS},
+        "type_text": {"type": "string",
+                      "description": "Type this text, one key after another. Use it alone in its step; no other fields."},
+        "duration_ms": {"type": "integer", "minimum": 1, "maximum": MAX_STEP_MS,
+                        "description": "Required in every step except a type_text step."},
         "release_after": {"type": "boolean",
                           "description": "Default true. false keeps inputs held into the next step without a gap."},
     },
-    "required": ["duration_ms"],
     "additionalProperties": False,
 }
 
@@ -136,6 +138,8 @@ def system_prompt(profile: Profile) -> str:
             '{"mouse_to": {"x": 640, "y": 360}, "buttons": ["MOUSE_LEFT"], "duration_ms": 80}. The pointer '
             "moves first, then the button is pressed. Aim at the centre of the button or text. To drag, hold "
             "MOUSE_LEFT with release_after false, then give the end point with mouse_to in the next step.\n"
+            '- To type text, click the text field first, then use a step {"type_text": "Read a book"}: it types '
+            "the characters one after another (US keyboard layout). Confirm with a KEY_ENTER step if needed.\n"
         )
     device = {"gamepad": "a virtual Xbox controller", "kbm": "a virtual keyboard and mouse",
               "both": "a virtual Xbox controller plus a virtual keyboard and mouse"}[profile.input.device]
