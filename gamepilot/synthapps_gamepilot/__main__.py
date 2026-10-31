@@ -220,6 +220,134 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- setup (automatic detection) ----------------------------------------------------
+def _free_path(path: Path) -> Path:
+    """``path``, or ``name-2.toml``, ``name-3.toml``... so an existing file is never overwritten."""
+    if not path.exists():
+        return path
+    n = 2
+    while (candidate := path.with_name(f"{path.stem}-{n}{path.suffix}")).exists():
+        n += 1
+    return candidate
+
+
+def run_setup(args: argparse.Namespace) -> Path | None:
+    """Find the game window, let Claude recognize the game, write its settings file."""
+    from .capture import ScreenCapture
+    from .claude import make_client
+    from .imaging import encode_png
+    from .recognize import MAX_CANDIDATES, RecognitionError, identify, photograph, slug, write_profile
+    from .retroarch import RetroArch, RetroArchError
+    from .window import WindowTracker, candidate_windows, list_windows, tracker_for
+
+    found = detect_anti_cheat()
+    if found:
+        print("Note: anti-cheat is running (" + ", ".join(f"{k}: {v}" for k, v in found.items())
+              + "). Playing will refuse to start while it runs.")
+    try:
+        everything = list_windows()
+    except RuntimeError as exc:
+        print(f"Cannot list windows: {exc}", file=sys.stderr)
+        return None
+    windows = candidate_windows(everything)[:MAX_CANDIDATES]
+    if not windows:
+        print("No window that could be a game is open.", file=sys.stderr)
+        print("Start the game in a window or borderless window (not minimized), then run setup again.",
+              file=sys.stderr)
+        if everything:
+            print("Open windows that were skipped (browsers, terminals, launchers, too small):", file=sys.stderr)
+            for w in everything:
+                print(f"    {w.title}  [{w.process or '?'}]", file=sys.stderr)
+        return None
+    print("Windows that could be the game:")
+    for i, w in enumerate(windows):
+        print(f"  {i}. {w.title}  [{w.process or '?'}]  {w.rect.width}x{w.rect.height}")
+
+    try:
+        cap = ScreenCapture(WindowTracker())
+    except RuntimeError as exc:
+        print(f"Cannot take screenshots: {exc}", file=sys.stderr)
+        return None
+    trackers = {w.handle: tracker_for(w) for w in windows}
+
+    def grab(w):  # noqa: ANN001, ANN202
+        cap.window = trackers[w.handle]
+        return cap.grab()
+
+    if not args.no_activate:
+        print("Bringing each one to the front for a moment to photograph it...")
+    frames = photograph(windows, lambda w: True if args.no_activate else trackers[w.handle].activate(), grab)
+    cap.close()
+
+    model = args.model or "claude-opus-5-5"
+    budget = Budget(model=model)
+    print(f"Asking Claude ({model}) which one is the game...")
+    try:
+        result = identify(make_client(), windows, frames, model=model, goal_hint=args.goal or "",
+                          on_usage=budget.add_usage)
+    except (RecognitionError, RuntimeError) as exc:
+        print(f"Recognition failed: {exc}", file=sys.stderr)
+        return None
+    print(f"(about ${budget.cost_usd:.3f})")
+    if result is None:
+        print("Claude saw no game in these windows. Open the game (not minimized) and run setup again.",
+              file=sys.stderr)
+        return None
+
+    retroarch = False
+    if result.window.process.lower().startswith("retroarch"):
+        ra = RetroArch(timeout=0.5)
+        try:
+            ra.status()
+            retroarch = True
+        except RetroArchError:
+            print("RetroArch found, but its Network Commands are off, so it will be played in real time. "
+                  "Turn them on (Settings > Network > Network Commands) and run setup again for "
+                  "frame-by-frame play.")
+        finally:
+            ra.close()
+
+    if args.goal:
+        result.goal = args.goal
+    path = _free_path(Path(args.output) if args.output else Path(f"{slug(result.game)}.toml"))
+    write_profile(result, path, retroarch=retroarch, model=model)
+    index = windows.index(result.window)
+    shot = frames[index]
+    if shot is not None:
+        path.with_suffix(".png").write_bytes(encode_png(shot))
+    trackers[result.window.handle].activate()
+
+    print(f"\nGame: {result.game}" + (f" in {result.emulator}" if result.emulator else "")
+          + f"  (confidence: {result.confidence})")
+    if result.reasoning:
+        print(f"  {result.reasoning}")
+    print(f"Window: \"{result.window.title}\" -> title_contains = \"{result.title_contains}\"")
+    print(f"Device: {'gamepad' if retroarch else result.device}    pacing: "
+          + ("retroarch (frame by frame)" if retroarch else result.pacing)
+          + (f", pauses with {result.pause_input}" if result.pause_input and not retroarch else ""))
+    if result.bindings:
+        print("Suggested bindings (compare them with the game's controls menu):")
+        for action, target in result.bindings.items():
+            print(f"    {action:16} -> {target if isinstance(target, str) else ' + '.join(target)}")
+    for d in result.dropped:
+        print(f"  left out (not a valid setting): {d}")
+    print(f"Goal: {result.goal}")
+    print(f"\nSaved settings file: {path.resolve()}")
+    if shot is not None:
+        print(f"Saved what Claude saw:  {path.with_suffix('.png').resolve()}")
+    return path
+
+
+def cmd_setup(args: argparse.Namespace) -> int:
+    path = run_setup(args)
+    if path is None:
+        return 1
+    print("\nNext:")
+    print(f"  py -m synthapps_gamepilot play {path.name} --dry-run --max-cost 0.5")
+    print(f"  py -m synthapps_gamepilot play {path.name} --max-cost 1")
+    return 0
+
+
 # --- play ---------------------------------------------------------------------------
 def cmd_play(args: argparse.Namespace) -> int:
     from .agent import AntiCheatRunning, GameAgent
@@ -228,6 +356,15 @@ def cmd_play(args: argparse.Namespace) -> int:
     from .retroarch import RetroArch
     from .window import WindowNotFound, find_window
 
+    if args.auto:
+        path = run_setup(args)
+        if path is None:
+            return 2
+        args.profile = str(path)
+        print()
+    elif not args.profile:
+        print("give a settings file, or --auto to detect the game", file=sys.stderr)
+        return 2
     profile = _load_profile(args.profile)
     if profile is None:
         return 2
@@ -343,8 +480,21 @@ def main(argv: list[str] | None = None) -> int:
     t.add_argument("--dry-run", action="store_true", help="record instead of sending")
     t.set_defaults(fn=cmd_test_input)
 
+    st = sub.add_parser("setup", help="detect the open game, recognize it, and write its settings file")
+    st.add_argument("--output", help="settings file to write (default: named after the game)")
+    st.add_argument("--goal", help="what Claude should try to do")
+    st.add_argument("--model", help="model for recognition (default claude-opus-5-5)")
+    st.add_argument("--no-activate", action="store_true",
+                    help="photograph windows where they are, without bringing them to the front")
+    st.set_defaults(fn=cmd_setup)
+
     p = sub.add_parser("play", help="play a game described by a profile")
-    p.add_argument("profile")
+    p.add_argument("profile", nargs="?", help="settings file (or use --auto)")
+    p.add_argument("--auto", action="store_true",
+                   help="detect the open game and write its settings file first (like setup)")
+    p.add_argument("--goal", help="with --auto: what Claude should try to do")
+    p.add_argument("--output", help="with --auto: settings file to write")
+    p.add_argument("--no-activate", action="store_true", help=argparse.SUPPRESS)
     p.add_argument("--dry-run", action="store_true", help="think and plan, but send no input")
     p.add_argument("--launch", action="store_true", help="start the game first (game.launch)")
     p.add_argument("--model")

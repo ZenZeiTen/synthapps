@@ -113,6 +113,41 @@ macOS has no virtual-device backend yet.
 
 ## Playing a game
 
+### Automatic setup
+
+Open the game (in a window or borderless window, not minimized), then:
+
+```bash
+gamepilot setup --goal "Finish the tutorial"
+```
+
+1. It lists the open windows and skips those that cannot be the game: browsers,
+   terminals, Explorer, launchers such as Steam, chat apps, and tiny windows.
+2. It brings each remaining window to the front for a moment and photographs it.
+3. Claude sees the photos, titles and program names in one request (a few cents). It
+   says which window is the game and which game it is, and suggests a device, pacing,
+   button layout and notes from what it knows about that game.
+4. The answer is checked like a hand-written file (every control name must exist, the
+   title part must be in the real title), then saved as `<game-name>.toml` next to a
+   `<game-name>.png` of what Claude saw. An existing file is never overwritten.
+
+For a game running in RetroArch with Network Commands on, it chooses frame-by-frame play.
+
+The suggested buttons come from Claude's knowledge of the game's default controls, not
+from your settings. Compare them with the game's controls menu before a real run.
+
+To detect the game and start playing in one step:
+
+```bash
+gamepilot play --auto --goal "Finish the tutorial" --dry-run --max-cost 0.5
+```
+
+Window detection uses the operating system's own window list, and recognition uses
+Claude's vision on screenshots. No mouse clicks or keystrokes are sent during setup,
+except a brief Alt tap on Windows when Windows refuses to bring a window to the front.
+
+### Writing a settings file by hand
+
 Each game gets a profile: a TOML file saying where the game's window is, which device to
 use, how to pace play, what the buttons do and what the goal is. Start from a template in
 [`profiles/`](profiles/):
@@ -247,6 +282,8 @@ in this project hides the agent from anti-cheat software.
 |---|---|
 | `gamepilot doctor` | Shows which backends, packages and credentials are available, and any anti-cheat running |
 | `gamepilot test-input gamepad\|kbm [--dry-run]` | Creates the virtual device and exercises it |
+| `gamepilot setup [--goal TEXT] [--output FILE] [--model M]` | Finds the open game window, has Claude recognize the game, and writes its settings file |
+| `gamepilot play --auto [--goal TEXT] ...` | Same detection, then plays |
 | `gamepilot play PROFILE [--dry-run] [--launch] [--model M] [--effort E] [--max-cost USD] [--transcript F] [--save-frames DIR] [--no-focus-check]` | Plays a game |
 | `gamepilot check PROFILE [--screenshot FILE]` | Checks a settings file, finds the game window (or lists the open ones) and saves the screenshot Claude would see |
 | `gamepilot launch PROFILE` | Starts the game named in the profile |
@@ -264,7 +301,9 @@ Without installing, use `python -m synthapps_gamepilot` instead of `gamepilot`.
 | `plan.py` | The plan language: parsing, validation, profile bindings |
 | `executor.py` | Turns plans into one input state per tick; real-time and frame-stepped clocks |
 | `backends/` | Virtual devices: ViGEm (Windows pad), SendInput (Windows keyboard/mouse), uinput (Linux), recorder |
-| `capture.py`, `window.py`, `imaging.py` | Screenshots of the game window, focus checks, image encoding |
+| `capture.py`, `window.py`, `imaging.py` | Screenshots of the game window, window listing, focus checks, image encoding |
+| `recognize.py` | Automatic setup: which window is the game, which game, and its settings file |
+| `claude.py` | The one place that sends requests to Claude |
 | `retroarch.py` | RetroArch network commands: pause, frame advance, save states, memory |
 | `planner.py` | The Claude planner and the `act` tool |
 | `agent.py` | The look, think, act loop with its safety checks |
@@ -278,7 +317,7 @@ cd gamepilot
 python -m unittest discover -s tests -t .
 ```
 
-70 tests, standard library only (one runs only on Windows). They cover plan validation, frame timing (minimum
+79 tests, standard library only (one runs only on Windows). They cover plan validation, frame timing (minimum
 holds, release gaps, exact mouse totals, no drift), release on stop and on error, every
 backend against stand-ins for its driver library, the Claude request format and
 conversation handling with a fake client, a fake RetroArch over UDP, profiles, safety

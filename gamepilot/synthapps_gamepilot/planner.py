@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from . import controls
+from .claude import FALLBACK_BETA, create_message, make_client
 from .imaging import Frame, encode_for_model
 from .plan import MAX_PLAN_MS, MAX_STEP_MS, MAX_STEPS
 from .profile import Profile
@@ -181,7 +182,7 @@ def _get(obj: Any, name: str, default: Any = None) -> Any:
 class ClaudePlanner:
     """Plans with the Claude API (``pip install anthropic``; reads ANTHROPIC_API_KEY)."""
 
-    BETAS = ["server-side-fallback-2026-07-01"]
+    BETAS = [FALLBACK_BETA]
 
     def __init__(
         self,
@@ -192,13 +193,7 @@ class ClaudePlanner:
         sleep: Callable[[float], None] = time.sleep,
         use_fallbacks: bool = True,
     ) -> None:
-        if client is None:
-            try:
-                import anthropic  # type: ignore[import-not-found]
-            except ImportError as exc:
-                raise RuntimeError("the Claude planner needs the SDK: pip install anthropic") from exc
-            client = anthropic.Anthropic()
-        self.client = client
+        self.client = client if client is not None else make_client()
         self.profile = profile
         self.on_usage = on_usage or (lambda *a: None)
         self.log = log
@@ -236,47 +231,11 @@ class ClaudePlanner:
         return content
 
     def _request(self) -> Any:
-        # Newer request fields go in extra_body: older SDK releases reject them as keyword
-        # arguments, but every release merges extra_body into the request as is.
-        body: dict[str, Any] = {
-            "output_config": {"effort": self.profile.agent.effort},
-            "cache_control": {"type": "ephemeral"},
-        }
-        kwargs: dict[str, Any] = {}
-        if self.use_fallbacks:
-            # On a safety decline, the API re-runs the turn on Anthropic's recommended model.
-            kwargs["betas"] = self.BETAS
-            body["fallbacks"] = "default"
-        return self._with_retries(lambda: self.client.beta.messages.create(
-            model=self.profile.agent.model,
-            max_tokens=16000,
-            system=[{"type": "text", "text": self.system}],
-            tools=[self.tool],
-            tool_choice={"type": "auto"},
-            messages=self.messages,
-            extra_body=body,
-            **kwargs,
-        ))
-
-    def _with_retries(self, call: Callable[[], Any]) -> Any:
-        try:
-            import anthropic  # type: ignore[import-not-found]
-
-            names = ("RateLimitError", "APIConnectionError", "InternalServerError", "OverloadedError")
-            retryable: tuple[type[BaseException], ...] = tuple(
-                getattr(anthropic, n) for n in names if hasattr(anthropic, n))
-        except ImportError:
-            retryable = ()
-        for attempt in range(4):
-            try:
-                return call()
-            except retryable as exc:  # the SDK already retried twice
-                if attempt == 3:
-                    raise
-                wait = 5.0 * (attempt + 1)
-                self.log(f"API busy or unreachable ({type(exc).__name__}); retrying in {wait:.0f}s")
-                self.sleep(wait)
-        raise AssertionError("unreachable")
+        return create_message(
+            self.client, model=self.profile.agent.model, effort=self.profile.agent.effort,
+            system=self.system, tools=[self.tool], messages=self.messages,
+            use_fallbacks=self.use_fallbacks, log=self.log, sleep=self.sleep,
+        )
 
     # --- the turn -------------------------------------------------------------
     def decide(self, obs: Observation) -> Decision:

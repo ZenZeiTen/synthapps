@@ -234,5 +234,10 @@ class Win32WindowTest(unittest.TestCase):
         from synthapps_gamepilot import window
 
         self.assertIsInstance(window.visible_window_titles(), list)
+        for w in window.list_windows():  # real Win32 listing: titles, processes, areas
+            self.assertTrue(w.title)
+            self.assertIsInstance(w.process, str)
+            self.assertGreaterEqual(w.rect.width, 0)
+        self.assertIsInstance(window.candidate_windows(), list)
         with self.assertRaises(window.WindowNotFound):
             window.find_window("no window is called this 4f8e2c")

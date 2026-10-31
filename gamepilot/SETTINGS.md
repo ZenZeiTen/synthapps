@@ -7,6 +7,10 @@ A settings file (also called a profile) tells gamepilot four things about one ga
 3. What the buttons do in this game, in words Claude can use ("jump", "attack").
 4. What Claude should try to achieve, and how much time and money it may spend.
 
+**The quickest way:** open the game, then run `py -m synthapps_gamepilot setup`. It finds
+the game window, has Claude recognize the game, and writes this file for you. Then use
+this guide to review and adjust what it wrote, especially `[bindings]`.
+
 It is a plain text file in TOML format, with one file per game. The steps below use
 Windows and PowerShell. On Linux, use `python` instead of `py` and any text editor.
 
