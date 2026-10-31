@@ -291,8 +291,13 @@ Verified in development (Linux, no display):
   tables. The ViGEm button names and method signatures, checked against vgamepad's source.
 - Real-time pacing: a dry-run controller test ran 853 ticks in 7.10 s at 120 Hz.
 
-Not verified yet: a run against a real game. Real virtual devices on Windows or on a
-Linux desktop, live screen capture, and a live RetroArch were not available where this was
-built. Treat the first sessions on your machine as the real test. Start with
+Verified on a Windows 11 PC (Python 3.14):
+
+- `doctor` finds the ViGEm, SendInput, mss and anthropic backends.
+- Claude played Gem Garden live (`demo --planner claude`): 5 of 5 gems in 6 turns,
+  3 to 8.5 s per turn, about $0.09 in total.
+
+Not verified yet: a run against a real game, live screen capture of a game window, and a
+live RetroArch. Treat the first sessions on your machine as the real test. Start with
 `test-input`, then `play --dry-run`, then a short real run with a low `max_cost_usd`.
 Reports of what works and what does not are welcome.
