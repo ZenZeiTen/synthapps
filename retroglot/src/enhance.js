@@ -52,7 +52,7 @@ export const ENHANCEMENTS = {
     renderer: {
       label: 'Renderer',
       choices: [{ id: 'standard', label: 'Standard' }, { id: 'hd', label: 'HD (Beetle PSX HW)' }],
-      hint: 'HD draws 3D at a higher resolution. It needs the PlayStation BIOS for the game\'s region and a one-time download of about 4 MB.',
+      hint: 'HD draws 3D at a higher resolution. It needs the PlayStation BIOS for the game\'s region and a one-time download of about 5 MB.',
     },
     resolution: {
       label: 'Rendering resolution',

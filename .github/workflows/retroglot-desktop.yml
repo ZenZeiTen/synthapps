@@ -1,5 +1,7 @@
 name: retroglot desktop (Windows)
 
+# Builds Retroglot.exe, runs its first-use self-test on Windows and keeps the files as artifacts.
+# Pushing a tag named retroglot-v* also publishes them as a GitHub release (only if the self-test passed).
 on:
   pull_request:
     paths:
@@ -7,6 +9,8 @@ on:
       - ".github/workflows/retroglot-desktop.yml"
   push:
     branches: [main]
+    tags:
+      - "retroglot-v*"
     paths:
       - "retroglot/**"
       - ".github/workflows/retroglot-desktop.yml"
@@ -59,3 +63,34 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
+
+  release:
+    name: Publish the GitHub release
+    if: startsWith(github.ref, 'refs/tags/retroglot-v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: retroglot/desktop/release-notes.md
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: Retroglot-Windows
+          path: files
+      - name: Create the release, or add the files to it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l files
+          # A release made on GitHub's "Draft a new release" page already exists when this runs: upload into it.
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" files/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" files/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Retroglot ${GITHUB_REF_NAME#retroglot-v} for Windows" \
+              --notes-file retroglot/desktop/release-notes.md
+          fi

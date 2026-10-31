@@ -155,7 +155,7 @@ the same game version.
 
 | PlayStation | What it does |
 |---|---|
-| Renderer: HD (Beetle PSX HW) | Draws 3D at a higher resolution. Downloaded once (about 4 MB) the first time you choose it. |
+| Renderer: HD (Beetle PSX HW) | Draws 3D at a higher resolution. Downloaded once (about 5 MB) the first time you choose it. |
 | Rendering resolution | Native, 2×, 4× or 8×. |
 | Steady 3D (PGXP) | Stops wobbling polygons and warping textures. |
 | Widescreen | 16:9 view of the 3D world. |
