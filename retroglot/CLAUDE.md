@@ -8,7 +8,7 @@ A game library and browser emulator (EmulatorJS) with live screen translation by
 From `retroglot/`:
 
 ```bash
-npm test                 # unit tests, no network, no browser
+npm test                 # unit tests, no network, no browser (test/run.js lists the files; Node 20 has no --test globs)
 npm run test:e2e         # real emulator in headless Chromium, mock Claude API
 ```
 
