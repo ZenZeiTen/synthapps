@@ -40,7 +40,7 @@
       <button class="btn" id="b-pause" type="button" title="Pause or resume (F9)"></button>
       <button class="btn" id="b-ff" type="button" title="Fast forward while held"></button>
       <span class="sep"></span>
-      <button class="btn" id="b-display" type="button" title="Picture: CRT screen, sharp pixels or smooth"></button>
+      <button class="btn" id="b-display" type="button" title="Picture: CRT screen, sharp pixels, smooth, xBR or ScaleFX"></button>
       <button class="btn" id="b-full" type="button" title="Full screen (F11)"></button>
     </nav>
     <div class="bar-right">
@@ -57,6 +57,7 @@
       <button class="tab on" data-tab="script" role="tab" type="button">Script</button>
       <button class="tab" data-tab="glossary" role="tab" type="button">Glossary</button>
       <button class="tab" data-tab="saves" role="tab" type="button">Saves</button>
+      <button class="tab" data-tab="picture" role="tab" type="button">Picture</button>
       <button class="tab" data-tab="game" role="tab" type="button">Game</button>
       <button class="icon-btn" id="side-x" type="button" aria-label="Close the panel"></button>
     </nav>
@@ -80,6 +81,23 @@
       <h3>Save states</h3>
       <div class="slots" id="slots"></div>
       <p class="hint">Quick save <kbd>F6</kbd> uses slot 1, quick load <kbd>F7</kbd>. Saves are kept in Retroglot's data folder.</p>
+    </section>
+    <section class="pane" data-pane="picture">
+      <h3>Picture</h3>
+      <label class="field enh-field"><span>Filter</span>
+        <select id="pic-filter"><option value="crt">CRT screen</option><option value="sharp">Sharp pixels</option><option value="smooth">Smooth (SABR)</option><option value="xbr">xBR upscaling</option><option value="scalefx">ScaleFX upscaling</option></select>
+        <span class="hint">Used for every game. xBR and ScaleFX redraw pixel art with smooth edges. Translation always reads the original picture.</span></label>
+      <section id="enh" hidden>
+        <h3 style="margin-top:22px">Enhancements for this game</h3>
+        <div id="enh-fields"></div>
+        <div class="enh-pack" id="enh-pack" hidden>
+          <div class="enh-pack-row"><span id="enh-pack-name" class="hint">No texture pack added</span>
+            <label class="btn" for="enh-pack-file">Add pack…</label><input type="file" id="enh-pack-file" accept=".zip,.hts,.htc" hidden>
+            <button class="btn ghost" id="enh-pack-remove" type="button" hidden>Remove</button></div>
+        </div>
+        <p class="hint" id="enh-status"></p>
+        <div class="row-btns"><button class="btn primary" id="enh-apply" type="button" disabled>Apply and restart</button></div>
+      </section>
     </section>
     <section class="pane" data-pane="game">
       <h3>This game</h3>

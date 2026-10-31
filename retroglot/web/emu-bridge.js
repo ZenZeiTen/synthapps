@@ -4,8 +4,25 @@
 (function () {
   'use strict';
   var HOTKEYS = { F1: 1, F2: 1, F3: 1, F4: 1, F6: 1, F7: 1, Backquote: 1, F9: 1 };
-  var SHADERS = { crt: 'crt-easymode.glslp', sharp: 'disabled', smooth: 'sabr' };
+  var CONFIG = window.RETROGLOT || {};
+  var SHADERS = CONFIG.displayShaders || { crt: 'crt-easymode.glslp', sharp: 'disabled', smooth: 'sabr' };
   var startedAt = 0;
+
+  // EmulatorJS writes the core options file from the options it saved for this game in
+  // localStorage, and only falls back to EJS_defaultOptions when nothing is saved. Picture
+  // enhancements are chosen in retroglot, so write them there before the core starts.
+  (function seedCoreOptions(seed) {
+    if (!seed || !seed.key || !seed.options) return;
+    try {
+      var saved = null;
+      try { saved = JSON.parse(window.localStorage.getItem(seed.key)); } catch (e) { saved = null; }
+      if (!saved || typeof saved !== 'object') saved = {};
+      var settings = saved.settings && typeof saved.settings === 'object' ? saved.settings : {};
+      for (var k in seed.options) settings[k] = seed.options[k];
+      saved.settings = settings;
+      window.localStorage.setItem(seed.key, JSON.stringify(saved));
+    } catch (e) { /* storage blocked: EJS_defaultOptions still apply after start */ }
+  })(CONFIG.coreOptions);
 
   function emu() { return window.EJS_emulator; }
   function gm() { return emu() && emu().gameManager; }
@@ -36,7 +53,7 @@
     get paused() { return !!(emu() && emu().paused); },
     get failed() { return !!(emu() && emu().failedToStart); },
 
-    /** Picture: 'crt' (scanlines), 'sharp' (plain pixels) or 'smooth'. */
+    /** Picture mode: one of the keys of SHADERS ('crt', 'sharp', 'smooth', 'xbr', 'scalefx'). */
     setDisplay: function (mode) {
       var e = emu();
       var shader = SHADERS[mode] || 'disabled';

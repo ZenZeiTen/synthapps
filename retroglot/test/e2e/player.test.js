@@ -141,6 +141,32 @@ test('quick save and load restore the earlier screen', { skip }, async () => {
   assert.equal(await sigOf(), saved);
 });
 
+test('xBR and ScaleFX picture modes compile and leave translation screenshots alone', { skip }, async () => {
+  const shaderLogs = [];
+  const onLog = (m) => { if (/Failed to (compile|link|set multipass)/.test(m.text())) shaderLogs.push(m.text()); };
+  page.on('console', onLog);
+  try {
+    for (const mode of ['xbr', 'scalefx']) {
+      while (!(await page.textContent('#b-display')).includes(mode === 'xbr' ? 'xBR' : 'ScaleFX')) {
+        await page.mouse.move(300, 30);
+        await page.click('#b-display');
+      }
+      await page.waitForTimeout(1500);
+      const files = await frameEval(() => window.EJS_emulator.gameManager.FS.readdir('/shader'));
+      assert.ok(files.includes(mode === 'xbr' ? 'xbr-lv2.glsl' : 'scalefx-pass4.glsl'), files.join());
+      const size = await frameEval(async () => {
+        const bmp = await createImageBitmap(new Blob([await window.retroglotBridge.screenshot()], { type: 'image/png' }));
+        return [bmp.width, bmp.height];
+      });
+      assert.deepEqual(size, [320, 200]);
+    }
+    assert.deepEqual(shaderLogs, []);
+    assert.equal((await (await fetch(`${base}/api/settings`)).json()).display, 'scalefx');
+  } finally {
+    page.off('console', onLog);
+  }
+});
+
 test('the script exports as TMX', { skip }, async () => {
   const tmx = await (await fetch(`${base}/api/games/${gameId}/export?format=tmx`)).text();
   assert.match(tmx, /<tuv xml:lang="ja"><seg>ようこそ、旅の人。ここは星降る村です。<\/seg><\/tuv>/);

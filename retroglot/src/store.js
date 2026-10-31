@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { normalizeEnhance, pickPsxHdBios, readHead } from './enhance.js';
 import { GAME_EXTS, SYSTEMS, cueFiles, detectSystem, extOf, regionFromFile, titleFromFile } from './systems.js';
 
 export const DEFAULT_SETTINGS = {
@@ -20,7 +21,7 @@ export const DEFAULT_SETTINGS = {
   libraryPaths: [],
   downloadArt: true, // box art from the libretro thumbnail collection
   uiSounds: true,
-  display: 'crt', // sharp | crt | smooth
+  display: 'crt', // crt | sharp | smooth | xbr | scalefx
 };
 
 const REGION_LANG = { JP: 'Japanese', KR: 'Korean', CN: 'Chinese', EU: null, US: null };
@@ -88,6 +89,13 @@ function walk(dir, out = [], depth = 0) {
   return out;
 }
 
+/** Picture modes; src/server.js maps each to an EmulatorJS shader. */
+export const DISPLAY_MODES = ['crt', 'sharp', 'smooth', 'xbr', 'scalefx'];
+
+const TEXTURE_PACK_KINDS = ['zip', 'hts', 'htc'];
+/** Packs are unpacked in the browser's memory, so very large ones cannot work. */
+export const TEXTURE_PACK_MAX = 1536 * 1048576;
+
 export class Store {
   constructor(home = defaultHome()) {
     this.home = home;
@@ -97,6 +105,7 @@ export class Store {
       saves: path.join(home, 'saves'),
       covers: path.join(home, 'covers'),
       translations: path.join(home, 'translations'),
+      textures: path.join(home, 'textures'),
     };
     for (const d of Object.values(this.dirs)) fs.mkdirSync(d, { recursive: true });
     this.dbFile = path.join(home, 'db.json');
@@ -180,6 +189,7 @@ export class Store {
       playSeconds: old.playSeconds || 0,
       favorite: !!old.favorite,
       notes: old.notes || '',
+      enhance: old.enhance || {},
     };
     if (persist) this.save();
     return this.games[id];
@@ -214,6 +224,7 @@ export class Store {
       added: g.added, lastPlayed: g.lastPlayed, playSeconds: g.playSeconds, favorite: g.favorite,
       notes: g.notes, hasCover: fs.existsSync(this.coverPath(g.id)), extraFiles: g.extraFiles.map((f) => path.basename(f)),
       saves: this.listSaves(g.id).length,
+      enhance: g.enhance || {}, texturePack: this.texturePackInfo(g.id),
     };
   }
 
@@ -227,8 +238,10 @@ export class Store {
     if (typeof patch.title === 'string' && patch.title.trim()) { g.title = patch.title.trim().slice(0, 200); g.titleEdited = true; }
     if (typeof patch.system === 'string') {
       if (!SYSTEMS[patch.system]) throw new Error(`Unknown system: ${patch.system}`);
+      if (g.system !== patch.system) g.enhance = {};
       g.system = patch.system; g.systemEdited = true;
     }
+    if (patch.enhance !== undefined) g.enhance = normalizeEnhance(g.system, patch.enhance);
     if (typeof patch.favorite === 'boolean') g.favorite = patch.favorite;
     if (typeof patch.sourceLanguage === 'string') g.sourceLanguage = patch.sourceLanguage.slice(0, 40) || 'auto';
     if (typeof patch.notes === 'string') g.notes = patch.notes.slice(0, 4000);
@@ -258,6 +271,7 @@ export class Store {
       if (typeof v !== typeof DEFAULT_SETTINGS[k] && !(Array.isArray(DEFAULT_SETTINGS[k]) && Array.isArray(v))) {
         throw new Error(`Setting ${k} must be a ${Array.isArray(DEFAULT_SETTINGS[k]) ? 'list' : typeof DEFAULT_SETTINGS[k]}`);
       }
+      if (k === 'display' && !DISPLAY_MODES.includes(v)) throw new Error(`Picture must be one of ${DISPLAY_MODES.join(', ')}`);
       this.settings[k] = v;
     }
     this.save();
@@ -283,6 +297,67 @@ export class Store {
     const lower = new Map(files.map((f) => [f.toLowerCase(), f]));
     for (const k of known) if (lower.has(k.toLowerCase())) return path.join(this.dirs.bios, lower.get(k.toLowerCase()));
     return null;
+  }
+
+  /** The BIOS file Beetle PSX (the PlayStation HD renderer) will accept for a disc region. */
+  psxHdBiosFor(region) {
+    let files = [];
+    try { files = fs.readdirSync(this.dirs.bios); } catch { return null; }
+    const f = pickPsxHdBios(files, region);
+    return f ? path.join(this.dirs.bios, f) : null;
+  }
+
+  // --- HD texture packs (Nintendo 64) ---------------------------------------
+
+  texturePackFile(id) {
+    for (const kind of TEXTURE_PACK_KINDS) {
+      const f = path.join(this.dirs.textures, `${id}.${kind}`);
+      if (fs.existsSync(f)) return { file: f, kind };
+    }
+    return null;
+  }
+
+  texturePackInfo(id) {
+    const p = this.texturePackFile(id);
+    if (!p) return null;
+    const meta = readJson(path.join(this.dirs.textures, `${id}.json`), {});
+    return { kind: p.kind, size: fs.statSync(p.file).size, name: meta.name || `${id}.${p.kind}` };
+  }
+
+  /** Save an uploaded texture pack for one game, replacing the previous one. */
+  async importTexturePack(id, fileName, stream, maxBytes = TEXTURE_PACK_MAX) {
+    const kind = extOf(String(fileName));
+    if (!TEXTURE_PACK_KINDS.includes(kind)) throw new Error('A texture pack must be a .zip, .hts or .htc file');
+    const tmp = path.join(this.dirs.textures, `${id}.upload`);
+    let bytes = 0;
+    try {
+      await new Promise((resolve, reject) => {
+        const out = fs.createWriteStream(tmp);
+        stream.on('data', (chunk) => {
+          bytes += chunk.length;
+          if (bytes > maxBytes) { stream.unpipe(out); out.destroy(); reject(new Error(`Texture packs larger than ${Math.round(maxBytes / 1048576)} MB do not fit in the browser's memory`)); }
+        });
+        stream.on('error', reject);
+        out.on('error', reject);
+        out.on('finish', resolve);
+        stream.pipe(out);
+      });
+      if (kind === 'zip') {
+        const head = readHead(tmp, 4);
+        if (head.length < 4 || head.readUInt32LE(0) !== 0x04034b50) throw new Error('This file is not a zip archive');
+      }
+    } catch (e) {
+      fs.rmSync(tmp, { force: true });
+      throw e;
+    }
+    this.removeTexturePack(id);
+    fs.renameSync(tmp, path.join(this.dirs.textures, `${id}.${kind}`));
+    writeJsonAtomic(path.join(this.dirs.textures, `${id}.json`), { name: path.basename(String(fileName)).slice(0, 200), addedAt: new Date().toISOString() });
+    return this.texturePackInfo(id);
+  }
+
+  removeTexturePack(id) {
+    for (const kind of [...TEXTURE_PACK_KINDS, 'json']) fs.rmSync(path.join(this.dirs.textures, `${id}.${kind}`), { force: true });
   }
 
   // --- save states ----------------------------------------------------------

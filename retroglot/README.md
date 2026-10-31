@@ -24,8 +24,13 @@ Claude, so it shows the layout, not a live answer. The library picture uses made
   works out the system from the file name and its contents (cartridge headers, disc
   sectors, the files inside a zip), keeps play time, favourites and notes.
 - **Full-window play.** The game fills the window, with a CRT screen look (or sharp pixels,
-  or smooth). The controls slide away while you play and come back when you move the mouse.
-  Continue from your latest save straight from the library.
+  smooth, or the xBR and ScaleFX upscalers that redraw pixel art with clean edges). The
+  controls slide away while you play and come back when you move the mouse. Continue from
+  your latest save straight from the library.
+- **HD for 3D games.** Nintendo 64 games can render at up to 4× resolution with edge
+  smoothing, texture upscaling (xBRZ or HQ4x), widescreen and, experimentally, fan-made HD
+  texture packs. PlayStation games can switch to an HD renderer (Beetle PSX HW) with up to
+  8× resolution and steady, wobble-free 3D (PGXP). See [Picture quality](#picture-quality).
 - **Emulation in the browser.** Games run on [EmulatorJS](https://emulatorjs.org) with
   libretro cores: DOSBox Pure, FCEUmm, Snes9x, Mupen64Plus-Next, Gambatte, mGBA, Genesis
   Plus GX, PicoDrive, PCSX ReARMed and more. Gamepads work out of the box.
@@ -118,9 +123,47 @@ program to start. A single `.exe` or `.com` file works too.
 The details show why retroglot guessed what it did.
 
 **BIOS files** are optional for most systems (PCSX ReARMed has a built-in PlayStation BIOS).
-Sega CD, Saturn and 3DO games need theirs. Put the usual files, such as `scph5501.bin` or
+Sega CD, Saturn and 3DO games need theirs, and so does the PlayStation HD renderer. Put the usual files, such as `scph5501.bin` or
 `bios_CD_U.bin`, in the `bios` folder inside the data folder (`node bin/retroglot.js doctor`
 shows where it is).
+
+## Picture quality
+
+Open the side panel (**F1**) and choose **Picture**.
+
+- **Filter** applies to every game: CRT screen, sharp pixels, smooth (SABR), xBR or ScaleFX.
+  xBR and ScaleFX suit 2D pixel art; they cost more graphics power than the others.
+  Translation always reads the original picture, so the filter never changes the result.
+- **Enhancements for this game** appear for Nintendo 64 and PlayStation games. Press
+  **Apply and restart**: retroglot saves the moment, restarts the emulator with the new
+  settings and continues from where you were.
+
+| Nintendo 64 | What it does |
+|---|---|
+| Rendering resolution | Standard (640×480), 2×, 3× or 4×. 3× and 4× need a fast graphics card. |
+| Edge smoothing | FXAA (light) or MSAA 4×. |
+| Texture upscaling | xBRZ 4× or HQ4x for the game's own textures. |
+| Widescreen | 16:9 view of the 3D world; menus and 2D pictures may look stretched. |
+| HD texture pack (experimental) | Add a fan-made pack: a `.zip` of PNG files, or a `.hts`/`.htc` file. |
+
+**HD texture packs.** A pack is made for one game and is matched by the game's internal name
+(the panel shows it). Packs are loaded into the browser's memory, so they are limited to
+1.5 GB; large packs also take a while to load at every start. retroglot places the files where
+the N64 renderer (GLideN64) looks for them. It has not been tested with a real pack, so if a
+pack seems to do nothing, check that it was made for GLideN64 (Rice-format PNG names) and for
+the same game version.
+
+| PlayStation | What it does |
+|---|---|
+| Renderer: HD (Beetle PSX HW) | Draws 3D at a higher resolution. Downloaded once (about 4 MB) the first time you choose it. |
+| Rendering resolution | Native, 2×, 4× or 8×. |
+| Steady 3D (PGXP) | Stops wobbling polygons and warping textures. |
+| Widescreen | 16:9 view of the 3D world. |
+
+The HD renderer needs the real PlayStation BIOS for the game's region in the `bios` folder:
+`scph5500.bin` (Japan), `scph5501.bin` (USA) or `scph5502.bin` (Europe). Without it the game
+keeps the standard renderer and the panel says which file is missing. Switching renderer
+starts the game from the beginning, and each renderer keeps its own memory card saves.
 
 ## Systems
 
@@ -209,6 +252,11 @@ folder to back up everything.
   info**, then **Run anyway**. Signing needs a code-signing certificate.
 - **Keys go to the game instead of retroglot, or the other way round**: click the game
   picture once so it has the keyboard. retroglot's keys (F2 and so on) work either way.
+- **An HD setting makes the game slow**: lower the rendering resolution, or turn MSAA off.
+  The game runs on your graphics card through the browser, which costs more than a native
+  emulator.
+- **The PlayStation HD renderer does not start**: check the panel's message about the BIOS;
+  Beetle PSX accepts only the files named above (`scph1001.bin` does not work for it).
 - **The page cannot be opened from another computer**: on purpose. retroglot answers only on
   this computer. `--host 0.0.0.0 --allow-host NAME` opens it up, but then anyone who can
   reach it can use your Claude key.
@@ -229,14 +277,24 @@ exported scripts of commercial games may need the rights holder's permission.
 
 ## What has been tested
 
-- 32 unit tests (box art matching was checked by hand against the libretro collection): system detection, the library, save states, translation memory, script
-  export, the Claude request (checked against a stand-in API), server safety checks, the
-  emulator download (checksums, unsafe paths) and the saved API key.
-- 9 browser tests in headless Chromium: the demo boots in DOSBox Pure, a test NES cartridge
-  boots on FCEUmm, F2 draws the
-  translation over the dialogue window, the same screen is answered from memory, the
-  glossary picks up new names, auto-translate follows the dialogue to the next screen, and
-  save then load returns to the same picture.
+- 42 unit tests (box art matching was checked by hand against the libretro collection):
+  system detection, the library, save states, translation memory, script export, the Claude
+  request (checked against a stand-in API), server safety checks, the emulator download
+  (checksums, unsafe paths), the saved API key, and the picture enhancements (core options,
+  texture pack placement, PlayStation BIOS choice, shader conversion).
+- 10 browser tests in headless Chromium: the demo boots in DOSBox Pure, a test NES cartridge
+  boots on FCEUmm, F2 draws the translation over the dialogue window, the same screen is
+  answered from memory, the glossary picks up new names, auto-translate follows the dialogue
+  to the next screen, save then load returns to the same picture, and the xBR and ScaleFX
+  filters compile and leave translation screenshots unchanged.
+- Picture enhancements, checked by hand with N64 homebrew test programs in headless
+  Chromium: 2× and 3× resolution (the core reported 1280×960 and 2560×1440 in widescreen),
+  FXAA, xBRZ, widescreen, **Apply and restart** continuing from the same moment, and a small
+  texture pack unpacked into the folder GLideN64 reads. xBR and ScaleFX were checked in both
+  WebGL 1 (DOS) and WebGL 2 (N64).
+- Not tested: whether a real HD texture pack replaces textures in a real game, and the
+  PlayStation HD renderer booting a game (that needs a real BIOS and disc; only the core
+  switch, its download and the BIOS choice were checked).
 - The desktop app runs a self-test (`npm run smoke` in `desktop/`): first start, emulator
   download inside the app, the demo booting in DOSBox Pure, and the missing-key message. It
   passed on Linux; the Windows build runs the same test on a Windows machine in CI.

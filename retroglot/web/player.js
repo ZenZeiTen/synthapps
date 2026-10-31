@@ -7,7 +7,8 @@ import { Overlay } from './overlay.js';
 const $ = (s) => document.querySelector(s);
 const gameId = location.pathname.split('/').pop();
 const MODES = { boxes: 'Boxes', subtitles: 'Subtitles', off: 'Panel only' };
-const DISPLAYS = { crt: 'CRT', sharp: 'Sharp', smooth: 'Smooth' };
+const DISPLAYS = { crt: 'CRT', sharp: 'Sharp', smooth: 'Smooth', xbr: 'xBR', scalefx: 'ScaleFX' };
+const DISPLAY_NAMES = { crt: 'CRT screen', sharp: 'sharp pixels', smooth: 'smooth (SABR)', xbr: 'xBR upscaling', scalefx: 'ScaleFX upscaling' };
 const startSlot = new URLSearchParams(location.search).get('slot');
 
 const S = {
@@ -43,6 +44,7 @@ for (const [id, name] of [['b-save', 'save'], ['b-load', 'load'], ['b-pause', 'p
 for (const l of LANGUAGES) $('#languages').append(el('option', { value: l }));
 
 function renderToggles() {
+  if ($('#pic-filter')) $('#pic-filter').value = S.display;
   label($('#b-auto'), 'auto', S.auto ? 'Auto: on' : 'Auto: off');
   $('#b-auto').classList.toggle('on', S.auto);
   $('#b-auto').setAttribute('aria-pressed', String(S.auto));
@@ -85,7 +87,7 @@ async function init() {
   $('#sys-tag').style.background = lightOf(S.game.system);
   $('#boot-title').textContent = title;
   $('#boot-system').textContent = sys.name || S.game.system;
-  $('#boot-status').textContent = `Starting ${coreName(sys.core)}${startSlot ? `, then loading save slot ${startSlot}` : ''}`;
+  $('#boot-status').textContent = bootText(sys.core);
   bootArt();
   $('#g-lang').value = S.game.sourceLanguage === 'auto' ? '' : S.game.sourceLanguage;
   $('#g-notes').value = S.game.notes || '';
@@ -103,6 +105,7 @@ async function init() {
   }
   frame.src = `/emu/${gameId}${startSlot ? `?slot=${encodeURIComponent(startSlot)}` : ''}`;
   watchBoot();
+  loadEnhance();
   loadScript();
   loadSaves();
   api(`/api/games/${gameId}`, { method: 'PATCH', body: { played: true } }).catch(() => {});
@@ -116,8 +119,9 @@ window.addEventListener('message', (ev) => {
   else if (d.type === 'retroglot:activity') wake();
 });
 
-const CORE_NAMES = { dosbox_pure: 'DOSBox Pure', fceumm: 'FCEUmm', snes9x: 'Snes9x', mupen64plus_next: 'Mupen64Plus', gambatte: 'Gambatte', mgba: 'mGBA', genesis_plus_gx: 'Genesis Plus GX', picodrive: 'PicoDrive', pcsx_rearmed: 'PCSX ReARMed', mednafen_pce: 'Beetle PCE', smsplus: 'SMS Plus', stella2014: 'Stella', prosystem: 'ProSystem', handy: 'Handy', mednafen_ngp: 'Beetle NGP', mednafen_wswan: 'Beetle WonderSwan', beetle_vb: 'Beetle VB' };
+const CORE_NAMES = { dosbox_pure: 'DOSBox Pure', fceumm: 'FCEUmm', snes9x: 'Snes9x', mupen64plus_next: 'Mupen64Plus', gambatte: 'Gambatte', mgba: 'mGBA', genesis_plus_gx: 'Genesis Plus GX', picodrive: 'PicoDrive', pcsx_rearmed: 'PCSX ReARMed', mednafen_pce: 'Beetle PCE', smsplus: 'SMS Plus', stella2014: 'Stella', prosystem: 'ProSystem', handy: 'Handy', mednafen_ngp: 'Beetle NGP', mednafen_wswan: 'Beetle WonderSwan', beetle_vb: 'Beetle VB', mednafen_psx_hw: 'Beetle PSX HW' };
 const coreName = (c) => CORE_NAMES[c] || c || 'the emulator';
+const bootText = (core) => `Starting ${coreName(core)}${startSlot === '0' ? ', then continuing where you were' : startSlot ? `, then loading save slot ${startSlot}` : ''}`;
 
 function bootArt() {
   const g = S.game;
@@ -182,10 +186,13 @@ function applyDisplay() {
 }
 function cycleDisplay() {
   const keys = Object.keys(DISPLAYS);
-  S.display = keys[(keys.indexOf(S.display) + 1) % keys.length];
+  setDisplay(keys[(keys.indexOf(S.display) + 1) % keys.length]);
+}
+function setDisplay(mode) {
+  S.display = mode;
   applyDisplay();
   renderToggles();
-  toast(`Picture: ${{ crt: 'CRT screen', sharp: 'sharp pixels', smooth: 'smooth' }[S.display]}`, '', 1600);
+  toast(`Picture: ${DISPLAY_NAMES[S.display]}`, '', 1600);
   api('/api/settings', { method: 'PATCH', body: { display: S.display } }).catch(() => {});
 }
 
@@ -499,5 +506,115 @@ $('#g-save').addEventListener('click', async () => {
 });
 $('#g-cover').addEventListener('click', () => saveCover(false));
 $('#g-restart').addEventListener('click', () => { if (confirm('Restart the game? Unsaved progress is lost.')) { bridge()?.restart(); overlay.clear(); } });
+
+// ---------- picture quality (per game) ----------
+// Higher internal resolution, smoothing, texture upscaling and HD texture packs for
+// N64; the HD renderer for PlayStation. Changes need a restart of the core, so
+// "Apply" saves the moment to a hidden slot (0), reloads, and continues from it.
+const ENH = { info: null, values: {}, dirty: false };
+
+async function loadEnhance() {
+  try { ENH.info = await api(`/api/games/${gameId}/enhance`); } catch { return; }
+  if (!ENH.info.available) return;
+  ENH.values = { ...ENH.info.values };
+  ENH.dirty = false;
+  const sys = S.systems.find((x) => x.id === S.game.system) || {};
+  if (ENH.info.core && ENH.info.core !== sys.core) {
+    if (!S.started) $('#boot-status').textContent = bootText(ENH.info.core);
+    $('#g-info').textContent = $('#g-info').textContent.replace(`core ${sys.core}`, `core ${ENH.info.core}`);
+  }
+  $('#enh').hidden = false;
+  renderEnhance();
+}
+
+function renderEnhance() {
+  const info = ENH.info;
+  const box = $('#enh-fields');
+  box.replaceChildren();
+  for (const [key, def] of Object.entries(info.settings)) {
+    if (def.when && Object.entries(def.when).some(([k, v]) => ENH.values[k] !== v)) continue;
+    const sel = el('select', { id: `enh-${key}`, onchange: (ev) => { ENH.values[key] = ev.target.value; ENH.dirty = true; renderEnhance(); } },
+      def.choices.map((c) => el('option', { value: c.id, selected: ENH.values[key] === c.id }, c.label)));
+    box.append(el('label', { class: 'field enh-field' },
+      el('span', {}, def.label, def.experimental ? el('b', { class: 'exp' }, 'Experimental') : null),
+      sel, def.hint ? el('span', { class: 'hint' }, def.hint) : null));
+  }
+  const packOn = info.settings.texturePack && ENH.values.texturePack === 'on';
+  $('#enh-pack').hidden = !packOn;
+  const pack = info.texturePack;
+  $('#enh-pack-name').textContent = pack ? `${pack.name} (${(pack.size / 1048576).toFixed(1)} MB)` : 'No texture pack added yet. Packs are made for one game (by its internal name' + (info.romName ? `, here “${info.romName}”` : '') + ').';
+  $('#enh-pack-remove').hidden = !pack;
+  const status = $('#enh-status');
+  const lines = [];
+  if (ENH.dirty) lines.push('Press Apply to restart the game with these settings. You continue from where you are.');
+  else if (info.problems.length) lines.push(...info.problems);
+  else lines.push(info.active.length ? `Now: ${info.active.join(', ')}.` : 'Now: the original picture.');
+  if (info.settings.renderer && ENH.values.renderer !== ENH.info.values.renderer) {
+    lines.push('Switching the renderer starts the game again from the beginning; in-game memory card saves are kept separately for each renderer.');
+  }
+  status.textContent = lines.join(' ');
+  status.classList.toggle('warn', !ENH.dirty && info.problems.length > 0);
+  $('#enh-apply').disabled = !ENH.dirty;
+}
+
+async function ensurePsxHdCore() {
+  if (ENH.values.renderer !== 'hd' || ENH.info.psxHdCoreInstalled) return;
+  $('#enh-status').textContent = 'Downloading the HD renderer…';
+  let st = await api('/api/runtime/install', { method: 'POST', body: { cores: ['mednafen_psx_hw'] } });
+  while (st.running || (!st.finishedAt && !st.error)) {
+    await new Promise((r) => setTimeout(r, 400));
+    st = await api('/api/runtime/install');
+    if (st.total) $('#enh-status').textContent = `Downloading the HD renderer (${(st.bytes / 1048576).toFixed(1)} MB)…`;
+  }
+  if (st.error) throw new Error(`The HD renderer could not be downloaded: ${st.error}`);
+}
+
+async function applyEnhance() {
+  const btn = $('#enh-apply');
+  btn.disabled = true;
+  try {
+    const coreBefore = ENH.info.core;
+    await ensurePsxHdCore();
+    await api(`/api/games/${gameId}`, { method: 'PATCH', body: { enhance: ENH.values } });
+    const info = await api(`/api/games/${gameId}/enhance`);
+    // Continue from the same moment when the core stays the same (states do not carry across cores).
+    let slot = '';
+    if (S.started && info.core === coreBefore && bridge()?.supportsStates()) {
+      try {
+        const state = bridge().getState();
+        await api(`/api/games/${gameId}/saves/0`, { method: 'PUT', body: state, headers: { 'X-Picture-Length': '0', 'Content-Type': 'application/octet-stream' } });
+        slot = '0';
+      } catch { slot = ''; }
+    }
+    location.href = `/play/${gameId}${slot ? `?slot=${slot}` : ''}`;
+  } catch (e) {
+    toast(e.message, 'bad');
+    btn.disabled = false;
+  }
+}
+
+$('#enh-apply').addEventListener('click', applyEnhance);
+$('#pic-filter').addEventListener('change', (ev) => setDisplay(ev.target.value));
+$('#enh-pack-file').addEventListener('change', async (ev) => {
+  const f = ev.target.files?.[0];
+  ev.target.value = '';
+  if (!f) return;
+  const status = $('#enh-status');
+  status.textContent = `Adding ${f.name} (${(f.size / 1048576).toFixed(0)} MB)…`;
+  try {
+    ENH.info = await api(`/api/games/${gameId}/texture-pack?name=${encodeURIComponent(f.name)}`, { method: 'PUT', body: f, headers: { 'Content-Type': 'application/octet-stream' } });
+    ENH.dirty = true;
+    toast('Texture pack added. Press Apply to use it.', 'good');
+  } catch (e) { toast(e.message, 'bad'); }
+  renderEnhance();
+});
+$('#enh-pack-remove').addEventListener('click', async () => {
+  if (!confirm('Remove the texture pack for this game?')) return;
+  try {
+    ENH.info = await api(`/api/games/${gameId}/texture-pack`, { method: 'DELETE' });
+    ENH.dirty = ENH.values.texturePack === 'on';
+  } catch (e) { toast(e.message, 'bad'); }
+  renderEnhance();
+});
 
 init();

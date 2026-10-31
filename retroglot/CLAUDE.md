@@ -40,6 +40,8 @@ browser job on Ubuntu).
 | `web/glow.js`, `web/sound.js`, `web/gamepad.js` | Background light, menu sounds, controller polling |
 | `web/player.css` | Full-window player, boot screen, auto-hiding bar, slide-over panel |
 | `web/fonts/` | Outfit and Inter (OFL), bundled so the app looks the same offline |
+| `src/enhance.js` | Per-game picture enhancements (N64 resolution, smoothing, texture packs; PS1 HD renderer) mapped to core options |
+| `web/shaders/` | xBR-lv2 and ScaleFX (MIT, unmodified from libretro/glsl-shaders), turned into EmulatorJS presets in `server.js` |
 | `src/art.js` | Box art, title and snap pictures from libretro-thumbnails, cached in `<home>/art`; player-chosen pictures |
 | `demo/build_demo.py` | Builds `demo/HOSHI.COM` (needs Pillow, nasm, Unifont) |
 
@@ -96,9 +98,35 @@ fetch (`RETROGLOT_REGISTRY=http://127.0.0.1:PORT`).
 The home screen is lit by the system being browsed (`--sys`, from `SYSTEM_LIGHT` in
 `common.js`); everything else stays quiet. Display type is Outfit, text is Inter. Committed
 screenshots (`docs/`) use made-up games (`SHOTS_FICTIONAL=1 node test/helpers/shots.mjs docs`) so
-no third-party box art is stored in the repository. Picture modes map to EmulatorJS shaders:
-`crt` = crt-easymode, `smooth` = sabr, `sharp` = none; translation screenshots are taken before
+no third-party box art is stored in the repository. Picture modes map to EmulatorJS shaders
+(`DISPLAY_SHADERS` in `server.js`): `crt` = crt-easymode, `smooth` = sabr, `sharp` = none,
+`xbr` and `scalefx` = our presets from `web/shaders`; translation screenshots are taken before
 the shader, so overlay positions do not change.
+
+## Picture enhancements
+
+`src/enhance.js` lists the choices per system (`ENHANCEMENTS`, first choice = default) and
+`enhancementPlan()` turns a game's stored `enhance` into core options. It always writes every
+option a feature manages, so turning a feature off resets it. The player's Picture tab saves
+the choices, then "Apply and restart" saves a state to the hidden slot 0 and reloads with
+`?slot=0` (only when the core stays the same; states do not carry across cores).
+
+- Core options must be in place before the core starts (resolution changes do not apply at
+  run time). EmulatorJS writes the options file from the per-game entry it keeps in
+  localStorage (`ejs-1-<system>-<title>-settings`) and ignores `EJS_defaultOptions` once
+  that entry exists, so `emu-bridge.js` writes the managed options (and `shader`) into that
+  entry before `loader.js` runs (`window.RETROGLOT.coreOptions`).
+- PS1 HD switches `EJS_core` to `mednafen_psx_hw` and pins `retroarch_core` (EmulatorJS
+  otherwise reuses a remembered core). Beetle accepts only certain BIOS names
+  (`PSX_HD_BIOS`), by disc region; without one the game stays on PCSX ReARMed.
+- N64 texture packs live in `<home>/textures/<id>.{zip,hts,htc}` and are mounted with
+  `EJS_externalFiles`: a key ending in `/` unpacks a zip there. GLideN64 reads
+  `/Mupen64plus/hires_texture/<ROM internal name>/` (subfolders too) and
+  `/Mupen64plus/cache/<name>_HIRESTEXTURES.hts`. The internal name is header bytes
+  0x20..0x33 in any of the three byte orders.
+- Shaders: many cores run WebGL 1 (GLSL ES 1.00). `glslForWebgl1()` drops `#version 130`
+  and rewrites `mul(mat4x3(...), v)` (non-square matrices are ES 3.00 only) as dot products.
+  Resource names must not contain `/` (EmulatorJS writes them straight into `/shader/`).
 
 ## Lessons from building
 
@@ -112,5 +140,6 @@ the shader, so overlay positions do not change.
 - Keyboard focus: the parent must focus the iframe, then the bridge focuses EmulatorJS's own
   element (`elements.parent`), which is where its key listener is.
 - The SDK (1.x) sends beta requests to `/v1/messages` with an `anthropic-beta` header.
+- Not yet verified: a real HD texture pack in a real game; the PS1 HD renderer booting a disc.
 - Not yet verified: a live Claude call (tests use `test/helpers/mock-claude.js`), and cores
   other than DOSBox Pure and FCEUmm in the browser.

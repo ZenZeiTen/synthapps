@@ -40,8 +40,11 @@ export const DEFAULT_CORES = [
   'handy', 'mednafen_ngp', 'mednafen_wswan', 'beetle_vb',
 ];
 
+/** Optional cores used by enhancements: Beetle PSX HW renders PlayStation games at higher resolution. */
+export const EXTRA_CORES = ['mednafen_psx_hw'];
+
 /** Every core any system above can use. */
-export const ALL_CORES = [...new Set(Object.values(SYSTEMS).map((s) => s.core).concat(DEFAULT_CORES))];
+export const ALL_CORES = [...new Set(Object.values(SYSTEMS).map((s) => s.core).concat(DEFAULT_CORES, EXTRA_CORES))];
 
 // Extensions that name exactly one system.
 const EXT = {
