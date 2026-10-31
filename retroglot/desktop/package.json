@@ -1,0 +1,50 @@
+{
+  "name": "retroglot-desktop",
+  "productName": "Retroglot",
+  "version": "0.1.0",
+  "description": "Play retro games from DOS to the PS1 era, with live translation by Claude.",
+  "author": "ZenZeiTen",
+  "license": "MIT",
+  "type": "module",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "stage": "node stage.mjs",
+    "start": "node stage.mjs && electron .",
+    "smoke": "node stage.mjs && electron . --smoke",
+    "dist:win": "node stage.mjs && electron-builder --win --x64 --publish never"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0"
+  },
+  "devDependencies": {
+    "electron": "44.7.1",
+    "electron-builder": "26.17.0"
+  },
+  "build": {
+    "appId": "com.zenzeiten.retroglot",
+    "productName": "Retroglot",
+    "copyright": "Copyright © 2026 ZenZeiTen",
+    "asar": false,
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "secrets.js", "smoke.js", "app/**", "build/icon.png", "build/icon.ico", "package.json"],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Retroglot",
+      "artifactName": "Retroglot-Setup-${version}.${ext}"
+    },
+    "portable": { "artifactName": "Retroglot-${version}-portable.${ext}" },
+    "linux": { "target": "dir", "icon": "build/icon.png", "category": "Game" }
+  }
+}

@@ -1,0 +1,55 @@
+name: retroglot
+
+on:
+  pull_request:
+    paths:
+      - "retroglot/**"
+      - ".github/workflows/retroglot.yml"
+  push:
+    branches: [main]
+    paths:
+      - "retroglot/**"
+      - ".github/workflows/retroglot.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: ${{ matrix.os }}, Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ["20", "22"]
+    defaults:
+      run:
+        working-directory: retroglot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm test
+
+  browser:
+    name: Emulator in a real browser (DOSBox Pure, mock Claude)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: retroglot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Emulator runtime (EmulatorJS + the DOS and NES cores)
+        run: node bin/retroglot.js install-runtime --cores dosbox_pure,fceumm
+      - name: Playwright with Chromium
+        run: |
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - run: npm run test:e2e
