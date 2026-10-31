@@ -1,0 +1,36 @@
+// Regenerates the screenshots in docs/ (library and translation overlay), using the test stand-in for Claude.
+// Run: node test/helpers/shots.mjs docs   (needs the runtime and Playwright). Rename s-library.png and s-boxes.png.
+import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
+import { createRequire } from 'node:module';
+import Anthropic from '@anthropic-ai/sdk';
+import { createServer } from '../../src/server.js'; import { Store } from '../../src/store.js'; import { setClient } from '../../src/translate.js';
+import { startMockClaude } from './mock-claude.js';
+const { chromium } = createRequire(import.meta.url)('playwright');
+const out = process.argv[2];
+const mock = await startMockClaude();
+setClient(new Anthropic({ apiKey: 'k', baseURL: mock.url, maxRetries: 0 }));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-shots-'));
+const store = new Store(home);
+for (const n of ['Seiken Saga (Japan).sfc', 'Moon Courier (Japan).gb', 'Neon Drift (USA).md', 'Pocket Kaiju (Japan).gba', 'Tower of Ash (Japan).cue', 'Mecha Pilot 64 (Japan).z64', 'Star Ferry (Japan).pce', 'Dungeon (1991).zip']) fs.writeFileSync(path.join(store.dirs.library, n), Buffer.alloc(2048));
+const server = createServer({ store }); await new Promise((r) => server.listen(0, '127.0.0.1', r));
+const base = `http://localhost:${server.address().port}`;
+await fetch(`${base}/api/demo`, { method: 'POST' });
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1360, height: 860 } });
+await page.goto(base); await page.waitForTimeout(800);
+await page.screenshot({ path: `${out}/s-library.png` });
+const id = (await (await fetch(`${base}/api/games`)).json()).find((g) => g.system === 'dos').id;
+await page.goto(`${base}/play/${id}`);
+await page.waitForFunction(() => document.querySelector('#emu').contentWindow?.retroglotBridge?.started, null, { timeout: 60000 });
+await page.waitForTimeout(2000);
+await page.keyboard.press('F2');
+await page.locator('.tl-box').first().waitFor();
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${out}/s-boxes.png` });
+await page.keyboard.press('F4'); await page.waitForTimeout(300);
+await page.screenshot({ path: `${out}/s-subs.png` });
+await page.getByRole('tab', { name: 'Saves' }).click(); await page.keyboard.press('F6'); await page.waitForTimeout(1500);
+await page.screenshot({ path: `${out}/s-saves.png` });
+await page.setViewportSize({ width: 420, height: 860 }); await page.goto(base); await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/s-mobile.png` });
+await browser.close(); server.close(); mock.close();
