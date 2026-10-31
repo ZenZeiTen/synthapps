@@ -6,10 +6,11 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { TranslationMemory, exportScript } from './memory.js';
-import { EMULATORJS_VERSION, PACKAGE_ROOT, emulatorjsDataDir, installedCores, resolveRuntimePath, runtimeDir } from './runtime.js';
+import { FileSecrets, looksLikeApiKey } from './credentials.js';
+import { EMULATORJS_VERSION, PACKAGE_ROOT, emulatorjsDataDir, installRuntime, installedCores, runtimePlan, resolveRuntimePath, runtimeDir } from './runtime.js';
 import { Store } from './store.js';
 import { SYSTEMS, extOf } from './systems.js';
-import { EFFORTS, MODELS, STYLES, TranslationError, credentialStatus, estimateCost, requestTranslation } from './translate.js';
+import { EFFORTS, MODELS, STYLES, TranslationError, credentialStatus, estimateCost, requestTranslation, resetClient, testCredentials, useSecrets } from './translate.js';
 
 export const VERSION = JSON.parse(fs.readFileSync(path.join(PACKAGE_ROOT, 'package.json'), 'utf8')).version;
 const WEB_ROOT = path.join(PACKAGE_ROOT, 'web');
@@ -152,7 +153,21 @@ function emulatorPage(store, game, { slot } = {}) {
  * Create the HTTP server.
  * @param {{store?: Store, host?: string, translate?: Function, allowedHosts?: string[]}} opts
  */
-export function createServer({ store = new Store(), translate = requestTranslation, allowedHosts = [] } = {}) {
+export function createServer({
+  store = new Store(), translate = requestTranslation, allowedHosts = [],
+  secrets = new FileSecrets(path.join(store.home, 'credentials.json')), fetch = globalThis.fetch, desktop = false,
+} = {}) {
+  useSecrets(secrets);
+  // One emulator download at a time; the library page polls its progress.
+  const install = { running: false, done: 0, total: 0, label: '', bytes: 0, error: null, finishedAt: null };
+  function startInstall(opts) {
+    if (install.running) return;
+    runtimePlan(opts); // throws on an unknown core name, before anything starts
+    Object.assign(install, { running: true, done: 0, total: 0, label: '', bytes: 0, error: null, finishedAt: null });
+    installRuntime({ ...opts, fetch, log: () => {}, onProgress: (p) => Object.assign(install, p) })
+      .catch((e) => { install.error = e.message; })
+      .finally(() => { install.running = false; install.finishedAt = new Date().toISOString(); });
+  }
   const memories = new Map();
   const memoryFor = (id) => {
     if (!memories.has(id)) memories.set(id, new TranslationMemory(path.join(store.dirs.translations, `${id}.json`)));
@@ -254,11 +269,40 @@ export function createServer({ store = new Store(), translate = requestTranslati
       return sendJson(res, 200, {
         version: VERSION,
         home: store.home,
-        runtime: { installed: !!emulatorjsDataDir(), dir: runtimeDir(), emulatorjs: EMULATORJS_VERSION, cores: installedCores() },
+        desktop,
+        runtime: { installed: !!emulatorjsDataDir(), dir: runtimeDir(), emulatorjs: EMULATORJS_VERSION, cores: installedCores(), installing: install.running },
         credentials: credentialStatus(),
         games: Object.keys(store.games).length,
       });
     }
+    if (p === '/api/runtime/install') {
+      if (method === 'GET') return sendJson(res, 200, install);
+      if (method === 'POST') {
+        const body = await readJsonBody(req);
+        try {
+          startInstall({ cores: Array.isArray(body.cores) ? body.cores : undefined, all: body.all === true });
+        } catch (e) {
+          throw new HttpError(400, e.message);
+        }
+        return sendJson(res, 202, install);
+      }
+    }
+    if (p === '/api/credentials') {
+      if (method === 'GET') return sendJson(res, 200, credentialStatus());
+      if (method === 'PUT') {
+        const { apiKey } = await readJsonBody(req);
+        if (!looksLikeApiKey(apiKey)) throw new HttpError(400, 'That does not look like a Claude API key. It starts with sk-ant- (copy it from console.anthropic.com).');
+        secrets.set(apiKey.trim());
+        resetClient();
+        return sendJson(res, 200, credentialStatus());
+      }
+      if (method === 'DELETE') {
+        secrets.clear();
+        resetClient();
+        return sendJson(res, 200, credentialStatus());
+      }
+    }
+    if (method === 'POST' && p === '/api/credentials/test') return sendJson(res, 200, await testCredentials());
     if (method === 'GET' && p === '/api/systems') {
       const cores = new Set(installedCores());
       return sendJson(res, 200, Object.entries(SYSTEMS).map(([id, s]) => ({ id, ...s, installed: cores.has(s.core) })));

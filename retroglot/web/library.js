@@ -31,13 +31,50 @@ async function load() {
 function renderNotices() {
   const box = $('#notices');
   box.replaceChildren();
-  if (!state.status.runtime.installed) {
-    box.append(el('div', { class: 'notice' }, el('div', {}, el('strong', {}, 'The emulator runtime is not installed. '),
-      'Stop retroglot, run ', el('code', {}, 'npm run setup'), ' in the retroglot folder, then start it again.')));
+  const rt = state.status.runtime;
+  if (!rt.installed || rt.installing) {
+    const bar = el('div', { class: 'progress', hidden: true }, el('i'));
+    const text = el('div', {}, el('strong', {}, 'One more step: install the emulator. '),
+      'retroglot downloads EmulatorJS and its emulator cores (about 70 MB, once). Games cannot start until this is done.');
+    const btn = el('button', { class: 'btn primary', type: 'button', onclick: () => installRuntime(btn, bar, text) }, 'Install emulator');
+    box.append(el('div', { class: 'notice' }, el('div', { class: 'grow' }, text, bar), btn));
+    if (rt.installing || state.status.desktop) installRuntime(btn, bar, text);
   }
   if (!state.status.credentials.ok) {
-    box.append(el('div', { class: 'notice info' }, el('div', {}, el('strong', {}, 'Translation needs Claude. '),
-      'Games play without it. To translate, start retroglot with ', el('code', {}, 'ANTHROPIC_API_KEY'), ' set (or after ', el('code', {}, 'ant auth login'), ').')));
+    box.append(el('div', { class: 'notice info' },
+      el('div', { class: 'grow' }, el('strong', {}, 'Translation needs a Claude API key. '), 'Games play without one. Add your key in Settings to translate.'),
+      el('button', { class: 'btn', type: 'button', onclick: () => $('#settings-btn').click() }, 'Add API key')));
+  }
+}
+
+let installing = false;
+async function installRuntime(btn, bar, text) {
+  if (installing) return;
+  installing = true;
+  btn.disabled = true;
+  btn.textContent = 'Installing…';
+  bar.hidden = false;
+  try {
+    let st = await api('/api/runtime/install', { method: 'POST', body: {} });
+    while (st.running || (!st.finishedAt && !st.error)) {
+      const pct = st.total ? (st.done / st.total) * 100 : 2;
+      bar.firstElementChild.style.width = `${Math.max(2, pct)}%`;
+      text.lastChild.textContent = ` Downloading ${st.label || '…'} (${st.done + (st.total ? 1 : 0)} of ${st.total || '?'}, ${(st.bytes / 1048576).toFixed(1)} MB so far)`;
+      await new Promise((r) => setTimeout(r, 400));
+      st = await api('/api/runtime/install');
+    }
+    if (st.error) throw new Error(st.error);
+    toast('The emulator is installed. Pick a game!', 'good');
+    state.status = await api('/api/status');
+    state.systems = await api('/api/systems');
+    renderNotices();
+    render();
+  } catch (e) {
+    text.lastChild.textContent = ` The download failed: ${e.message}. Check the internet connection and try again.`;
+    btn.disabled = false;
+    btn.textContent = 'Try again';
+  } finally {
+    installing = false;
   }
 }
 
@@ -198,6 +235,7 @@ $('#settings-btn').addEventListener('click', () => {
   f.pauseWhileTranslating.checked = s.pauseWhileTranslating;
   f.autoSensitivity.value = s.autoSensitivity;
   f.libraryPaths.value = s.libraryPaths.join('\n');
+  renderKeyStatus(state.status.credentials);
   const st = state.status;
   $('#settings-status').textContent = `Data folder: ${st.home} · EmulatorJS ${st.runtime.emulatorjs}, ${st.runtime.cores.length} cores · Claude credentials: ${st.credentials.source} · retroglot ${st.version}`;
   $('#settings-dialog').showModal();
@@ -221,6 +259,40 @@ $('#settings-dialog').addEventListener('close', async () => {
   } catch (e) {
     toast(e.message, 'bad');
   }
+});
+
+function renderKeyStatus(c) {
+  $('#api-key').value = '';
+  $('#api-key').placeholder = c.saved ? `Saved key ${c.hint} (type a new one to replace it)` : c.ok ? `Using ${c.source}` : 'sk-ant-...';
+  $('#key-remove').hidden = !c.saved;
+}
+
+$('#key-save').addEventListener('click', async () => {
+  const key = $('#api-key').value.trim();
+  if (!key) { $('#api-key').focus(); return; }
+  const btn = $('#key-save');
+  btn.disabled = true;
+  try {
+    state.status.credentials = await api('/api/credentials', { method: 'PUT', body: { apiKey: key } });
+    renderKeyStatus(state.status.credentials);
+    btn.textContent = 'Checking…';
+    const t = await api('/api/credentials/test', { method: 'POST' });
+    if (t.ok) toast('API key saved and working', 'good');
+    else toast(`Saved, but Claude did not accept it: ${t.error} ${t.hint || ''}`, 'bad', 8000);
+    renderNotices();
+  } catch (e) {
+    toast(e.message, 'bad', 6000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save key';
+  }
+});
+
+$('#key-remove').addEventListener('click', async () => {
+  if (!confirm('Remove the saved Claude API key from this computer?')) return;
+  state.status.credentials = await api('/api/credentials', { method: 'DELETE' });
+  renderKeyStatus(state.status.credentials);
+  renderNotices();
 });
 
 let editing = null;

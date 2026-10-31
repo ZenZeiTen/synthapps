@@ -211,3 +211,9 @@ body.player .toast-stack { bottom: 72px; }
   .brand small { display: none; }
   .wrap { padding: 18px 14px 60px; }
 }
+
+.key-row { display: flex; gap: 8px; }
+.key-row input { flex: 1; min-width: 0; font-family: var(--mono); }
+.notice .grow { flex: 1; }
+.notice .progress { margin-top: 10px; height: 6px; }
+.field a { color: var(--cool); }

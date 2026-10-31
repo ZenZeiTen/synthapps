@@ -34,7 +34,33 @@ Claude, so it shows the layout, not a live answer.*
 
 ![The library](docs/library.png)
 
-## Quick start
+## Windows app
+
+The easiest way on Windows: install **Retroglot** like any other program. No Node.js, no
+terminal.
+
+1. Download **Retroglot-Windows** from the latest successful
+   [retroglot desktop build](https://github.com/ZenZeiTen/synthapps/actions/workflows/retroglot-desktop.yml)
+   (open the newest green run, scroll to *Artifacts*). Unzip it. It holds two files:
+   - `Retroglot-Setup-0.1.0.exe`: the installer (Start menu and desktop shortcuts).
+   - `Retroglot-0.1.0-portable.exe`: runs without installing, for example from a USB stick.
+2. Run it. The app is not code-signed yet, so Windows SmartScreen may say "Windows protected
+   your PC". Click **More info**, then **Run anyway**.
+3. On first start Retroglot downloads the emulator (about 70 MB, once). A progress bar shows
+   how far it is.
+4. For translation, click **Add API key** and paste your Claude API key from
+   [console.anthropic.com](https://console.anthropic.com/settings/keys). Retroglot checks it
+   and keeps it encrypted by Windows for your user account.
+5. Click **Add the Japanese demo game**, open it, and press **F2**.
+
+Your games, saves and translations are in `C:\Users\<you>\.retroglot` (menu *Retroglot >
+Open data folder*); the downloaded emulator is in `%APPDATA%\Retroglot\runtime`.
+
+To build the app yourself (on Windows, with Node.js 20 or newer), run `npm install`, then
+`npm run dist:win`, in `retroglot/desktop`. The installer and the portable app appear in
+`retroglot/desktop/dist`.
+
+## Run from source (any system)
 
 You need [Node.js](https://nodejs.org) 20 or newer and a recent Chrome, Edge or Firefox.
 
@@ -51,29 +77,14 @@ npm install
 ```
 
 ```bash
-npm run setup
-```
-
-`npm run setup` downloads EmulatorJS and 17 emulator cores (about 70 MB) from the npm
-registry into `retroglot/runtime`. You do this once.
-
-For translation, give retroglot a Claude API key ([console.anthropic.com](https://console.anthropic.com)):
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-```
-
-On Windows PowerShell: `$env:ANTHROPIC_API_KEY = "sk-ant-..."`. If you use the `ant` command
-line tool, `ant auth login` works too. Games play without a key; only translation needs it.
-
-Start it:
-
-```bash
 npm start
 ```
 
-Open **http://localhost:7777**. On the empty library, click **Add the Japanese demo game**,
-open it, and press **F2**.
+Open **http://localhost:7777**. The library offers to download the emulator (EmulatorJS and
+17 cores, about 70 MB, once); `npm run setup` does the same from the terminal. Add your
+Claude API key under **Settings** (or start retroglot with `ANTHROPIC_API_KEY` set, or after
+`ant auth login`). Games play without a key; only translation needs it. Then click **Add the
+Japanese demo game**, open it, and press **F2**.
 
 ## Adding games
 
@@ -102,7 +113,7 @@ shows where it is).
 
 ## Systems
 
-| System | Core | Installed by `npm run setup` |
+| System | Core | Installed by default |
 |---|---|---|
 | MS-DOS | DOSBox Pure | yes |
 | NES / Famicom | FCEUmm | yes |
@@ -170,13 +181,16 @@ folder to back up everything.
 
 ## Troubleshooting
 
-- **"The emulator runtime is not installed"**: run `npm run setup` in the `retroglot` folder.
+- **"The emulator runtime is not installed"**: click **Install emulator** in the library (or
+  run `npm run setup`). If the download fails, check the internet connection or proxy.
 - **"The ... core is not installed"**: run the `install-runtime --cores` command the message
   shows.
 - **A DOS game shows `Illegal command`**: the program name is too long for DOS. retroglot
   renames single `.exe` and `.com` files for you; for other cases, zip the game folder.
-- **Translation says the credentials were rejected**: set `ANTHROPIC_API_KEY` in the same
-  terminal, then start retroglot again.
+- **Translation says the credentials were rejected**: open **Settings**, paste the key again
+  and click **Save key**; retroglot tells you whether Claude accepts it.
+- **Windows says "Windows protected your PC"**: the app is not code-signed. Click **More
+  info**, then **Run anyway**. Signing needs a code-signing certificate.
 - **Keys go to the game instead of retroglot, or the other way round**: click the game
   picture once so it has the keyboard. retroglot's keys (F2 and so on) work either way.
 - **The page cannot be opened from another computer**: on purpose. retroglot answers only on
@@ -199,13 +213,17 @@ exported scripts of commercial games may need the rights holder's permission.
 
 ## What has been tested
 
-- 26 unit tests: system detection, the library, save states, translation memory, script
-  export, the Claude request (checked against a stand-in API) and server safety checks.
+- 32 unit tests: system detection, the library, save states, translation memory, script
+  export, the Claude request (checked against a stand-in API), server safety checks, the
+  emulator download (checksums, unsafe paths) and the saved API key.
 - 9 browser tests in headless Chromium: the demo boots in DOSBox Pure, a test NES cartridge
   boots on FCEUmm, F2 draws the
   translation over the dialogue window, the same screen is answered from memory, the
   glossary picks up new names, auto-translate follows the dialogue to the next screen, and
   save then load returns to the same picture.
+- The desktop app runs a self-test (`npm run smoke` in `desktop/`): first start, emulator
+  download inside the app, the demo booting in DOSBox Pure, and the missing-key message. It
+  passed on Linux; the Windows build runs the same test on a Windows machine in CI.
 - Not tested yet: a live Claude API key (all translation tests use the stand-in), and real
   games on the other cores. They run on the same EmulatorJS path as DOS and NES, but each
   core has its own quirks.

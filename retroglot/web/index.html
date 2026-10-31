@@ -36,6 +36,15 @@
   <form method="dialog">
     <header><h2>Settings</h2><button class="icon-btn" value="cancel" aria-label="Close" id="settings-x"></button></header>
     <div class="body">
+      <div class="field" id="key-field">
+        <span>Claude API key</span>
+        <div class="key-row">
+          <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" aria-label="Claude API key">
+          <button class="btn" type="button" id="key-save">Save key</button>
+          <button class="btn ghost" type="button" id="key-remove" hidden>Remove</button>
+        </div>
+        <span class="hint" id="key-status">Needed only for translation. Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. It is stored on this computer and never shown again.</span>
+      </div>
       <div class="two">
         <label class="field"><span>Translate into</span><input type="text" name="targetLanguage" list="languages" required></label>
         <label class="field"><span>Translation style</span><select name="style"></select></label>

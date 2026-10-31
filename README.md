@@ -15,7 +15,7 @@ A curated ecosystem of innovative applications, automation tools, and developer 
 | [corbelwise](corbelwise/) | Corbelwise: a fast, elegant WordPress block theme for any business (six style variations, ready-made pages, light and dark mode), with a companion plugin of switchable modules: performance, security, SEO and schema, business details, an announcement bar and an optional AI writing assistant and visitor chat powered by Claude |
 | [gamepilot](gamepilot/) | An agent that plays Steam and emulated games the way a person does: Claude reads screenshots and drives a virtual Xbox controller or keyboard and mouse with frame-accurate timing, with frame-by-frame play in RetroArch and guardrails against anti-cheat bans |
 | [bastion](bastion/) | ZenZeiTen Bastion: a WordPress security plugin with a firewall, a live attack monitor, automatic detection and blocking of attacking IP addresses, login protection, and automatic database backups with verified restore and automatic rollback |
-| [retroglot](retroglot/) | Play retro games from the DOS era to the PlayStation era in the browser, with a game library, save states and live on-screen translation by Claude: dialogue boxes are covered by their translation, with auto-translate, a glossary and an exportable script |
+| [retroglot](retroglot/) | Play retro games from the DOS era to the PlayStation era, as a Windows app or in the browser, with a game library, save states and live on-screen translation by Claude: dialogue boxes are covered by their translation, with auto-translate, a glossary and an exportable script |
 
 ## Claude Code plugins
 

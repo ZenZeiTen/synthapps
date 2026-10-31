@@ -26,17 +26,43 @@ browser job on Ubuntu).
 | File | Role |
 |---|---|
 | `src/systems.js` | System table (name, core, threads), detection from names and bytes, cue parsing |
-| `src/runtime.js` | Downloads EmulatorJS and cores with `npm pack`; maps `/ejs/...` URLs to files |
+| `src/runtime.js` | Downloads EmulatorJS and cores from the npm registry (own tar reader, sha512 check, no npm needed); maps `/ejs/...` URLs to files |
 | `src/store.js` | Data folder: library scan, uploads, settings, save states, covers, BIOS lookup |
 | `src/memory.js` | Per-game translation memory: script, glossary, screen cache, usage; CSV/TMX/TXT export |
 | `src/translate.js` | The only code that calls Claude: prompt, JSON schema, error mapping, cost estimate |
 | `src/server.js` | HTTP server and API, emulator page generation, host and origin guards |
 | `bin/retroglot.js` | Command line |
+| `src/credentials.js` | API key typed into Settings: file store (0600) for the command line |
 | `web/emu-bridge.js` | Runs inside the emulator iframe: screenshot, states, pause, game rectangle, hotkeys |
 | `web/player.js` | Player page: translation flow, auto-translate loop, saves, side panel |
 | `web/frames.js`, `web/overlay.js` | Frame decode/hash/enlarge/compare; drawing boxes and subtitles |
 | `web/library.js` | Library page |
 | `demo/build_demo.py` | Builds `demo/HOSHI.COM` (needs Pillow, nasm, Unifont) |
+
+## Desktop app (`desktop/`)
+
+Electron wrapper for Windows (`npm run dist:win` builds an NSIS installer and a portable exe).
+`stage.mjs` copies `src/`, `web/`, `demo/` into `desktop/app/core`; `main.js` imports the same
+server, listens on 127.0.0.1:47923 (fixed, so the page origin and the emulator's in-browser
+saves survive restarts; random port if taken) and opens it in a window. Differences from the
+command line: the runtime goes to `%APPDATA%/Retroglot/runtime`, downloads use `net.fetch`
+(system proxy), the API key is encrypted with `safeStorage` (`secrets.js`), and the library
+starts the emulator download by itself (`status.desktop`). Data stays in `~/.retroglot`, shared
+with the command line.
+
+`npm run smoke` (or `electron . --smoke`) runs `smoke.js`: library, cross-origin isolation,
+emulator download, demo boot, missing-key answer; writes `smoke-out/result.json` and
+screenshots and exits 0 or 1. CI (`.github/workflows/retroglot-desktop.yml`) builds on
+`windows-latest`, runs the smoke test on the built `win-unpacked/Retroglot.exe` and uploads the
+installer and portable exe as the `Retroglot-Windows` artifact.
+
+Building the NSIS installer on Linux needs Wine; without it, electron-builder still produces
+`dist/win-unpacked`. In this sandbox `npm install` cannot fetch the Electron binary (undici
+through the proxy); download the zip with curl and unpack it into
+`node_modules/electron/dist` (write `electron` into `node_modules/electron/path.txt`), and use
+`-c.electronDist=<unpacked win32 zip>` for Windows builds. Run Electron as root with
+`--no-sandbox`, under `xvfb-run`. The registry stand-in for the smoke test forwards with Node's
+fetch (`RETROGLOT_REGISTRY=http://127.0.0.1:PORT`).
 
 ## Rules this code keeps
 

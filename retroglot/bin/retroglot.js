@@ -69,7 +69,7 @@ async function main() {
 
   if (cmd === 'install-runtime') {
     try {
-      const { dir, cores } = installRuntime({ cores: opts.cores, all: opts.all, force: opts.force });
+      const { dir, cores } = await installRuntime({ cores: opts.cores, all: opts.all, force: opts.force });
       console.log(`Done. ${cores.length} cores in ${dir}`);
     } catch (e) {
       fail(e.message);

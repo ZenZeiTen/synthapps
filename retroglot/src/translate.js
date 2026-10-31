@@ -86,22 +86,54 @@ export class TranslationError extends Error {
   }
 }
 
-/** Where Claude credentials can come from, without revealing them. */
-export function credentialStatus(env = process.env) {
-  if (env.ANTHROPIC_API_KEY) return { ok: true, source: 'ANTHROPIC_API_KEY' };
-  if (env.ANTHROPIC_AUTH_TOKEN) return { ok: true, source: 'ANTHROPIC_AUTH_TOKEN' };
-  if (env.ANTHROPIC_PROFILE) return { ok: true, source: `profile ${env.ANTHROPIC_PROFILE}` };
-  return { ok: null, source: 'none found in the environment (an `ant auth login` profile may still work)' };
+let secrets = null;
+let client = null;
+let clientOverride = null;
+
+/** Use a key store ({get, set, clear}) for a key typed into Settings. */
+export function useSecrets(store) {
+  secrets = store;
+  client = null;
 }
 
-let client;
+/** Where Claude credentials come from, without revealing them. A key saved in Settings wins. */
+export function credentialStatus(env = process.env) {
+  const saved = secrets?.get();
+  if (saved) return { ok: true, source: 'saved in Settings', saved: true, hint: `…${saved.slice(-4)}` };
+  if (env.ANTHROPIC_API_KEY) return { ok: true, source: 'ANTHROPIC_API_KEY', saved: false, hint: null };
+  if (env.ANTHROPIC_AUTH_TOKEN) return { ok: true, source: 'ANTHROPIC_AUTH_TOKEN', saved: false, hint: null };
+  if (env.ANTHROPIC_PROFILE) return { ok: true, source: `profile ${env.ANTHROPIC_PROFILE}`, saved: false, hint: null };
+  return { ok: null, source: 'none found (add your key in Settings)', saved: false, hint: null };
+}
+
 export function getClient() {
-  client ||= new Anthropic({ maxRetries: 2, timeout: 120_000 });
+  if (clientOverride) return clientOverride;
+  if (!client) {
+    const saved = secrets?.get();
+    client = new Anthropic({ maxRetries: 2, timeout: 120_000, ...(saved ? { apiKey: saved, authToken: null } : {}) });
+  }
   return client;
 }
-/** For tests: use a different client. */
+
+/** Forget the current client, so the next request picks up a changed key. */
+export function resetClient() {
+  client = null;
+}
+
+/** For tests: use a different client (null to go back to the real one). */
 export function setClient(c) {
-  client = c;
+  clientOverride = c;
+}
+
+/** Check that the credentials work, with a free request (list one model). */
+export async function testCredentials() {
+  try {
+    await getClient().models.list({ limit: 1 });
+    return { ok: true };
+  } catch (err) {
+    const e = mapApiError(err);
+    return { ok: false, error: e.message, hint: e.hint, code: e.code };
+  }
 }
 
 /** Build the user turn: game facts, glossary and recent lines, then the screenshot. */
@@ -206,7 +238,7 @@ export async function requestTranslation({ imageBase64, width, height, game, set
 
 function mapApiError(err) {
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-    return new TranslationError('Claude rejected the API credentials.', { status: 401, code: 'auth', hint: 'Set ANTHROPIC_API_KEY (or run `ant auth login`) and restart retroglot.' });
+    return new TranslationError('Claude rejected the API credentials.', { status: 401, code: 'auth', hint: 'Check the API key in Settings.' });
   }
   if (err instanceof Anthropic.RateLimitError) {
     return new TranslationError('Too many translation requests right now.', { status: 429, code: 'rate_limit', hint: 'Wait a few seconds, or turn auto-translate off.' });
@@ -221,7 +253,7 @@ function mapApiError(err) {
     return new TranslationError(`Claude API error ${err.status ?? ''}: ${err.message}`, { status: 502, code: 'api_error' });
   }
   if (/credentials|api key|apiKey|authToken/i.test(String(err?.message))) {
-    return new TranslationError('No Claude credentials found.', { status: 401, code: 'auth', hint: 'Set ANTHROPIC_API_KEY (or run `ant auth login`) and restart retroglot.' });
+    return new TranslationError('No Claude API key yet.', { status: 401, code: 'auth', hint: 'Add your key in Settings (gear icon in the library).' });
   }
   return new TranslationError(String(err?.message || err), { code: 'unknown' });
 }

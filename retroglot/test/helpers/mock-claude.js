@@ -22,6 +22,15 @@ export async function startMockClaude({ pickScreen } = {}) {
     for await (const c of req) chunks.push(c);
     const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
     requests.push({ url: req.url, headers: req.headers, body });
+    if (req.url.startsWith('/v1/models')) {
+      // SDK 1.x sends the key as a bearer token; older ones use x-api-key.
+      if (req.headers['x-api-key'] === 'sk-ant-bad' || req.headers.authorization === 'Bearer sk-ant-bad') {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }));
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ data: [{ type: 'model', id: 'claude-opus-5-5', display_name: 'Claude Opus 5.5', created_at: '2026-01-01T00:00:00Z' }], has_more: false, first_id: 'claude-opus-5-5', last_id: 'claude-opus-5-5' }));
+    }
     if (req.url.startsWith('/v1/messages')) {
       const user = body.messages?.[0]?.content || [];
       const text = user.find((b) => b.type === 'text')?.text || '';
