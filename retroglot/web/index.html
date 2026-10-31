@@ -3,34 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>retroglot</title>
+<title>Retroglot</title>
 <link rel="icon" href="/assets/favicon.svg">
 <link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/home.css">
 </head>
-<body>
-<header class="topbar">
-  <a class="brand" href="/" id="brand"><b>retroglot</b><small>play &amp; translate</small></a>
-  <label class="search"><span id="search-icon"></span><input id="search" type="search" placeholder="Search your games" aria-label="Search games" autocomplete="off"></label>
+<body class="home">
+<canvas id="glow" aria-hidden="true"></canvas>
+<div class="backdrop" aria-hidden="true"><div class="bd" id="bd-a"></div><div class="bd" id="bd-b"></div></div>
+<div class="scan" aria-hidden="true"></div>
+
+<header class="top">
+  <a class="brand" href="/" id="brand" aria-label="Retroglot home"><b>retroglot</b></a>
+  <label class="search"><span id="search-icon"></span><input id="search" type="search" placeholder="Search games" aria-label="Search games" autocomplete="off"></label>
   <div class="spacer"></div>
-  <button class="btn primary" id="add-btn" type="button"></button>
+  <button class="btn ghost-light" id="add-btn" type="button"></button>
   <button class="icon-btn" id="settings-btn" type="button" title="Settings" aria-label="Settings"></button>
   <input id="file-input" type="file" multiple hidden>
 </header>
 
-<main class="wrap">
-  <div id="notices"></div>
-  <section class="hero">
-    <div>
-      <h1 id="heading">Your library</h1>
-      <p id="summary">Loading…</p>
-    </div>
-    <div id="upload-progress" class="progress" style="width:220px;display:none"><i></i></div>
+<main class="home-main">
+  <div id="notices" class="notices"></div>
+
+  <nav class="rail" id="rail" aria-label="Systems"></nav>
+
+  <section class="hero" id="hero" aria-live="polite"></section>
+
+  <section class="shelf-wrap">
+    <div class="shelf-head"><h2 id="shelf-title">All games</h2><span id="shelf-count"></span><div id="upload-progress" class="progress" hidden><i></i></div></div>
+    <div class="shelf" id="shelf" role="listbox" aria-label="Games" tabindex="0"></div>
   </section>
-  <nav class="chips" id="chips" aria-label="Filter by system"></nav>
-  <section id="grid" class="grid" aria-live="polite"></section>
 </main>
 
-<div class="dropzone" id="dropzone"><div>Drop games to add them<small>ROMs, disc images (.cue + .bin, .chd, .pbp), DOS games (.zip, .exe, .com)</small></div></div>
+<footer class="hints" id="hints" aria-hidden="true"></footer>
+
+<div class="dropzone" id="dropzone"><div>Drop games to add them<small>ROMs, disc images (.cue + .bin, .chd, .pbp) and DOS games (.zip, .exe, .com)</small></div></div>
 
 <dialog id="settings-dialog">
   <form method="dialog">
@@ -53,11 +60,18 @@
         <label class="field"><span>Claude model</span><select name="model"></select></label>
         <label class="field"><span>Thinking effort</span><select name="effort"></select></label>
       </div>
-      <label class="field"><span>Show translations as</span>
-        <select name="overlay"><option value="boxes">Boxes over the original text</option><option value="subtitles">Subtitles at the bottom</option><option value="off">Side panel only</option></select>
-      </label>
+      <div class="two">
+        <label class="field"><span>Show translations as</span>
+          <select name="overlay"><option value="boxes">Boxes over the text</option><option value="subtitles">Subtitles</option><option value="off">Side panel only</option></select>
+        </label>
+        <label class="field"><span>Picture</span>
+          <select name="display"><option value="crt">CRT screen</option><option value="sharp">Sharp pixels</option><option value="smooth">Smooth</option></select>
+        </label>
+      </div>
       <label class="check"><input type="checkbox" name="pauseWhileTranslating"><span>Pause the game while a translation is on its way<br><span class="hint">Applies when you press Translate. Auto-translate never pauses.</span></span></label>
       <label class="field"><span>Auto-translate sensitivity</span><input type="range" name="autoSensitivity" min="0" max="1" step="0.05"><span class="hint">Higher reacts to smaller changes on screen (and spends more).</span></label>
+      <label class="check"><input type="checkbox" name="downloadArt"><span>Download box art<br><span class="hint">From the libretro thumbnail collection, the same pictures RetroArch uses. Sends game names to GitHub.</span></span></label>
+      <label class="check"><input type="checkbox" name="uiSounds"><span>Menu sounds</span></label>
       <label class="field"><span>Extra library folders</span><textarea name="libraryPaths" placeholder="One folder per line, e.g. D:\Games\ROMs"></textarea><span class="hint">Games in these folders are listed without being copied.</span></label>
       <p class="hint" id="settings-status"></p>
     </div>
@@ -74,7 +88,11 @@
         <label class="field"><span>System</span><select name="system"></select></label>
         <label class="field"><span>Language of the game</span><input type="text" name="sourceLanguage" list="languages" placeholder="auto"></label>
       </div>
-      <label class="field"><span>Notes for the translator</span><textarea name="notes" placeholder="e.g. The hero is a girl named Lina. Keep spell names in katakana-style English."></textarea></label>
+      <label class="field"><span>Notes for the translator</span><textarea name="notes" placeholder="e.g. The hero is a girl named Lina. Keep spell names short."></textarea></label>
+      <div class="field"><span>Box art</span>
+        <div class="row-btns"><button class="btn" type="button" id="art-choose">Choose a picture…</button><button class="btn ghost" type="button" id="art-reset">Use the downloaded one</button></div>
+        <input type="file" id="art-input" accept="image/png,image/jpeg" hidden>
+      </div>
       <p class="hint" id="edit-info"></p>
     </div>
     <footer>

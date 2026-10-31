@@ -93,6 +93,30 @@ def screen(base, f, speaker, lines):
     return img
 
 
+def box_art(base, f):
+    """A box cover in the style of an early-90s Japanese PC game, for the library."""
+    W2, H2 = 600, 800
+    box = Image.new("RGB", (W2, H2), (12, 16, 44))
+    d = ImageDraw.Draw(box)
+    d.fontmode = "1"
+    # Top band: publisher-style strip.
+    d.rectangle([0, 0, W2, 70], fill=(250, 210, 120))
+    big = lambda size: ImageFont.truetype(f.path, size)
+    d.text((24, 18), "DOS/V  PC-9801", font=big(32), fill=(20, 16, 40))
+    # Artwork: the night scene, enlarged with hard pixels.
+    scene = base.convert("RGB").crop((0, 0, 320, 124)).resize((640, 248), Image.NEAREST)
+    box.paste(scene.crop((20, 0, 620, 248)).resize((552, 228), Image.NEAREST), (24, 96))
+    d.rectangle([24, 96, 575, 323], outline=(150, 170, 255), width=3)
+    # Title, Japanese large, romanised below.
+    d.text((40, 360), "星降る村", font=big(112), fill=(255, 255, 255))
+    d.text((44, 490), "HOSHIFURI", font=big(64), fill=(250, 210, 120))
+    d.text((46, 566), "A village where the stars fall", font=big(32), fill=(180, 190, 220))
+    d.rectangle([24, 640, W2 - 24, 642], fill=(60, 80, 160))
+    d.text((40, 664), "retroglot demo  /  Japanese text", font=big(32), fill=(150, 170, 255))
+    d.text((40, 712), "Press F2 to translate", font=big(32), fill=(255, 255, 255))
+    return box
+
+
 def rle(data):
     out = bytearray()
     i = 0
@@ -188,6 +212,8 @@ def main():
         img = screen(base, f, speaker, lines)
         if i == 0:
             img.resize((W * 3, H * 3), Image.NEAREST).convert("RGB").save(os.path.join(HERE, "hoshifuri-preview.png"))
+            img.resize((W * 2, H * 2), Image.NEAREST).convert("RGB").save(os.path.join(HERE, "hoshifuri-snap.png"))
+            box_art(base, f).save(os.path.join(HERE, "hoshifuri-boxart.png"))
         part = img.tobytes()[BOX_TOP * W:]
         with open(os.path.join(build, f"page{i}.rle"), "wb") as fh:
             fh.write(rle(part))

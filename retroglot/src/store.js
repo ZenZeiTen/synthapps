@@ -18,6 +18,9 @@ export const DEFAULT_SETTINGS = {
   autoSensitivity: 0.6, // 0..1, how small a screen change starts a new translation
   style: 'natural', // natural | literal | localized
   libraryPaths: [],
+  downloadArt: true, // box art from the libretro thumbnail collection
+  uiSounds: true,
+  display: 'crt', // sharp | crt | smooth
 };
 
 const REGION_LANG = { JP: 'Japanese', KR: 'Korean', CN: 'Chinese', EU: null, US: null };

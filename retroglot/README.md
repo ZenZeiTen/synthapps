@@ -5,16 +5,27 @@ your own language. retroglot is a game library and emulator front end with a liv
 translator built in: press **F2** and Claude reads the text on screen (Japanese dialogue,
 menus, signs) and draws the translation right on top of it.
 
-![The Hoshifuri demo with its Japanese dialogue covered by an English translation](docs/translate.png)
+![The library: systems along the top, the chosen game large, the shelf of box art below](docs/library.png)
+
+![The Hoshifuri demo playing full window on a CRT-style picture, its Japanese dialogue covered by an English translation](docs/player.png)
 
 *The bundled demo game. The translation in this picture comes from the test stand-in for
-Claude, so it shows the layout, not a live answer.*
+Claude, so it shows the layout, not a live answer. The library picture uses made-up games.*
 
 ## What you get
 
-- **One library for every system.** Drop in ROMs, disc images and DOS games. retroglot
+- **A library that feels like a console.** Systems along the top, the chosen game large in
+  the middle with its box art, a shelf of covers below. The light of the room changes with
+  the system you browse. Drive it with mouse, keyboard or a game controller.
+- **Real box art.** Covers, title screens and in-game pictures come from the libretro
+  thumbnail collection (the same pictures RetroArch shows), matched by game name and kept
+  on your computer. Games without one get a drawn cartridge label; you can also pick your own.
+- **One library for every system.** Drop in ROMs, disc images and DOS games. Retroglot
   works out the system from the file name and its contents (cartridge headers, disc
-  sectors, the files inside a zip), keeps play time, favourites, covers and notes.
+  sectors, the files inside a zip), keeps play time, favourites and notes.
+- **Full-window play.** The game fills the window, with a CRT screen look (or sharp pixels,
+  or smooth). The controls slide away while you play and come back when you move the mouse.
+  Continue from your latest save straight from the library.
 - **Emulation in the browser.** Games run on [EmulatorJS](https://emulatorjs.org) with
   libretro cores: DOSBox Pure, FCEUmm, Snes9x, Mupen64Plus-Next, Gambatte, mGBA, Genesis
   Plus GX, PicoDrive, PCSX ReARMed and more. Gamepads work out of the box.
@@ -144,6 +155,11 @@ Install more cores: `node bin/retroglot.js install-runtime --cores fbneo,yabause
 | hold **`** | Hide translations to see the original |
 | **F6** / **F7** | Quick save / quick load (slot 1) |
 | **F9** | Pause or resume |
+| **F1** | Script, glossary, saves and game notes |
+
+In the library: arrow keys (or the controller's d-pad) move between games, **Enter** (A)
+plays, **C** (X) continues from the latest save, **F** (Y) marks a favourite, **Q** and **E**
+(the shoulder buttons) switch systems, **/** searches.
 
 Game controls and gamepads are set in the emulator's own menu (the gear at the bottom of the
 game picture). retroglot's keys were chosen so they do not clash with the default controls.
@@ -213,7 +229,7 @@ exported scripts of commercial games may need the rights holder's permission.
 
 ## What has been tested
 
-- 32 unit tests: system detection, the library, save states, translation memory, script
+- 32 unit tests (box art matching was checked by hand against the libretro collection): system detection, the library, save states, translation memory, script
   export, the Claude request (checked against a stand-in API), server safety checks, the
   emulator download (checksums, unsafe paths) and the saved API key.
 - 9 browser tests in headless Chromium: the demo boots in DOSBox Pure, a test NES cartridge

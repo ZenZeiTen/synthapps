@@ -52,9 +52,9 @@ async function pressInGame(key) {
 
 test('the library adds the demo game', { skip }, async () => {
   await page.goto(base);
-  await page.getByRole('button', { name: 'Add the Japanese demo game' }).click();
-  const card = page.getByRole('link', { name: /Play Hoshifuri/ });
-  await card.waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: 'Try the Japanese demo' }).click();
+  await page.locator('.hero h1', { hasText: 'Hoshifuri' }).waitFor({ timeout: 10000 });
+  await page.getByRole('option', { name: /Hoshifuri/ }).waitFor();
   gameId = (await (await fetch(`${base}/api/games`)).json())[0].id;
   assert.match(gameId, /^[0-9a-f]{12}$/);
 });
@@ -72,6 +72,7 @@ test('the demo boots in DOSBox Pure', { skip }, async () => {
 });
 
 test('Translate draws the translation over the dialogue window', { skip }, async () => {
+  await page.mouse.move(300, 30);
   await page.getByRole('button', { name: /Translate/ }).click();
   const box = page.locator('.tl-box').first();
   await box.waitFor({ timeout: 20000 });
@@ -94,26 +95,31 @@ test('Translate draws the translation over the dialogue window', { skip }, async
 
 test('the same screen comes from memory the second time', { skip }, async () => {
   const before = mock.requests.length;
-  await page.keyboard.press('F2');
-  await page.waitForTimeout(2500);
+  await pressInGame('F2'); // F2 pressed while the game has the keyboard
+  await page.waitForFunction(() => /1 from memory/.test(document.querySelector('#cost').textContent), null, { timeout: 15000 });
   assert.equal(mock.requests.length, before, 'a repeated screen must not call Claude again');
-  assert.match(await page.locator('#cost').textContent(), /1 from memory/);
 });
 
 test('the glossary picks up the new place name', { skip }, async () => {
+  await page.keyboard.press('F1');
+  await page.waitForTimeout(400);
   await page.getByRole('tab', { name: 'Glossary' }).click();
   const inputs = page.locator('.gl-row input');
   await inputs.first().waitFor();
   assert.equal(await inputs.nth(0).inputValue(), '星降る村');
   assert.equal(await inputs.nth(1).inputValue(), 'Starfall Village');
   await page.getByRole('tab', { name: 'Script' }).click();
+  await page.keyboard.press('F1');
+  await page.waitForTimeout(400);
 });
 
 test('auto-translate follows the dialogue to the next screen', { skip }, async () => {
+  await page.mouse.move(400, 30);
   await page.getByRole('button', { name: /Auto: off/ }).click();
   await pressInGame('Enter');
   await page.waitForFunction(() => document.querySelectorAll('#script .line').length >= 2, null, { timeout: 30000 });
   assert.match(await page.locator('#script .line').last().textContent(), /old book of magic/);
+  await page.mouse.move(420, 30);
   await page.getByRole('button', { name: /Auto: on/ }).click();
   // The second request carried the first line as context.
   assert.match(mock.requests.at(-1).body.messages[0].content[1].text, /Recent dialogue[\s\S]*Welcome, traveler/);

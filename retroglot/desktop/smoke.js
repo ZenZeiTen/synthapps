@@ -32,7 +32,7 @@ export async function runSmoke({ app, win, baseUrl }) {
   };
   let ok = false;
   try {
-    await step('library page loads', () => until('the library', "document.querySelector('#summary')?.textContent?.length > 0 && !document.querySelector('#summary').textContent.includes('Loading')", 30000));
+    await step('library page loads', () => until('the library', "document.querySelector('#rail')?.childElementCount > 0 || document.querySelector('.hero h1')?.textContent?.length > 0", 30000));
     await step('page is cross-origin isolated (needed by DOSBox Pure)', async () => {
       if (!(await js('crossOriginIsolated'))) throw new Error('crossOriginIsolated is false');
     });

@@ -3,32 +3,62 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>retroglot</title>
+<title>Retroglot</title>
 <link rel="icon" href="/assets/favicon.svg">
 <link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/player.css">
 </head>
-<body class="player">
-<header class="p-top">
-  <a class="icon-btn" href="/" id="back" title="Back to the library" aria-label="Back to the library"></a>
-  <span class="tag" id="sys-tag"></span>
-  <div class="t" id="game-title">Loading…</div>
-  <div class="spacer"></div>
-  <span class="cost" id="cost" title="Estimated Claude cost for this game"></span>
-  <button class="icon-btn" id="panel-btn" type="button" title="Show or hide the side panel" aria-label="Side panel"></button>
-</header>
+<body class="player chrome">
+<div class="stage" id="stage">
+  <iframe id="emu" title="Game" allow="fullscreen; gamepad; autoplay" allowfullscreen></iframe>
 
-<div class="p-main">
-  <div class="stage" id="stage">
-    <iframe id="emu" title="Game" allow="fullscreen; gamepad; autoplay" allowfullscreen></iframe>
-    <div class="busy" id="busy"><span class="spin"></span><span id="busy-text">Translating…</span></div>
-    <div class="stage-msg" id="stage-msg" hidden></div>
+  <div class="boot" id="boot">
+    <div class="boot-bg" id="boot-bg"></div>
+    <div class="boot-card">
+      <div class="boot-art" id="boot-art"></div>
+      <div class="boot-info">
+        <div class="boot-system" id="boot-system"></div>
+        <h1 id="boot-title">Loading…</h1>
+        <div class="boot-status"><span class="boot-bar"><i></i></span><span id="boot-status">Starting the emulator</span></div>
+      </div>
+    </div>
   </div>
-  <aside class="side" id="side">
+
+  <header class="bar" id="bar">
+    <div class="bar-left">
+      <a class="icon-btn" href="/" id="back" title="Back to the library" aria-label="Back to the library"></a>
+      <span class="tag" id="sys-tag"></span>
+      <div class="t" id="game-title"></div>
+    </div>
+    <nav class="dock" id="hud" aria-label="Game controls">
+      <button class="btn translate" id="b-translate" type="button" title="Translate the screen (F2)"></button>
+      <button class="btn" id="b-auto" type="button" title="Translate automatically when the text changes (F3)" aria-pressed="false"></button>
+      <button class="btn" id="b-mode" type="button" title="How translations are shown (F4)"></button>
+      <span class="sep"></span>
+      <button class="btn" id="b-save" type="button" title="Quick save (F6)"></button>
+      <button class="btn" id="b-load" type="button" title="Quick load (F7)"></button>
+      <button class="btn" id="b-pause" type="button" title="Pause or resume (F9)"></button>
+      <button class="btn" id="b-ff" type="button" title="Fast forward while held"></button>
+      <span class="sep"></span>
+      <button class="btn" id="b-display" type="button" title="Picture: CRT screen, sharp pixels or smooth"></button>
+      <button class="btn" id="b-full" type="button" title="Full screen (F11)"></button>
+    </nav>
+    <div class="bar-right">
+      <span class="cost" id="cost" title="Estimated Claude cost for this game"></span>
+      <button class="icon-btn" id="panel-btn" type="button" title="Script, glossary and saves (F1)" aria-label="Side panel"><span class="badge" id="panel-badge" hidden></span></button>
+    </div>
+  </header>
+
+  <div class="busy" id="busy"><span class="spin"></span><span id="busy-text">Translating…</span></div>
+  <div class="stage-msg" id="stage-msg" hidden></div>
+
+  <aside class="side closed" id="side" aria-label="Script, glossary and saves">
     <nav class="tabs" role="tablist">
       <button class="tab on" data-tab="script" role="tab" type="button">Script</button>
       <button class="tab" data-tab="glossary" role="tab" type="button">Glossary</button>
       <button class="tab" data-tab="saves" role="tab" type="button">Saves</button>
       <button class="tab" data-tab="game" role="tab" type="button">Game</button>
+      <button class="icon-btn" id="side-x" type="button" aria-label="Close the panel"></button>
     </nav>
     <section class="pane on" data-pane="script">
       <div id="script-empty" class="hint">Press <kbd>F2</kbd> or <b>Translate</b> when there is text on screen. Every line you translate is kept here, in order, as the game's script.</div>
@@ -49,32 +79,19 @@
     <section class="pane" data-pane="saves">
       <h3>Save states</h3>
       <div class="slots" id="slots"></div>
-      <p class="hint">Quick save <kbd>F6</kbd> uses slot 1, quick load <kbd>F7</kbd>. Saves are kept in retroglot's data folder.</p>
+      <p class="hint">Quick save <kbd>F6</kbd> uses slot 1, quick load <kbd>F7</kbd>. Saves are kept in Retroglot's data folder.</p>
     </section>
     <section class="pane" data-pane="game">
       <h3>This game</h3>
       <label class="field"><span>Language of the game</span><input type="text" id="g-lang" list="languages" placeholder="auto"></label>
       <label class="field" style="margin-top:12px"><span>Notes for the translator</span><textarea id="g-notes" placeholder="Who the characters are, tone, terms to keep"></textarea></label>
-      <div class="row-btns"><button class="btn primary" id="g-save" type="button">Save</button><button class="btn" id="g-cover" type="button">Use current screen as cover</button><button class="btn" id="g-restart" type="button">Restart game</button></div>
+      <div class="row-btns"><button class="btn primary" id="g-save" type="button">Save</button><button class="btn" id="g-cover" type="button">Use current screen as background</button><button class="btn" id="g-restart" type="button">Restart game</button></div>
       <h3 style="margin-top:24px">Shortcuts</h3>
-      <p class="hint"><kbd>F2</kbd> translate · <kbd>F3</kbd> auto-translate · <kbd>F4</kbd> overlay style · hold <kbd>`</kbd> to see the original · <kbd>F6</kbd> quick save · <kbd>F7</kbd> quick load · <kbd>F9</kbd> pause. Game controls and gamepads are set in the emulator's own settings (gear at the bottom of the picture).</p>
+      <p class="hint"><kbd>F2</kbd> translate, <kbd>F3</kbd> auto-translate, <kbd>F4</kbd> overlay style, hold <kbd>`</kbd> to see the original, <kbd>F6</kbd> quick save, <kbd>F7</kbd> quick load, <kbd>F9</kbd> pause, <kbd>F1</kbd> this panel. Game controls and gamepads are set in the emulator's own menu (gear at the bottom of the picture).</p>
       <p class="hint" id="g-info"></p>
     </section>
   </aside>
 </div>
-
-<footer class="hud" id="hud">
-  <button class="btn translate" id="b-translate" type="button" title="Translate the screen (F2)"></button>
-  <button class="btn" id="b-auto" type="button" title="Translate automatically when the text changes (F3)" aria-pressed="false"></button>
-  <button class="btn" id="b-mode" type="button" title="How translations are shown (F4)"></button>
-  <span class="sep"></span>
-  <button class="btn" id="b-save" type="button" title="Quick save (F6)"></button>
-  <button class="btn" id="b-load" type="button" title="Quick load (F7)"></button>
-  <button class="btn" id="b-pause" type="button" title="Pause or resume (F9)"></button>
-  <button class="btn" id="b-ff" type="button" title="Fast forward while held"></button>
-  <span class="spacer"></span>
-  <button class="btn" id="b-full" type="button" title="Full screen"></button>
-</footer>
 
 <datalist id="languages"></datalist>
 <script type="module" src="/assets/player.js"></script>

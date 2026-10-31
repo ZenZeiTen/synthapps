@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { TranslationMemory, exportScript } from './memory.js';
+import { ART_KINDS, ArtLibrary, imageType } from './art.js';
 import { FileSecrets, looksLikeApiKey } from './credentials.js';
 import { EMULATORJS_VERSION, PACKAGE_ROOT, emulatorjsDataDir, installRuntime, installedCores, runtimePlan, resolveRuntimePath, runtimeDir } from './runtime.js';
 import { Store } from './store.js';
@@ -129,7 +130,7 @@ function emulatorPage(store, game, { slot } = {}) {
       enterFullscreen: false, exitFullscreen: false, cacheManager: false, screenRecord: false, screenshot: false,
       saveSavFiles: true, loadSavFiles: true,
     },
-    EJS_defaultOptions: { 'save-state-location': 'browser' },
+    EJS_defaultOptions: { 'save-state-location': 'browser', shader: { crt: 'crt-easymode.glslp', smooth: 'sabr', sharp: 'disabled' }[store.settings.display] || 'disabled' },
   };
   const bios = store.biosFor(game.system);
   if (bios) cfg.EJS_biosUrl = `/bios/${encodeURIComponent(path.basename(bios))}`;
@@ -158,6 +159,9 @@ export function createServer({
   secrets = new FileSecrets(path.join(store.home, 'credentials.json')), fetch = globalThis.fetch, desktop = false,
 } = {}) {
   useSecrets(secrets);
+  const art = new ArtLibrary(path.join(store.home, 'art'), { fetch });
+  const pub = (g) => ({ ...store.publicGame(g), art: art.available(g.id) });
+  const listGames = () => Object.values(store.games).map(pub);
   // One emulator download at a time; the library page polls its progress.
   const install = { running: false, done: 0, total: 0, label: '', bytes: 0, error: null, finishedAt: null };
   function startInstall(opts) {
@@ -314,36 +318,56 @@ export function createServer({
     if (method === 'PATCH' && p === '/api/settings') {
       try { return sendJson(res, 200, store.updateSettings(await readJsonBody(req))); } catch (e) { throw new HttpError(400, e.message); }
     }
-    if (method === 'GET' && p === '/api/games') return sendJson(res, 200, store.list());
+    if (method === 'GET' && p === '/api/games') return sendJson(res, 200, listGames());
     if (method === 'POST' && p === '/api/demo') {
       // The bundled demo: a short DOS scene with Japanese dialogue, made for trying translation.
       const dest = path.join(store.dirs.library, 'Hoshifuri (Japan) (Demo).com');
       if (!fs.existsSync(dest)) fs.copyFileSync(path.join(PACKAGE_ROOT, 'demo', 'HOSHI.COM'), dest);
       const g = store.get(Store.idFor(dest)) || store.addFile(dest);
       if (!g.notes) store.update(g.id, { notes: 'Demo scene: the village elder (村長) talks to the heroine Lina (リナ).' });
-      return sendJson(res, 201, store.publicGame(g));
+      for (const kind of ['boxart', 'snap']) {
+        const f = path.join(PACKAGE_ROOT, 'demo', `hoshifuri-${kind}.png`);
+        if (!art.has(g.id, kind) && fs.existsSync(f)) art.put(g.id, kind, fs.readFileSync(f));
+      }
+      return sendJson(res, 201, pub(g));
     }
-    if (method === 'POST' && p === '/api/scan') return sendJson(res, 200, { ...store.scan(), games: store.list() });
+    if (method === 'POST' && p === '/api/scan') return sendJson(res, 200, { ...store.scan(), games: listGames() });
     if (method === 'PUT' && p === '/api/upload') {
       const name = url.searchParams.get('name');
       if (!name) throw new HttpError(400, 'name is required');
       try {
         const g = await store.importStream(name, req);
-        return sendJson(res, 201, store.publicGame(g));
+        return sendJson(res, 201, pub(g));
       } catch (e) {
         throw new HttpError(400, e.message);
       }
     }
     if ((r = m(/^\/api\/games\/([0-9a-f]{12})$/))) {
       const game = needGame(r[1]);
-      if (method === 'GET') return sendJson(res, 200, store.publicGame(game));
+      if (method === 'GET') return sendJson(res, 200, pub(game));
       if (method === 'PATCH') {
-        try { return sendJson(res, 200, store.update(game.id, await readJsonBody(req))); } catch (e) { throw new HttpError(400, e.message); }
+        try { store.update(game.id, await readJsonBody(req)); return sendJson(res, 200, pub(game)); } catch (e) { throw new HttpError(400, e.message); }
       }
       if (method === 'DELETE') {
         store.remove(game.id, { deleteFile: url.searchParams.get('deleteFile') === '1' });
         return sendJson(res, 200, { ok: true });
       }
+    }
+    if ((r = m(/^\/api\/games\/([0-9a-f]{12})\/art\/([a-z]+)$/))) {
+      const game = needGame(r[1]);
+      const kind = r[2];
+      if (!ART_KINDS[kind]) throw new HttpError(404, 'Unknown picture kind');
+      if (method === 'GET' || method === 'HEAD') {
+        const f = await art.get(game, kind, { download: store.settings.downloadArt });
+        if (!f) throw new HttpError(404, 'No picture for this game');
+        const type = imageType(fs.readFileSync(f).subarray(0, 8)) || 'image/png';
+        return sendFile(req, res, f, { type, cache: 'private, max-age=3600' });
+      }
+      if (method === 'PUT') {
+        try { art.put(game.id, kind, await readBody(req, 16 * 1048576)); } catch (e) { throw new HttpError(400, e.message); }
+        return sendJson(res, 200, pub(game));
+      }
+      if (method === 'DELETE') { art.remove(game.id, kind); return sendJson(res, 200, pub(game)); }
     }
     if ((r = m(/^\/api\/games\/([0-9a-f]{12})\/cover$/))) {
       const game = needGame(r[1]);

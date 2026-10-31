@@ -43,6 +43,9 @@ export function toast(message, kind = '', ms = 3800) {
 
 const P = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 export const ICONS = {
+  clock: P('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  disk: P('<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>'),
+  calendar: P('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>'),
   play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>',
   heart: P('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>'),
   search: P('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
@@ -97,3 +100,13 @@ export function fmtBytes(n) {
 }
 
 export const BRAND_SVG = `<svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffcf6e"/><stop offset=".55" stop-color="#ff9e45"/><stop offset="1" stop-color="#ff6f91"/></linearGradient></defs><rect x="2" y="5" width="28" height="20" rx="5" fill="url(#bg)"/><rect x="6" y="9" width="20" height="12" rx="2" fill="#0b0c14"/><path d="M9 13h6M9 17h4" stroke="#61e3ff" stroke-width="2" stroke-linecap="round"/><path d="M18 13h5M20 17h3" stroke="#ffcf6e" stroke-width="2" stroke-linecap="round"/><path d="M11 25l-2 4 6-4z" fill="#ff9e45"/></svg>`;
+
+/** The light each system casts on the home screen. */
+export const SYSTEM_LIGHT = {
+  all: '#9a8cff', recent: '#ffb547', fav: '#ff7a9a',
+  dos: '#6ef59a', nes: '#ff5466', snes: '#9a8cff', n64: '#2fd6b1', gb: '#a7d84a', gba: '#7b6cff', vb: '#ff3b3b',
+  segaMS: '#4ec3ff', segaMD: '#3f8cff', segaGG: '#4ec3ff', segaCD: '#5b7dff', sega32x: '#ffcc33', segaSaturn: '#8fa8ff',
+  pce: '#ff8a3d', psx: '#b8c6e6', '3do': '#ffd166', jaguar: '#ff4d4d', lynx: '#ffc857', atari2600: '#e8a33c', atari7800: '#e8a33c',
+  ngp: '#5ce1e6', ws: '#c792ff', arcade: '#ff6bd6', amiga: '#7fa8ff', c64: '#8ab4ff',
+};
+export const lightOf = (id) => SYSTEM_LIGHT[id] || '#9a8cff';

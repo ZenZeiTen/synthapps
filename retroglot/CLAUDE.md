@@ -36,7 +36,11 @@ browser job on Ubuntu).
 | `web/emu-bridge.js` | Runs inside the emulator iframe: screenshot, states, pause, game rectangle, hotkeys |
 | `web/player.js` | Player page: translation flow, auto-translate loop, saves, side panel |
 | `web/frames.js`, `web/overlay.js` | Frame decode/hash/enlarge/compare; drawing boxes and subtitles |
-| `web/library.js` | Library page |
+| `web/library.js`, `web/home.css` | Home screen: system rail, hero, shelf, keyboard and controller navigation |
+| `web/glow.js`, `web/sound.js`, `web/gamepad.js` | Background light, menu sounds, controller polling |
+| `web/player.css` | Full-window player, boot screen, auto-hiding bar, slide-over panel |
+| `web/fonts/` | Outfit and Inter (OFL), bundled so the app looks the same offline |
+| `src/art.js` | Box art, title and snap pictures from libretro-thumbnails, cached in `<home>/art`; player-chosen pictures |
 | `demo/build_demo.py` | Builds `demo/HOSHI.COM` (needs Pillow, nasm, Unifont) |
 
 ## Desktop app (`desktop/`)
@@ -86,6 +90,15 @@ fetch (`RETROGLOT_REGISTRY=http://127.0.0.1:PORT`).
   state changes from other origins.
 - A hidden element must really be hidden: `[hidden]` is forced to `display: none`. A
   `display: grid` overlay with `hidden` once swallowed every click on the game.
+
+## Look and feel
+
+The home screen is lit by the system being browsed (`--sys`, from `SYSTEM_LIGHT` in
+`common.js`); everything else stays quiet. Display type is Outfit, text is Inter. Committed
+screenshots (`docs/`) use made-up games (`SHOTS_FICTIONAL=1 node test/helpers/shots.mjs docs`) so
+no third-party box art is stored in the repository. Picture modes map to EmulatorJS shaders:
+`crt` = crt-easymode, `smooth` = sabr, `sharp` = none; translation screenshots are taken before
+the shader, so overlay positions do not change.
 
 ## Lessons from building
 

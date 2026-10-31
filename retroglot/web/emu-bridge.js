@@ -3,7 +3,8 @@
 // pause, fast-forward and where on screen the picture is drawn.
 (function () {
   'use strict';
-  var HOTKEYS = { F2: 1, F3: 1, F4: 1, F6: 1, F7: 1, Backquote: 1, F9: 1 };
+  var HOTKEYS = { F1: 1, F2: 1, F3: 1, F4: 1, F6: 1, F7: 1, Backquote: 1, F9: 1 };
+  var SHADERS = { crt: 'crt-easymode.glslp', sharp: 'disabled', smooth: 'sabr' };
   var startedAt = 0;
 
   function emu() { return window.EJS_emulator; }
@@ -33,6 +34,15 @@
   window.retroglotBridge = {
     get started() { return !!startedAt; },
     get paused() { return !!(emu() && emu().paused); },
+    get failed() { return !!(emu() && emu().failedToStart); },
+
+    /** Picture: 'crt' (scanlines), 'sharp' (plain pixels) or 'smooth'. */
+    setDisplay: function (mode) {
+      var e = emu();
+      var shader = SHADERS[mode] || 'disabled';
+      if (!e || typeof e.enableShader !== 'function') return;
+      try { if (e.changeSettingOption) e.changeSettingOption('shader', shader); e.enableShader(shader); } catch (err) { /* core without shader support */ }
+    },
     core: function () { return emu() ? emu().getCore() : null; },
 
     /** PNG bytes of the current frame at the game's own resolution. */
@@ -97,6 +107,17 @@
   }
   window.addEventListener('keydown', onKey, true);
   window.addEventListener('keyup', onKey, true);
+
+  // Tell the player page about mouse use, so it can show its controls.
+  var lastPing = 0;
+  function activity() {
+    var now = Date.now();
+    if (now - lastPing < 250) return;
+    lastPing = now;
+    post({ type: 'retroglot:activity' });
+  }
+  window.addEventListener('mousemove', activity, true);
+  window.addEventListener('pointerdown', activity, true);
 
   window.addEventListener('error', function (ev) { post({ type: 'retroglot:error', message: String(ev.message || ev.error) }); });
 })();

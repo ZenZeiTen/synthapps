@@ -1,12 +1,14 @@
 // The player page: runs the game in a frame, and around it the translation
 // overlay, the script, the glossary and save states.
-import { LANGUAGES, api, el, fmtDuration, icon, makerColors, toast } from './common.js';
+import { LANGUAGES, api, el, fmtDuration, icon, lightOf, toast } from './common.js';
 import { changeThreshold, changed, decodePng, enlargedPngBase64, hashPixels, signature } from './frames.js';
 import { Overlay } from './overlay.js';
 
 const $ = (s) => document.querySelector(s);
 const gameId = location.pathname.split('/').pop();
 const MODES = { boxes: 'Boxes', subtitles: 'Subtitles', off: 'Panel only' };
+const DISPLAYS = { crt: 'CRT', sharp: 'Sharp', smooth: 'Smooth' };
+const startSlot = new URLSearchParams(location.search).get('slot');
 
 const S = {
   game: null, settings: null, systems: [],
@@ -28,20 +30,24 @@ function label(btn, iconName, text, key) {
   btn.replaceChildren(icon(iconName), el('span', { class: 'label' }, text), key ? el('kbd', {}, key) : '');
 }
 $('#back').append(icon('back'));
-$('#panel-btn').append(icon('panel'));
+$('#panel-btn').prepend(icon('panel'));
+$('#side-x').append(icon('x'));
 label($('#b-translate'), 'lang', 'Translate', 'F2');
-label($('#b-save'), 'save', 'Save', 'F6');
-label($('#b-load'), 'load', 'Load', 'F7');
-label($('#b-pause'), 'pause', 'Pause', 'F9');
-label($('#b-ff'), 'ff', 'Fast');
-label($('#b-full'), 'full', 'Full screen');
+// Less frequent controls show only their icon; the tooltip names them and their key.
+for (const [id, name] of [['b-save', 'save'], ['b-load', 'load'], ['b-pause', 'pause'], ['b-ff', 'ff'], ['b-full', 'full']]) {
+  const b = $(`#${id}`);
+  b.classList.add('icon-only');
+  b.setAttribute('aria-label', b.title);
+  b.replaceChildren(icon(name));
+}
 for (const l of LANGUAGES) $('#languages').append(el('option', { value: l }));
 
 function renderToggles() {
-  label($('#b-auto'), 'auto', S.auto ? 'Auto: on' : 'Auto: off', 'F3');
+  label($('#b-auto'), 'auto', S.auto ? 'Auto: on' : 'Auto: off');
   $('#b-auto').classList.toggle('on', S.auto);
   $('#b-auto').setAttribute('aria-pressed', String(S.auto));
-  label($('#b-mode'), 'layers', MODES[S.mode], 'F4');
+  label($('#b-mode'), 'layers', MODES[S.mode]);
+  label($('#b-display'), 'camera', DISPLAYS[S.display] || 'CRT');
 }
 
 function showMessage(title, text) {
@@ -58,7 +64,8 @@ function busy(on, text = 'Translating…') {
 function costText(usage) {
   if (!usage) return;
   const c = usage.costUsd || 0;
-  $('#cost').textContent = `${usage.requests} translation${usage.requests === 1 ? '' : 's'} · ${c < 0.01 && c > 0 ? '<$0.01' : `$${c.toFixed(2)}`} est.${usage.cachedScreens ? ` · ${usage.cachedScreens} from memory` : ''}`;
+  if (!usage.requests && !usage.cachedScreens) { $('#cost').textContent = ''; return; }
+  $('#cost').textContent = `${usage.requests} translation${usage.requests === 1 ? '' : 's'}, about ${c < 0.01 && c > 0 ? '<$0.01' : `$${c.toFixed(2)}`}${usage.cachedScreens ? `; ${usage.cachedScreens} from memory` : ''}`;
 }
 
 // ---------- loading ----------
@@ -70,25 +77,32 @@ async function init() {
     return;
   }
   const sys = S.systems.find((s) => s.id === S.game.system) || {};
-  document.title = `${S.game.title} · retroglot`;
-  $('#game-title').textContent = S.game.title;
+  const title = S.game.title.replace(/\s*\([^)]*\)/g, '').trim() || S.game.title;
+  document.title = `${title}: Retroglot`;
+  document.body.style.setProperty('--sys', lightOf(S.game.system));
+  $('#game-title').textContent = title;
   $('#sys-tag').textContent = sys.short || S.game.system;
-  $('#sys-tag').style.background = makerColors(sys.maker)[0];
+  $('#sys-tag').style.background = lightOf(S.game.system);
+  $('#boot-title').textContent = title;
+  $('#boot-system').textContent = sys.name || S.game.system;
+  $('#boot-status').textContent = `Starting ${coreName(sys.core)}${startSlot ? `, then loading save slot ${startSlot}` : ''}`;
+  bootArt();
   $('#g-lang').value = S.game.sourceLanguage === 'auto' ? '' : S.game.sourceLanguage;
   $('#g-notes').value = S.game.notes || '';
   $('#g-info').textContent = `${S.game.fileName} · ${sys.name || S.game.system} (core ${sys.core}) · played ${fmtDuration(S.game.playSeconds)}`;
   S.mode = S.settings.overlay;
+  S.display = S.settings.display || 'crt';
   S.auto = !!S.settings.autoTranslate;
   overlay.setMode(S.mode);
   renderToggles();
   for (const f of ['txt', 'csv', 'tmx']) $(`#export-${f}`).href = `/api/games/${gameId}/export?format=${f}`;
-  if (window.innerWidth < 900) $('#side').classList.add('closed');
 
   if (!sys.installed) {
-    showMessage(`The ${sys.name || S.game.system} core is not installed`, `Run: node bin/retroglot.js install-runtime --cores ${sys.core}`);
+    bootFail(`The ${sys.name || S.game.system} emulator is not installed yet. Install it from the library (Install emulator), or run: node bin/retroglot.js install-runtime --cores ${sys.core}`);
     return;
   }
-  frame.src = `/emu/${gameId}`;
+  frame.src = `/emu/${gameId}${startSlot ? `?slot=${encodeURIComponent(startSlot)}` : ''}`;
+  watchBoot();
   loadScript();
   loadSaves();
   api(`/api/games/${gameId}`, { method: 'PATCH', body: { played: true } }).catch(() => {});
@@ -99,11 +113,88 @@ window.addEventListener('message', (ev) => {
   const d = ev.data;
   if (d.type === 'retroglot:start') onStarted();
   else if (d.type === 'retroglot:key') onKey(d.code, d.down);
+  else if (d.type === 'retroglot:activity') wake();
 });
+
+const CORE_NAMES = { dosbox_pure: 'DOSBox Pure', fceumm: 'FCEUmm', snes9x: 'Snes9x', mupen64plus_next: 'Mupen64Plus', gambatte: 'Gambatte', mgba: 'mGBA', genesis_plus_gx: 'Genesis Plus GX', picodrive: 'PicoDrive', pcsx_rearmed: 'PCSX ReARMed', mednafen_pce: 'Beetle PCE', smsplus: 'SMS Plus', stella2014: 'Stella', prosystem: 'ProSystem', handy: 'Handy', mednafen_ngp: 'Beetle NGP', mednafen_wswan: 'Beetle WonderSwan', beetle_vb: 'Beetle VB' };
+const coreName = (c) => CORE_NAMES[c] || c || 'the emulator';
+
+function bootArt() {
+  const g = S.game;
+  const img = new Image();
+  img.alt = '';
+  img.onload = () => $('#boot-art').replaceChildren(img);
+  img.src = `/api/games/${gameId}/art/boxart`;
+  const snap = new Image();
+  snap.onload = () => { $('#boot-bg').style.backgroundImage = `url("${snap.src}")`; };
+  snap.onerror = () => { if (!snap.src.endsWith('/boxart')) snap.src = `/api/games/${gameId}/art/boxart`; };
+  snap.src = `/api/games/${gameId}/art/snap`;
+  void g;
+}
+
+function bootFail(text) {
+  $('#boot').classList.add('failed');
+  $('#boot-status').textContent = text;
+}
+
+/** Watch the emulator start; if it fails, show its own message instead of a loading screen forever. */
+function watchBoot() {
+  const t0 = Date.now();
+  const timer = setInterval(() => {
+    if (S.started) { clearInterval(timer); return; }
+    const b = bridge();
+    if (b?.failed || Date.now() - t0 > 60000) {
+      clearInterval(timer);
+      $('#boot').classList.add('gone');
+      wake();
+    } else if (Date.now() - t0 > 15000) {
+      $('#boot-status').textContent = 'Still starting. Large games take longer the first time.';
+    }
+  }, 500);
+}
+
+// ---------- controls that step aside while you play ----------
+let sleepTimer = 0;
+function wake() {
+  document.body.classList.add('chrome');
+  clearTimeout(sleepTimer);
+  sleepTimer = setTimeout(sleep, 2600);
+}
+function sleep() {
+  const hovering = document.querySelector('.bar:hover');
+  if (!S.started || hovering || bridge()?.paused || !$('#side').classList.contains('closed')) { sleepTimer = setTimeout(sleep, 1200); return; }
+  document.body.classList.remove('chrome');
+}
+document.addEventListener('mousemove', wake);
+document.addEventListener('pointerdown', wake);
+
+// ---------- side panel ----------
+let unseen = 0;
+function togglePanel(open = $('#side').classList.contains('closed')) {
+  $('#side').classList.toggle('closed', !open);
+  if (open) { unseen = 0; $('#panel-badge').hidden = true; } else focusGame();
+  wake();
+}
+
+// ---------- picture ----------
+function applyDisplay() {
+  bridge()?.setDisplay?.(S.display);
+}
+function cycleDisplay() {
+  const keys = Object.keys(DISPLAYS);
+  S.display = keys[(keys.indexOf(S.display) + 1) % keys.length];
+  applyDisplay();
+  renderToggles();
+  toast(`Picture: ${{ crt: 'CRT screen', sharp: 'sharp pixels', smooth: 'smooth' }[S.display]}`, '', 1600);
+  api('/api/settings', { method: 'PATCH', body: { display: S.display } }).catch(() => {});
+}
 
 function onStarted() {
   S.started = true;
   showMessage('');
+  $('#boot').classList.add('gone');
+  applyDisplay();
+  wake();
   placeOverlay();
   focusGame();
   // Count play time while the game runs and the page is visible.
@@ -114,8 +205,8 @@ function onStarted() {
     if (document.visibilityState === 'visible' && !bridge()?.paused) S.pendingSeconds = (S.pendingSeconds || 0) + dt;
     if (S.pendingSeconds >= 60) flushPlayTime();
   }, 5000);
-  // Give the library a picture of the game after a little play.
-  if (!S.game.hasCover) setTimeout(() => saveCover(true), 25000);
+  // Give the library a picture of the game after a little play, when it has none.
+  if (!S.game.art?.snap) setTimeout(() => saveCover(true), 25000);
   if (S.auto) startAuto();
 }
 
@@ -239,7 +330,10 @@ function appendScript(lines, fresh) {
   for (const l of lines) {
     if (recent.includes(l.original)) continue;
     box.append(lineNode(l, fresh));
+    if (fresh && $('#side').classList.contains('closed')) unseen++;
   }
+  $('#panel-badge').hidden = !unseen;
+  $('#panel-badge').textContent = String(unseen);
   $('#script-empty').hidden = !!box.childElementCount;
   const pane = box.closest('.pane');
   pane.scrollTop = pane.scrollHeight;
@@ -347,9 +441,8 @@ async function saveCover(quiet = false) {
   if (!S.started) return;
   try {
     const png = await bridge().screenshot();
-    await api(`/api/games/${gameId}/cover`, { method: 'PUT', body: png, headers: { 'Content-Type': 'image/png' } });
-    S.game.hasCover = true;
-    if (!quiet) toast('Cover updated', 'good');
+    S.game = await api(`/api/games/${gameId}/art/snap`, { method: 'PUT', body: png, headers: { 'Content-Type': 'image/png' } });
+    if (!quiet) toast('The library now shows this screen behind the game', 'good');
   } catch (e) {
     if (!quiet) toast(e.message, 'bad');
   }
@@ -364,12 +457,14 @@ function onKey(code, down) {
   else if (code === 'F4') cycleMode();
   else if (code === 'F6') saveState(1);
   else if (code === 'F7') loadState(1);
-  else if (code === 'F9') bridge()?.togglePause();
+  else if (code === 'F9') { bridge()?.togglePause(); wake(); }
+  else if (code === 'F1') togglePanel();
 }
 const typing = () => ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
 window.addEventListener('keydown', (e) => {
   if (typing()) return;
-  if (['F2', 'F3', 'F4', 'F6', 'F7', 'F9', 'Backquote'].includes(e.code)) { e.preventDefault(); if (!e.repeat) onKey(e.code, true); }
+  if (['F1', 'F2', 'F3', 'F4', 'F6', 'F7', 'F9', 'Backquote'].includes(e.code)) { e.preventDefault(); if (!e.repeat) onKey(e.code, true); }
+  else if (e.key === 'Escape' && !$('#side').classList.contains('closed')) togglePanel(false);
 });
 window.addEventListener('keyup', (e) => { if (e.code === 'Backquote' && !typing()) onKey('Backquote', false); });
 
@@ -383,7 +478,9 @@ const ff = (on) => bridge()?.fastForward(on);
 $('#b-ff').addEventListener('pointerdown', () => ff(true));
 for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) $('#b-ff').addEventListener(ev, () => ff(false));
 $('#b-full').addEventListener('click', () => (document.fullscreenElement ? document.exitFullscreen() : stage.requestFullscreen()).catch(() => {}));
-$('#panel-btn').addEventListener('click', () => { $('#side').classList.toggle('closed'); setTimeout(placeOverlay, 50); });
+$('#panel-btn').addEventListener('click', () => togglePanel());
+$('#side-x').addEventListener('click', () => togglePanel(false));
+$('#b-display').addEventListener('click', cycleDisplay);
 // Clicking the HUD should not leave keyboard focus outside the game.
 $('#hud').addEventListener('click', () => setTimeout(() => { if (!typing()) focusGame(); }, 0));
 
