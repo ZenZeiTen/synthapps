@@ -201,6 +201,10 @@ allow_anticheat = false
 
 - **`goal`** says what "done" means. Make it concrete and reachable: "Finish the first
   level" works better than "Play well". Claude stops when it judges the goal reached.
+- **`goals`** (optional) lists more goals, played in order after `goal`:
+  `goals = ["Open the map", "Talk to the shopkeeper"]`.
+- **`free_play = true`** (optional) keeps Claude playing after the last goal. It picks
+  something new each time, until `max_turns`, `max_minutes` or `max_cost_usd` stops it.
 - **`notes`** is everything Claude cannot see on screen: controls the menu does not show,
   what to avoid ("never sell the sword"), how the game saves, and which menus to stay out
   of.

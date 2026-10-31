@@ -238,7 +238,7 @@ def slug(name: str) -> str:
 
 
 def profile_text(r: Recognition, *, retroarch: bool = False, model: str = "claude-opus-5-5",
-                 max_cost_usd: float = 2.0) -> str:
+                 max_cost_usd: float = 2.0, goals: list[str] | None = None, free_play: bool = False) -> str:
     """The settings file for a recognized game, as TOML text with explanatory comments."""
     device = r.device
     if retroarch:
@@ -286,6 +286,8 @@ def profile_text(r: Recognition, *, retroarch: bool = False, model: str = "claud
         "",
         "[agent]",
         f"goal = {_q(r.goal)}",
+        "goals = [" + ", ".join(_q(g) for g in goals or []) + "]    # more goals, played in order",
+        f"free_play = {'true' if free_play else 'false'}    # true: after the last goal, Claude picks what to do next",
         f"notes = {_q(notes)}",
         f"model = {_q(model)}",
         'effort = "low"',

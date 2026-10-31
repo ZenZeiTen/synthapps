@@ -28,6 +28,8 @@ from .retroarch import RetroArch, RetroArchError
 from .safety import Budget, KillSwitch, detect_anti_cheat
 from .window import WindowTracker
 
+FREE_PLAY = "Free play:"
+
 
 class AntiCheatRunning(RuntimeError):
     pass
@@ -110,6 +112,9 @@ class GameAgent:
         self.executor = Executor(backend, clock, self.timing, should_stop=self._interrupt)
         self.records: list[dict[str, Any]] = []
         self.pointer_map: PointerMap | None = None
+        self.goal = profile.agent.goal
+        self.goals_queue = list(profile.agent.goals)
+        self.goals_done: list[str] = []
 
     # --- checks -----------------------------------------------------------------
     def _interrupt(self) -> str:
@@ -192,6 +197,17 @@ class GameAgent:
             with self.transcript.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
+    def _next_goal(self) -> str | None:
+        """The goal after the current one: the next listed goal, or a free-play goal, or None."""
+        if self.goals_queue:
+            return self.goals_queue.pop(0)
+        if self.p.agent.free_play:
+            done = "; ".join(self.goals_done[-8:]) or "nothing yet"
+            return (f"{FREE_PLAY} choose something new and worthwhile to do in this game that you have not "
+                    "done yet, say what it is in your intent and your notes, and do it. Already done: "
+                    f"{done}. When it is done, report done and you will be asked to choose again.")
+        return None
+
     # --- the loop ---------------------------------------------------------------
     def run(self) -> RunResult:
         self.preflight()
@@ -215,7 +231,8 @@ class GameAgent:
                 turn = self.budget.turns + 1
                 frames = self._grab_frames()
                 self._save_frames(turn, frames)
-                obs = Observation(frames, last_result, turn, self._memory(), last_error)
+                obs = Observation(frames, last_result, turn, self._memory(), last_error,
+                                  goal=self.goal if self.goal != self.p.agent.goal else "")
                 if self.p.pacing.pause_input:
                     self._tap(self.p.pacing.pause_input)
                 started = self.now()
@@ -236,9 +253,21 @@ class GameAgent:
                     self._record(entry)
                     break
                 if decision.status == "done":
-                    status, reason = "done", decision.observation or "the planner reports the goal reached"
+                    entry["goal"] = self.goal
                     self._record(entry)
-                    break
+                    free = self.goal.startswith(FREE_PLAY)
+                    self.goals_done.append((decision.intent or decision.observation or "a goal")[:120]
+                                           if free else self.goal)
+                    nxt = self._next_goal()
+                    if nxt is None:
+                        status, reason = "done", decision.observation or "the planner reports the goal reached"
+                        break
+                    self.log(f"turn {turn}: goal reached: {self.goals_done[-1]}")
+                    self.log("  next: " + ("Claude chooses (free play)" if nxt.startswith(FREE_PLAY) else nxt))
+                    self.goal = nxt
+                    last_result, last_error = f"Goal reached. Your next goal: {nxt}", False
+                    stuck_in_a_row = 0
+                    continue
                 stuck_in_a_row = stuck_in_a_row + 1 if decision.status == "stuck" else 0
                 if stuck_in_a_row >= 3:
                     status, reason = "stuck", "the planner reported being stuck three turns in a row"

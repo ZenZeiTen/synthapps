@@ -257,6 +257,11 @@ to Claude as an error so it can correct itself.
   jumps to that spot inside the game window, then the step's buttons (such as `MOUSE_LEFT`)
   are pressed a frame later. This makes menu-driven and point-and-click games playable.
   On Linux it needs X11 and `xdotool`.
+- Goals: `goal` is the first thing to do and `goals = [...]` lists more, played in order.
+  With `free_play = true`, Claude then keeps choosing something new to do until a turn,
+  time or cost limit stops it. It is told what it has already done, so it does not repeat
+  itself. On the command line, `--goal` can be given several times and `--free-play`
+  turns free play on.
 - Model: `claude-opus-5-5` by default (`agent.model` or `--model`). `agent.effort` sets how
   much it thinks; `low` keeps turns quick.
 - The conversation only grows by appending, which keeps the prompt cache working. After
@@ -323,7 +328,7 @@ cd gamepilot
 python -m unittest discover -s tests -t .
 ```
 
-88 tests, standard library only (one runs only on Windows). They cover plan validation, frame timing (minimum
+93 tests, standard library only (one runs only on Windows). They cover plan validation, frame timing (minimum
 holds, release gaps, exact mouse totals, no drift), release on stop and on error, every
 backend against stand-ins for its driver library, the Claude request format and
 conversation handling with a fake client, a fake RetroArch over UDP, profiles, safety
@@ -347,7 +352,11 @@ Verified on a Windows 11 PC (Python 3.14):
 - Claude played Gem Garden live (`demo --planner claude`): 5 of 5 gems in 6 turns,
   3 to 8.5 s per turn, about $0.09 in total.
 
-Not verified yet: a run against a real game, live screen capture of a game window, and a
+- A real game played by clicking: in Virtual Cottage 2, Claude clicked "New Task", typed
+  "Water the plants" (with the capital W) and confirmed it. This exercised window capture,
+  screenshot-to-screen pointer mapping and keyboard input on a real desktop.
+
+Not verified yet: a game played with the virtual controller, a fast real-time game, and a
 live RetroArch. Treat the first sessions on your machine as the real test. Start with
 `test-input`, then `play --dry-run`, then a short real run with a low `max_cost_usd`.
 Reports of what works and what does not are welcome.

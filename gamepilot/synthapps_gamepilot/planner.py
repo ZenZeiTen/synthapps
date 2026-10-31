@@ -34,6 +34,7 @@ class Observation:
     turn: int
     memory_readings: dict[str, str] = field(default_factory=dict)
     last_result_is_error: bool = False
+    goal: str = ""  # the current goal when it differs from the one in the instructions
 
 
 @dataclass
@@ -182,6 +183,8 @@ def _status_text(obs: Observation, memory: str, max_edge: int = 1024) -> str:
         lines.append(f"Screenshot size: {w}x{h} pixels (mouse_to uses these coordinates).")
     if obs.memory_readings:
         lines.append("Game memory: " + ", ".join(f"{k}={v}" for k, v in obs.memory_readings.items()))
+    if obs.goal:
+        lines.append(f"Current goal (replaces the goal in your instructions): {obs.goal}")
     lines.append(f"Your notes: {memory or '(empty)'}")
     lines.append("Call the act tool.")
     return "\n".join(lines)

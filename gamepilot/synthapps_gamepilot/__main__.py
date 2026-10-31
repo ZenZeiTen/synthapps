@@ -283,7 +283,7 @@ def run_setup(args: argparse.Namespace) -> Path | None:
     budget = Budget(model=model)
     print(f"Asking Claude ({model}) which one is the game...")
     try:
-        result = identify(make_client(), windows, frames, model=model, goal_hint=args.goal or "",
+        result = identify(make_client(), windows, frames, model=model, goal_hint="; ".join(args.goal or []),
                           on_usage=budget.add_usage)
     except (RecognitionError, RuntimeError) as exc:
         print(f"Recognition failed: {exc}", file=sys.stderr)
@@ -308,9 +308,10 @@ def run_setup(args: argparse.Namespace) -> Path | None:
             ra.close()
 
     if args.goal:
-        result.goal = args.goal
+        result.goal = args.goal[0]
     path = _free_path(Path(args.output) if args.output else Path(f"{slug(result.game)}.toml"))
-    write_profile(result, path, retroarch=retroarch, model=model)
+    write_profile(result, path, retroarch=retroarch, model=model, goals=(args.goal or [])[1:],
+                  free_play=args.free_play)
     index = windows.index(result.window)
     shot = frames[index]
     if shot is not None:
@@ -332,6 +333,10 @@ def run_setup(args: argparse.Namespace) -> Path | None:
     for d in result.dropped:
         print(f"  left out (not a valid setting): {d}")
     print(f"Goal: {result.goal}")
+    for g in (args.goal or [])[1:]:
+        print(f"Then: {g}")
+    if args.free_play:
+        print("Then: free play (Claude picks what to do next until a limit is reached)")
     print(f"\nSaved settings file: {path.resolve()}")
     if shot is not None:
         print(f"Saved what Claude saw:  {path.with_suffix('.png').resolve()}")
@@ -368,6 +373,10 @@ def cmd_play(args: argparse.Namespace) -> int:
     profile = _load_profile(args.profile)
     if profile is None:
         return 2
+    if args.goal and not args.auto:
+        profile.agent.goal, profile.agent.goals = args.goal[0], args.goal[1:]
+    if args.free_play:
+        profile.agent.free_play = True
     if args.model:
         profile.agent.model = args.model
     if args.effort:
@@ -482,7 +491,10 @@ def main(argv: list[str] | None = None) -> int:
 
     st = sub.add_parser("setup", help="detect the open game, recognize it, and write its settings file")
     st.add_argument("--output", help="settings file to write (default: named after the game)")
-    st.add_argument("--goal", help="what Claude should try to do")
+    st.add_argument("--goal", action="append",
+                    help="what Claude should try to do; repeat for several goals in order")
+    st.add_argument("--free-play", action="store_true",
+                    help="after the last goal, let Claude choose what to do next until a limit")
     st.add_argument("--model", help="model for recognition (default claude-opus-5-5)")
     st.add_argument("--no-activate", action="store_true",
                     help="photograph windows where they are, without bringing them to the front")
@@ -492,7 +504,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("profile", nargs="?", help="settings file (or use --auto)")
     p.add_argument("--auto", action="store_true",
                    help="detect the open game and write its settings file first (like setup)")
-    p.add_argument("--goal", help="with --auto: what Claude should try to do")
+    p.add_argument("--goal", action="append",
+                   help="what Claude should try to do (replaces the profile's goals); repeat for several")
+    p.add_argument("--free-play", action="store_true",
+                   help="after the last goal, let Claude choose what to do next until a limit")
     p.add_argument("--output", help="with --auto: settings file to write")
     p.add_argument("--no-activate", action="store_true", help=argparse.SUPPRESS)
     p.add_argument("--dry-run", action="store_true", help="think and plan, but send no input")

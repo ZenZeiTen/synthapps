@@ -69,6 +69,8 @@ class Agent:
     image_max_edge: int = 1024
     turns_per_conversation: int = 16
     allow_anticheat: bool = False
+    goals: list[str] = field(default_factory=list)  # more goals, played after `goal`, in order
+    free_play: bool = False  # after the last goal, Claude picks its own next goals until a limit
 
 
 @dataclass
@@ -150,6 +152,10 @@ def validate(p: Profile) -> None:
         raise ProfileError("agent.effort must be low, medium, high, xhigh or max")
     if not 1 <= p.agent.frames_per_turn <= 4:
         raise ProfileError("agent.frames_per_turn must be 1..4")
+    if not isinstance(p.agent.goals, list) or not all(isinstance(g, str) and g.strip() for g in p.agent.goals):
+        raise ProfileError('agent.goals must be a list of texts, like goals = ["Do this", "Then that"]')
+    if not isinstance(p.agent.free_play, bool):
+        raise ProfileError("agent.free_play must be true or false")
     if p.agent.turns_per_conversation < 2:
         raise ProfileError("agent.turns_per_conversation must be at least 2")
     try:

@@ -19,7 +19,14 @@ mode = "realtime"                      # nothing in it is time-critical, so no p
 # none: everything is a click on a visible button
 
 [agent]
-goal = "Add a task named 'Water the plants' to the To-Do-List."
+goal = "Add a task named 'Water the plants' to the To-Do-List, if it is not there yet."
+goals = [
+    "Skip to the next song in the music player.",
+    "Tick off the 'Water the plants' task.",
+    "Open the paintbrush button at the bottom left and change one piece of decoration in the room.",
+    "Try the cloud button at the bottom right and describe what it changed.",
+]
+free_play = true          # after these, Claude chooses what to explore next, until a limit below
 notes = """
 The main screen shows a cozy room in the middle. Top left: the Focus timer (pause, stop,
 finish, minus and plus one minute). Top right: the To-Do-List with 'New Task', 'New Group',
@@ -30,6 +37,6 @@ KEY_SPACE for a space, KEY_LEFTSHIFT held with a letter for a capital) and KEY_E
 Do not delete existing tasks and do not change the settings.
 """
 effort = "low"
-max_turns = 60
-max_minutes = 15
-max_cost_usd = 1.0
+max_turns = 120
+max_minutes = 30
+max_cost_usd = 2.0
