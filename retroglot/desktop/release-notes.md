@@ -1,4 +1,4 @@
-Retroglot plays games from the DOS era to the PlayStation era on Windows, and translates their on-screen text with Claude: press **F2** and the translation appears over the game's own dialogue window.
+Retroglot plays games from the DOS era to the PlayStation, Nintendo DS and PSP era on Windows, and translates their on-screen text with Claude: press **F2** and the translation appears over the game's own dialogue window.
 
 ## Download
 
@@ -12,7 +12,7 @@ Both files contain the same app. Before publishing, the automated build started 
 ## First start
 
 1. **Windows says "Windows protected your PC"**: the app is not code-signed. Click **More info**, then **Run anyway**.
-2. On first start the app downloads the emulator (EmulatorJS and its cores, about 70 MB). This needs an internet connection once.
+2. On first start the app downloads the emulator (EmulatorJS and its cores, about 90 MB). This needs an internet connection once.
 3. To translate, open **Settings** and paste a Claude API key from [console.anthropic.com](https://console.anthropic.com). Playing games does not need a key.
 4. Click **Try the Japanese demo** on the home screen, start it, then press **F2**.
 

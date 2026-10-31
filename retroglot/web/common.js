@@ -104,9 +104,9 @@ export const BRAND_SVG = `<svg class="brand-mark" viewBox="0 0 32 32" aria-hidde
 /** The light each system casts on the home screen. */
 export const SYSTEM_LIGHT = {
   all: '#9a8cff', recent: '#ffb547', fav: '#ff7a9a',
-  dos: '#6ef59a', nes: '#ff5466', snes: '#9a8cff', n64: '#2fd6b1', gb: '#a7d84a', gba: '#7b6cff', vb: '#ff3b3b',
+  dos: '#6ef59a', nes: '#ff5466', snes: '#9a8cff', n64: '#2fd6b1', gb: '#a7d84a', gba: '#7b6cff', nds: '#c8cbd6', vb: '#ff3b3b',
   segaMS: '#4ec3ff', segaMD: '#3f8cff', segaGG: '#4ec3ff', segaCD: '#5b7dff', sega32x: '#ffcc33', segaSaturn: '#8fa8ff',
-  pce: '#ff8a3d', psx: '#b8c6e6', '3do': '#ffd166', jaguar: '#ff4d4d', lynx: '#ffc857', atari2600: '#e8a33c', atari7800: '#e8a33c',
+  pce: '#ff8a3d', psx: '#b8c6e6', psp: '#5aa8ff', '3do': '#ffd166', jaguar: '#ff4d4d', lynx: '#ffc857', atari2600: '#e8a33c', atari7800: '#e8a33c',
   ngp: '#5ce1e6', ws: '#c792ff', arcade: '#ff6bd6', amiga: '#7fa8ff', c64: '#8ab4ff',
 };
 export const lightOf = (id) => SYSTEM_LIGHT[id] || '#9a8cff';

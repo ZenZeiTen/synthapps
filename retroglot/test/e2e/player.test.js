@@ -12,6 +12,7 @@ import { createServer } from '../../src/server.js';
 import { Store } from '../../src/store.js';
 import { setClient } from '../../src/translate.js';
 import { startMockClaude } from '../helpers/mock-claude.js';
+import { makeNds, ndsBandColor } from '../helpers/nds.js';
 
 let chromium = null;
 try { ({ chromium } = createRequire(import.meta.url)('playwright')); } catch { /* not installed */ }
@@ -196,4 +197,26 @@ test('an NES cartridge boots on FCEUmm (a core without threads)', { skip: skip |
   });
   assert.equal(size[0], 256);
   assert.equal(await frameEval(() => window.retroglotBridge.core()), 'fceumm');
+});
+
+test('a Nintendo DS program runs on melonDS, both screens in one picture', { skip: skip || (!installedCores().includes('melonds') && 'needs the melonds core') }, async () => {
+  const up = await fetch(`${base}/api/upload?name=${encodeURIComponent('Retroglot DS Test (World).nds')}`, { method: 'PUT', body: makeNds() });
+  assert.equal(up.status, 201);
+  const nds = await up.json();
+  assert.equal(nds.system, 'nds');
+  await page.goto(`${base}/play/${nds.id}`);
+  await page.waitForFunction(() => document.querySelector('#emu').contentWindow?.retroglotBridge?.started, null, { timeout: 60000 });
+  await page.waitForTimeout(3000);
+  const shot = await frameEval(async () => {
+    const bmp = await createImageBitmap(new Blob([await window.retroglotBridge.screenshot()], { type: 'image/png' }));
+    const c = new OffscreenCanvas(bmp.width, bmp.height);
+    const x = c.getContext('2d');
+    x.drawImage(bmp, 0, 0);
+    // Row 100 of the lower screen (which starts at row 192 of the picture).
+    return { size: [bmp.width, bmp.height], px: Array.from(x.getImageData(128, 192 + 100, 1, 1).data.slice(0, 3)) };
+  });
+  assert.deepEqual(shot.size, [256, 384]);
+  const want = ndsBandColor(100);
+  for (let i = 0; i < 3; i++) assert.ok(Math.abs(shot.px[i] - want[i]) <= 12, `pixel ${shot.px} should be close to ${want}`);
+  assert.equal(await frameEval(() => window.retroglotBridge.core()), 'melonds');
 });

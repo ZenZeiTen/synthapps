@@ -8,7 +8,7 @@ import path from 'node:path';
 import { after, before, test } from 'node:test';
 import Anthropic from '@anthropic-ai/sdk';
 import { FileSecrets, looksLikeApiKey } from '../../src/credentials.js';
-import { EMULATORJS_VERSION, fetchPackage, untar } from '../../src/runtime.js';
+import { EMULATORJS_VERSION, fetchPackage, resolveRuntimePath, untar } from '../../src/runtime.js';
 import { createServer } from '../../src/server.js';
 import { Store } from '../../src/store.js';
 import { getClient, resetClient, setClient, testCredentials, useSecrets } from '../../src/translate.js';
@@ -156,6 +156,9 @@ test('the emulator installs through the API with progress', async () => {
     const status = await (await fetch(`${b}/api/status`)).json();
     assert.equal(status.runtime.installed, true);
     assert.deepEqual(status.runtime.cores, ['fceumm']);
+    // Core files (and PPSSPP-style asset zips) are looked up in the core's own folder.
+    assert.equal(resolveRuntimePath('cores/fceumm-wasm.data'), path.join(runtime, 'cores', 'fceumm', 'fceumm-wasm.data'));
+    assert.equal(resolveRuntimePath('cores/ppsspp-assets.zip'), path.join(runtime, 'cores', 'ppsspp', 'ppsspp-assets.zip'));
     const bad = await fetch(`${b}/api/runtime/install`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cores: ['nope'] }) });
     assert.equal(bad.status, 400);
   } finally {

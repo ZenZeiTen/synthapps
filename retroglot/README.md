@@ -1,6 +1,6 @@
 # retroglot
 
-Play retro games from the DOS era to the PlayStation era in your browser, and read them in
+Play retro games from the DOS era to the PlayStation, Nintendo DS and PSP era in your browser, and read them in
 your own language. retroglot is a game library and emulator front end with a live
 translator built in: press **F2** and Claude reads the text on screen (Japanese dialogue,
 menus, signs) and draws the translation right on top of it.
@@ -32,8 +32,8 @@ Claude, so it shows the layout, not a live answer. The library picture uses made
   texture packs. PlayStation games can switch to an HD renderer (Beetle PSX HW) with up to
   8× resolution and steady, wobble-free 3D (PGXP). See [Picture quality](#picture-quality).
 - **Emulation in the browser.** Games run on [EmulatorJS](https://emulatorjs.org) with
-  libretro cores: DOSBox Pure, FCEUmm, Snes9x, Mupen64Plus-Next, Gambatte, mGBA, Genesis
-  Plus GX, PicoDrive, PCSX ReARMed and more. Gamepads work out of the box.
+  libretro cores: DOSBox Pure, FCEUmm, Snes9x, Mupen64Plus-Next, Gambatte, mGBA, melonDS,
+  Genesis Plus GX, PicoDrive, PCSX ReARMed, PPSSPP and more. Gamepads work out of the box.
 - **Translation over the picture.** Each piece of text becomes a box with its translation,
   sized to cover the original. Or show subtitles, or keep everything in the side panel.
   Hold **`** to peek at the original.
@@ -62,7 +62,7 @@ terminal.
    - `Retroglot-0.1.0-portable.exe`: runs without installing, for example from a USB stick.
 2. Run it. The app is not code-signed yet, so Windows SmartScreen may say "Windows protected
    your PC". Click **More info**, then **Run anyway**.
-3. On first start Retroglot downloads the emulator (about 70 MB, once). A progress bar shows
+3. On first start Retroglot downloads the emulator (about 90 MB, once). A progress bar shows
    how far it is.
 4. For translation, click **Add API key** and paste your Claude API key from
    [console.anthropic.com](https://console.anthropic.com/settings/keys). Retroglot checks it
@@ -97,7 +97,7 @@ npm start
 ```
 
 Open **http://localhost:7777**. The library offers to download the emulator (EmulatorJS and
-17 cores, about 70 MB, once); `npm run setup` does the same from the terminal. Add your
+19 cores, about 90 MB, once); `npm run setup` does the same from the terminal. Add your
 Claude API key under **Settings** (or start retroglot with `ANTHROPIC_API_KEY` set, or after
 `ant auth login`). Games play without a key; only translation needs it. Then click **Add the
 Japanese demo game**, open it, and press **F2**.
@@ -180,13 +180,25 @@ starts the game from the beginning, and each renderer keeps its own memory card 
 | Mega Drive / Genesis, Game Gear, Sega CD | Genesis Plus GX | yes |
 | 32X | PicoDrive | yes |
 | PC Engine / TurboGrafx-16 (and CD) | Beetle PCE | yes |
+| Nintendo DS | melonDS | yes |
 | PlayStation | PCSX ReARMed | yes |
+| PlayStation Portable | PPSSPP | yes |
 | Atari 2600, 7800, Lynx | Stella 2014, ProSystem, Handy | yes |
 | Neo Geo Pocket, WonderSwan | Beetle NGP, Beetle WonderSwan | yes |
 | Saturn, 3DO, Jaguar, Arcade (FinalBurn Neo), Amiga, C64 | Yabause, Opera, Virtual Jaguar, FBNeo, PUAE, VICE | with `--all` or `--cores` |
 
 Install more cores: `node bin/retroglot.js install-runtime --cores fbneo,yabause`, or
-`--all` for every one. `node bin/retroglot.js systems` shows what is installed.
+`--all` for every one. `node bin/retroglot.js systems` shows what is installed. If you open a game
+whose emulator is not downloaded yet, the player downloads it first.
+
+**Nintendo DS**: `.nds` files. Both screens are shown one above the other, and the touch screen
+works with the mouse. No BIOS is needed (melonDS has a free replacement built in).
+**PSP**: `.iso`, `.cso` and `EBOOT.PBP` files (an `EBOOT.PBP` that holds a PlayStation game is
+recognised and goes to PCSX ReARMed). PSP emulation is demanding: expect full speed only on a
+fast computer.
+**Nintendo 3DS is not supported.** No 3DS emulator runs in a browser (EmulatorJS has none), and
+retroglot runs its emulators in the browser so it can read the picture for translation. Use a
+native 3DS emulator such as Azahar for those games.
 
 ## Translating
 
@@ -277,13 +289,14 @@ exported scripts of commercial games may need the rights holder's permission.
 
 ## What has been tested
 
-- 42 unit tests (box art matching was checked by hand against the libretro collection):
-  system detection, the library, save states, translation memory, script export, the Claude
+- 44 unit tests (box art matching was checked by hand against the libretro collection):
+  system detection (including telling PSP and PlayStation `EBOOT.PBP` files apart), the library, save states, translation memory, script export, the Claude
   request (checked against a stand-in API), server safety checks, the emulator download
   (checksums, unsafe paths), the saved API key, and the picture enhancements (core options,
   texture pack placement, PlayStation BIOS choice, shader conversion).
-- 10 browser tests in headless Chromium: the demo boots in DOSBox Pure, a test NES cartridge
-  boots on FCEUmm, F2 draws the translation over the dialogue window, the same screen is
+- 11 browser tests in headless Chromium: the demo boots in DOSBox Pure, a test NES cartridge
+  boots on FCEUmm, a small Nintendo DS test program (made for retroglot) draws its picture on
+  melonDS, F2 draws the translation over the dialogue window, the same screen is
   answered from memory, the glossary picks up new names, auto-translate follows the dialogue
   to the next screen, save then load returns to the same picture, and the xBR and ScaleFX
   filters compile and leave translation screenshots unchanged.
@@ -298,6 +311,9 @@ exported scripts of commercial games may need the rights holder's permission.
 - The desktop app runs a self-test (`npm run smoke` in `desktop/`): first start, emulator
   download inside the app, the demo booting in DOSBox Pure, and the missing-key message. It
   passed on Linux; the Windows build runs the same test on a Windows machine in CI.
+- PSP, checked by hand: PPSSPP's own sample programs (HelloWorldPSP and others from its test
+  suite) start and draw their picture, including when the PSP emulator is downloaded from the
+  player on first use. Real PSP and DS games were not tried.
 - Not tested yet: a live Claude API key (all translation tests use the stand-in), and real
   games on the other cores. They run on the same EmulatorJS path as DOS and NES, but each
   core has its own quirks.

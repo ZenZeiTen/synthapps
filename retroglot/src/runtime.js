@@ -47,6 +47,9 @@ export function resolveRuntimePath(rel, dir = runtimeDir()) {
   if (report) return path.join(coreDir(report[1], dir), 'reports', `${report[1]}.json`);
   const core = /^cores\/([a-z0-9_]+?)(-thread)?(-legacy)?-wasm\.data$/.exec(clean);
   if (core) return path.join(coreDir(core[1], dir), path.basename(clean));
+  // PPSSPP also loads its fonts and shaders from a zip next to the core.
+  const assets = /^cores\/([a-z0-9_]+)-assets\.zip$/.exec(clean);
+  if (assets) return path.join(coreDir(assets[1], dir), path.basename(clean));
   const full = path.join(data, clean);
   return full.startsWith(data) ? full : null;
 }

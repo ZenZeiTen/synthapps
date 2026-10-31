@@ -12,7 +12,7 @@ npm test                 # unit tests, no network, no browser (test/run.js lists
 npm run test:e2e         # real emulator in headless Chromium, mock Claude API
 ```
 
-The browser tests need `npm run setup` (or at least `install-runtime --cores dosbox_pure,fceumm`) and
+The browser tests need `npm run setup` (or at least `install-runtime --cores dosbox_pure,fceumm,melonds`) and
 Playwright with Chromium; they skip themselves otherwise. In this sandbox Playwright is
 preinstalled globally; in CI the workflow installs `playwright@1.63.0`. To look at the UI,
 `node test/helpers/shots.mjs <dir>` writes screenshots (library, overlay, subtitles, saves,
@@ -25,7 +25,7 @@ browser job on Ubuntu).
 
 | File | Role |
 |---|---|
-| `src/systems.js` | System table (name, core, threads), detection from names and bytes, cue parsing |
+| `src/systems.js` | System table (name, core, threads), detection from names and bytes (discs, PSP EBOOTs, zips), cue parsing |
 | `src/runtime.js` | Downloads EmulatorJS and cores from the npm registry (own tar reader, sha512 check, no npm needed); maps `/ejs/...` URLs to files |
 | `src/store.js` | Data folder: library scan, uploads, settings, save states, covers, BIOS lookup |
 | `src/memory.js` | Per-game translation memory: script, glossary, screen cache, usage; CSV/TMX/TXT export |
@@ -140,6 +140,18 @@ the choices, then "Apply and restart" saves a state to the hidden slot 0 and rel
 - Keyboard focus: the parent must focus the iframe, then the bridge focuses EmulatorJS's own
   element (`elements.parent`), which is where its key listener is.
 - The SDK (1.x) sends beta requests to `/v1/messages` with an `anthropic-beta` header.
-- Not yet verified: a real HD texture pack in a real game; the PS1 HD renderer booting a disc.
+- melonDS starts DS programs without a BIOS (FreeBIOS), but treats ROM offsets 0x4000-0x7fff as
+  the encrypted secure area: test ROMs put their code at 0x8000 (`test/helpers/nds.js`). With
+  only 2D engine A powered, a DS shows it on the lower screen and the upper one stays white.
+- PPSSPP needs threads and WebGL 2, and loads `cores/ppsspp-assets.zip` next to the core
+  (`resolveRuntimePath` maps `<core>-assets.zip` into the core's folder).
+- `.pbp` is shared by PSP games and PlayStation games sold for the PSP: `sniffPbp` reads
+  PARAM.SFO (category `ME` = PlayStation) and DATA.PSAR (`PSISOIMG`). PSP discs have
+  `PSP GAME` in their volume descriptor.
+- The player downloads a missing core itself (`downloadCore` in `player.js`), so systems added
+  after a user's first emulator download still work for them.
+- No 3DS: EmulatorJS has no 3DS core, and translation depends on running in the browser.
+- Not yet verified: a real HD texture pack in a real game; the PS1 HD renderer booting a disc;
+  real DS and PSP games (only homebrew/test programs).
 - Not yet verified: a live Claude call (tests use `test/helpers/mock-claude.js`), and cores
   other than DOSBox Pure and FCEUmm in the browser.

@@ -100,8 +100,14 @@ async function init() {
   for (const f of ['txt', 'csv', 'tmx']) $(`#export-${f}`).href = `/api/games/${gameId}/export?format=${f}`;
 
   if (!sys.installed) {
-    bootFail(`The ${sys.name || S.game.system} emulator is not installed yet. Install it from the library (Install emulator), or run: node bin/retroglot.js install-runtime --cores ${sys.core}`);
-    return;
+    // A system added after the first emulator download (or skipped by it): fetch its core now.
+    try {
+      await downloadCore(sys);
+    } catch (e) {
+      bootFail(`The ${sys.name || S.game.system} emulator (${coreName(sys.core)}) could not be downloaded: ${e.message}. Check the internet connection and open the game again.`);
+      return;
+    }
+    $('#boot-status').textContent = bootText(sys.core);
   }
   frame.src = `/emu/${gameId}${startSlot ? `?slot=${encodeURIComponent(startSlot)}` : ''}`;
   watchBoot();
@@ -119,7 +125,7 @@ window.addEventListener('message', (ev) => {
   else if (d.type === 'retroglot:activity') wake();
 });
 
-const CORE_NAMES = { dosbox_pure: 'DOSBox Pure', fceumm: 'FCEUmm', snes9x: 'Snes9x', mupen64plus_next: 'Mupen64Plus', gambatte: 'Gambatte', mgba: 'mGBA', genesis_plus_gx: 'Genesis Plus GX', picodrive: 'PicoDrive', pcsx_rearmed: 'PCSX ReARMed', mednafen_pce: 'Beetle PCE', smsplus: 'SMS Plus', stella2014: 'Stella', prosystem: 'ProSystem', handy: 'Handy', mednafen_ngp: 'Beetle NGP', mednafen_wswan: 'Beetle WonderSwan', beetle_vb: 'Beetle VB', mednafen_psx_hw: 'Beetle PSX HW' };
+const CORE_NAMES = { dosbox_pure: 'DOSBox Pure', fceumm: 'FCEUmm', snes9x: 'Snes9x', mupen64plus_next: 'Mupen64Plus', gambatte: 'Gambatte', mgba: 'mGBA', genesis_plus_gx: 'Genesis Plus GX', picodrive: 'PicoDrive', pcsx_rearmed: 'PCSX ReARMed', mednafen_pce: 'Beetle PCE', smsplus: 'SMS Plus', stella2014: 'Stella', prosystem: 'ProSystem', handy: 'Handy', mednafen_ngp: 'Beetle NGP', mednafen_wswan: 'Beetle WonderSwan', beetle_vb: 'Beetle VB', mednafen_psx_hw: 'Beetle PSX HW', melonds: 'melonDS', ppsspp: 'PPSSPP' };
 const coreName = (c) => CORE_NAMES[c] || c || 'the emulator';
 const bootText = (core) => `Starting ${coreName(core)}${startSlot === '0' ? ', then continuing where you were' : startSlot ? `, then loading save slot ${startSlot}` : ''}`;
 
@@ -134,6 +140,25 @@ function bootArt() {
   snap.onerror = () => { if (!snap.src.endsWith('/boxart')) snap.src = `/api/games/${gameId}/art/boxart`; };
   snap.src = `/api/games/${gameId}/art/snap`;
   void g;
+}
+
+async function downloadCore(sys) {
+  const label = `Downloading the ${sys.name || 'emulator'} emulator (${coreName(sys.core)})`;
+  $('#boot-status').textContent = `${label}…`;
+  let st = await api('/api/runtime/install', { method: 'POST', body: { cores: [sys.core] } });
+  while (st.running || (!st.finishedAt && !st.error)) {
+    await new Promise((r) => setTimeout(r, 400));
+    st = await api('/api/runtime/install');
+    if (st.bytes) $('#boot-status').textContent = `${label}, ${(st.bytes / 1048576).toFixed(1)} MB…`;
+  }
+  if (st.error) throw new Error(st.error);
+  // Another download (from the library) may have been running; make sure this core is there now.
+  const systems = await api('/api/systems');
+  if (!systems.find((x) => x.id === sys.id)?.installed) {
+    st = await api('/api/runtime/install', { method: 'POST', body: { cores: [sys.core] } });
+    while (st.running || (!st.finishedAt && !st.error)) { await new Promise((r) => setTimeout(r, 400)); st = await api('/api/runtime/install'); }
+    if (st.error) throw new Error(st.error);
+  }
 }
 
 function bootFail(text) {

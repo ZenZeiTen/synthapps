@@ -14,6 +14,7 @@ export const SYSTEMS = {
   n64: { name: 'Nintendo 64', short: 'N64', core: 'mupen64plus_next', era: 1996, maker: 'Nintendo' },
   gb: { name: 'Game Boy / Color', short: 'GB', core: 'gambatte', era: 1989, maker: 'Nintendo' },
   gba: { name: 'Game Boy Advance', short: 'GBA', core: 'mgba', era: 2001, maker: 'Nintendo' },
+  nds: { name: 'Nintendo DS', short: 'NDS', core: 'melonds', era: 2004, maker: 'Nintendo' },
   vb: { name: 'Virtual Boy', short: 'VB', core: 'beetle_vb', era: 1995, maker: 'Nintendo' },
   segaMS: { name: 'Sega Master System', short: 'SMS', core: 'smsplus', era: 1985, maker: 'Sega' },
   segaMD: { name: 'Sega Mega Drive / Genesis', short: 'MD', core: 'genesis_plus_gx', era: 1988, maker: 'Sega' },
@@ -28,6 +29,7 @@ export const SYSTEMS = {
   jaguar: { name: 'Atari Jaguar', short: 'JAG', core: 'virtualjaguar', era: 1993, maker: 'Atari' },
   '3do': { name: '3DO', short: '3DO', core: 'opera', era: 1993, maker: 'Panasonic', bios: true },
   psx: { name: 'PlayStation', short: 'PS1', core: 'pcsx_rearmed', era: 1994, maker: 'Sony' },
+  psp: { name: 'PlayStation Portable', short: 'PSP', core: 'ppsspp', era: 2004, maker: 'Sony', threads: true },
   arcade: { name: 'Arcade (FinalBurn Neo)', short: 'ARC', core: 'fbneo', era: 1980, maker: 'Arcade' },
   amiga: { name: 'Commodore Amiga', short: 'AMI', core: 'puae', era: 1985, maker: 'Commodore' },
   c64: { name: 'Commodore 64', short: 'C64', core: 'vice_x64sc', era: 1982, maker: 'Commodore' },
@@ -37,7 +39,7 @@ export const SYSTEMS = {
 export const DEFAULT_CORES = [
   'dosbox_pure', 'fceumm', 'snes9x', 'mupen64plus_next', 'gambatte', 'mgba', 'smsplus',
   'genesis_plus_gx', 'picodrive', 'mednafen_pce', 'pcsx_rearmed', 'stella2014', 'prosystem',
-  'handy', 'mednafen_ngp', 'mednafen_wswan', 'beetle_vb',
+  'handy', 'mednafen_ngp', 'mednafen_wswan', 'beetle_vb', 'melonds', 'ppsspp',
 ];
 
 /** Optional cores used by enhancements: Beetle PSX HW renders PlayStation games at higher resolution. */
@@ -53,17 +55,17 @@ const EXT = {
   nes: 'nes', fds: 'nes', unf: 'nes', unif: 'nes',
   sfc: 'snes', smc: 'snes', fig: 'snes', swc: 'snes', bs: 'snes',
   n64: 'n64', z64: 'n64', v64: 'n64',
-  gb: 'gb', gbc: 'gb', sgb: 'gb', gba: 'gba', vb: 'vb', vboy: 'vb',
+  gb: 'gb', gbc: 'gb', sgb: 'gb', gba: 'gba', nds: 'nds', dsi: 'nds', cso: 'psp', vb: 'vb', vboy: 'vb',
   sms: 'segaMS', md: 'segaMD', gen: 'segaMD', smd: 'segaMD', gg: 'segaGG', '32x': 'sega32x',
   pce: 'pce', sgx: 'pce', ngp: 'ngp', ngc: 'ngp', ws: 'ws', wsc: 'ws', lnx: 'lynx',
-  j64: 'jaguar', jag: 'jaguar', pbp: 'psx', adf: 'amiga', hdf: 'amiga', d64: 'c64', t64: 'c64', prg: 'c64',
+  j64: 'jaguar', jag: 'jaguar', adf: 'amiga', hdf: 'amiga', d64: 'c64', t64: 'c64', prg: 'c64',
 };
 
 /** Extensions that are disc images: system decided by the disc's contents. */
 export const DISC_EXTS = new Set(['cue', 'chd', 'iso', 'img', 'bin', 'ccd', 'm3u', 'toc', 'cdi']);
 
 /** Every extension retroglot will put in the library. */
-export const GAME_EXTS = new Set([...Object.keys(EXT), ...DISC_EXTS, 'zip', '7z']);
+export const GAME_EXTS = new Set([...Object.keys(EXT), ...DISC_EXTS, 'pbp', 'zip', '7z']);
 
 export function extOf(name) {
   const m = /\.([^./\\]+)$/.exec(String(name));
@@ -79,6 +81,7 @@ const ascii = (buf, start, len) => Buffer.from(buf.subarray(start, start + len))
 export function sniffDisc(head) {
   if (!head || head.length < 64) return null;
   const text = Buffer.from(head).toString('latin1');
+  if (text.includes('PSP GAME')) return 'psp';
   if (text.includes('SEGA SEGASATURN')) return 'segaSaturn';
   if (text.includes('SEGADISCSYSTEM')) return 'segaCD';
   // 3DO Opera file system: record type 1, five 0x5A sync bytes, version 1.
@@ -88,6 +91,33 @@ export function sniffDisc(head) {
   if (text.includes('PLAYSTATION') || text.includes('Sony Computer Entertainment')) return 'psx';
   if (text.includes('PC Engine CD-ROM SYSTEM')) return 'pce';
   return null;
+}
+
+/**
+ * EBOOT.PBP files hold either a PSP game or homebrew, or a PlayStation game sold for the PSP
+ * (PSN "PS one Classics"). Their PARAM.SFO says which: category "ME" is a PlayStation game.
+ */
+export function sniffPbp(head) {
+  if (!head || head.length < 40 || head.readUInt32BE(0) !== 0x00504250) return null; // "\0PBP"
+  const sfo = head.readUInt32LE(8);
+  const psar = head.readUInt32LE(36);
+  if (psar + 10 <= head.length) {
+    const tag = ascii(head, psar, 10);
+    if (tag.startsWith('PSISOIMG') || tag.startsWith('PSTITLEIMG')) return 'psx';
+  }
+  if (sfo + 20 > head.length || head.readUInt32BE(sfo) !== 0x00505346) return 'psp'; // "\0PSF"
+  const keys = sfo + head.readUInt32LE(sfo + 8);
+  const data = sfo + head.readUInt32LE(sfo + 12);
+  const count = head.readUInt32LE(sfo + 16);
+  for (let i = 0; i < count && sfo + 20 + i * 16 + 16 <= head.length; i++) {
+    const e = sfo + 20 + i * 16;
+    const keyAt = keys + head.readUInt16LE(e);
+    const end = head.indexOf(0, keyAt);
+    if (end < 0 || ascii(head, keyAt, end - keyAt) !== 'CATEGORY') continue;
+    const valAt = data + head.readUInt32LE(e + 12);
+    return ascii(head, valAt, 2) === 'ME' ? 'psx' : 'psp';
+  }
+  return 'psp';
 }
 
 /** Names of the files stored in a zip, read from its central directory. */
@@ -145,6 +175,11 @@ export function detectSystem(name, bytes = {}) {
     return { system: 'dos', confidence: 'low', reason: 'zip with unreadable contents' };
   }
   if (ext === '7z') return { system: 'dos', confidence: 'low', reason: '7z archive' };
+  if (ext === 'pbp') {
+    const system = sniffPbp(head);
+    if (system) return { system, confidence: 'high', reason: system === 'psx' ? 'PlayStation game in a PSP EBOOT' : 'PSP EBOOT' };
+    return { system: 'psp', confidence: 'low', reason: '.pbp file' };
+  }
   if (DISC_EXTS.has(ext)) {
     if (head) {
       // A plain .bin may be a Mega Drive cartridge rather than a disc.
