@@ -266,7 +266,7 @@ cd gamepilot
 python -m unittest discover -s tests -t .
 ```
 
-62 tests, standard library only. They cover plan validation, frame timing (minimum
+63 tests, standard library only. They cover plan validation, frame timing (minimum
 holds, release gaps, exact mouse totals, no drift), release on stop and on error, every
 backend against stand-ins for its driver library, the Claude request format and
 conversation handling with a fake client, a fake RetroArch over UDP, profiles, safety

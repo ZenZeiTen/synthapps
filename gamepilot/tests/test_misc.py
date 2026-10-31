@@ -67,10 +67,28 @@ class RetroArchTest(unittest.TestCase):
         port = free.getsockname()[1]
         free.close()
         ra = RetroArch(port=port, timeout=0.2)
+        self.addCleanup(ra.close)
         with self.assertRaises(RetroArchError) as ctx:
             ra.status()
         self.assertIn("Network Commands", str(ctx.exception))
-        ra.close()
+
+    def test_windows_port_unreachable_is_explained(self):
+        # Windows reports an unanswered UDP request to a closed port as a connection reset.
+        ra = RetroArch(port=9, timeout=0.2)
+        real = ra.sock
+        self.addCleanup(real.close)
+
+        class ResetSocket:
+            def __getattr__(self, name):
+                return getattr(real, name)
+
+            def recvfrom(self, n):
+                raise ConnectionResetError(10054, "An existing connection was forcibly closed")
+
+        ra.sock = ResetSocket()
+        with self.assertRaises(RetroArchError) as ctx:
+            ra.status()
+        self.assertIn("Network Commands", str(ctx.exception))
 
 
 class ProfileTest(unittest.TestCase):

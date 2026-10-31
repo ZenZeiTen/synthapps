@@ -59,7 +59,7 @@ class RetroArch:
         self.send(command)
         try:
             data, _ = self.sock.recvfrom(65535)
-        except TimeoutError as exc:
+        except (TimeoutError, ConnectionResetError) as exc:  # Windows reports a closed port as a reset
             raise RetroArchError(
                 f"RetroArch did not answer {command.split()[0]} on {self.addr[0]}:{self.addr[1]}; "
                 "is it running with Network Commands turned on?"
