@@ -156,6 +156,7 @@ use, how to pace play, what the buttons do and what the goal is. Start from a te
 |---|---|
 | `steam-gamepad-template.toml` | Steam (or any PC) game with a controller |
 | `steam-keyboard-mouse-template.toml` | PC game with keyboard and mouse |
+| `example-virtual-cottage-2.toml` | A game played by clicking on screen (a finished example) |
 | `retroarch-template.toml` | A console game in RetroArch, played frame by frame |
 
 **[SETTINGS.md](SETTINGS.md) explains every setting step by step**, with a complete example.
@@ -251,6 +252,11 @@ a list of input steps, and, optionally, updated notes. A step looks like this:
 Plans are checked before anything is pressed. A rejected plan, with the reason, goes back
 to Claude as an error so it can correct itself.
 
+- Clicking: with the keyboard and mouse device, a step can say
+  `"mouse_to": {"x": 640, "y": 360}` in pixels of the screenshot Claude saw. The pointer
+  jumps to that spot inside the game window, then the step's buttons (such as `MOUSE_LEFT`)
+  are pressed a frame later. This makes menu-driven and point-and-click games playable.
+  On Linux it needs X11 and `xdotool`.
 - Model: `claude-opus-5-5` by default (`agent.model` or `--model`). `agent.effort` sets how
   much it thinks; `low` keeps turns quick.
 - The conversation only grows by appending, which keeps the prompt cache working. After
@@ -317,7 +323,7 @@ cd gamepilot
 python -m unittest discover -s tests -t .
 ```
 
-79 tests, standard library only (one runs only on Windows). They cover plan validation, frame timing (minimum
+88 tests, standard library only (one runs only on Windows). They cover plan validation, frame timing (minimum
 holds, release gaps, exact mouse totals, no drift), release on stop and on error, every
 backend against stand-ins for its driver library, the Claude request format and
 conversation handling with a fake client, a fake RetroArch over UDP, profiles, safety

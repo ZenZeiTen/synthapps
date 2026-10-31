@@ -9,6 +9,9 @@ from .window import WindowTracker
 
 
 class Capture:
+    #: Screen area of the last grab (left, top, width, height), or None when unknown.
+    last_region: tuple[int, int, int, int] | None = None
+
     def grab(self) -> Frame:
         raise NotImplementedError
 
@@ -35,6 +38,7 @@ class ScreenCapture(Capture):
         else:
             region = {"left": r.left, "top": r.top, "width": r.width, "height": r.height}
         shot = self._sct.grab(region)
+        self.last_region = (int(region["left"]), int(region["top"]), shot.width, shot.height)
         return Frame(shot.width, shot.height, shot.rgb)
 
     def close(self) -> None:

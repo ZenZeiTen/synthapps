@@ -97,9 +97,26 @@ class UInputGamepad(Backend):
         self._dev.close()
 
 
+def _xdotool_pointer() -> Any:
+    """Absolute pointer jumps on X11 via xdotool; None where that is not possible."""
+    import os
+    import shutil
+    import subprocess
+
+    if os.environ.get("XDG_SESSION_TYPE") == "wayland" or not shutil.which("xdotool"):
+        return None
+
+    def move(x: int, y: int) -> None:
+        subprocess.run(["xdotool", "mousemove", str(x), str(y)], check=False, timeout=2)
+
+    return move
+
+
 class UInputKeyboardMouse(Backend):
-    def __init__(self, module: Any = None) -> None:
-        super().__init__(name="uinput-kbm", kinds=frozenset({Kind.KEY, Kind.MOUSE_BUTTON}))
+    def __init__(self, module: Any = None, pointer: Any = "auto") -> None:
+        self._pointer = _xdotool_pointer() if pointer == "auto" else pointer
+        super().__init__(name="uinput-kbm", kinds=frozenset({Kind.KEY, Kind.MOUSE_BUTTON}),
+                         supports_pointer=self._pointer is not None)
         evdev = module or _load()
         keys = sorted({linux for _, _, linux in KEYS.values()} | {c for _, c in MOUSE_BUTTONS.values()})
         self._dev = _open(
@@ -112,6 +129,10 @@ class UInputKeyboardMouse(Backend):
     def _emit_button(self, control: Control, down: bool) -> None:
         code = KEYS[control.name[4:]][2] if control.kind is Kind.KEY else MOUSE_BUTTONS[control.name][1]
         self._dev.write(EV_KEY, code, 1 if down else 0)
+
+    def _emit_pointer(self, x: int, y: int) -> None:
+        self._dev.syn()  # deliver earlier events before the pointer jumps
+        self._pointer(x, y)
 
     def _emit_mouse_move(self, dx: int, dy: int) -> None:
         if dx:

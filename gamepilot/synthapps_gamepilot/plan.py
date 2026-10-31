@@ -45,6 +45,9 @@ class Step:
     mouse_dy: int = 0
     duration_ms: int = 100
     release_after: bool = True
+    #: Absolute pointer target. In a parsed plan: pixel position in the screenshot the
+    #: planner saw. After :func:`map_pointer`: screen pixel position.
+    pointer: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -113,7 +116,7 @@ def _stick(value: Any, where: str) -> tuple[float, float]:
 
 _STEP_FIELDS = {
     "buttons", "left_stick", "right_stick", "left_trigger", "right_trigger",
-    "mouse_move", "duration_ms", "release_after",
+    "mouse_move", "mouse_to", "duration_ms", "release_after",
 }
 
 
@@ -145,6 +148,14 @@ def parse_step(raw: Any, bindings: Bindings, index: int) -> Step:
         mouse_dx = int(round(_number(move.get("dx", 0), f"{where}.mouse_move.dx", -MAX_MOUSE, MAX_MOUSE)))
         mouse_dy = int(round(_number(move.get("dy", 0), f"{where}.mouse_move.dy", -MAX_MOUSE, MAX_MOUSE)))
 
+    pointer = None
+    if "mouse_to" in raw:
+        to = raw["mouse_to"]
+        if not isinstance(to, Mapping) or set(to) - {"x", "y"} or not {"x", "y"} <= set(to):
+            raise PlanError(f"{where}.mouse_to must be {{\"x\": number, \"y\": number}} in screenshot pixels")
+        pointer = (_number(to["x"], f"{where}.mouse_to.x", 0, 20000),
+                   _number(to["y"], f"{where}.mouse_to.y", 0, 20000))
+
     release_after = raw.get("release_after", True)
     if not isinstance(release_after, bool):
         raise PlanError(f"{where}.release_after must be true or false")
@@ -159,6 +170,7 @@ def parse_step(raw: Any, bindings: Bindings, index: int) -> Step:
         mouse_dy=mouse_dy,
         duration_ms=duration,
         release_after=release_after,
+        pointer=pointer,
     )
 
 
@@ -191,9 +203,47 @@ def describe(plan: Plan) -> str:
             bits.append(f"LT{s.left_trigger:.2f}")
         if s.right_trigger:
             bits.append(f"RT{s.right_trigger:.2f}")
+        if s.pointer:
+            bits.append(f"to({s.pointer[0]:.0f},{s.pointer[1]:.0f})")
         if s.mouse_dx or s.mouse_dy:
             bits.append(f"mouse({s.mouse_dx:+d},{s.mouse_dy:+d})")
         hold = "" if s.release_after else " hold"
         parts.append(f"[{'+'.join(bits) or 'wait'} {s.duration_ms}ms{hold}]")
     return " ".join(parts) or "[no-op]"
 
+
+
+@dataclass(frozen=True)
+class PointerMap:
+    """How screenshot pixels relate to the screen: the captured area and the image size."""
+
+    left: int
+    top: int
+    width: int
+    height: int
+    image_width: int
+    image_height: int
+
+
+def map_pointer(plan: Plan, where: PointerMap | None) -> Plan:
+    """Turn ``mouse_to`` positions (screenshot pixels) into screen pixels inside the window."""
+    if not any(s.pointer for s in plan.steps):
+        return plan
+    if where is None:
+        raise PlanError("mouse_to is not available here: the screen position of the game is unknown")
+    from dataclasses import replace
+
+    steps = []
+    for i, s in enumerate(plan.steps):
+        if s.pointer is not None:
+            x, y = s.pointer
+            if not (0 <= x < where.image_width and 0 <= y < where.image_height):
+                raise PlanError(
+                    f"steps[{i}].mouse_to ({x:g}, {y:g}) is outside the screenshot, which is "
+                    f"{where.image_width}x{where.image_height} pixels"
+                )
+            sx = where.left + int((x + 0.5) * where.width / where.image_width)
+            sy = where.top + int((y + 0.5) * where.height / where.image_height)
+            s = replace(s, pointer=(sx, sy))
+        steps.append(s)
+    return Plan(tuple(steps), plan.intent)

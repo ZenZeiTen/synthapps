@@ -22,7 +22,7 @@ from typing import Any, Protocol
 
 from . import controls
 from .claude import FALLBACK_BETA, create_message, make_client
-from .imaging import Frame, encode_for_model
+from .imaging import Frame, encode_for_model, fit
 from .plan import MAX_PLAN_MS, MAX_STEP_MS, MAX_STEPS
 from .profile import Profile
 
@@ -77,6 +77,13 @@ STEP_SCHEMA = {
             "additionalProperties": False,
             "description": "Relative mouse movement in pixels, spread evenly over the step.",
         },
+        "mouse_to": {
+            "type": "object",
+            "properties": {"x": {"type": "number"}, "y": {"type": "number"}},
+            "required": ["x", "y"],
+            "additionalProperties": False,
+            "description": "Move the pointer to this pixel position in the newest screenshot before the step's buttons are pressed.",
+        },
         "duration_ms": {"type": "integer", "minimum": 1, "maximum": MAX_STEP_MS},
         "release_after": {"type": "boolean",
                           "description": "Default true. false keeps inputs held into the next step without a gap."},
@@ -120,6 +127,15 @@ def system_prompt(profile: Profile) -> str:
         "Prefer short plans (about 0.3 to 2 seconds) and end in a safe position, then look again."
     )
     bindings = "\n".join(f"- {k}: {v}" for k, v in profile.bindings.items()) or "- (none; use raw controls)"
+    pointing = ""
+    if profile.input.device in ("kbm", "both"):
+        pointing = (
+            "- To click something on screen, add mouse_to {x, y} with its pixel position in the newest "
+            "screenshot (its size is given each turn) and MOUSE_LEFT in buttons of the same step, e.g. "
+            '{"mouse_to": {"x": 640, "y": 360}, "buttons": ["MOUSE_LEFT"], "duration_ms": 80}. The pointer '
+            "moves first, then the button is pressed. Aim at the centre of the button or text. To drag, hold "
+            "MOUSE_LEFT with release_after false, then give the end point with mouse_to in the next step.\n"
+        )
     device = {"gamepad": "a virtual Xbox controller", "kbm": "a virtual keyboard and mouse",
               "both": "a virtual Xbox controller plus a virtual keyboard and mouse"}[profile.input.device]
     return f"""You are playing the video game "{profile.name}" with {device}.
@@ -139,7 +155,7 @@ Controls:
 - Prefer these action names from the profile:
 {bindings}
 - Every press lasts at least {profile.input.min_hold_frames} frames. To press the same button twice, put it in two steps; it is released briefly in between. To keep holding across steps, set release_after to false.
-- A step with no inputs is a wait. Limits: {MAX_STEPS} steps and {MAX_PLAN_MS // 1000} seconds per plan.
+{pointing}- A step with no inputs is a wait. Limits: {MAX_STEPS} steps and {MAX_PLAN_MS // 1000} seconds per plan.
 - Do not press GUIDE: it opens the Steam or system overlay.
 
 Game notes:
@@ -159,8 +175,11 @@ def _image_blocks(frames: list[Frame], max_edge: int) -> list[dict[str, Any]]:
     return blocks
 
 
-def _status_text(obs: Observation, memory: str) -> str:
+def _status_text(obs: Observation, memory: str, max_edge: int = 1024) -> str:
     lines = [f"Turn {obs.turn}."]
+    if obs.frames:
+        w, h = fit(obs.frames[-1].width, obs.frames[-1].height, max_edge)
+        lines.append(f"Screenshot size: {w}x{h} pixels (mouse_to uses these coordinates).")
     if obs.memory_readings:
         lines.append("Game memory: " + ", ".join(f"{k}={v}" for k, v in obs.memory_readings.items()))
     lines.append(f"Your notes: {memory or '(empty)'}")
@@ -227,7 +246,8 @@ class ClaudePlanner:
                          + "\n".join(self.history[-8:]))
             content.append({"type": "text", "text": intro + f"\nLast result: {obs.last_result}"})
         content.extend(_image_blocks(obs.frames, self.profile.agent.image_max_edge))
-        content.append({"type": "text", "text": _status_text(obs, self.memory)})
+        content.append({"type": "text",
+                        "text": _status_text(obs, self.memory, self.profile.agent.image_max_edge)})
         return content
 
     def _request(self) -> Any:

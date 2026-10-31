@@ -13,6 +13,7 @@ from .base import Backend
 class RecordingBackend(Backend):
     name: str = "record"
     kinds: frozenset[Kind] = frozenset(Kind) - {Kind.STICK_DIRECTION}
+    supports_pointer: bool = True
     events: list[tuple[float, str, object]] = field(default_factory=list)
     clock: object = time.perf_counter
 
@@ -27,6 +28,9 @@ class RecordingBackend(Backend):
 
     def _emit_mouse_move(self, dx: int, dy: int) -> None:
         self.events.append((self._now(), "mouse", (dx, dy)))
+
+    def _emit_pointer(self, x: int, y: int) -> None:
+        self.events.append((self._now(), "pointer", (x, y)))
 
     # helpers for tests and dry-run reports
     def presses(self, name: str) -> int:

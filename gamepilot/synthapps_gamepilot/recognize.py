@@ -38,11 +38,12 @@ You receive screenshots of the windows open on the player's computer, each with 
 Decide which window is a game, and which game it is. Then call the identify_game tool once.
 
 Rules:
-- A game window shows a game: a title screen, a menu, or gameplay. Launchers (Steam, Epic), stores, browsers, chat and video players are not games, even when they show a game's picture.
+- A game window shows a game: a title screen, a menu, or gameplay. Cozy, idle, sandbox, life-sim and toy games count as games. Launchers (Steam, Epic), stores, browsers, chat and video players are not games, even when they show a game's picture.
 - An emulator (RetroArch, Dolphin, PCSX2, PPSSPP, DuckStation, Ryujinx and others) running a game counts as the game. Name the game it runs, and the emulator.
 - If no window is a game, set game_window to -1.
 - title_contains must be a short part of that window's exact title that other windows are unlikely to have.
 - Suggest bindings only for controls you are confident are the game's defaults. Fewer correct bindings are better than many guesses. Use only these control names: {names}.
+- device: "kbm" for games played mainly by clicking on screen (the agent can click any spot it sees), "gamepad" when a controller is the natural fit.
 - pacing: "waits" if the game waits for the player (turn-based, puzzle, card, visual novel, menus), "realtime" if it keeps moving.
 - pause_input: for a realtime game, the control that pauses and unpauses it, if you know it; otherwise an empty string."""
 

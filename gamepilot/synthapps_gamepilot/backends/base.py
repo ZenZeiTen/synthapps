@@ -20,6 +20,7 @@ class InputState:
     axes: tuple[float, float, float, float, float, float] = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     mouse_dx: int = 0  # relative movement during this tick only
     mouse_dy: int = 0
+    pointer: tuple[int, int] | None = None  # absolute screen position to jump to this tick
 
     def axis(self, name: str) -> float:
         return self.axes[AXES.index(name)]
@@ -38,6 +39,7 @@ class Backend:
 
     name: str = "base"
     kinds: frozenset[Kind] = field(default_factory=frozenset)
+    supports_pointer: bool = False  # can jump the pointer to an absolute screen position
     _current: InputState = field(default=NEUTRAL, init=False)
 
     def supports(self, control: Control) -> bool:
@@ -46,6 +48,9 @@ class Backend:
     def apply(self, state: InputState) -> None:
         prev = self._current
         changed = False
+        if state.pointer is not None and self.supports_pointer:
+            self._emit_pointer(*state.pointer)  # before any click in the same tick
+            changed = True
         for c in sorted(prev.held - state.held, key=lambda c: c.name):
             if self.supports(c):
                 self._emit_button(c, False)
@@ -84,6 +89,9 @@ class Backend:
     def _emit_mouse_move(self, dx: int, dy: int) -> None:
         raise NotImplementedError
 
+    def _emit_pointer(self, x: int, y: int) -> None:
+        raise NotImplementedError
+
     def _flush(self) -> None:
         pass
 
@@ -98,7 +106,8 @@ class MultiBackend(Backend):
         kinds: set[Kind] = set()
         for p in parts:
             kinds |= p.kinds
-        super().__init__(name="+".join(p.name for p in parts), kinds=frozenset(kinds))
+        super().__init__(name="+".join(p.name for p in parts), kinds=frozenset(kinds),
+                         supports_pointer=any(p.supports_pointer for p in parts))
         self.parts = parts
 
     def apply(self, state: InputState) -> None:

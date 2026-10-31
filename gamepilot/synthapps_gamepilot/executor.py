@@ -115,6 +115,15 @@ def compile_plan(plan: Plan, timing: Timing, tick_hz: float) -> list[InputState]
     steps = plan.steps
     for i, step in enumerate(steps):
         digital, axes = _resolve(step)
+        if step.pointer is not None:
+            # Jump the pointer first and let the game see it there before any click. Inputs
+            # carried from a step with release_after false stay held, so dragging works.
+            prev = steps[i - 1] if i else None
+            carried = digital & _resolve(prev)[0] if prev is not None and not prev.release_after else frozenset()
+            target = (int(step.pointer[0]), int(step.pointer[1]))
+            ticks.append(InputState(carried, axes, pointer=target))
+            for _ in range(frames_to_ticks(1, timing, tick_hz) - 1):
+                ticks.append(InputState(carried, axes))
         n = ms_to_ticks(step.duration_ms, tick_hz)
         if digital:
             n = max(n, min_hold)
@@ -194,6 +203,8 @@ class Executor:
         report.unsupported = sorted(
             {c.name for s in plan.steps for c in s.controls
              if c.kind is not Kind.STICK_DIRECTION and not self.backend.supports(c)}
+            | ({"mouse_to"} if any(s.pointer for s in plan.steps) and not self.backend.supports_pointer
+               else set())
         )
         start = self.now()
         try:

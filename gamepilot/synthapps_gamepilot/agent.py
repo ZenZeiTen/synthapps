@@ -20,8 +20,8 @@ from typing import Any
 from .backends.base import Backend
 from .capture import Capture
 from .executor import Clock, Executor, RealTimeClock, SteppedClock, Timing
-from .imaging import Frame, encode_png
-from .plan import Plan, PlanError, describe, parse_plan
+from .imaging import Frame, encode_png, fit
+from .plan import Plan, PlanError, PointerMap, describe, map_pointer, parse_plan
 from .planner import Decision, Observation, Planner
 from .profile import Profile
 from .retroarch import RetroArch, RetroArchError
@@ -109,6 +109,7 @@ class GameAgent:
                                       0.1, time.monotonic)
         self.executor = Executor(backend, clock, self.timing, should_stop=self._interrupt)
         self.records: list[dict[str, Any]] = []
+        self.pointer_map: PointerMap | None = None
 
     # --- checks -----------------------------------------------------------------
     def _interrupt(self) -> str:
@@ -143,6 +144,11 @@ class GameAgent:
             else:
                 self.sleep(self.p.agent.frame_gap_ms / 1000)
             frames.append(self.capture.grab())
+        region = self.capture.last_region
+        last = frames[-1]
+        if region is not None:
+            w, h = fit(last.width, last.height, self.p.agent.image_max_edge)
+            self.pointer_map = PointerMap(*region, w, h)
         return frames
 
     def _memory(self) -> dict[str, str]:
@@ -269,7 +275,8 @@ class GameAgent:
                 if decision.emulator == "load_state":
                     self.sleep(0.1)
         try:
-            plan: Plan = parse_plan(decision.steps, self.bindings, decision.intent)
+            plan: Plan = map_pointer(parse_plan(decision.steps, self.bindings, decision.intent),
+                                     self.pointer_map)
         except PlanError as exc:
             entry["result"] = f"plan rejected: {exc}"
             return "; ".join(notes + [f"Your plan was rejected and nothing was pressed: {exc}"]), True

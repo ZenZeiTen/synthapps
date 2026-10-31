@@ -163,6 +163,11 @@ Button names:
 | Keyboard | `KEY_` and the key: `KEY_W` `KEY_SPACE` `KEY_ENTER` `KEY_ESC` `KEY_LEFTSHIFT` `KEY_TAB` `KEY_1` `KEY_F5` `KEY_UP` |
 | Mouse | `MOUSE_LEFT` `MOUSE_RIGHT` `MOUSE_MIDDLE` `MOUSE_BACK` `MOUSE_FORWARD` |
 
+Games played by clicking buttons on screen need no bindings at all. With
+`device = "kbm"`, Claude clicks what it sees: it gives the spot's position in the
+screenshot, and gamepilot moves the pointer there and clicks.
+`profiles/example-virtual-cottage-2.toml` is a finished example.
+
 Controller names follow the Xbox layout. On a PlayStation layout, A is Cross, B is Circle,
 X is Square, Y is Triangle, LB is L1, RB is R1, LT is L2 and RT is R2. The PlayStation
 names `L1` `R1` `L2` `R2` are accepted too.
