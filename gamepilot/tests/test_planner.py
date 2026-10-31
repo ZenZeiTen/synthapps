@@ -35,8 +35,8 @@ class PlannerTest(unittest.TestCase):
         req = client.requests[0]
         self.assertEqual(req["model"], "claude-opus-5-5")
         self.assertEqual(req["betas"], ["server-side-fallback-2026-07-01"])
-        self.assertEqual(req["fallbacks"], "default")
-        self.assertEqual(req["output_config"], {"effort": "low"})
+        self.assertEqual(req["extra_body"]["fallbacks"], "default")
+        self.assertEqual(req["extra_body"]["output_config"], {"effort": "low"})
         self.assertEqual(req["tool_choice"], {"type": "auto"})
         self.assertNotIn("thinking", req)
         kinds = [b["type"] for b in req["messages"][0]["content"]]
@@ -130,10 +130,28 @@ class PlannerTest(unittest.TestCase):
         self.assertIn("frozen while you think", text)
         self.assertIn("up: DPAD_UP", text)
 
+    def test_works_with_older_sdk_signatures(self):
+        # Older anthropic releases reject fallbacks, cache_control and output_config as keyword
+        # arguments; they must travel in extra_body, which every release accepts.
+        requests = []
+
+        def create(*, model, max_tokens, messages, system=None, tools=None, tool_choice=None,
+                   betas=None, extra_body=None, **unsupported):
+            if unsupported:
+                raise TypeError(f"unexpected keyword argument {sorted(unsupported)[0]!r}")
+            requests.append(extra_body)
+            return response([tool_use("t1", act([]))])
+
+        client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=create)))
+        self.planner(client).decide(obs(1))
+        self.assertEqual(requests[0]["fallbacks"], "default")
+        self.assertEqual(requests[0]["output_config"], {"effort": "low"})
+        self.assertEqual(requests[0]["cache_control"], {"type": "ephemeral"})
+
     def test_no_fallbacks_option(self):
         client = FakeClient([response([tool_use("t", act([]))])])
         self.planner(client, use_fallbacks=False).decide(obs(1))
-        self.assertNotIn("fallbacks", client.requests[0])
+        self.assertNotIn("fallbacks", client.requests[0]["extra_body"])
         self.assertNotIn("betas", client.requests[0])
 
 

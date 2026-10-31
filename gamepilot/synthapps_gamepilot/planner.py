@@ -236,11 +236,17 @@ class ClaudePlanner:
         return content
 
     def _request(self) -> Any:
+        # Newer request fields go in extra_body: older SDK releases reject them as keyword
+        # arguments, but every release merges extra_body into the request as is.
+        body: dict[str, Any] = {
+            "output_config": {"effort": self.profile.agent.effort},
+            "cache_control": {"type": "ephemeral"},
+        }
         kwargs: dict[str, Any] = {}
         if self.use_fallbacks:
             # On a safety decline, the API re-runs the turn on Anthropic's recommended model.
             kwargs["betas"] = self.BETAS
-            kwargs["fallbacks"] = "default"
+            body["fallbacks"] = "default"
         return self._with_retries(lambda: self.client.beta.messages.create(
             model=self.profile.agent.model,
             max_tokens=16000,
@@ -248,8 +254,7 @@ class ClaudePlanner:
             tools=[self.tool],
             tool_choice={"type": "auto"},
             messages=self.messages,
-            output_config={"effort": self.profile.agent.effort},
-            cache_control={"type": "ephemeral"},
+            extra_body=body,
             **kwargs,
         ))
 
