@@ -55,11 +55,14 @@ Claude, so it shows the layout, not a live answer. The library picture uses made
 The easiest way on Windows: install **Retroglot** like any other program. No Node.js, no
 terminal.
 
-1. Download **Retroglot-Windows** from the latest successful
-   [retroglot desktop build](https://github.com/ZenZeiTen/synthapps/actions/workflows/retroglot-desktop.yml)
-   (open the newest green run, scroll to *Artifacts*). Unzip it. It holds two files:
-   - `Retroglot-Setup-0.1.0.exe`: the installer (Start menu and desktop shortcuts).
-   - `Retroglot-0.1.0-portable.exe`: runs without installing, for example from a USB stick.
+1. Download one of the two files from the newest Retroglot release on the
+   [releases page](https://github.com/ZenZeiTen/synthapps/releases) (look for
+   "Retroglot … for Windows" and open *Assets*):
+   - `Retroglot-Setup-<version>.exe`: the installer (Start menu and desktop shortcuts).
+   - `Retroglot-<version>-portable.exe`: runs without installing, for example from a USB stick.
+
+   Builds of work in progress are also kept for 30 days as the **Retroglot-Windows** artifact
+   of each [retroglot desktop build](https://github.com/ZenZeiTen/synthapps/actions/workflows/retroglot-desktop.yml).
 2. Run it. The app is not code-signed yet, so Windows SmartScreen may say "Windows protected
    your PC". Click **More info**, then **Run anyway**.
 3. On first start Retroglot downloads the emulator (about 90 MB, once). A progress bar shows

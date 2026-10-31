@@ -1,6 +1,6 @@
 {
   "name": "retroglot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Play retro games from DOS to the PS1 era in the browser, with live on-screen translation by Claude.",
   "type": "module",
   "license": "MIT",

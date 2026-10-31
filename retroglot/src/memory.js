@@ -5,6 +5,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+const VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+
 const MAX_LINES = 20000;
 const MAX_FRAMES = 3000;
 
@@ -149,7 +151,7 @@ export function exportScript(memory, format, { title = 'game', sourceLanguage = 
       seen.add(key);
       units.push(`    <tu>${l.speaker ? `\n      <prop type="x-speaker">${xml(l.speaker)}</prop>` : ''}\n      <tuv xml:lang="${xml(src)}"><seg>${xml(l.original)}</seg></tuv>\n      <tuv xml:lang="${xml(tgt)}"><seg>${xml(l.translation)}</seg></tuv>\n    </tu>`);
     }
-    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<tmx version="1.4">\n  <header creationtool="retroglot" creationtoolversion="0.1.0" segtype="block" o-tmf="retroglot" adminlang="en" srclang="${xml(src)}" datatype="plaintext">\n    <prop type="x-game">${xml(title)}</prop>\n  </header>\n  <body>\n${units.join('\n')}\n  </body>\n</tmx>\n`;
+    const body = `<?xml version="1.0" encoding="UTF-8"?>\n<tmx version="1.4">\n  <header creationtool="retroglot" creationtoolversion="${VERSION}" segtype="block" o-tmf="retroglot" adminlang="en" srclang="${xml(src)}" datatype="plaintext">\n    <prop type="x-game">${xml(title)}</prop>\n  </header>\n  <body>\n${units.join('\n')}\n  </body>\n</tmx>\n`;
     return { type: 'application/x-tmx+xml; charset=utf-8', ext: 'tmx', body };
   }
   const text = lines.map((l) => `${l.speaker ? `${l.speaker}: ` : ''}${l.translation}\n    (${l.original})`).join('\n\n');
