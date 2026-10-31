@@ -59,6 +59,12 @@ class CompileTest(unittest.TestCase):
         self.assertEqual(state.axes[:4], (1.0, 1.0, -1.0, 0.0))
         self.assertEqual(state.held, frozenset())
 
+    def test_trigger_names_pull_fully(self):
+        plan = parse_plan([{"buttons": ["LT", "R2", "A"], "duration_ms": 20}])
+        state = compile_plan(plan, T60, 60)[0]
+        self.assertEqual(state.axes[4:], (1.0, 1.0))
+        self.assertEqual(names(state), ["A"])
+
     def test_ends_neutral(self):
         plan = parse_plan([{"left_trigger": 0.5, "buttons": ["KEY_W"], "duration_ms": 30}])
         self.assertEqual(compile_plan(plan, T60, 120)[-1], NEUTRAL)

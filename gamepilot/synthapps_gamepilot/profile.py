@@ -101,7 +101,10 @@ def load(path: str | Path) -> Profile:
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as exc:
-        raise ProfileError(f"{path}: {exc}") from None
+        raise ProfileError(
+            f"{exc}. Check that line: text values need double quotes (jump = \"A\"), "
+            "numbers and true/false do not (fps = 60), and each [section] name appears once"
+        ) from None
     return from_dict(data, path)
 
 

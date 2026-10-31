@@ -73,7 +73,8 @@ class Bindings:
             try:
                 actions[action.strip().lower()] = tuple(controls.resolve(n) for n in names)
             except controls.UnknownControl as exc:
-                raise PlanError(f"binding {action!r}: {exc}") from None
+                raise PlanError(f"binding {action!r}: {exc}; "
+                                "list every name with: py -m synthapps_gamepilot controls") from None
         return cls(actions)
 
     def lookup(self, name: str) -> tuple[Control, ...]:

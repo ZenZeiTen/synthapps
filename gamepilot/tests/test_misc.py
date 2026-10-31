@@ -1,4 +1,5 @@
 import socket
+import sys
 import tempfile
 import threading
 import unittest
@@ -166,3 +167,72 @@ class ImagingTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CheckCommandTest(unittest.TestCase):
+    def run_check(self, text, *extra):
+        import contextlib
+        import io
+
+        from synthapps_gamepilot.__main__ import main
+
+        path = Path(tempfile.mkdtemp()) / "game.toml"
+        path.write_text(text, encoding="utf-8")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["check", str(path), "--no-screenshot", *extra])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_valid_file_lists_actions(self):
+        code, out, _ = self.run_check('name = "Test"\n[bindings]\njump = "A"\nfire = "lmb"\n')
+        self.assertEqual(code, 0)
+        self.assertIn("Settings file OK", out)
+        self.assertIn("jump", out)
+        self.assertIn("MOUSE_LEFT", out)
+        self.assertIn("whole screen", out)
+
+    def test_errors_are_readable(self):
+        cases = [
+            ('name = "Test"\n[bindings]\njump = A\n', "double quotes"),
+            ('name = "Test"\n[game]\ntitle = "x"\n', "unknown keys: title"),
+            ('name = "Test"\n[bindings]\njump = "SPACEBAR"\n', "did you mean KEY_SPACE"),
+        ]
+        for text, message in cases:
+            with self.subTest(text=text):
+                code, out, err = self.run_check(text)
+                self.assertEqual(code, 2)
+                self.assertIn(message, err)
+                self.assertNotIn("Traceback", err)
+
+    def test_window_not_found_lists_open_windows(self):
+        from unittest import mock
+
+        from synthapps_gamepilot import window
+
+        with mock.patch.object(window, "find_window", side_effect=window.WindowNotFound("nope")), \
+                mock.patch.object(window, "visible_window_titles", return_value=["Hades II", "Steam"]):
+            code, out, _ = self.run_check('name = "Test"\n[game]\ntitle_contains = "Hadez"\n')
+        self.assertEqual(code, 1)
+        self.assertIn("NOT FOUND", out)
+        self.assertIn("Hades II", out)
+
+
+class ControlNamesTest(unittest.TestCase):
+    def test_suggestions_and_mouse_aliases(self):
+        from synthapps_gamepilot import controls
+
+        with self.assertRaises(controls.UnknownControl) as ctx:
+            controls.resolve("STRAT")
+        self.assertIn("did you mean START", str(ctx.exception))
+        self.assertEqual(controls.resolve("lmb").name, "MOUSE_LEFT")
+        self.assertEqual(controls.resolve("Mouse2").name, "MOUSE_RIGHT")
+
+
+@unittest.skipUnless(sys.platform == "win32", "needs Windows")
+class Win32WindowTest(unittest.TestCase):
+    def test_lists_windows_and_reports_missing_one(self):
+        from synthapps_gamepilot import window
+
+        self.assertIsInstance(window.visible_window_titles(), list)
+        with self.assertRaises(window.WindowNotFound):
+            window.find_window("no window is called this 4f8e2c")

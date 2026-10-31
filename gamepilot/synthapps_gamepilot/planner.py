@@ -133,7 +133,7 @@ How each turn works:
 {pacing}
 
 Controls:
-- Gamepad buttons: A B X Y LB RB BACK START LS RS DPAD_UP DPAD_DOWN DPAD_LEFT DPAD_RIGHT. Triggers: left_trigger/right_trigger 0..1. Sticks: left_stick/right_stick with x -1 (left) to 1 (right) and y -1 (down) to 1 (up); LS_LEFT/LS_RIGHT/LS_UP/LS_DOWN (and RS_*) are full tilts usable as buttons.
+- Gamepad buttons: A B X Y LB RB BACK START LS RS DPAD_UP DPAD_DOWN DPAD_LEFT DPAD_RIGHT. Triggers: left_trigger/right_trigger 0..1. Sticks: left_stick/right_stick with x -1 (left) to 1 (right) and y -1 (down) to 1 (up); LS_LEFT/LS_RIGHT/LS_UP/LS_DOWN (and RS_*) are full tilts and LT/RT full trigger pulls, usable as buttons.
 - Keys: KEY_ followed by the key name, e.g. KEY_W KEY_SPACE KEY_ENTER KEY_ESC KEY_LEFTSHIFT KEY_UP. Mouse: MOUSE_LEFT MOUSE_RIGHT MOUSE_MIDDLE, and mouse_move {{dx, dy}} in pixels (relative, turns the camera in most 3D games).
 - Prefer these action names from the profile:
 {bindings}

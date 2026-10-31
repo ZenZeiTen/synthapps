@@ -37,6 +37,7 @@ class WindowTracker:
     """Base: no window, whole primary screen, focus always assumed."""
 
     title = ""
+    found_title = "(whole screen)"
 
     def rect(self) -> Rect | None:
         return None  # capture the whole primary monitor
@@ -48,40 +49,88 @@ class WindowTracker:
         return None
 
 
+_USER32 = None
+
+
+def _user32():  # noqa: ANN202 - a ctypes DLL object
+    """user32 with argument types set, so 64-bit window handles pass through intact."""
+    global _USER32
+    if _USER32 is None:
+        if sys.platform != "win32":
+            raise RuntimeError("this needs Windows")
+        u = ctypes.windll.user32  # type: ignore[attr-defined]
+        hwnd = ctypes.c_void_p
+        u.IsWindowVisible.argtypes = [hwnd]
+        u.GetWindowTextLengthW.argtypes = [hwnd]
+        u.GetWindowTextW.argtypes = [hwnd, ctypes.c_wchar_p, ctypes.c_int]
+        u.GetForegroundWindow.restype = hwnd
+        u.SetForegroundWindow.argtypes = [hwnd]
+        u.GetClientRect.argtypes = [hwnd, ctypes.c_void_p]
+        u.ClientToScreen.argtypes = [hwnd, ctypes.c_void_p]
+        # per-monitor DPI awareness v2, so coordinates are physical pixels
+        with contextlib.suppress(AttributeError, OSError):
+            u.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        _USER32 = u
+    return _USER32
+
+
+def _window_text(hwnd: int) -> str:
+    u = _user32()
+    n = u.GetWindowTextLengthW(hwnd)
+    buf = ctypes.create_unicode_buffer(n + 1)
+    u.GetWindowTextW(hwnd, buf, n + 1)
+    return buf.value
+
+
+def _visible_windows() -> list[tuple[int, str]]:
+    """Every visible top-level window that has a title, front to back."""
+    u = _user32()
+    out: list[tuple[int, str]] = []
+    proto = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)  # type: ignore[attr-defined]
+
+    def visit(hwnd: int, _: int) -> bool:
+        if hwnd and u.IsWindowVisible(hwnd):
+            title = _window_text(hwnd)
+            if title:
+                out.append((hwnd, title))
+        return True
+
+    u.EnumWindows(proto(visit), 0)
+    return out
+
+
+def visible_window_titles() -> list[str]:
+    """Titles of the visible windows, to help choose ``title_contains``. Empty if unknown."""
+    if sys.platform == "win32":
+        return [t for _, t in _visible_windows()]
+    if sys.platform.startswith("linux") and shutil.which("xdotool"):
+        ids = subprocess.run(["xdotool", "search", "--onlyvisible", "--name", "."],
+                             capture_output=True, text=True, timeout=5).stdout.split()
+        titles = []
+        for wid in ids:
+            name = subprocess.run(["xdotool", "getwindowname", wid], capture_output=True,
+                                  text=True, timeout=2).stdout.strip()
+            if name:
+                titles.append(name)
+        return titles
+    return []
+
+
 class Win32Window(WindowTracker):
     def __init__(self, title_contains: str) -> None:
-        if sys.platform != "win32":
-            raise RuntimeError("Win32Window needs Windows")
         from ctypes import wintypes
 
         self._w = wintypes
-        self.user32 = ctypes.windll.user32  # type: ignore[attr-defined]
-        # per-monitor DPI awareness v2, so coordinates are physical pixels
-        with contextlib.suppress(AttributeError, OSError):
-            self.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        self.user32 = _user32()
         self.title = title_contains
         self.hwnd = self._find(title_contains)
+        self.found_title = _window_text(self.hwnd)
 
     def _find(self, needle: str) -> int:
-        found: list[int] = []
-        proto = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
-
-        def visit(hwnd: int, _: int) -> bool:
-            if self.user32.IsWindowVisible(hwnd) and needle.lower() in self._text(hwnd).lower():
-                found.append(hwnd)
-                return False
-            return True
-
-        self.user32.EnumWindows(proto(visit), 0)
-        if not found:
-            raise WindowNotFound(f"no visible window title contains {needle!r}")
-        return found[0]
-
-    def _text(self, hwnd: int) -> str:
-        n = self.user32.GetWindowTextLengthW(hwnd)
-        buf = ctypes.create_unicode_buffer(n + 1)
-        self.user32.GetWindowTextW(hwnd, buf, n + 1)
-        return buf.value
+        for hwnd, title in _visible_windows():
+            if needle.lower() in title.lower():
+                return hwnd
+        raise WindowNotFound(f"no visible window title contains {needle!r}")
 
     def rect(self) -> Rect:
         r = self._w.RECT()
@@ -106,6 +155,7 @@ class XdotoolWindow(WindowTracker):
         if not ids:
             raise WindowNotFound(f"no visible window title contains {title_contains!r}")
         self.wid = ids[0]
+        self.found_title = self._run(["xdotool", "getwindowname", self.wid]).strip()
 
     @staticmethod
     def _default_run(args: list[str]) -> str:

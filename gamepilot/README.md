@@ -123,8 +123,11 @@ use, how to pace play, what the buttons do and what the goal is. Start from a te
 | `steam-keyboard-mouse-template.toml` | PC game with keyboard and mouse |
 | `retroarch-template.toml` | A console game in RetroArch, played frame by frame |
 
+**[SETTINGS.md](SETTINGS.md) explains every setting step by step**, with a complete example.
+
 ```bash
 cp profiles/steam-gamepad-template.toml mygame.toml   # then edit it
+gamepilot check mygame.toml                           # checks the file, finds the window, saves check.png
 gamepilot play mygame.toml --dry-run                  # plans, sends nothing
 gamepilot play mygame.toml --launch --transcript run.jsonl
 ```
@@ -162,7 +165,8 @@ max_cost_usd = 5.0
 ```
 
 Run `gamepilot controls` for every control name. Unknown keys and unknown control names
-are errors, so a typo cannot silently do nothing.
+are errors, with a suggestion for the nearest valid name, so a typo cannot silently do
+nothing.
 
 ### Pacing: what suits which games
 
@@ -244,6 +248,7 @@ in this project hides the agent from anti-cheat software.
 | `gamepilot doctor` | Shows which backends, packages and credentials are available, and any anti-cheat running |
 | `gamepilot test-input gamepad\|kbm [--dry-run]` | Creates the virtual device and exercises it |
 | `gamepilot play PROFILE [--dry-run] [--launch] [--model M] [--effort E] [--max-cost USD] [--transcript F] [--save-frames DIR] [--no-focus-check]` | Plays a game |
+| `gamepilot check PROFILE [--screenshot FILE]` | Checks a settings file, finds the game window (or lists the open ones) and saves the screenshot Claude would see |
 | `gamepilot launch PROFILE` | Starts the game named in the profile |
 | `gamepilot demo [--planner scripted\|claude] [--device gamepad\|kbm]` | Plays the built-in Gem Garden |
 | `gamepilot retroarch status\|pause\|resume\|advance N\|save\|load\|read ADDR LEN` | Sends one command to RetroArch |
@@ -273,7 +278,7 @@ cd gamepilot
 python -m unittest discover -s tests -t .
 ```
 
-63 tests, standard library only. They cover plan validation, frame timing (minimum
+70 tests, standard library only (one runs only on Windows). They cover plan validation, frame timing (minimum
 holds, release gaps, exact mouse totals, no drift), release on stop and on error, every
 backend against stand-ins for its driver library, the Claude request format and
 conversation handling with a fake client, a fake RetroArch over UDP, profiles, safety

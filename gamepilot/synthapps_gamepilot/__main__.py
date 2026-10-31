@@ -139,10 +139,84 @@ def launch(target: str | list[str]) -> None:
         raise SystemExit("game.launch must be a steam:// URL or a command written as a list")
 
 
-def cmd_launch(args: argparse.Namespace) -> int:
-    from .profile import load
+def _load_profile(path: str) -> object | None:
+    """Load a settings file, or print a readable error and return None."""
+    from .profile import ProfileError, load
 
-    launch(load(args.profile).game.launch)
+    try:
+        return load(path)
+    except FileNotFoundError:
+        print(f"settings file not found: {path} (run this from the folder that contains it)",
+              file=sys.stderr)
+    except ProfileError as exc:
+        print(f"{path}: {exc}", file=sys.stderr)
+    return None
+
+
+def cmd_launch(args: argparse.Namespace) -> int:
+    profile = _load_profile(args.profile)
+    if profile is None:
+        return 2
+    launch(profile.game.launch)  # type: ignore[attr-defined]
+    return 0
+
+
+# --- check --------------------------------------------------------------------------
+def cmd_check(args: argparse.Namespace) -> int:
+    """Check a settings file, find the game window, and save one screenshot."""
+    from .imaging import encode_png
+    from .window import WindowNotFound, find_window, visible_window_titles
+
+    profile = _load_profile(args.profile)
+    if profile is None:
+        return 2
+    p = profile  # type: ignore[assignment]
+    print(f"Settings file OK: {args.profile}")
+    print(f"  game:    {p.name}")
+    print(f"  device:  {p.input.device}    pacing: {p.pacing.mode}    model: {p.agent.model} "
+          f"(effort {p.agent.effort})")
+    print(f"  limits:  {p.agent.max_turns} turns, {p.agent.max_minutes:g} min, ${p.agent.max_cost_usd:g}")
+    print("  actions Claude can use:")
+    for action, targets in p.resolved_bindings().actions.items():
+        print(f"    {action:16} -> {' + '.join(c.name for c in targets)}")
+    if not p.bindings:
+        print("    (none: Claude will use raw control names)")
+
+    try:
+        window = find_window(p.game.title_contains)
+    except (WindowNotFound, RuntimeError) as exc:
+        print(f"\nGame window: NOT FOUND ({exc})")
+        titles = visible_window_titles()
+        if titles:
+            print("Open windows right now (use part of the game's title for title_contains):")
+            for t in titles:
+                print(f"    {t}")
+        else:
+            print("Is the game running? title_contains must be part of its window title.")
+        return 1
+    rect = window.rect()
+    where = f"{rect.width}x{rect.height} at ({rect.left}, {rect.top})" if rect else "whole screen"
+    print(f"\nGame window: found \"{window.found_title}\", {where}")
+    if rect is not None and (rect.width < 100 or rect.height < 100):
+        print("  This window is tiny. Is the game minimized? Restore it and run check again.")
+
+    if args.no_screenshot:
+        return 0
+    from .capture import ScreenCapture
+
+    try:
+        cap = ScreenCapture(window)
+    except RuntimeError as exc:
+        print(f"Screenshot: skipped ({exc})")
+        return 1
+    try:
+        frame = cap.grab()
+    finally:
+        cap.close()
+    out = Path(args.screenshot)
+    out.write_bytes(encode_png(frame))
+    print(f"Screenshot: saved {out.resolve()} ({frame.width}x{frame.height}). Open it: it should show "
+          "only the game. This is what Claude will see.")
     return 0
 
 
@@ -151,11 +225,12 @@ def cmd_play(args: argparse.Namespace) -> int:
     from .agent import AntiCheatRunning, GameAgent
     from .capture import ScreenCapture
     from .planner import ClaudePlanner
-    from .profile import load
     from .retroarch import RetroArch
     from .window import WindowNotFound, find_window
 
-    profile = load(args.profile)
+    profile = _load_profile(args.profile)
+    if profile is None:
+        return 2
     if args.model:
         profile.agent.model = args.model
     if args.effort:
@@ -279,6 +354,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--transcript", help="append one JSON line per turn to this file")
     p.add_argument("--save-frames", help="save every screenshot sent to the model in this folder")
     p.set_defaults(fn=cmd_play)
+
+    c = sub.add_parser("check", help="check a settings file, find the game window, save a screenshot")
+    c.add_argument("profile")
+    c.add_argument("--screenshot", default="check.png", help="where to save the screenshot")
+    c.add_argument("--no-screenshot", action="store_true")
+    c.set_defaults(fn=cmd_check)
 
     lp = sub.add_parser("launch", help="start the game in a profile")
     lp.add_argument("profile")

@@ -134,17 +134,22 @@ def compile_plan(plan: Plan, timing: Timing, tick_hz: float) -> list[InputState]
 def _resolve(step: Step) -> tuple[frozenset[Control], tuple[float, float, float, float, float, float]]:
     lx, ly = step.left_stick or (0.0, 0.0)
     rx, ry = step.right_stick or (0.0, 0.0)
+    lt, rt = step.left_trigger, step.right_trigger
     digital = set()
     for c in step.controls:
         if c.kind is Kind.STICK_DIRECTION:
-            stick, x, y = STICK_DIRECTIONS[c.name]
-            if stick == "left":
+            axis, x, y = STICK_DIRECTIONS[c.name]
+            if axis == "left":
                 lx, ly = (x or lx), (y or ly)
-            else:
+            elif axis == "right":
                 rx, ry = (x or rx), (y or ry)
+            elif axis == "left_trigger":
+                lt = x
+            else:
+                rt = x
         else:
             digital.add(c)
-    return frozenset(digital), (lx, ly, rx, ry, step.left_trigger, step.right_trigger)
+    return frozenset(digital), (lx, ly, rx, ry, lt, rt)
 
 
 @dataclass

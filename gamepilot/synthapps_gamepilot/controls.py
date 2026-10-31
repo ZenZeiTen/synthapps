@@ -59,6 +59,8 @@ PAD_ALIASES = {
     "VIEW": "BACK",
     "MENU": "START",
     "HOME": "GUIDE",
+    "L2": "LT",
+    "R2": "RT",
     "L3": "LS",
     "R3": "RS",
     "UP": "DPAD_UP",
@@ -67,8 +69,11 @@ PAD_ALIASES = {
     "RIGHT": "DPAD_RIGHT",
 }
 
-#: Digital names for full stick deflection: name -> (stick, x, y)
+#: Digital names for a fully deflected stick or fully pulled trigger: name -> (axis, x, y).
+#: They are not buttons: the executor turns them into analog values.
 STICK_DIRECTIONS: dict[str, tuple[str, float, float]] = {
+    "LT": ("left_trigger", 1.0, 0.0),
+    "RT": ("right_trigger", 1.0, 0.0),
     "LS_UP": ("left", 0.0, 1.0),
     "LS_DOWN": ("left", 0.0, -1.0),
     "LS_LEFT": ("left", -1.0, 0.0),
@@ -134,8 +139,28 @@ MOUSE_BUTTONS: dict[str, tuple[tuple[int, int, int], int]] = {
 }
 
 
+MOUSE_ALIASES = {
+    "LMB": "MOUSE_LEFT", "MOUSE1": "MOUSE_LEFT", "LEFTCLICK": "MOUSE_LEFT", "LEFT_CLICK": "MOUSE_LEFT",
+    "RMB": "MOUSE_RIGHT", "MOUSE2": "MOUSE_RIGHT", "RIGHTCLICK": "MOUSE_RIGHT", "RIGHT_CLICK": "MOUSE_RIGHT",
+    "MMB": "MOUSE_MIDDLE", "MOUSE3": "MOUSE_MIDDLE", "MIDDLECLICK": "MOUSE_MIDDLE",
+    "MOUSE4": "MOUSE_BACK", "MOUSE5": "MOUSE_FORWARD",
+}
+
+
 class UnknownControl(ValueError):
     pass
+
+
+def _suggest(raw: str) -> str:
+    """ ' (did you mean ...?)' for a misspelled control name, or ''."""
+    import difflib
+
+    names = {n: n for n in all_names()}
+    names.update({n[4:]: n for n in all_names() if n.startswith("KEY_")})
+    names.update({a: PAD_ALIASES[a] for a in PAD_ALIASES})
+    close = difflib.get_close_matches(raw, list(names), n=3, cutoff=0.6)
+    picks = list(dict.fromkeys(names[c] for c in close))
+    return f" (did you mean {' or '.join(picks)}?)" if picks else ""
 
 
 def resolve(name: str) -> Control:
@@ -151,18 +176,19 @@ def resolve(name: str) -> Control:
         key = KEY_ALIASES.get(key, key)
         if key in KEYS:
             return Control("KEY_" + key, Kind.KEY)
-        raise UnknownControl(f"unknown key {name!r}")
+        raise UnknownControl(f"unknown key {name!r}{_suggest(raw)}")
+    raw = MOUSE_ALIASES.get(raw, raw)
     if raw in MOUSE_BUTTONS:
         return Control(raw, Kind.MOUSE_BUTTON)
-    if raw in STICK_DIRECTIONS:
-        return Control(raw, Kind.STICK_DIRECTION)
     pad = PAD_ALIASES.get(raw, raw)
+    if pad in STICK_DIRECTIONS:
+        return Control(pad, Kind.STICK_DIRECTION)
     if pad in PAD_BUTTONS:
         return Control(pad, Kind.PAD_BUTTON)
     key = KEY_ALIASES.get(raw, raw)
     if key in KEYS:
         return Control("KEY_" + key, Kind.KEY)
-    raise UnknownControl(f"unknown control {name!r}")
+    raise UnknownControl(f"unknown control {name!r}{_suggest(raw)}")
 
 
 def all_names() -> list[str]:
