@@ -1,0 +1,61 @@
+# A game running in RetroArch, played frame by frame.
+#
+# RetroArch setup (once):
+#   Settings > Network > Network Commands = On   (or network_cmd_enable = "true" in retroarch.cfg)
+#   Settings > Input > Port 1 Controls: the virtual pad shows up as "Xbox 360 Controller"
+#   (Windows) or "Microsoft X-Box 360 pad" (Linux); RetroArch's built-in Xbox autoconfig maps it.
+#
+# The agent pauses RetroArch, thinks, then runs each plan one emulated frame at a time
+# (FRAMEADVANCE), so the game never moves while Claude is thinking.
+
+name = "Super platformer (SNES)"        # shown to the model; use the real game name
+
+[game]
+title_contains = "RetroArch"            # part of the window title
+fps = 60                                # 60 for NTSC consoles, 50 for PAL
+launch = ["retroarch", "-L", "/path/to/core.so", "/path/to/game.sfc"]
+
+[input]
+device = "gamepad"
+min_hold_frames = 2
+min_release_frames = 2
+
+[pacing]
+mode = "retroarch"
+
+[retroarch]
+host = "127.0.0.1"
+port = 55355
+# Optional memory readings shown to the model every turn. Addresses depend on the game
+# and the core's memory map; find them in a cheat or RAM-map database for your game.
+# [[retroarch.watch]]
+# name = "lives"
+# address = 0x7E0DBE
+# length = 1
+
+# Action names the model may use. Values are controls (see: python -m synthapps_gamepilot controls).
+# Bindings use Xbox button names. RetroArch maps by position: Xbox A (bottom) = SNES B,
+# Xbox B (right) = SNES A, Xbox X (left) = SNES Y, Xbox Y (top) = SNES X.
+# These are placeholders: check the game's manual for what each button does.
+[bindings]
+jump = "A"        # SNES B
+run = "X"         # SNES Y
+move_left = "DPAD_LEFT"
+move_right = "DPAD_RIGHT"
+crouch = "DPAD_DOWN"
+pause = "START"
+
+[agent]
+goal = "Finish the first level without losing all lives."
+notes = """
+Hold run while moving to go faster. Save a state before a risky jump and load it
+after dying.
+"""
+model = "claude-opus-5-5"
+effort = "low"
+max_turns = 300
+max_minutes = 45
+max_cost_usd = 5.0
+frames_per_turn = 2        # two frames 150 ms apart show which way things move
+frame_gap_ms = 150
+image_max_edge = 768
