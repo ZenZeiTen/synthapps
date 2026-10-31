@@ -63,14 +63,21 @@ gamepilot doctor
 Or pick the extras you need: `claude` (the planner), `capture` (screenshots: `mss` and
 Pillow), `windows` (`vgamepad`) or `linux` (`evdev`).
 
+If your shell says `gamepilot` is not recognized, either the package is not installed or
+pip's Scripts folder is not on your PATH (pip prints a warning about this when it
+installs). Every command also works without that: from the `gamepilot` folder, run
+`python -m synthapps_gamepilot` (on Windows, `py -m synthapps_gamepilot`) in place of
+`gamepilot`.
+
 ### Windows setup
 
-1. `pip install vgamepad`. Its installer offers to install the **ViGEmBus** driver; accept.
-   Without the driver, no virtual controller can be created. (ViGEmBus is no longer
+1. `py -m pip install vgamepad`. Its installer offers to install the **ViGEmBus** driver;
+   accept. Without the driver, no virtual controller can be created. (ViGEmBus is no longer
    developed by its author, but the released driver still installs and works.)
-2. Test the controller: `gamepilot test-input gamepad`, with the Windows controller test
-   (`joy.cpl`) or Steam's controller test open. You should see every button, stick and
-   trigger move.
+2. From the `gamepilot` folder, test the controller with
+   `py -m synthapps_gamepilot test-input gamepad`, while the Windows controller test
+   (Win+R, `joy.cpl`) or Steam's controller test is open. You should see every button,
+   stick and trigger move.
 3. For keyboard and mouse games, turn off *Enhance pointer precision* (Mouse settings) so
    mouse movement distances are predictable.
 4. If the game runs as administrator, run the agent as administrator too. Windows blocks
