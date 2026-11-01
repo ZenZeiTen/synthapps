@@ -37,6 +37,8 @@ jobs:
   browser:
     name: Emulator in a real browser (DOSBox Pure, mock Claude)
     runs-on: ubuntu-latest
+    # A stalled package mirror once kept this job waiting until GitHub's 6-hour limit.
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: retroglot
@@ -46,10 +48,13 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
-      - name: Emulator runtime (EmulatorJS + the DOS and NES cores)
+      - name: Emulator runtime (EmulatorJS + the DOS, NES and DS cores)
+        timeout-minutes: 5
         run: node bin/retroglot.js install-runtime --cores dosbox_pure,fceumm,melonds
       - name: Playwright with Chromium
+        timeout-minutes: 10
         run: |
           npm install --no-save playwright@1.63.0
           npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        timeout-minutes: 15
