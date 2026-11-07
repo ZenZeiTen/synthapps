@@ -1,0 +1,96 @@
+name: retroglot desktop (Windows)
+
+# Builds Retroglot.exe, runs its first-use self-test on Windows and keeps the files as artifacts.
+# Pushing a tag named retroglot-v* also publishes them as a GitHub release (only if the self-test passed).
+on:
+  pull_request:
+    paths:
+      - "retroglot/**"
+      - ".github/workflows/retroglot-desktop.yml"
+  push:
+    branches: [main]
+    tags:
+      - "retroglot-v*"
+    paths:
+      - "retroglot/**"
+      - ".github/workflows/retroglot-desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Build Retroglot.exe and test it on Windows
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: retroglot/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Build the installer and the portable app
+        run: npm run dist:win
+      - name: First-use self-test of the built app (emulator download, demo game)
+        shell: pwsh
+        run: |
+          $env:RETROGLOT_HOME = "$env:RUNNER_TEMP\rg-home"
+          $env:RETROGLOT_RUNTIME = "$env:RUNNER_TEMP\rg-runtime"
+          $env:RETROGLOT_SMOKE_OUT = "$env:RUNNER_TEMP\smoke-out"
+          $p = Start-Process -FilePath "dist\win-unpacked\Retroglot.exe" -ArgumentList "--smoke" -Wait -PassThru
+          Get-Content "$env:RUNNER_TEMP\smoke-out\result.json"
+          exit $p.ExitCode
+        timeout-minutes: 15
+      - name: Self-test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retroglot-windows-selftest
+          path: ${{ runner.temp }}/smoke-out
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Windows app (installer and portable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Retroglot-Windows
+          path: |
+            retroglot/desktop/dist/Retroglot-Setup-*.exe
+            retroglot/desktop/dist/Retroglot-*-portable.exe
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  release:
+    name: Publish the GitHub release
+    if: startsWith(github.ref, 'refs/tags/retroglot-v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: retroglot/desktop/release-notes.md
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: Retroglot-Windows
+          path: files
+      - name: Create the release, or add the files to it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l files
+          # A release made on GitHub's "Draft a new release" page already exists when this runs: upload into it.
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" files/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" files/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Retroglot ${GITHUB_REF_NAME#retroglot-v} for Windows" \
+              --notes-file retroglot/desktop/release-notes.md
+          fi

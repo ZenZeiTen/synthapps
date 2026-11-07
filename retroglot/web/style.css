@@ -1,0 +1,102 @@
+/* retroglot: shared styles for the library and the player. */
+@import url("fonts/fonts.css");
+:root {
+  /* Night glass: the screen of a CRT in a dark room. */
+  --bg: #090b17;
+  --bg-2: #0e1124;
+  --panel: #13172e;
+  --panel-2: #1a1f3a;
+  --line: #262c4d;
+  --line-2: #363e66;
+  --text: #eceaf7;
+  --muted: #9a9fc2;
+  --faint: #656b91;
+  /* Signal amber: the one colour that means "do it". */
+  --accent: #ffb547;
+  --accent-2: #ffd27f;
+  --cool: #7fe3ff;
+  --good: #6ff2a4;
+  --bad: #ff6b81;
+  /* The light of the system being browsed; the home screen changes it. */
+  --sys: #9a8cff;
+  --radius: 14px;
+  --shadow: 0 24px 60px rgba(0, 0, 0, .5);
+  --display: "Outfit", "Inter", system-ui, "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic UI", sans-serif;
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+@property --sys { syntax: "<color>"; inherits: true; initial-value: #9a8cff; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+body { min-height: 100vh; }
+a { color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
+::selection { background: rgba(255, 158, 69, .35); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px;
+  border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel-2); cursor: pointer;
+  transition: background .15s, border-color .15s, transform .08s; white-space: nowrap; text-decoration: none;
+}
+.btn:hover { background: #20263b; border-color: #4a5276; }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible, .icon-btn:focus-visible, .chip:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--cool); outline-offset: 2px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #1d1203; font-weight: 650; }
+.btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--text); background: rgba(255,255,255,.05); }
+.btn.danger { border-color: #6b2a36; color: #ffb3c0; }
+.btn svg, .icon-btn svg { width: 18px; height: 18px; flex: none; }
+.icon-btn { width: 38px; height: 38px; display: inline-grid; place-items: center; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; }
+.icon-btn:hover { color: var(--text); background: rgba(255,255,255,.06); }
+kbd { font: 11px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-2); color: var(--muted); background: var(--bg-2); }
+
+input[type=text], input[type=search], select, textarea {
+  background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 12px; width: 100%;
+}
+textarea { resize: vertical; min-height: 80px; }
+label.field { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+label.field > span { font-weight: 600; color: var(--text); font-size: 13.5px; }
+label.check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+label.check input { margin-top: 4px; accent-color: var(--accent); }
+.hint { color: var(--faint); font-size: 12.5px; }
+
+/* ---------- shared bits ---------- */
+.notice { display: flex; gap: 14px; align-items: center; padding: 14px 18px; border-radius: var(--radius); border: 1px solid #5b4320; background: linear-gradient(90deg, rgba(255,158,69,.12), rgba(255,158,69,.03)); }
+.notice.info { border-color: #20485a; background: linear-gradient(90deg, rgba(97,227,255,.1), rgba(97,227,255,.02)); }
+.notice code { font: 13px var(--mono); background: rgba(0,0,0,.35); padding: 2px 7px; border-radius: 6px; }
+.tag { font: 700 12px/1 var(--display); padding: 5px 8px; border-radius: 6px; letter-spacing: .02em; color: #0b0c18; }
+.dropzone { position: fixed; inset: 0; z-index: 90; display: none; place-items: center; background: rgba(7,8,13,.86); backdrop-filter: blur(6px); }
+.dropzone.on { display: grid; }
+.dropzone div { padding: 54px 80px; border: 2px dashed var(--accent); border-radius: 26px; font-size: 22px; font-weight: 700; text-align: center; }
+.dropzone small { display: block; color: var(--muted); font-weight: 400; font-size: 14px; margin-top: 8px; }
+
+/* ---------- dialogs ---------- */
+dialog { border: 1px solid var(--line-2); background: var(--panel); color: var(--text); border-radius: 18px; padding: 0; width: min(560px, calc(100vw - 32px)); box-shadow: var(--shadow); }
+dialog::backdrop { background: rgba(3, 4, 8, .7); backdrop-filter: blur(3px); }
+dialog header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 6px; }
+dialog header h2 { margin: 0; font-size: 19px; }
+dialog .body { padding: 10px 22px 6px; display: grid; gap: 16px; max-height: 70vh; overflow: auto; }
+dialog footer { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 22px 20px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.toast-stack { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 100; display: grid; gap: 8px; justify-items: center; pointer-events: none; }
+.toast { padding: 10px 16px; border-radius: 12px; background: #1d2234; border: 1px solid var(--line-2); box-shadow: var(--shadow); font-size: 14px; animation: rise .2s ease-out; max-width: min(640px, 92vw); }
+.toast.bad { border-color: #6b2a36; }
+.toast.good { border-color: #24583c; }
+@keyframes rise { from { transform: translateY(8px); opacity: 0; } }
+
+.progress { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+
+.key-row { display: flex; gap: 8px; }
+.key-row input { flex: 1; min-width: 0; font-family: var(--mono); }
+.notice .grow { flex: 1; }
+.notice .progress { margin-top: 10px; height: 6px; }
+.field a { color: var(--cool); }
+
+.spacer { flex: 1; }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+dialog .row-btns { margin-top: 0; }
