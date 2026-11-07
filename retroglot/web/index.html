@@ -68,6 +68,12 @@
           <select name="display"><option value="crt">CRT screen</option><option value="sharp">Sharp pixels</option><option value="smooth">Smooth (SABR)</option><option value="xbr">xBR upscaling</option><option value="scalefx">ScaleFX upscaling</option></select>
         </label>
       </div>
+      <div class="two">
+        <label class="field"><span>Screen shape</span>
+          <select name="screen"><option value="original">Original shape</option><option value="wide">Widescreen 16:9 (stretched)</option><option value="fill">Fill the window (stretched)</option></select>
+        </label>
+        <label class="check" style="align-self:end"><input type="checkbox" name="autosave"><span>Autosave when leaving a game<br><span class="hint">And every 5 minutes. Continue starts from it.</span></span></label>
+      </div>
       <label class="check"><input type="checkbox" name="pauseWhileTranslating"><span>Pause the game while a translation is on its way<br><span class="hint">Applies when you press Translate. Auto-translate never pauses.</span></span></label>
       <label class="field"><span>Auto-translate sensitivity</span><input type="range" name="autoSensitivity" min="0" max="1" step="0.05"><span class="hint">Higher reacts to smaller changes on screen (and spends more).</span></label>
       <label class="check"><input type="checkbox" name="downloadArt"><span>Download box art<br><span class="hint">From the libretro thumbnail collection, the same pictures RetroArch uses. Sends game names to GitHub.</span></span></label>

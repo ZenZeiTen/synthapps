@@ -459,6 +459,8 @@ $('#settings-btn').addEventListener('click', () => {
   f.autoSensitivity.value = s.autoSensitivity;
   f.libraryPaths.value = s.libraryPaths.join('\n');
   f.display.value = s.display;
+  f.screen.value = s.screen || 'original';
+  f.autosave.checked = s.autosave !== false;
   f.downloadArt.checked = s.downloadArt;
   f.uiSounds.checked = s.uiSounds;
   renderKeyStatus(state.status.credentials);
@@ -477,7 +479,7 @@ $('#settings-dialog').addEventListener('close', async () => {
         targetLanguage: f.targetLanguage.value.trim() || 'English', style: f.style.value, model: f.model.value, effort: f.effort.value,
         overlay: f.overlay.value, pauseWhileTranslating: f.pauseWhileTranslating.checked, autoSensitivity: Number(f.autoSensitivity.value),
         libraryPaths: f.libraryPaths.value.split('\n').map((s) => s.trim()).filter(Boolean),
-        display: f.display.value, downloadArt: f.downloadArt.checked, uiSounds: f.uiSounds.checked,
+        display: f.display.value, screen: f.screen.value, autosave: f.autosave.checked, downloadArt: f.downloadArt.checked, uiSounds: f.uiSounds.checked,
       },
     });
     setSounds(state.settings.uiSounds);

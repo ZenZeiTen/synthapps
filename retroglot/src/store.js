@@ -22,6 +22,8 @@ export const DEFAULT_SETTINGS = {
   downloadArt: true, // box art from the libretro thumbnail collection
   uiSounds: true,
   display: 'crt', // crt | sharp | smooth | xbr | scalefx
+  screen: 'original', // original | wide (16:9) | fill (the whole window)
+  autosave: true, // save a state to the Autosave slot when leaving a game and every few minutes
 };
 
 const REGION_LANG = { JP: 'Japanese', KR: 'Korean', CN: 'Chinese', EU: null, US: null };
@@ -51,6 +53,16 @@ function writeJsonAtomic(file, data) {
   const tmp = `${file}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
   fs.renameSync(tmp, file);
+}
+
+/** Split and check a save path from the emulator: relative, no "..", names Windows can store. */
+export function checkSavePath(rel) {
+  const parts = String(rel).split('/');
+  if (parts.length > 8 || String(rel).length > 512) throw new Error('Save path too long');
+  for (const p of parts) {
+    if (!p || p === '.' || p === '..' || /[\\:*?"<>|\0-\x1f]/.test(p) || /[. ]$/.test(p)) throw new Error(`Bad save path: ${rel}`);
+  }
+  return parts;
 }
 
 function readJson(file, fallback) {
@@ -91,6 +103,8 @@ function walk(dir, out = [], depth = 0) {
 
 /** Picture modes; src/server.js maps each to an EmulatorJS shader. */
 export const DISPLAY_MODES = ['crt', 'sharp', 'smooth', 'xbr', 'scalefx'];
+/** Screen shapes: the game's own, stretched to 16:9, or stretched to fill the window. */
+export const SCREEN_MODES = ['original', 'wide', 'fill'];
 
 const TEXTURE_PACK_KINDS = ['zip', 'hts', 'htc'];
 /** Packs are unpacked in the browser's memory, so very large ones cannot work. */
@@ -272,6 +286,7 @@ export class Store {
         throw new Error(`Setting ${k} must be a ${Array.isArray(DEFAULT_SETTINGS[k]) ? 'list' : typeof DEFAULT_SETTINGS[k]}`);
       }
       if (k === 'display' && !DISPLAY_MODES.includes(v)) throw new Error(`Picture must be one of ${DISPLAY_MODES.join(', ')}`);
+      if (k === 'screen' && !SCREEN_MODES.includes(v)) throw new Error(`Screen shape must be one of ${SCREEN_MODES.join(', ')}`);
       this.settings[k] = v;
     }
     this.save();
@@ -389,6 +404,71 @@ export class Store {
 
   savePath(id, slot, kind = 'state') {
     return path.join(this.saveDir(id), `slot-${slot}.${kind}`);
+  }
+
+  // --- in-game saves (the game's own battery saves, memory cards, PSP memory stick) ---------
+  // The emulator keeps them in the browser; retroglot keeps the real copy here so they survive
+  // closing the app, clearing browser data or moving to another computer. Paths are relative to
+  // the emulator's save folder, e.g. "FCEUmm/Zelda (USA).srm". PSP games share one memory stick.
+
+  /** Where a game's in-game saves live: its own folder, or the shared PSP memory stick. */
+  ingameScope(game) {
+    return game.system === 'psp' ? '_psp-memory-stick' : game.id;
+  }
+
+  ingameDir(scope, which = 'ingame') {
+    if (!/^(?:[0-9a-f]{12}|_psp-memory-stick)$/.test(scope)) throw new Error('Bad save scope');
+    return path.join(this.dirs.saves, scope, which);
+  }
+
+  /** Every stored in-game save file: [{ path, file, size, savedAt }]. */
+  listIngame(scope) {
+    const root = this.ingameDir(scope);
+    const out = [];
+    const visit = (dir, rel, depth) => {
+      let entries = [];
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        const p = path.join(dir, e.name);
+        const r = rel ? `${rel}/${e.name}` : e.name;
+        if (e.isDirectory() && depth < 8) visit(p, r, depth + 1);
+        else if (e.isFile() && !e.name.endsWith('.tmp')) {
+          const st = fs.statSync(p);
+          out.push({ path: r, file: p, size: st.size, savedAt: st.mtime.toISOString() });
+        }
+      }
+    };
+    visit(root, '', 0);
+    return out.sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  ingameFile(scope, rel) {
+    return path.join(this.ingameDir(scope), ...checkSavePath(rel));
+  }
+
+  /**
+   * Store changed in-game save files. The version each file replaces is kept in
+   * `ingame-previous/` (one generation), so a bad save can be undone by hand.
+   */
+  writeIngame(scope, files) {
+    const written = [];
+    for (const { path: rel, data } of files) {
+      const parts = checkSavePath(rel);
+      const dest = path.join(this.ingameDir(scope), ...parts);
+      if (fs.existsSync(dest)) {
+        const old = fs.readFileSync(dest);
+        if (old.equals(data)) continue;
+        const prev = path.join(this.ingameDir(scope, 'ingame-previous'), ...parts);
+        fs.mkdirSync(path.dirname(prev), { recursive: true });
+        fs.writeFileSync(prev, old);
+      }
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      const tmp = `${dest}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, data);
+      fs.renameSync(tmp, dest);
+      written.push(parts.join('/'));
+    }
+    return written;
   }
 
   deleteSave(id, slot) {

@@ -80,10 +80,17 @@
     <section class="pane" data-pane="saves">
       <h3>Save states</h3>
       <div class="slots" id="slots"></div>
-      <p class="hint">Quick save <kbd>F6</kbd> uses slot 1, quick load <kbd>F7</kbd>. Saves are kept in Retroglot's data folder.</p>
+      <p class="hint">Quick save <kbd>F6</kbd> uses slot 1, quick load <kbd>F7</kbd>. The Autosave is made when you leave the game and every 5 minutes; Continue in the library starts from the newest save.</p>
+      <h3 style="margin-top:22px">In-game saves</h3>
+      <p class="hint">Saves you make inside the game (battery saves, memory cards) are copied to your computer within seconds and when you leave. <span id="ingame-status"></span></p>
+      <div id="ingame"></div>
+      <div class="row-btns"><label class="btn" for="ingame-import">Import save file…</label><input type="file" id="ingame-import" accept=".srm,.sav,.mcr,.mcd,.eep,.fla,.sra,.dsv,.bin" hidden></div>
     </section>
     <section class="pane" data-pane="picture">
       <h3>Picture</h3>
+      <label class="field enh-field"><span>Screen shape</span>
+        <select id="pic-screen"><option value="original">Original shape</option><option value="wide">Widescreen 16:9 (stretched)</option><option value="fill">Fill the window (stretched)</option></select>
+        <span class="hint">Used for every game, also with <kbd>F8</kbd>. Stretching changes the picture, not the game; for real widescreen, see the enhancements below where a game has them.</span></label>
       <label class="field enh-field"><span>Filter</span>
         <select id="pic-filter"><option value="crt">CRT screen</option><option value="sharp">Sharp pixels</option><option value="smooth">Smooth (SABR)</option><option value="xbr">xBR upscaling</option><option value="scalefx">ScaleFX upscaling</option></select>
         <span class="hint">Used for every game. xBR and ScaleFX redraw pixel art with smooth edges. Translation always reads the original picture.</span></label>
@@ -105,7 +112,7 @@
       <label class="field" style="margin-top:12px"><span>Notes for the translator</span><textarea id="g-notes" placeholder="Who the characters are, tone, terms to keep"></textarea></label>
       <div class="row-btns"><button class="btn primary" id="g-save" type="button">Save</button><button class="btn" id="g-cover" type="button">Use current screen as background</button><button class="btn" id="g-restart" type="button">Restart game</button></div>
       <h3 style="margin-top:24px">Shortcuts</h3>
-      <p class="hint"><kbd>F2</kbd> translate, <kbd>F3</kbd> auto-translate, <kbd>F4</kbd> overlay style, hold <kbd>`</kbd> to see the original, <kbd>F6</kbd> quick save, <kbd>F7</kbd> quick load, <kbd>F9</kbd> pause, <kbd>F1</kbd> this panel. Game controls and gamepads are set in the emulator's own menu (gear at the bottom of the picture).</p>
+      <p class="hint"><kbd>F2</kbd> translate, <kbd>F3</kbd> auto-translate, <kbd>F4</kbd> overlay style, hold <kbd>`</kbd> to see the original, <kbd>F6</kbd> quick save, <kbd>F7</kbd> quick load, <kbd>F8</kbd> screen shape, <kbd>F9</kbd> pause, <kbd>F1</kbd> this panel. Game controls and gamepads are set in the emulator's own menu (gear at the bottom of the picture).</p>
       <p class="hint" id="g-info"></p>
     </section>
   </aside>

@@ -33,7 +33,7 @@ browser job on Ubuntu).
 | `src/server.js` | HTTP server and API, emulator page generation, host and origin guards |
 | `bin/retroglot.js` | Command line |
 | `src/credentials.js` | API key typed into Settings: file store (0600) for the command line |
-| `web/emu-bridge.js` | Runs inside the emulator iframe: screenshot, states, pause, game rectangle, hotkeys |
+| `web/emu-bridge.js` | Runs inside the emulator iframe: screenshot, states, pause, game rectangle, hotkeys, in-game save sync, screen shape |
 | `web/player.js` | Player page: translation flow, auto-translate loop, saves, side panel |
 | `web/frames.js`, `web/overlay.js` | Frame decode/hash/enlarge/compare; drawing boxes and subtitles |
 | `web/library.js`, `web/home.css` | Home screen: system rail, hero, shelf, keyboard and controller navigation |
@@ -127,6 +127,27 @@ the choices, then "Apply and restart" saves a state to the hidden slot 0 and rel
 - Shaders: many cores run WebGL 1 (GLSL ES 1.00). `glslForWebgl1()` drops `#version 130`
   and rewrites `mul(mat4x3(...), v)` (non-square matrices are ES 3.00 only) as dot products.
   Resource names must not contain `/` (EmulatorJS writes them straight into `/shader/`).
+
+## Saves
+
+- In-game saves (SRAM, memory cards, the PSP memory stick) live in EmulatorJS's `/data/saves`
+  (IndexedDB). EmulatorJS writes them every 5 minutes and in `beforeunload`, which in our
+  iframe is lost when the player leaves. So the server keeps the real copy in
+  `<home>/saves/<id>/ingame/<path under /data/saves>` (PSP: the shared
+  `_psp-memory-stick` scope, folder `PPSSPP/PSP/SAVEDATA`), with `ingame-previous/` for the
+  version each write replaced. `emulatorPage` embeds them (`RETROGLOT.ingame.files`, base64);
+  `emu-bridge.js` catches `window.EJS_emulator` as the loader sets it and writes them on
+  EmulatorJS's `saveDatabaseLoaded` event, i.e. before the ROM loads and the core reads SRAM.
+- The bridge syncs every 4 s and on `flushSaves()`: `functions.saveSaveFiles()` (core → file),
+  then every file next to `getSaveFilePath()` with the same stem (`X.srm`, `X.sav`,
+  `X.pure.zip`) plus the shared folder, hashed against what the server has; changed ones
+  go to `PUT /api/games/:id/ingame`. Files in the browser that the server lacks (made by
+  versions before this) are uploaded on the first sync.
+- Leaving the player (Back, Apply and restart, closing the desktop window via
+  `window.retroglotBeforeClose`) awaits `flushSaves()` and the Autosave (state slot 0),
+  with a time limit. `pagehide` sends small saves with `keepalive` as a last resort.
+- Screen shape (`original` / `wide` / `fill`) scales EmulatorJS's canvas with a CSS
+  transform about its centre; `gameRect()` applies the same scale, so the overlay follows.
 
 ## Lessons from building
 

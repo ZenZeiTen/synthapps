@@ -91,6 +91,10 @@ async function readJsonBody(req, limit = 1048576) {
   try { return buf.length ? JSON.parse(buf.toString('utf8')) : {}; } catch { throw new HttpError(400, 'Body is not valid JSON'); }
 }
 
+function safeDecode(s) {
+  try { return decodeURIComponent(s); } catch { return s; }
+}
+
 /** JSON for embedding inside a <script> element. */
 function scriptJson(v) {
   return JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
@@ -206,6 +210,8 @@ function emulatorPage(store, game, { slot } = {}) {
       // EJS_defaultOptions; the bridge writes the managed ones there so the core starts with them.
       // Once that entry exists EmulatorJS stops reading EJS_defaultOptions, so the picture mode goes in too.
       coreOptions: Object.keys(coreOptions).length ? { key: `ejs-1-${game.system}-${game.title}-settings`, options: { ...coreOptions, shader } } : null,
+      screen: SCREEN_SHAPES.includes(store.settings.screen) ? store.settings.screen : 'original',
+      ingame: ingameConfig(store, game),
     },
   };
   if (plan.bios) cfg.EJS_biosUrl = `/bios/${encodeURIComponent(path.basename(plan.bios))}`;
@@ -224,6 +230,28 @@ function emulatorPage(store, game, { slot } = {}) {
 <script src="/assets/emu-bridge.js"></script>
 <script src="/ejs/loader.js"></script>
 </body></html>`;
+}
+
+/** The emulator's folder for PSP memory stick saves, shared by every PSP game. */
+const PSP_SAVEDATA = 'PPSSPP/PSP/SAVEDATA';
+const SCREEN_SHAPES = ['original', 'wide', 'fill'];
+/** Saves larger than this are not put into the page (they still stay on disk). */
+const INGAME_EMBED_MAX = 96 * 1048576;
+
+/**
+ * The game's in-game saves, embedded in the emulator page: emu-bridge.js writes them into the
+ * emulator's save folder before the game boots, and sends changes back to /api/games/:id/ingame.
+ */
+function ingameConfig(store, game) {
+  const scope = store.ingameScope(game);
+  let total = 0;
+  const files = [];
+  for (const f of store.listIngame(scope)) {
+    total += f.size;
+    if (total > INGAME_EMBED_MAX) { console.warn(`retroglot: in-game saves of ${game.title} are too large to load`); break; }
+    files.push({ path: f.path, data: fs.readFileSync(f.file).toString('base64') });
+  }
+  return { url: `/api/games/${game.id}/ingame`, shared: game.system === 'psp' ? PSP_SAVEDATA : null, files };
 }
 
 /** What the player page shows about a game's picture settings. */
@@ -487,6 +515,30 @@ export function createServer({
       const pack = store.texturePackFile(needGame(r[1]).id);
       if (!pack) throw new HttpError(404, 'No texture pack');
       return sendFile(req, res, pack.file, { type: 'application/octet-stream' });
+    }
+    if ((r = m(/^\/api\/games\/([0-9a-f]{12})\/ingame$/))) {
+      const game = needGame(r[1]);
+      const scope = store.ingameScope(game);
+      const info = () => ({ shared: scope !== game.id, files: store.listIngame(scope).map(({ path: p, size, savedAt }) => ({ path: p, size, savedAt })) });
+      if (method === 'GET') return sendJson(res, 200, info());
+      if (method === 'PUT') {
+        const body = await readJsonBody(req, 192 * 1048576);
+        if (!Array.isArray(body.files)) throw new HttpError(400, 'files must be a list of {path, data}');
+        let written;
+        try {
+          written = store.writeIngame(scope, body.files.map((f) => {
+            if (typeof f?.path !== 'string' || typeof f?.data !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(f.data)) throw new Error('Each file needs a path and base64 data');
+            return { path: f.path, data: Buffer.from(f.data, 'base64') };
+          }));
+        } catch (e) { throw new HttpError(400, e.message); }
+        return sendJson(res, 200, { ...info(), written });
+      }
+    }
+    if ((method === 'GET' || method === 'HEAD') && (r = m(/^\/api\/games\/([0-9a-f]{12})\/ingame\/file$/))) {
+      const game = needGame(r[1]);
+      let file;
+      try { file = store.ingameFile(store.ingameScope(game), url.searchParams.get('path') || ''); } catch (e) { throw new HttpError(400, e.message); }
+      return sendFile(req, res, file, { type: 'application/octet-stream', downloadName: safeDecode(path.basename(file)) });
     }
     if (method === 'GET' && (r = m(/^\/api\/games\/([0-9a-f]{12})\/saves$/))) return sendJson(res, 200, store.listSaves(needGame(r[1]).id));
     if ((r = m(/^\/api\/games\/([0-9a-f]{12})\/saves\/(\d{1,2})(?:\/(state|png))?$/))) {

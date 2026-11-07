@@ -25,8 +25,13 @@ Claude, so it shows the layout, not a live answer. The library picture uses made
   sectors, the files inside a zip), keeps play time, favourites and notes.
 - **Full-window play.** The game fills the window, with a CRT screen look (or sharp pixels,
   smooth, or the xBR and ScaleFX upscalers that redraw pixel art with clean edges). The
-  controls slide away while you play and come back when you move the mouse. Continue from
-  your latest save straight from the library.
+  controls slide away while you play and come back when you move the mouse. Keep the game's
+  own shape, or stretch it to 16:9 or to the whole window (**F8**).
+- **Saves that stay saved.** What you save inside a game (battery saves, memory cards, the
+  PSP memory stick) is copied to Retroglot's data folder within seconds and when you leave,
+  and put back when you start the game, with the previous version kept as a backup. An
+  Autosave is made when you leave and every 5 minutes, and **Continue** in the library starts
+  from it. See [Saves](#saves).
 - **HD for 3D games.** Nintendo 64 games can render at up to 4× resolution with edge
   smoothing, texture upscaling (xBRZ or HQ4x), widescreen and, experimentally, fan-made HD
   texture packs. PlayStation games can switch to an HD renderer (Beetle PSX HW) with up to
@@ -130,14 +135,39 @@ Sega CD, Saturn and 3DO games need theirs, and so does the PlayStation HD render
 `bios_CD_U.bin`, in the `bios` folder inside the data folder (`node bin/retroglot.js doctor`
 shows where it is).
 
+## Saves
+
+There are two kinds, and retroglot keeps both in its data folder (`~/.retroglot/saves`, on
+Windows `C:\Users\<you>\.retroglot\saves`):
+
+- **In-game saves**: what you save with the game's own menu, at a save point or on a memory
+  card. retroglot copies them to disk a few seconds after the game writes them, and again
+  when you press Back or close the window, and puts them back before the game starts next
+  time. The copy it replaces is kept in `ingame-previous`. The **Saves** tab lists them, with
+  **Download**, and **Import save file…** takes a `.srm` or `.sav` from another emulator
+  (the game restarts with it). PSP games share one memory stick, as on a real PSP.
+  Earlier versions of retroglot kept these saves only inside the app's browser storage;
+  they are copied to disk the first time you open the game.
+- **Save states**: a snapshot of the whole machine. **F6** saves to slot 1 and **F7** loads
+  it; the **Saves** tab has 8 slots. The **Autosave** is made when you leave the game and
+  every 5 minutes of play (turn it off in Settings), and **Continue** in the library starts
+  from the newest save state.
+
 ## Picture quality
 
 Open the side panel (**F1**) and choose **Picture**.
 
+- **Screen shape** applies to every game: the game's own shape (with bars at the sides),
+  stretched to 16:9, or stretched to fill the window. **F8** switches between them. The
+  translation boxes follow the stretched picture. For real widescreen, where the game shows
+  more of its world instead of stretching, use the enhancements below (N64, PlayStation HD).
+
 - **Filter** applies to every game: CRT screen, sharp pixels, smooth (SABR), xBR or ScaleFX.
   xBR and ScaleFX suit 2D pixel art; they cost more graphics power than the others.
   Translation always reads the original picture, so the filter never changes the result.
-- **Enhancements for this game** appear for Nintendo 64 and PlayStation games. Press
+- **Enhancements for this game** appear for Nintendo 64, Nintendo DS and PlayStation games.
+  For the DS: the two screens one above the other, side by side (best on a wide screen),
+  a large top screen with a small touch screen, or the top screen only. Press
   **Apply and restart**: retroglot saves the moment, restarts the emulator with the new
   settings and continues from where you were.
 
@@ -212,11 +242,12 @@ native 3DS emulator such as Azahar for those games.
 | **F4** | Boxes → subtitles → side panel only |
 | hold **`** | Hide translations to see the original |
 | **F6** / **F7** | Quick save / quick load (slot 1) |
+| **F8** | Screen shape: original → 16:9 → fill the window |
 | **F9** | Pause or resume |
 | **F1** | Script, glossary, saves and game notes |
 
 In the library: arrow keys (or the controller's d-pad) move between games, **Enter** (A)
-plays, **C** (X) continues from the latest save, **F** (Y) marks a favourite, **Q** and **E**
+plays, **C** (X) continues from the latest save (the Autosave when you just played), **F** (Y) marks a favourite, **Q** and **E**
 (the shoulder buttons) switch systems, **/** searches.
 
 Game controls and gamepads are set in the emulator's own menu (the gear at the bottom of the
@@ -292,17 +323,21 @@ exported scripts of commercial games may need the rights holder's permission.
 
 ## What has been tested
 
-- 44 unit tests (box art matching was checked by hand against the libretro collection):
+- 49 unit tests (box art matching was checked by hand against the libretro collection):
   system detection (including telling PSP and PlayStation `EBOOT.PBP` files apart), the library, save states, translation memory, script export, the Claude
   request (checked against a stand-in API), server safety checks, the emulator download
   (checksums, unsafe paths), the saved API key, and the picture enhancements (core options,
-  texture pack placement, PlayStation BIOS choice, shader conversion).
-- 11 browser tests in headless Chromium: the demo boots in DOSBox Pure, a test NES cartridge
+  texture pack placement, PlayStation BIOS choice, shader conversion), in-game save paths
+  and storage (with the previous copy kept), the in-game save API, and the DS screen layout.
+- 13 browser tests in headless Chromium: the demo boots in DOSBox Pure, a test NES cartridge
   boots on FCEUmm, a small Nintendo DS test program (made for retroglot) draws its picture on
   melonDS, F2 draws the translation over the dialogue window, the same screen is
   answered from memory, the glossary picks up new names, auto-translate follows the dialogue
   to the next screen, save then load returns to the same picture, and the xBR and ScaleFX
-  filters compile and leave translation screenshots unchanged.
+  filters compile and leave translation screenshots unchanged, a battery-backed NES test
+  cartridge's in-game save reaches disk when the player leaves straight away (with the
+  Autosave made too) and a changed save on disk is loaded at the next boot, and the
+  **Fill** screen shape covers the whole window.
 - Picture enhancements, checked by hand with N64 homebrew test programs in headless
   Chromium: 2× and 3× resolution (the core reported 1280×960 and 2560×1440 in widescreen),
   FXAA, xBRZ, widescreen, **Apply and restart** continuing from the same moment, and a small

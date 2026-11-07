@@ -94,6 +94,8 @@ async function init() {
   $('#g-info').textContent = `${S.game.fileName} · ${sys.name || S.game.system} (core ${sys.core}) · played ${fmtDuration(S.game.playSeconds)}`;
   S.mode = S.settings.overlay;
   S.display = S.settings.display || 'crt';
+  S.screen = S.settings.screen || 'original';
+  $('#pic-screen').value = S.screen;
   S.auto = !!S.settings.autoTranslate;
   overlay.setMode(S.mode);
   renderToggles();
@@ -114,6 +116,7 @@ async function init() {
   loadEnhance();
   loadScript();
   loadSaves();
+  loadIngame();
   api(`/api/games/${gameId}`, { method: 'PATCH', body: { played: true } }).catch(() => {});
 }
 
@@ -123,6 +126,7 @@ window.addEventListener('message', (ev) => {
   if (d.type === 'retroglot:start') onStarted();
   else if (d.type === 'retroglot:key') onKey(d.code, d.down);
   else if (d.type === 'retroglot:activity') wake();
+  else if (d.type === 'retroglot:saves') { $('#ingame-status').textContent = `Copied to your computer at ${new Date().toLocaleTimeString()}.`; loadIngame(); }
 });
 
 const CORE_NAMES = { dosbox_pure: 'DOSBox Pure', fceumm: 'FCEUmm', snes9x: 'Snes9x', mupen64plus_next: 'Mupen64Plus', gambatte: 'Gambatte', mgba: 'mGBA', genesis_plus_gx: 'Genesis Plus GX', picodrive: 'PicoDrive', pcsx_rearmed: 'PCSX ReARMed', mednafen_pce: 'Beetle PCE', smsplus: 'SMS Plus', stella2014: 'Stella', prosystem: 'ProSystem', handy: 'Handy', mednafen_ngp: 'Beetle NGP', mednafen_wswan: 'Beetle WonderSwan', beetle_vb: 'Beetle VB', mednafen_psx_hw: 'Beetle PSX HW', melonds: 'melonDS', ppsspp: 'PPSSPP' };
@@ -213,6 +217,20 @@ function cycleDisplay() {
   const keys = Object.keys(DISPLAYS);
   setDisplay(keys[(keys.indexOf(S.display) + 1) % keys.length]);
 }
+const SCREENS = { original: 'original shape', wide: 'widescreen 16:9', fill: 'fill the window' };
+function setScreen(mode) {
+  S.screen = mode;
+  bridge()?.setScreen?.(mode);
+  if ($('#pic-screen')) $('#pic-screen').value = mode;
+  setTimeout(placeOverlay, 50);
+  toast(`Screen: ${SCREENS[mode]}`, '', 1600);
+  api('/api/settings', { method: 'PATCH', body: { screen: mode } }).catch(() => {});
+}
+function cycleScreen() {
+  const keys = Object.keys(SCREENS);
+  setScreen(keys[(keys.indexOf(S.screen) + 1) % keys.length]);
+}
+
 function setDisplay(mode) {
   S.display = mode;
   applyDisplay();
@@ -421,8 +439,8 @@ async function pngOfScreen() {
   try { return await bridge().screenshot(); } catch { return new Uint8Array(0); }
 }
 
-async function saveState(slot) {
-  if (!S.started) return;
+async function saveState(slot, { quiet = false } = {}) {
+  if (!S.started) return false;
   try {
     const state = bridge().getState();
     const pic = await pngOfScreen();
@@ -430,12 +448,37 @@ async function saveState(slot) {
     body.set(pic, 0);
     body.set(state, pic.length);
     await api(`/api/games/${gameId}/saves/${slot}`, { method: 'PUT', body, headers: { 'X-Picture-Length': String(pic.length), 'Content-Type': 'application/octet-stream' } });
-    toast(`Saved to slot ${slot}`, 'good', 1800);
+    if (!quiet) toast(`Saved to slot ${slot}`, 'good', 1800);
     loadSaves();
+    return true;
   } catch (e) {
-    toast(`Could not save: ${e.message}`, 'bad');
+    if (!quiet) toast(`Could not save: ${e.message}`, 'bad');
+    return false;
   }
 }
+
+// ---------- autosave and leaving the game ----------
+// Slot 0 is the Autosave: written when you leave the game and every few minutes of play, so
+// Continue in the library picks up where you stopped. The game's own saves (battery saves,
+// memory cards) are kept on disk by emu-bridge.js; leaving waits for both.
+const AUTOSAVE_EVERY = 5 * 60 * 1000;
+let lastAutosave = Date.now();
+async function autosave() {
+  if (!S.started || S.settings?.autosave === false || !bridge()?.supportsStates()) return false;
+  lastAutosave = Date.now();
+  return saveState(0, { quiet: true });
+}
+setInterval(() => {
+  if (S.started && document.visibilityState === 'visible' && !bridge()?.paused && Date.now() - lastAutosave >= AUTOSAVE_EVERY) autosave();
+}, 30000);
+
+/** Save everything before leaving the game; gives up after a few seconds rather than hang. */
+async function beforeLeave() {
+  if (!S.started) return;
+  const work = Promise.allSettled([bridge()?.flushSaves?.(), autosave()]);
+  await Promise.race([work, new Promise((r) => setTimeout(r, 8000))]);
+}
+window.retroglotBeforeClose = beforeLeave; // the desktop app calls this when the window closes
 
 async function loadState(slot) {
   if (!S.started) return;
@@ -457,6 +500,14 @@ async function loadSaves() {
   const bySlot = new Map(saves.map((s) => [s.slot, s]));
   const box = $('#slots');
   box.replaceChildren();
+  const auto = bySlot.get(0);
+  if (auto) {
+    const pic = el('div', { class: 'pic' });
+    if (auto.hasPicture) pic.style.backgroundImage = `url("/api/games/${gameId}/saves/0/png?t=${encodeURIComponent(auto.savedAt)}")`;
+    box.append(el('div', { class: 'slot auto' }, pic,
+      el('div', { class: 'info' }, el('b', {}, 'Autosave'), new Date(auto.savedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })),
+      el('div', { class: 'acts' }, el('button', { class: 'btn', type: 'button', onclick: () => loadState(0) }, 'Load'))));
+  }
   for (let slot = 1; slot <= 8; slot++) {
     const s = bySlot.get(slot);
     const pic = el('div', { class: 'pic' }, s ? '' : 'Empty');
@@ -468,6 +519,37 @@ async function loadSaves() {
         s ? el('button', { class: 'btn', type: 'button', onclick: () => loadState(slot) }, 'Load') : null)));
   }
 }
+
+// ---------- in-game saves (battery saves, memory cards) ----------
+async function loadIngame() {
+  const info = await api(`/api/games/${gameId}/ingame`).catch(() => null);
+  const box = $('#ingame');
+  box.replaceChildren();
+  if (!info) return;
+  if (!info.files.length) {
+    box.append(el('p', { class: 'hint' }, 'Nothing yet. When you save inside the game, the save is copied to your computer within a few seconds.'));
+  }
+  for (const f of info.files) {
+    const name = decodeURIComponent(f.path.split('/').pop());
+    box.append(el('div', { class: 'ingame-row' },
+      el('span', { class: 'n', title: f.path }, name),
+      el('span', { class: 'm' }, `${f.size < 1024 ? `${f.size} B` : `${Math.round(f.size / 1024)} KB`} · ${new Date(f.savedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' })}`),
+      el('a', { class: 'btn', href: `/api/games/${gameId}/ingame/file?path=${encodeURIComponent(f.path)}`, download: name }, 'Download')));
+  }
+  if (info.shared) box.append(el('p', { class: 'hint' }, 'PSP games share one memory stick, as on a real PSP, so saves of your other PSP games appear here too.'));
+}
+
+$('#ingame-import').addEventListener('change', async (ev) => {
+  const f = ev.target.files?.[0];
+  ev.target.value = '';
+  if (!f || !S.started) return;
+  if (!confirm(`Replace this game's save with ${f.name}? The game restarts. The current save is kept as a backup in Retroglot's data folder.`)) return;
+  try {
+    await bridge().importSave(new Uint8Array(await f.arrayBuffer()));
+    toast('Save imported. The game restarted with it.', 'good');
+    loadIngame();
+  } catch (e) { toast(e.message, 'bad'); }
+});
 
 async function saveCover(quiet = false) {
   if (!S.started) return;
@@ -490,12 +572,13 @@ function onKey(code, down) {
   else if (code === 'F6') saveState(1);
   else if (code === 'F7') loadState(1);
   else if (code === 'F9') { bridge()?.togglePause(); wake(); }
+  else if (code === 'F8') cycleScreen();
   else if (code === 'F1') togglePanel();
 }
 const typing = () => ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
 window.addEventListener('keydown', (e) => {
   if (typing()) return;
-  if (['F1', 'F2', 'F3', 'F4', 'F6', 'F7', 'F9', 'Backquote'].includes(e.code)) { e.preventDefault(); if (!e.repeat) onKey(e.code, true); }
+  if (['F1', 'F2', 'F3', 'F4', 'F6', 'F7', 'F8', 'F9', 'Backquote'].includes(e.code)) { e.preventDefault(); if (!e.repeat) onKey(e.code, true); }
   else if (e.key === 'Escape' && !$('#side').classList.contains('closed')) togglePanel(false);
 });
 window.addEventListener('keyup', (e) => { if (e.code === 'Backquote' && !typing()) onKey('Backquote', false); });
@@ -611,6 +694,7 @@ async function applyEnhance() {
         slot = '0';
       } catch { slot = ''; }
     }
+    await bridge()?.flushSaves?.().catch(() => {});
     location.href = `/play/${gameId}${slot ? `?slot=${slot}` : ''}`;
   } catch (e) {
     toast(e.message, 'bad');
@@ -620,6 +704,14 @@ async function applyEnhance() {
 
 $('#enh-apply').addEventListener('click', applyEnhance);
 $('#pic-filter').addEventListener('change', (ev) => setDisplay(ev.target.value));
+$('#pic-screen').addEventListener('change', (ev) => setScreen(ev.target.value));
+$('#back').addEventListener('click', async (ev) => {
+  if (!S.started || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+  ev.preventDefault();
+  $('#back').setAttribute('aria-busy', 'true');
+  await beforeLeave();
+  location.href = '/';
+});
 $('#enh-pack-file').addEventListener('change', async (ev) => {
   const f = ev.target.files?.[0];
   ev.target.value = '';

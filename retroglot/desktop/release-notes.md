@@ -18,6 +18,14 @@ Both files contain the same app. Before publishing, the automated build started 
 
 Retroglot ships no games and no BIOS files. Use games you own.
 
+## New in 0.3.0
+
+- **In-game saves now stay saved.** When a game saves to its own memory card or cartridge, Retroglot writes that save to disk within seconds, and again when you leave the game. Before, a save could be lost if you left soon after saving. Saves are kept in `.retroglot\saves` in your user folder, with the previous copy kept next to it.
+- **Autosave:** Retroglot makes a save state when you leave a game and every 5 minutes of play. **Continue** in the library resumes from it. You can turn it off in Settings.
+- **Import and download in-game saves** from the Saves tab (F1), for example to bring in a save from another emulator.
+- **Screen shape (F8):** original, widescreen 16:9, or fill the whole window. The translation boxes follow the picture.
+- **Nintendo DS screen layout:** stacked, side by side, one large screen, or top screen only (F1, Picture tab).
+
 ## New in 0.2.0
 
 - **Nintendo DS** (melonDS): `.nds` games, both screens shown one above the other, touch screen with the mouse. No BIOS needed.

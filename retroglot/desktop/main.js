@@ -115,6 +115,17 @@ function createWindow() {
   });
   win.once('ready-to-show', () => { if (!smoke) win.show(); });
   win.on('closed', () => { win = null; });
+  // Let the player save the game (in-game saves and the Autosave) before the window goes.
+  let saved = false;
+  win.on('close', (ev) => {
+    if (saved || smoke) return;
+    ev.preventDefault();
+    const done = () => { saved = true; if (win && !win.isDestroyed()) win.close(); };
+    const timer = setTimeout(done, 10000);
+    win.webContents.executeJavaScript('window.retroglotBeforeClose ? window.retroglotBeforeClose().then(() => true) : true', true)
+      .catch(() => {})
+      .finally(() => { clearTimeout(timer); done(); });
+  });
   win.loadURL(`${baseUrl}/`);
 }
 

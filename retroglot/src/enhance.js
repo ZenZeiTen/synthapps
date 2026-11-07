@@ -48,6 +48,18 @@ export const ENHANCEMENTS = {
       hint: 'Replaces textures with a fan-made HD pack you add below (a .zip of PNG files, or a .hts/.htc file).',
     },
   },
+  nds: {
+    layout: {
+      label: 'Screen layout',
+      choices: [
+        { id: 'stacked', label: 'One above the other' },
+        { id: 'side', label: 'Side by side (best on a wide screen)' },
+        { id: 'large', label: 'Large top screen, small touch screen' },
+        { id: 'top', label: 'Top screen only' },
+      ],
+      hint: 'The touch screen still works with the mouse in every layout except "Top screen only".',
+    },
+  },
   psx: {
     renderer: {
       label: 'Renderer',
@@ -112,6 +124,7 @@ export function resolvedEnhance(system, enhance = {}) {
 /** Options managed for each system with feature switched off, used to reset them. */
 const N64_RES = { 1: '640x480', 2: '1280x960', 3: '1920x1440', 4: '2560x1920' };
 const N64_RES_WIDE = { 1: '960x540', 2: '1920x1080', 3: '2560x1440', 4: '3840x2160' };
+const NDS_LAYOUT = { stacked: 'Top/Bottom', side: 'Left/Right', large: 'Hybrid Top', top: 'Top Only' };
 const PSX_RES = { 1: '1x(native)', 2: '2x', 3: '4x', 4: '8x' };
 
 /**
@@ -152,6 +165,11 @@ export function enhancementPlan(system, enhance, ctx = {}) {
         plan.active.push('HD texture pack');
       }
     }
+    return plan;
+  }
+  if (system === 'nds') {
+    plan.options = { melonds_screen_layout: NDS_LAYOUT[e.layout] };
+    if (e.layout !== 'stacked') plan.active.push(ENHANCEMENTS.nds.layout.choices.find((c) => c.id === e.layout).label.replace(/ \(.*\)$/, '').toLowerCase());
     return plan;
   }
   if (system === 'psx' && e.renderer === 'hd') {

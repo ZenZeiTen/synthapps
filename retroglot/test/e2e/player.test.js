@@ -13,6 +13,7 @@ import { Store } from '../../src/store.js';
 import { setClient } from '../../src/translate.js';
 import { startMockClaude } from '../helpers/mock-claude.js';
 import { makeNds, ndsBandColor } from '../helpers/nds.js';
+import { makeBatteryNes } from '../helpers/nes.js';
 
 let chromium = null;
 try { ({ chromium } = createRequire(import.meta.url)('playwright')); } catch { /* not installed */ }
@@ -219,4 +220,49 @@ test('a Nintendo DS program runs on melonDS, both screens in one picture', { ski
   const want = ndsBandColor(100);
   for (let i = 0; i < 3; i++) assert.ok(Math.abs(shot.px[i] - want[i]) <= 12, `pixel ${shot.px} should be close to ${want}`);
   assert.equal(await frameEval(() => window.retroglotBridge.core()), 'melonds');
+});
+
+test('in-game saves reach disk even when leaving right away, and come back on the next start', { skip: skip || (!installedCores().includes('fceumm') && 'needs the fceumm core') }, async () => {
+  const up = await fetch(`${base}/api/upload?name=${encodeURIComponent('Battery Test (World).nes')}`, { method: 'PUT', body: makeBatteryNes() });
+  const g = await up.json();
+  const started = () => page.waitForFunction(() => document.querySelector('#emu').contentWindow?.retroglotBridge?.started, null, { timeout: 60000 });
+  const onDisk = async () => {
+    const info = await (await fetch(`${base}/api/games/${g.id}/ingame`)).json();
+    if (!info.files.length) return null;
+    const f = info.files[0];
+    return { path: f.path, bytes: [...new Uint8Array(await (await fetch(`${base}/api/games/${g.id}/ingame/file?path=${encodeURIComponent(f.path)}`)).arrayBuffer())].slice(0, 4) };
+  };
+  await page.goto(`${base}/play/${g.id}`);
+  await started();
+  await page.waitForTimeout(500); // well before the regular 4-second copy
+  await page.mouse.move(40, 30);
+  await page.click('#back');
+  await page.waitForURL(`${base}/`, { timeout: 15000 });
+  const first = await onDisk();
+  assert.deepEqual(first.bytes, [0x42, 0, 0, 1]); // the program's marker and its first boot
+  const states = await (await fetch(`${base}/api/games/${g.id}/saves`)).json();
+  assert.ok(states.some((s) => s.slot === 0), 'leaving made the Autosave');
+
+  // Put a changed save on disk (like a save imported from elsewhere): the game must see it at boot.
+  const changed = Buffer.alloc(8192);
+  changed.set([0x42, 0x77, 0, 1]);
+  const put = await fetch(`${base}/api/games/${g.id}/ingame`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ files: [{ path: first.path, data: changed.toString('base64') }] }) });
+  assert.equal(put.status, 200);
+  await page.goto(`${base}/play/${g.id}`);
+  await started();
+  await frameEval(() => window.retroglotBridge.flushSaves());
+  assert.deepEqual((await onDisk()).bytes, [0x42, 0x77, 0x77, 2]); // byte 1 copied at boot, second boot counted
+});
+
+test('the screen shape stretches the picture and the overlay follows it', { skip }, async () => {
+  await page.setViewportSize({ width: 1360, height: 860 });
+  await frameEval(() => window.retroglotBridge.setScreen('original'));
+  const original = await frameEval(() => window.retroglotBridge.gameRect());
+  await frameEval(() => window.retroglotBridge.setScreen('fill'));
+  await page.waitForTimeout(200);
+  const filled = await frameEval(() => window.retroglotBridge.gameRect());
+  const frame = await page.evaluate(() => { const r = document.querySelector('#emu').getBoundingClientRect(); return { width: r.width, height: r.height }; });
+  assert.ok(original.width < frame.width - 50, 'the original shape leaves bars at the sides');
+  assert.ok(Math.abs(filled.width - frame.width) < 2 && Math.abs(filled.height - frame.height) < 2, `fill covers the frame: ${JSON.stringify(filled)}`);
+  await frameEval(() => window.retroglotBridge.setScreen('original'));
 });
