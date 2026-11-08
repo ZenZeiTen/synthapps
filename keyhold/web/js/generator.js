@@ -28,16 +28,58 @@ function shuffle(arr) {
   return arr;
 }
 
-export function generatePassword({ length = 20, lower = true, upper = true, digits = true, symbols = true, avoidAmbiguous = false } = {}) {
-  length = Math.max(4, Math.min(128, length | 0));
-  const sets = Object.entries({ lower, upper, digits, symbols })
-    .filter(([, on]) => on)
-    .map(([k]) => (avoidAmbiguous ? SETS[k].replace(AMBIGUOUS, '') : SETS[k]));
-  if (!sets.length) sets.push(SETS.lower);
-  const all = sets.join('');
-  const out = sets.map((s) => s[randomInt(s.length)]); // at least one of each chosen kind
+/**
+ * Random password from a policy (the options of Password Safe's password policies):
+ *   length; lower/upper/digits/symbols on or off, each with a minimum count;
+ *   symbolSet (custom symbols, '' = default); avoidAmbiguous;
+ *   hex (0-9a-f only) or pronounceable (syllables, with the chosen extras mixed in).
+ */
+export function generatePassword(policy = {}) {
+  const p = { length: 20, lower: true, upper: true, digits: true, symbols: true, avoidAmbiguous: false, ...policy };
+  const length = Math.max(4, Math.min(128, p.length | 0));
+  if (p.hex) {
+    let out = '';
+    for (let i = 0; i < length; i++) out += '0123456789abcdef'[randomInt(16)];
+    return out;
+  }
+  const clean = (set) => (p.avoidAmbiguous ? set.replace(AMBIGUOUS, '') : set);
+  const symbolSet = clean(p.symbolSet ? [...new Set(p.symbolSet)].join('').replace(/[\sA-Za-z0-9]/g, '') : SETS.symbols);
+  const kinds = [
+    ['lower', clean(SETS.lower), p.minLower], ['upper', clean(SETS.upper), p.minUpper],
+    ['digits', clean(SETS.digits), p.minDigits], ['symbols', symbolSet, p.minSymbols],
+  ].filter(([k, set]) => p[k] && set.length);
+  if (!kinds.length) kinds.push(['lower', SETS.lower, 1]);
+  const mins = kinds.map(([, , m]) => Math.max(1, m | 0));
+  if (mins.reduce((a, b) => a + b, 0) > length) throw new Error('The minimum counts add up to more than the length');
+  if (p.pronounceable) return pronounceable(length, kinds, mins);
+  const out = [];
+  kinds.forEach(([, set], i) => { for (let n = 0; n < mins[i]; n++) out.push(set[randomInt(set.length)]); });
+  const all = kinds.map(([, set]) => set).join('');
   while (out.length < length) out.push(all[randomInt(all.length)]);
   return shuffle(out).join('');
+}
+
+const CONSONANTS = 'bcdfghjklmnprstvwz';
+const VOWELS = 'aeiou';
+
+/** Pronounceable: consonant-vowel syllables, then the required digits and symbols placed at random spots. */
+function pronounceable(length, kinds, mins) {
+  const extras = [];
+  kinds.forEach(([k, set], i) => { if (k === 'digits' || k === 'symbols') for (let n = 0; n < mins[i]; n++) extras.push(set[randomInt(set.length)]); });
+  const letters = [];
+  while (letters.length < length - extras.length) {
+    letters.push(CONSONANTS[randomInt(CONSONANTS.length)]);
+    if (letters.length < length - extras.length) letters.push(VOWELS[randomInt(VOWELS.length)]);
+  }
+  const wantUpper = kinds.find(([k]) => k === 'upper');
+  const wantLower = kinds.find(([k]) => k === 'lower');
+  if (wantUpper) {
+    const minU = mins[kinds.indexOf(wantUpper)];
+    const idx = shuffle([...letters.keys()]).slice(0, wantLower ? minU : letters.length);
+    for (const i of idx) letters[i] = letters[i].toUpperCase();
+  }
+  for (const x of extras) letters.splice(randomInt(letters.length + 1), 0, x);
+  return letters.join('');
 }
 
 let wordsCache = null;

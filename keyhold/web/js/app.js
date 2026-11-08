@@ -4,20 +4,29 @@ import {
   createVault, openVault, openVaultDerived, openVaultWithRecovery, deriveFromPassword, deriveFromRecovery,
   decryptPayload, WrongPasswordError,
 } from './crypto.js';
-import { TYPES, emptyPayload, newItem, subtitle, search, sortItems, folderTree, safeUrl, primaryKey, hostOf, cleanFolder, mergePayloads, healthReport } from './model.js';
+import { TYPES, emptyPayload, newItem, subtitle, search, sortItems, folderTree, safeUrl, primaryKey, hostOf, cleanFolder, mergePayloads, healthReport, applyFilter, daysFromNow, now } from './model.js';
+import { itemMenu, folderMenu, menuAt, renderTable, renderStatus, tickStatus, sortByColumn, closeMenu, popupMenu } from './workbench.js';
 import { DesktopStore, BrowserStore, RemoteClient, OfflineError, RemoteError } from './storage.js';
 import { Session, NeedsPasswordError } from './session.js';
 import { estimateStrength, loadWords } from './generator.js';
 import { parseTotp, totpCode } from './totp.js';
-import { openSettings, openGenerator, renderHealth, showRecoveryCode, chooseNewPassword } from './views.js';
+import { openSettings, openGenerator, renderHealth, showRecoveryCode, chooseNewPassword, exportItems } from './views.js';
 
 const state = {
   mode: null, token: null, store: null, session: null, signup: 'closed',
   filter: { kind: 'all' }, selected: null, editing: null, query: '', sort: 'title', pane: 'list',
   revealed: new Set(), dict: null, totp: [], lastActive: Date.now(),
+  view: pref('keyhold.view', 'list'), tableSort: { key: 'title', dir: 1 }, collapsed: new Set(), openedAt: Date.now(), openReadOnly: false,
 };
+function pref(k, d) { try { return localStorage.getItem(k) || d; } catch { return d; } }
+function setPref(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
 const root = () => document.getElementById('root');
-export const app = { state, renderAll, select, copy, lock, strength, startEdit, setFilter, currentHealth, checkNewPassword };
+export const app = {
+  state, renderAll, renderList, select, copy, lock, strength, startEdit, setFilter, currentHealth, checkNewPassword, visibleItems,
+  chooseType, newFolder, clearClipboard, duplicate, trashItem, purgeOne, folderPaths,
+  exportItems: (items, label) => exportItems(app, items, label),
+  fail: (e) => toast(e && e.message ? e.message : String(e), { error: true }),
+};
 
 // ---------- theme ----------
 function applyTheme(t) {
@@ -143,7 +152,7 @@ function gateSetup() {
           await s.saveLocal();
           if (created.recovery) await showRecoveryCode(created.recovery.code, true);
           enterApp(s);
-          toast('Vault created. Moving from Password Safe? Settings › Import.', { ms: 7000 });
+          toast('Vault created. Moving from Password Safe? Settings › Backup › Import.', { ms: 7000 });
         }).catch((x) => { err.textContent = x.message; });
       },
     }, p1.el, p2.el,
@@ -190,10 +199,16 @@ function gateUnlock(rec) {
           if (s.remote) s.sync().catch(() => {});
         }).catch((x) => { err.textContent = x instanceof WrongPasswordError ? 'That master password is not correct.' : x.message; p.input.select(); });
       },
-    }, p.el, err, btn),
+    }, p.el, readOnlyBox(), err, btn),
     h('div', { class: 'links' }, rec.vault.keys.recovery ? h('button', { class: 'link', type: 'button', onclick: () => gateRecovery(rec) }, 'Forgot it? Use your recovery code') : null),
     where(),
   ]);
+}
+
+/** "Open as read-only", as on Password Safe's master password screen. */
+function readOnlyBox() {
+  const c = h('input', { type: 'checkbox', checked: state.openReadOnly, onchange: (e) => { state.openReadOnly = e.target.checked; } });
+  return h('label', { class: 'check small' }, c, 'Open read-only (view and copy, no changes)');
 }
 
 function recoveryField() {
@@ -248,7 +263,7 @@ function gateSignIn(msg) {
         await busy(btn, 'Unlocking…', () => serverSignIn(u.input.value.trim().toLowerCase(), p.input.value))
           .catch((x) => { err.textContent = x instanceof WrongPasswordError ? 'Wrong username or master password.' : x.message; });
       },
-    }, u.el, p.el, err, btn),
+    }, u.el, p.el, readOnlyBox(), err, btn),
     h('div', { class: 'links' },
       state.signup !== 'closed' ? h('button', { class: 'link', type: 'button', onclick: gateRegister }, 'Create an account') : null,
       h('button', { class: 'link', type: 'button', onclick: gateServerRecovery }, 'Use a recovery code')),
@@ -385,8 +400,9 @@ document.addEventListener('visibilitychange', () => {
 addEventListener('focus', () => { if (clipPending) clearClipboard(); });
 addEventListener('online', () => { if (state.session) state.session.sync().catch(() => {}); });
 
-async function copy(text, label = 'Copied') {
+async function copy(text, label = 'Copied', item = null) {
   if (!text) return;
+  if (item && state.session) state.session.touch(item.id).catch(() => {});
   try { await navigator.clipboard.writeText(text); }
   catch {
     const ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = text; document.body.append(ta); ta.select();
@@ -397,9 +413,10 @@ async function copy(text, label = 'Copied') {
   clearTimeout(clipTimer);
   if (secs) clipTimer = setTimeout(clearClipboard, secs * 1000);
 }
-async function clearClipboard() {
+async function clearClipboard(manual = false) {
   clearTimeout(clipTimer);
-  try { await navigator.clipboard.writeText(' '); clipPending = false; } catch { clipPending = true; }
+  try { await navigator.clipboard.writeText(' '); clipPending = false; if (manual === true) toast('Clipboard cleared'); }
+  catch { clipPending = true; if (manual === true) toast('The clipboard will be cleared when this window has focus'); }
 }
 
 // ---------- main window ----------
@@ -408,6 +425,10 @@ function enterApp(s) {
   state.filter = { kind: 'all' }; state.selected = null; state.editing = null; state.query = '';
   state.pane = 'list';
   state.lastActive = Date.now();
+  state.openedAt = Date.now();
+  if (state.openReadOnly) { s.readOnly = true; state.openReadOnly = false; }
+  state.collapsed = new Set();
+  if (s.settings.initialTree === 'collapsed') for (const f of folderPaths(s)) if (f.includes('/')) state.collapsed.add(f.split('/').slice(0, -1).join('/'));
   applyTheme(s.settings.theme);
   s.on((what) => {
     if (what === 'changed') renderAll();
@@ -419,7 +440,7 @@ function enterApp(s) {
     const m = state.session && state.session.settings.autoLockMinutes;
     if (m > 0 && Date.now() - state.lastActive > m * 60000) lock('Locked after ' + m + ' minutes without activity');
   }, 5000);
-  totpTimer = setInterval(tickTotp, 1000);
+  totpTimer = setInterval(() => { tickTotp(); tickStatus(app, els.status); }, 1000);
   setInterval(() => { if (state.session && state.session.remote) state.session.sync().catch(() => {}); }, 5 * 60000);
 }
 
@@ -435,11 +456,14 @@ function buildShell() {
     listTitle: h('h2'),
     detail: h('section', { class: 'detail-pane', 'aria-live': 'polite' }),
     sync: h('button', { class: 'sync-pill', type: 'button', onclick: onSyncPill }),
+    status: h('footer', { class: 'statusbar', 'aria-label': 'Status' }),
+    saveView: iconBtn('star', 'Save this view as a filter', saveCurrentView),
+    viewBtn: iconBtn(state.view === 'table' ? 'list' : 'table', '', toggleView),
   };
   const sortSel = h('select', { class: 'input', 'aria-label': 'Sort', onchange: (e) => { state.sort = e.target.value; renderList(); } },
     h('option', { value: 'title' }, 'Name'), h('option', { value: 'updated' }, 'Recently changed'));
   sortSel.value = state.sort;
-  els.app = h('div', { class: 'app', dataset: { pane: state.pane } },
+  els.app = h('div', { class: 'app' + (state.view === 'table' ? ' table-view' : ''), dataset: { pane: state.pane } },
     h('header', { class: 'topbar' },
       iconBtn('menu', 'Sections', () => { state.pane = 'nav'; renderPane(); }, { class: 'mob' }),
       h('div', { class: 'brand' }, h('img', { src: 'icons/icon.svg', alt: '' }), h('span', { text: 'Keyhold' })),
@@ -451,9 +475,12 @@ function buildShell() {
       iconBtn('lock', 'Lock (Ctrl+Shift+L)', () => lock())),
     els.sidebar,
     h('section', { class: 'list-pane' },
-      h('div', { class: 'list-head' }, iconBtn('back', 'Sections', () => { state.pane = 'nav'; renderPane(); }, { class: 'mob' }), els.listTitle, sortSel),
+      h('div', { class: 'list-head' }, iconBtn('back', 'Sections', () => { state.pane = 'nav'; renderPane(); }, { class: 'mob' }), els.listTitle, els.saveView, els.viewBtn, sortSel),
       els.list),
-    els.detail);
+    els.detail,
+    els.status);
+  els.sortSel = sortSel;
+  updateViewBtn();
   fill(root(), els.app);
   root().className = '';
 }
@@ -462,7 +489,60 @@ function renderPane() { if (els.app) els.app.dataset.pane = state.pane; }
 
 function renderAll() {
   if (!state.session) return;
-  renderSidebar(); renderList(); renderDetail(); renderSync(); renderPane();
+  renderSidebar(); renderList(); renderDetail(); renderSync(); renderPane(); renderStatus(app, els.status);
+}
+
+/** Cards (list) or a sortable table, like Password Safe's Nested Tree / Flattened List. */
+function toggleView() {
+  state.view = state.view === 'table' ? 'list' : 'table';
+  setPref('keyhold.view', state.view);
+  els.app.classList.toggle('table-view', state.view === 'table');
+  updateViewBtn();
+  renderList();
+}
+function updateViewBtn() {
+  const t = state.view === 'table';
+  const label = t ? 'Show as a list' : 'Show as a table with columns';
+  els.viewBtn.title = label; els.viewBtn.setAttribute('aria-label', label);
+  els.viewBtn.replaceChildren(icon(t ? 'list' : 'table'));
+  els.sortSel.hidden = t;
+}
+
+/** Items in the order they are shown. */
+function displayedItems() {
+  const items = visibleItems();
+  return state.view === 'table' ? sortByColumn(items, state.tableSort.key, state.tableSort.dir) : items;
+}
+
+function folderPaths(s = state.session) {
+  return folderTree(s.items().filter((i) => !i.deletedAt), s.settings.folders).map((f) => f.path);
+}
+
+async function saveCurrentView() {
+  const f = state.filter;
+  const base = { query: state.query || '' };
+  if (f.kind === 'type') base.type = f.type;
+  if (f.kind === 'folder') base.folder = f.path;
+  if (f.kind === 'tag') base.tag = f.tag;
+  if (f.kind === 'fav') base.favorite = true;
+  if (f.kind === 'expiring') base.expiring = true;
+  if (f.kind === 'saved') Object.assign(base, (state.session.settings.savedFilters.find((x) => x.id === f.id) || {}), { query: state.query || '' });
+  const name = await modal((close) => {
+    const input = h('input', { class: 'input', autofocus: true, value: state.query || filterTitle() });
+    return {
+      title: 'Save this view',
+      body: h('form', { onsubmit: (e) => { e.preventDefault(); close(input.value); } },
+        h('p', { class: 'muted', text: 'It appears under Saved filters in the sidebar and updates as your vault changes.' }),
+        h('label', { class: 'field' }, h('span', { text: 'Name' }), input)),
+      foot: [h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'), h('button', { class: 'btn primary', type: 'button', onclick: () => close(input.value) }, 'Save')],
+    };
+  });
+  if (!name || !name.trim()) return;
+  const sf = { ...base, id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), name: name.trim().slice(0, 60) };
+  delete sf.kind;
+  await state.session.updateSettings({ savedFilters: [...state.session.settings.savedFilters, sf] }).catch(app.fail);
+  state.query = ''; els.q.value = '';
+  setFilter({ kind: 'saved', id: sf.id });
 }
 
 function setFilter(f) {
@@ -482,6 +562,8 @@ function visibleItems() {
   if (f.kind === 'type') items = items.filter((i) => i.type === f.type);
   if (f.kind === 'folder') items = items.filter((i) => i.folder === f.path || i.folder.startsWith(f.path + '/'));
   if (f.kind === 'tag') items = items.filter((i) => i.tags.includes(f.tag));
+  if (f.kind === 'expiring') items = items.filter((i) => i.expiresAt);
+  if (f.kind === 'saved') { const sf = state.session.settings.savedFilters.find((x) => x.id === f.id); items = sf ? applyFilter(items, sf) : []; }
   if (f.kind === 'health') items = [];
   items = search(items, state.query);
   const sorted = sortItems(items, state.sort);
@@ -491,26 +573,29 @@ function visibleItems() {
 function filterTitle() {
   const f = state.filter;
   if (state.query) return 'Search results';
-  return { all: 'All items', fav: 'Favorites', trash: 'Trash', health: 'Password health' }[f.kind]
+  if (f.kind === 'saved') { const sf = state.session.settings.savedFilters.find((x) => x.id === f.id); return sf ? sf.name : 'Saved filter'; }
+  return { all: 'All items', fav: 'Favorites', trash: 'Trash', health: 'Password health', expiring: 'With an expiry date' }[f.kind]
     || (f.kind === 'type' ? TYPES[f.type].plural : f.kind === 'folder' ? f.path.split('/').pop() : '#' + f.tag);
 }
 
-function navLink(label, ic, filt, count, { badge, depth = 0 } = {}) {
+function navLink(label, ic, filt, count, { badge, depth = 0, before = null, after = null, menu = null } = {}) {
   const f = state.filter;
-  const active = f.kind === filt.kind && f.type === filt.type && f.path === filt.path && f.tag === filt.tag;
+  const active = f.kind === filt.kind && f.type === filt.type && f.path === filt.path && f.tag === filt.tag && f.id === filt.id;
   return h('a', {
     class: active ? 'active' : '', href: '#', role: 'button', style: depth ? `padding-left:${10 + depth * 14}px` : null,
     'aria-current': active ? 'true' : null,
     onclick: (e) => { e.preventDefault(); state.query = ''; els.q.value = ''; setFilter(filt); },
-  }, icon(ic), h('span', { class: 'name', text: label }),
-  badge ? h('span', { class: 'badge', text: badge }) : count != null ? h('span', { class: 'n', text: count }) : null);
+    oncontextmenu: menu ? (e) => { e.preventDefault(); menu(e.clientX, e.clientY); } : null,
+  }, before, icon(ic), h('span', { class: 'name', text: label }),
+  badge ? h('span', { class: 'badge', text: badge }) : count != null ? h('span', { class: 'n', text: count }) : null, after);
 }
 
 let healthCache = { key: '', report: null };
 export function currentHealth() {
   const items = liveItems();
   const key = items.length + ':' + items.reduce((m, i) => (i.updatedAt > m ? i.updatedAt : m), '') + ':' + !!state.dict;
-  if (healthCache.key !== key) healthCache = { key, report: healthReport(items, strength) };
+  const warnDays = state.session.settings.expiryWarnDays;
+  if (healthCache.key !== key + warnDays) healthCache = { key: key + warnDays, report: healthReport(items, strength, { warnDays }) };
   return healthCache.report;
 }
 
@@ -529,19 +614,40 @@ function renderSidebar() {
     h('div', { class: 'nav-h' }, 'Types'),
     Object.entries(TYPES).filter(([k]) => byType[k] || k === 'login' || k === 'note' || k === 'card')
       .map(([k, t]) => navLink(t.plural, t.icon, { kind: 'type', type: k }, byType[k] || 0)),
-    h('div', { class: 'nav-h' }, 'Folders', iconBtn('plus', 'New folder', newFolder)),
-    folders.length ? folders.map((f) => navLink(f.name, 'folder', { kind: 'folder', path: f.path }, f.count || null, { depth: f.depth }))
-      : h('div', { class: 'small muted', style: 'padding:2px 10px', text: 'No folders yet' }),
+    h('div', { class: 'nav-h' }, 'Folders', h('span', { class: 'nav-tools' },
+      folders.some((f) => f.depth) ? iconBtn('expand', 'Expand all folders', () => { state.collapsed.clear(); renderSidebar(); }, { class: 'expand-all' }) : null,
+      folders.some((f) => f.depth) ? iconBtn('collapse', 'Collapse all folders', () => { for (const f of folders) state.collapsed.add(f.path); renderSidebar(); }, { class: 'collapse-all' }) : null,
+      state.session.readOnly ? null : iconBtn('plus', 'New folder', () => newFolder()))),
+    folders.length ? folders.filter((f) => !hiddenByCollapse(f.path)).map((f) => {
+      const hasKids = folders.some((x) => x.path.startsWith(f.path + '/'));
+      const open = !state.collapsed.has(f.path);
+      const tw = hasKids ? h('span', { class: 'twisty' + (open ? ' open' : ''), role: 'button', tabindex: '0', 'aria-label': (open ? 'Collapse ' : 'Expand ') + f.name, 'aria-expanded': String(open),
+        onclick: (e) => { e.preventDefault(); e.stopPropagation(); open ? state.collapsed.add(f.path) : state.collapsed.delete(f.path); renderSidebar(); } }, icon('back')) : h('span', { class: 'twisty none' });
+      return navLink(f.name, 'folder', { kind: 'folder', path: f.path }, f.count || null, { depth: f.depth, before: tw, menu: (x, y) => folderMenu(app, f.path, x, y) });
+    }) : h('div', { class: 'small muted', style: 'padding:2px 10px', text: 'No folders yet' }),
     tags.length ? [h('div', { class: 'nav-h' }, 'Tags'), tags.map((t) => navLink(t, 'tag', { kind: 'tag', tag: t }))] : null,
+    h('div', { class: 'nav-h' }, 'Views'),
+    navLink('With an expiry date', 'clock', { kind: 'expiring' }, live.filter((i) => i.expiresAt).length || null),
+    state.session.settings.savedFilters.map((sf) => navLink(sf.name, 'search', { kind: 'saved', id: sf.id }, null, {
+      menu: (x, y) => popupMenu(x, y, [{ label: 'Remove saved filter', icon: 'trash', danger: true, disabled: state.session.readOnly,
+        run: () => state.session.updateSettings({ savedFilters: state.session.settings.savedFilters.filter((z) => z.id !== sf.id) }).then(() => { if (state.filter.id === sf.id) setFilter({ kind: 'all' }); }).catch(app.fail) }], sf.name),
+    })),
     h('div', { class: 'nav-h' }, 'Security'),
     navLink('Password health', 'shield', { kind: 'health' }, null, { badge: problems || null }),
     navLink('Trash', 'trash', { kind: 'trash' }, trash || null),
   ));
 }
 
-async function newFolder() {
+function hiddenByCollapse(path) {
+  const parts = path.split('/');
+  for (let i = 1; i < parts.length; i++) if (state.collapsed.has(parts.slice(0, i).join('/'))) return true;
+  return false;
+}
+
+async function newFolder(prefix = '') {
+  if (state.session.readOnly) return app.fail(new Error('The vault is open read-only.'));
   const name = await modal((close) => {
-    const input = h('input', { class: 'input', autofocus: true, placeholder: 'Work/Clients' });
+    const input = h('input', { class: 'input', autofocus: true, placeholder: 'Work/Clients', value: typeof prefix === 'string' ? prefix : '' });
     return {
       title: 'New folder',
       body: h('form', { onsubmit: (e) => { e.preventDefault(); close(input.value); } },
@@ -551,7 +657,8 @@ async function newFolder() {
   });
   const path = name && cleanFolder(name);
   if (!path) return;
-  await state.session.updateSettings({ folders: [...new Set([...(state.session.settings.folders || []), path])] });
+  await state.session.updateSettings({ folders: [...new Set([...(state.session.settings.folders || []), path])] }).catch(app.fail);
+  state.collapsed.delete(path.split('/').slice(0, -1).join('/'));
   setFilter({ kind: 'folder', path });
 }
 
@@ -561,10 +668,30 @@ function tileFor(it) {
   return h('div', { class: 'tile', 'aria-hidden': 'true' }, host ? host.replace(/^www\./, '')[0].toUpperCase() : icon(t.icon));
 }
 
+function rowEvents(it) {
+  return {
+    oncontextmenu: (e) => { e.preventDefault(); if (state.selected !== it.id) select(it.id, true); itemMenu(app, it, e.clientX, e.clientY); },
+    ondblclick: () => doubleClick(it),
+  };
+}
+
+/** Double-click action, as in Password Safe's options. */
+function doubleClick(it) {
+  if (it.deletedAt) return;
+  const a = state.session.settings.doubleClick;
+  const pk = primaryKey(it.type);
+  if (a === 'copyPassword' && pk && it.fields[pk]) copy(it.fields[pk], TYPES[it.type].fields.find((f) => f.key === pk).label, it);
+  else if (a === 'copyUsername' && it.fields.username) copy(it.fields.username, 'Username', it);
+  else if (a === 'openUrl' && safeUrl(it.fields.url)) { window.open(safeUrl(it.fields.url), '_blank', 'noopener,noreferrer'); state.session.touch(it.id).catch(() => {}); }
+  else if (a === 'edit') startEdit(it);
+}
+
 function renderList() {
   els.listTitle.textContent = filterTitle();
+  els.saveView.hidden = !(state.query || ['type', 'folder', 'tag', 'fav', 'expiring'].includes(state.filter.kind)) || state.session.readOnly;
   const items = visibleItems();
   const list = clear(els.list);
+  list.classList.toggle('as-table', state.view === 'table');
   if (state.filter.kind === 'health' && !state.query) {
     list.append(h('div', { class: 'empty' }, icon('shield'), h('div', { text: 'The report is on the right.' })));
     return;
@@ -580,29 +707,64 @@ function renderList() {
   if (state.filter.kind === 'trash') {
     list.append(h('div', { style: 'padding:0 6px 8px' }, h('button', { class: 'btn danger', type: 'button', onclick: emptyTrash }, icon('trash'), 'Empty trash')));
   }
+  if (state.view === 'table') {
+    list.append(renderTable(app, items, { onRow: (it, tr) => {
+      tr.addEventListener('click', () => select(it.id));
+      tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') select(it.id); });
+      const ev = rowEvents(it);
+      tr.addEventListener('contextmenu', ev.oncontextmenu); tr.addEventListener('dblclick', ev.ondblclick);
+      return tr;
+    } }));
+    return;
+  }
+  const showUser = state.session.settings.showUsername;
   for (const it of items) {
     list.append(h('div', {
       class: 'row' + (it.id === state.selected ? ' sel' : ''), role: 'option', tabindex: '0', 'aria-selected': String(it.id === state.selected),
-      dataset: { id: it.id }, onclick: () => select(it.id), onkeydown: (e) => { if (e.key === 'Enter') select(it.id); },
-    }, tileFor(it), h('div', { class: 'txt' }, h('div', { class: 't', text: it.title }), h('div', { class: 's', text: subtitle(it) || TYPES[it.type].label })),
+      title: state.session.settings.notesTooltip && it.notes ? it.notes.slice(0, 300) : null,
+      dataset: { id: it.id }, onclick: () => select(it.id), onkeydown: (e) => { if (e.key === 'Enter') select(it.id); }, ...rowEvents(it),
+    }, tileFor(it), h('div', { class: 'txt' }, h('div', { class: 't', text: it.title }), h('div', { class: 's', text: (showUser && subtitle(it)) || TYPES[it.type].label })),
+    it.protected ? h('span', { class: 'prot', title: 'Protected' }, icon('lock')) : null,
     it.favorite ? h('span', { class: 'fav', title: 'Favorite' }, icon('star')) : null));
   }
 }
 
-function select(id) {
+function select(id, keepPane = false) {
+  closeMenu();
   state.selected = id; state.editing = null; state.revealed.clear();
   if (state.filter.kind === 'health') state.filter = { kind: 'all' };
-  state.pane = 'detail';
-  renderList(); renderDetail(); renderPane(); renderSidebar();
+  if (!keepPane) state.pane = 'detail';
+  renderList(); renderDetail(); renderPane(); renderSidebar(); renderStatus(app, els.status);
   const row = els.list.querySelector(`[data-id="${CSS.escape(id)}"]`);
   if (row) row.scrollIntoView({ block: 'nearest' });
+}
+
+function duplicate(it) {
+  if (state.session.readOnly) return app.fail(new Error('The vault is open read-only.'));
+  const copyIt = newItem(it.type, { ...structuredClone(it), id: undefined, title: it.title + ' (copy)', history: [], protected: false, accessedAt: null });
+  startEdit(copyIt, true);
+}
+
+async function trashItem(it) {
+  if (it.protected) return app.fail(new Error(`"${it.title}" is protected. Unprotect it first (right-click › Unprotect).`));
+  if (state.session.settings.confirmTrash && !(await confirmBox('Move to trash?', `"${it.title}" goes to the trash. You can restore it from there.`, { ok: 'Move to trash' }))) return;
+  try { await state.session.trash(it.id); } catch (e) { return app.fail(e); }
+  toast('Moved to trash', { action: { label: 'Undo', fn: () => state.session.restore(it.id).catch(app.fail) } });
+  state.selected = null; state.pane = 'list'; renderAll();
+}
+
+async function purgeOne(it) {
+  if (await confirmBox('Delete for good?', `"${it.title}" will be removed from every device.`, { ok: 'Delete', danger: true })) {
+    try { await state.session.purge(it.id); } catch (e) { return app.fail(e); }
+    state.selected = null; renderAll();
+  }
 }
 
 async function emptyTrash() {
   const ids = state.session.items().filter((i) => i.deletedAt).map((i) => i.id);
   if (!ids.length) return;
   if (!(await confirmBox('Empty trash?', `${ids.length} item(s) will be deleted for good on every device. Earlier versions stay in the backups.`, { ok: 'Delete for good', danger: true }))) return;
-  await state.session.purge(ids);
+  try { await state.session.purge(ids); } catch (e) { return app.fail(e); }
   state.selected = null;
   toast('Trash emptied');
 }
@@ -622,15 +784,14 @@ function renderDetail() {
   }
   const t = TYPES[it.type];
   const trashMode = !!it.deletedAt;
-  const fav = iconBtn('star', it.favorite ? 'Remove from favorites' : 'Add to favorites', () => state.session.patchItem(it.id, { favorite: !it.favorite }), { class: it.favorite ? 'on' : '' });
+  const ro = state.session.readOnly;
+  const fav = iconBtn('star', it.favorite ? 'Remove from favorites' : 'Add to favorites', () => state.session.patchItem(it.id, { favorite: !it.favorite }).catch(app.fail), { class: it.favorite ? 'on' : '' });
+  if (ro) fav.disabled = true;
+  const more = iconBtn('menu', 'More actions', (e) => { const [x, y] = menuAt(null, more); itemMenu(app, it, x, y); });
   const actions = trashMode
-    ? [h('button', { class: 'btn', type: 'button', onclick: () => state.session.restore(it.id).then(() => toast('Restored')) }, icon('history'), 'Restore'),
-      h('button', { class: 'btn danger', type: 'button', onclick: async () => {
-        if (await confirmBox('Delete for good?', `"${it.title}" will be removed from every device.`, { ok: 'Delete', danger: true })) { await state.session.purge(it.id); state.selected = null; renderAll(); }
-      } }, icon('trash'), 'Delete for good')]
-    : [fav, h('button', { class: 'btn', type: 'button', onclick: () => startEdit(it) }, icon('edit'), 'Edit'),
-      iconBtn('copy', 'Duplicate', () => { const copyIt = newItem(it.type, { ...structuredClone(it), id: undefined, title: it.title + ' (copy)', history: [] }); startEdit(copyIt, true); }),
-      iconBtn('trash', 'Move to trash', async () => { await state.session.trash(it.id); toast('Moved to trash', { action: { label: 'Undo', fn: () => state.session.restore(it.id) } }); state.selected = null; state.pane = 'list'; renderAll(); })];
+    ? [h('button', { class: 'btn', type: 'button', disabled: ro, onclick: () => state.session.restore(it.id).then(() => toast('Restored')).catch(app.fail) }, icon('history'), 'Restore'),
+      h('button', { class: 'btn danger', type: 'button', disabled: ro, onclick: () => purgeOne(it) }, icon('trash'), 'Delete for good')]
+    : [fav, h('button', { class: 'btn', type: 'button', disabled: ro || it.protected, title: it.protected ? 'Protected: unprotect it to edit' : null, onclick: () => startEdit(it) }, icon('edit'), 'Edit'), more];
 
   const rows = [];
   for (const f of t.fields) {
@@ -650,6 +811,7 @@ function renderDetail() {
       h('div', { class: 'grow' }, h('h1', { text: it.title }),
         h('div', { class: 'meta' }, h('span', { text: t.label }),
           it.folder ? h('span', { class: 'chip' }, icon('folder'), it.folder) : null,
+          it.protected ? h('span', { class: 'chip warn' }, icon('lock'), 'Protected') : null,
           it.tags.map((g) => h('span', { class: 'chip' }, icon('tag'), g)))),
       h('div', { class: 'd-actions' }, actions)),
     trashMode ? h('p', { class: 'notice', text: 'This item is in the trash.' }) : null,
@@ -660,7 +822,9 @@ function renderDetail() {
     it.history.length ? h('div', { class: 'card' }, h('details', { class: 'hist' }, h('summary', { text: `Previous values (${it.history.length})` }),
       it.history.map((hh, i) => fieldRow(it, { key: 'hist:' + i, label: new Date(hh.changedAt).toLocaleString() + (hh.note ? ' · ' + hh.note : ''), kind: 'secret', copy: true }, hh.value)))) : null,
     h('div', { class: 'foot-meta' }, h('span', { text: 'Created ' + new Date(it.createdAt).toLocaleString() }), h('span', { text: 'Changed ' + timeAgo(it.updatedAt) }),
-      primaryKey(it.type) && it.fields[primaryKey(it.type)] ? h('span', { text: 'Secret set ' + timeAgo(it.passwordChangedAt) }) : null),
+      primaryKey(it.type) && it.fields[primaryKey(it.type)] ? h('span', { text: 'Secret set ' + timeAgo(it.passwordChangedAt) }) : null,
+      it.accessedAt ? h('span', { text: 'Last used ' + timeAgo(it.accessedAt) }) : null,
+      it.expiresAt ? h('span', { text: 'Expires ' + new Date(it.expiresAt).toLocaleDateString() }) : null),
   ));
 }
 
@@ -674,7 +838,7 @@ function fieldRow(it, f, v) {
     if (cfg) state.totp.push({ cfg, code, ring });
     return h('div', { class: 'frow' }, h('div', { class: 'fl' }, h('div', { class: 'lab', text: f.label }),
       bad ? h('div', { class: 'val', text: bad }) : h('div', { class: 'totp' }, code, ring)),
-    h('div', { class: 'tools' }, cfg ? iconBtn('copy', 'Copy code', async () => copy((await totpCode(cfg)).code, 'Code')) : null));
+    h('div', { class: 'tools' }, cfg ? iconBtn('copy', 'Copy code', async () => copy((await totpCode(cfg)).code, 'Code', it)) : null));
   }
   const secret = f.kind === 'secret';
   const shown = !secret || state.revealed.has(id);
@@ -691,7 +855,7 @@ function fieldRow(it, f, v) {
     h('div', { class: 'tools' },
       secret ? iconBtn(shown ? 'eye-off' : 'eye', shown ? 'Hide' : 'Show', () => { shown ? state.revealed.delete(id) : state.revealed.add(id); renderDetail(); }) : null,
       f.kind === 'url' && safeUrl(v) ? iconBtn('external', 'Open website', () => window.open(safeUrl(v), '_blank', 'noopener,noreferrer')) : null,
-      f.copy ? iconBtn('copy', 'Copy ' + f.label.toLowerCase(), () => copy(v, f.label)) : null));
+      f.copy ? iconBtn('copy', 'Copy ' + f.label.toLowerCase(), () => copy(v, f.label, it)) : null));
 }
 
 async function tickTotp() {
@@ -706,6 +870,7 @@ async function tickTotp() {
 
 // ---------- create / edit ----------
 async function chooseType(type) {
+  if (state.session.readOnly) return app.fail(new Error('The vault is open read-only. Switch to read-write in the status bar.'));
   if (!type) {
     type = await modal((close) => ({
       title: 'New item',
@@ -715,11 +880,15 @@ async function chooseType(type) {
     if (!type) return;
   }
   const f = state.filter;
-  const it = newItem(type, { folder: f.kind === 'folder' ? f.path : '', favorite: f.kind === 'fav', tags: f.kind === 'tag' ? [f.tag] : [] });
+  const st = state.session.settings;
+  const it = newItem(type, { folder: f.kind === 'folder' ? f.path : '', favorite: f.kind === 'fav', tags: f.kind === 'tag' ? [f.tag] : [],
+    fields: type === 'login' && st.defaultUsername ? { username: st.defaultUsername } : {} });
   startEdit(it, true);
 }
 
 function startEdit(item, isNew = false) {
+  if (state.session.readOnly) return app.fail(new Error('The vault is open read-only. Switch to read-write in the status bar.'));
+  if (item.protected && !isNew) return app.fail(new Error(`"${item.title}" is protected. Unprotect it first.`));
   state.editing = { draft: structuredClone(item), isNew };
   state.pane = 'detail';
   renderDetail(); renderPane();
@@ -731,6 +900,11 @@ function editForm() {
   const { draft, isNew } = state.editing;
   const t = TYPES[draft.type];
   const err = errBox();
+  const policies = state.session.settings.policies;
+  const policySel = t.fields.some((f) => f.generate)
+    ? h('select', { class: 'input', 'aria-label': 'Password policy' }, h('option', { value: '' }, 'Default policy'), policies.filter((p) => p.id !== 'default').map((p) => h('option', { value: p.id }, p.name)))
+    : null;
+  if (policySel) policySel.value = draft.policyId || '';
   const title = h('input', { class: 'input', value: draft.title, placeholder: t.label + ' name', 'aria-label': 'Name' });
   const inputs = {};
   const fieldEls = t.fields.map((f) => {
@@ -758,7 +932,7 @@ function editForm() {
       tools.push(eye);
     }
     if (f.generate) tools.push(iconBtn('dice', 'Generate', async () => {
-      const v2 = await openGenerator(app);
+      const v2 = await openGenerator(app, { policyId: policySel ? policySel.value : null });
       if (v2) { input.value = v2; input.type = 'text'; input.dispatchEvent(new Event('input')); }
     }));
     let meter = null, mlabel = null;
@@ -802,9 +976,14 @@ function editForm() {
       ...draft, title: name, fields, folder: cleanFolder(folder.value), favorite: favorite.checked,
       tags: tags.value.split(',').map((x) => x.trim()).filter(Boolean), notes: notes.value,
       custom: custom.filter((c) => c.name || c.value), expiresAt: expires.value ? new Date(expires.value + 'T00:00:00').toISOString() : null,
+      policyId: policySel && policySel.value ? policySel.value : null,
     };
+    // A new secret gets the default expiry (Password Safe's "default password expiration").
+    const pk = primaryKey(item.type), days = state.session.settings.defaultExpiryDays;
+    if (days > 0 && !expires.value && pk && fields[pk] && fields[pk] !== draft.fields[pk]) item.expiresAt = daysFromNow(days);
     try {
       await state.session.upsert(item);
+      offerDefaultUsername(item);
       state.editing = null; state.selected = item.id;
       if (state.filter.kind === 'trash' || state.filter.kind === 'health') state.filter = { kind: 'all' };
       renderAll();
@@ -821,11 +1000,21 @@ function editForm() {
         h('label', { class: 'field' }, h('span', { text: 'Tags' }), tags)),
       h('label', { class: 'field' }, h('span', { text: 'Notes' }), notes),
       h('div', { class: 'grid2' }, h('label', { class: 'field' }, h('span', { text: 'Reminder to change it on' }), expires),
-        h('label', { class: 'check', style: 'margin-top:22px' }, favorite, 'Favorite'))),
+        h('label', { class: 'check', style: 'margin-top:22px' }, favorite, 'Favorite')),
+      policySel ? h('label', { class: 'field' }, h('span', { text: 'Password policy (used by Generate)' }), policySel) : null),
     h('div', { class: 'card' }, h('h3', { text: 'More fields', style: 'padding:0 0 10px' }), customBox),
     err,
     h('div', { class: 'form-actions' }, h('button', { class: 'btn', type: 'button', onclick: cancel }, 'Cancel'),
       h('button', { class: 'btn primary', type: 'submit' }, icon('check'), 'Save')));
+}
+
+/** After the first login with a username, offer to make it the default (as Password Safe does). */
+async function offerDefaultUsername(item) {
+  const st = state.session.settings;
+  const u = item.type === 'login' && item.fields.username;
+  if (!u || st.defaultUsername || st.askedDefaultUsername) return;
+  const yes = await confirmBox('Use this username for new logins?', `New logins would start with "${u}" filled in. You can change this in Settings › Entries.`, { ok: 'Use it' });
+  await state.session.updateSettings({ askedDefaultUsername: true, ...(yes ? { defaultUsername: u } : {}) }).catch(() => {});
 }
 
 // ---------- sync indicator ----------
@@ -867,12 +1056,18 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); moveSel(1); }
   else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); moveSel(-1); }
   else if (e.key === 'e' && state.selected) { const it = state.session.payload.items[state.selected]; if (it && !it.deletedAt) startEdit(it); }
-  else if (e.key === 'c' && state.selected) { const it = state.session.payload.items[state.selected]; const pk = it && primaryKey(it.type); if (pk && it.fields[pk]) copy(it.fields[pk], TYPES[it.type].fields.find((f) => f.key === pk).label); }
-  else if (e.key === 'u' && state.selected) { const it = state.session.payload.items[state.selected]; if (it && it.fields.username) copy(it.fields.username, 'Username'); }
+  else if (e.key === 'c' && state.selected) { const it = state.session.payload.items[state.selected]; const pk = it && primaryKey(it.type); if (pk && it.fields[pk]) copy(it.fields[pk], TYPES[it.type].fields.find((f) => f.key === pk).label, it); }
+  else if (e.key === 'u' && state.selected) { const it = state.session.payload.items[state.selected]; if (it && it.fields.username) copy(it.fields.username, 'Username', it); }
+  else if (e.key === 'Delete' && state.selected) { const it = state.session.payload.items[state.selected]; if (it && !it.deletedAt) trashItem(it); }
+  else if ((e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) && state.selected) {
+    e.preventDefault(); const it = state.session.payload.items[state.selected];
+    const row = els.list.querySelector(`[data-id="${CSS.escape(state.selected)}"]`);
+    if (it && row) { const [x, y] = menuAt(null, row); itemMenu(app, it, x + 40, y - 10); }
+  }
 });
 
 function moveSel(d) {
-  const items = visibleItems();
+  const items = displayedItems();
   if (!items.length) return;
   const i = items.findIndex((x) => x.id === state.selected);
   const next = items[Math.max(0, Math.min(items.length - 1, i < 0 ? 0 : i + d))];

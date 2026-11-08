@@ -1,8 +1,8 @@
 # keyhold: notes for Claude
 
 A password manager: one Go program (standard library only) that embeds a vanilla-JS web app.
-`README.md` is for users, `ANALYSIS.md` explains the design and its limits; this file is for
-whoever changes the code.
+`README.md` is for users, `ANALYSIS.md` explains the design and its limits, `PASSWORD_SAFE_MAP.md`
+maps every Password Safe screen to Keyhold; this file is for whoever changes the code.
 
 ## Check every change
 
@@ -28,6 +28,7 @@ the built `keyhold.exe` on Windows, release on `keyhold-v*` tags).
   Build DOM with `h()` / `fill()` from `web/js/ui.js` (native `append` does not flatten arrays).
 - **Changing the vault format** means bumping `v` in the envelope and keeping a reader for v1.
 - New files under `web/` must be added to the cache list in `web/sw.js`.
+- Read-only mode is enforced in `Session.change()` (only `touch()` passes `allowReadOnly`); the UI also disables controls.
 - Every write goes through `Session.change()` (serialised, encryption self-check, local conflict
   merge, then sync). Merge rules live in `model.mergePayloads` and must stay order-independent.
 
@@ -45,4 +46,7 @@ the built `keyhold.exe` on Windows, release on `keyhold-v*` tags).
 | `web/js/session.js` | Open vault: save, local conflicts, sync, key changes, linking to a server |
 | `web/js/storage.js` | Desktop file, IndexedDB copy, sync-server client |
 | `web/js/importers.js` | Password Safe XML/text, CSV from other managers, CSV export |
-| `web/js/app.js`, `views.js`, `ui.js` | Interface |
+| `web/js/app.js` | Start screens, unlock, main window (sidebar, list, detail, edit form), auto-lock, keyboard |
+| `web/js/workbench.js` | Item and folder right-click menus, table view, status bar, show-characters dialog, password policy editor |
+| `web/js/views.js` | Settings (arranged like Password Safe's Options), generator, health report, export/merge/import report |
+| `web/js/ui.js` | DOM helpers (`h`, `fill`, `modal`, toasts) |

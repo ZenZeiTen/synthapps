@@ -87,8 +87,11 @@ try {
   await page.getByLabel('Website', { exact: true }).fill('mail.example.com');
   await page.getByLabel('Two-factor code (TOTP)', { exact: true }).fill('JBSWY3DPEHPK3PXP');
   await page.getByLabel('Folder', { exact: true }).fill('Personal/Email');
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('heading', { name: 'Example Mail' }).waitFor();
+  // Like Password Safe, the first username offered as the default for new logins.
+  await page.getByRole('heading', { name: 'Use this username for new logins?' }).waitFor();
+  await page.getByRole('button', { name: 'Use it' }).click();
   await page.waitForFunction(() => /^\d{3} \d{3}$/.test(document.querySelector('.totp .code')?.textContent || ''));
   step('login saved; generator and two-factor code work');
   await page.getByRole('button', { name: 'Copy password' }).click();
@@ -102,7 +105,7 @@ try {
     await page.getByRole('button', { name: 'New item', exact: true }).click();
     await page.locator('dialog').getByRole('button', { name: type, exact: true }).click();
     await page.getByLabel('Name', { exact: true }).fill(title);
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByRole('heading', { name: title }).waitFor();
   }
   await page.locator('#q').fill('mail');
@@ -130,13 +133,16 @@ try {
   const xml = `<?xml version="1.0" encoding="UTF-8"?><passwordsafe delimiter="&#187;"><entry><group>Banking</group><title>Old Bank</title><username>amy</username><password>password1</password><url>https://bank.example</url></entry><entry><group>Banking</group><title>Old Bank 2</title><password>password1</password></entry></passwordsafe>`;
   const xmlPath = join(tmp, 'export.xml'); writeFileSync(xmlPath, xml);
   await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByRole('tab', { name: 'Backup & import' }).click();
+  await page.getByRole('tab', { name: 'Backup' }).click();
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Import a file…' }).click();
   await (await chooser).setFiles(xmlPath);
   await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await page.getByRole('heading', { name: 'Import report' }).waitFor();
+  assert.match(await page.locator('dialog').textContent(), /2 item\(s\) imported/);
+  await page.getByRole('button', { name: 'Done' }).click();
   await page.getByRole('option', { name: /Old Bank 2/ }).waitFor();
-  step('Password Safe XML import');
+  step('Password Safe XML import with an import report');
 
   // ---- health report flags the weak, reused passwords
   await page.getByRole('button', { name: /Password health/ }).click();
@@ -144,6 +150,77 @@ try {
   await page.getByRole('heading', { name: /Weak \(2\)/ }).waitFor();
   await shot(page, '04-health');
   step('health report finds weak and reused passwords');
+
+  // ---- features modelled on Password Safe's main window
+  await page.getByRole('button', { name: /^All items/ }).click();
+  await page.getByRole('button', { name: 'Show as a table with columns' }).click();
+  await page.locator('table.grid').waitFor();
+  assert.ok((await page.locator('table.grid tbody tr').count()) >= 5);
+  await page.locator('table.grid th').first().getByRole('button').click();
+  assert.equal(await page.locator('th[aria-sort="descending"]').count(), 1, 'sorting by a column');
+  await shot(page, '08-table');
+  await page.getByRole('button', { name: 'Show as a list' }).click();
+  step('table view with sortable columns (Flattened List)');
+
+  await page.getByRole('option', { name: /Example Mail/ }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Show characters of password…' }).click();
+  await page.getByLabel('Positions', { exact: true }).fill('1, -1');
+  assert.equal(await page.locator('.subset-cell').count(), 2);
+  assert.equal(await page.locator('.subset-cell .ch').first().textContent(), pw[0]);
+  await page.getByRole('button', { name: 'Done' }).click();
+  step('right-click menu and "display subset of password"');
+
+  await page.getByRole('option', { name: /Example Mail/ }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Protect from changes' }).click();
+  await page.locator('.d-head .chip.warn').waitFor();
+  assert.ok(await page.getByRole('button', { name: 'Edit', exact: true }).isDisabled());
+  await page.getByRole('option', { name: /Example Mail/ }).click({ button: 'right' });
+  assert.ok(await page.getByRole('menuitem', { name: 'Move to trash' }).isDisabled(), 'protected items cannot be deleted');
+  await page.getByRole('menuitem', { name: 'Unprotect' }).click();
+  await page.locator('.d-head .chip.warn').waitFor({ state: 'detached' });
+  step('protect and unprotect an item');
+
+  await page.getByRole('button', { name: 'Read-write' }).click();
+  await page.getByRole('button', { name: 'Read-only' }).waitFor();
+  assert.ok(await page.getByRole('button', { name: 'Edit', exact: true }).isDisabled());
+  await page.getByRole('button', { name: 'New item', exact: true }).click();
+  await page.getByText('The vault is open read-only').first().waitFor();
+  await page.getByRole('button', { name: 'Read-only' }).click();
+  await page.getByRole('button', { name: 'Read-write' }).waitFor();
+  step('read-only mode blocks changes');
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'Policies' }).click();
+  await page.getByRole('button', { name: 'New policy' }).click();
+  await page.getByLabel('Policy name', { exact: true }).fill('PIN');
+  await page.getByLabel('length', { exact: true }).fill('6');
+  for (const k of ['Lowercase a–z', 'Uppercase A–Z', 'Symbols']) await page.getByLabel(k, { exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('cell', { name: 'PIN', exact: true }).waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'New item', exact: true }).click();
+  await page.locator('dialog').getByRole('button', { name: 'Login', exact: true }).click();
+  assert.equal(await page.getByLabel('Username', { exact: true }).inputValue(), 'amy@example.com', 'default username filled in');
+  await page.getByLabel('Password policy', { exact: true }).selectOption({ label: 'PIN' });
+  await page.getByRole('button', { name: 'Generate' }).first().click();
+  assert.match(await page.locator('.gen-out').textContent(), /^\d{6}$/);
+  await page.getByRole('button', { name: 'Use this' }).click();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  step('named password policy drives the generator; default username');
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'Backup' }).click();
+  await page.getByRole('button', { name: 'Export everything…' }).click();
+  await page.getByRole('button', { name: 'Password Safe XML' }).click();
+  await page.getByLabel('Master password', { exact: true }).fill(MASTER);
+  const dl = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  const xmlOut = await (await dl).path();
+  const exported = execFileSync(process.execPath, ['-e', `process.stdout.write(require('fs').readFileSync(${JSON.stringify(xmlOut)},'utf8'))`]).toString();
+  assert.match(exported, /<passwordsafe /);
+  assert.match(exported, /<title><!\[CDATA\[Example Mail\]\]><\/title>/);
+  await page.keyboard.press('Escape');
+  step('export to Password Safe XML');
 
   // ---- connect to the sync server
   await page.getByRole('button', { name: 'Settings' }).click();
@@ -173,7 +250,7 @@ try {
   await web.locator('dialog').getByRole('button', { name: 'Wi-Fi', exact: true }).click();
   await web.getByLabel('Name', { exact: true }).fill('Home Wi-Fi');
   await web.getByLabel('Network name', { exact: true }).fill('HomeNet');
-  await web.getByRole('button', { name: 'Save' }).click();
+  await web.getByRole('button', { name: 'Save', exact: true }).click();
   await web.getByRole('heading', { name: 'Home Wi-Fi' }).waitFor();
   await shot(web, '06-phone-detail');
   // The save is pushed after a short pause; wait for that push, not the earlier sign-in sync.

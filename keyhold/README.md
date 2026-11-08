@@ -25,10 +25,13 @@ Choose "More info" › "Run anyway", after checking the file against `SHA256SUMS
 
 ### Moving from Password Safe
 
-In Password Safe choose **File › Export To › XML format…**. In Keyhold open **Settings › Backup &
-import › Import a file…** and pick that XML file. Groups become folders; usernames, passwords,
+In Password Safe choose **File › Export To › XML format…**. In Keyhold open **Settings › Backup ›
+Import a file…** and pick that XML file. Groups become folders; usernames, passwords,
 websites, email, notes, two-factor (TOTP) keys, password history, expiry dates and custom fields
 come across. Delete the XML file afterwards: it is not encrypted.
+
+To go back, Settings › Backup › Export everything… › Password Safe XML writes a file that Password Safe opens with
+**File › Import From › XML format**. Item types Password Safe does not have keep their details as custom fields.
 
 CSV files from Bitwarden, 1Password, KeePass, LastPass, Chrome, Edge and Firefox, and Password
 Safe's plain-text export, are accepted too.
@@ -60,7 +63,17 @@ keeps the old one in the item's history.
   The breach check is optional and sends only the first 5 characters of a SHA-1 hash (k-anonymity).
 - **Lock** with `Ctrl+Shift+L`; Keyhold also locks itself after 5 minutes without activity, and can lock whenever the window is hidden.
 - **Trash** with undo; emptying it removes items on every device.
-- **Keyboard**: `N` new, `↑ ↓` move, `E` edit, `C` copy password, `U` copy username, `Ctrl+S` save, `Esc` cancel.
+- **Right-click any item** for its actions: copy, show only some characters of the password (for "enter characters 2, 5 and 9" prompts), open the website, move to a folder, protect it from changes, export it.
+- **List or table**: switch the item list to a table with sortable columns (created, changed, expires, last used…).
+- **Folders** nest and fold; right-click a folder to rename it, add one inside or delete it.
+- **Saved filters**: save a search (with its type, folder or tag) to the sidebar; a built-in view lists items with a change reminder.
+- **Password policies**: named rules such as "PIN: 6 digits" or "Bank: 12 characters, no symbols", with minimum counts per character type, your own symbol set, easy-to-read, pronounceable or hexadecimal passwords. Pick one per item; its Generate button follows it.
+- **Read-only mode**: open the vault read-only from the unlock screen, or switch in the status bar, to look things up without any risk of changing them.
+- **Status bar**: items shown, last save, time until auto-lock, Clear clipboard.
+- **Keyboard**: `N` new, `↑ ↓` move, `E` edit, `C` copy password, `U` copy username, `Delete` trash, `Shift+F10` item menu, `Ctrl+S` save, `Esc` cancel.
+
+Settings are grouped like Password Safe's Options (Security, Display, Entries, Policies, Backup, Vault). [PASSWORD_SAFE_MAP.md](PASSWORD_SAFE_MAP.md)
+lists every Password Safe screen and section and what Keyhold does there.
 
 ## Use it online: run a sync server
 

@@ -77,19 +77,46 @@ export const TYPES = {
 export const now = () => new Date().toISOString();
 
 export function emptyPayload() {
-  return { schema: 1, items: {}, purged: {}, settings: defaultSettings() };
+  const settings = defaultSettings();
+  settings.vault = { ...settings.vault, createdAt: now(), passwordChangedAt: now() };
+  return { schema: 1, items: {}, purged: {}, settings };
 }
+
+export const MAX_HISTORY = 50;
+
+/** A named password policy (like Password Safe's Manage > Password Policies). */
+export const DEFAULT_POLICY = {
+  id: 'default', name: 'Default', length: 20, lower: true, upper: true, digits: true, symbols: true,
+  minLower: 1, minUpper: 1, minDigits: 1, minSymbols: 1, symbolSet: '', avoidAmbiguous: false,
+  pronounceable: false, hex: false,
+};
 
 export function defaultSettings() {
   return {
-    autoLockMinutes: 5, lockOnHide: false, clipboardSeconds: 30, theme: 'system',
-    folders: [], sync: null, breachCheck: false, updatedAt: '1970-01-01T00:00:00.000Z',
+    // Security
+    autoLockMinutes: 5, lockOnHide: false, clipboardSeconds: 30,
+    // Display
+    theme: 'system', showUsername: true, notesTooltip: false, initialTree: 'expanded', expiryWarnDays: 30, view: 'list',
+    // Entries
+    confirmTrash: true, historyKeep: 30, defaultExpiryDays: 0, defaultUsername: '', trackAccess: false, doubleClick: 'copyPassword',
+    // Organisation
+    folders: [], savedFilters: [], policies: [DEFAULT_POLICY],
+    // Vault properties
+    vault: { name: '', description: '', createdAt: null, passwordChangedAt: null },
+    sync: null, breachCheck: false, updatedAt: '1970-01-01T00:00:00.000Z',
   };
 }
 
 /** Fill in anything missing so older or imported data is always well formed. */
 export function normalizePayload(p) {
-  const out = { schema: 1, items: {}, purged: { ...(p && p.purged) }, settings: { ...defaultSettings(), ...(p && p.settings) } };
+  const d = defaultSettings();
+  const s = { ...d, ...(p && p.settings) };
+  s.vault = { ...d.vault, ...(s.vault || {}) };
+  if (!Array.isArray(s.policies) || !s.policies.length) s.policies = [DEFAULT_POLICY];
+  s.policies = s.policies.map((x) => ({ ...DEFAULT_POLICY, ...x }));
+  if (!Array.isArray(s.savedFilters)) s.savedFilters = [];
+  s.historyKeep = Math.max(0, Math.min(MAX_HISTORY, s.historyKeep | 0));
+  const out = { schema: 1, items: {}, purged: { ...(p && p.purged) }, settings: s };
   for (const it of Object.values((p && p.items) || {})) {
     const n = normalizeItem(it);
     out.items[n.id] = n;
@@ -109,12 +136,15 @@ export function normalizeItem(it) {
     fields: { ...(it.fields || {}) },
     custom: (it.custom || []).map((c) => ({ name: String(c.name || ''), value: String(c.value ?? ''), hidden: !!c.hidden })),
     notes: String(it.notes || ''),
-    history: (it.history || []).slice(0, 30),
+    history: (it.history || []).slice(0, MAX_HISTORY),
     createdAt: t, updatedAt: it.updatedAt || t,
     passwordChangedAt: it.passwordChangedAt || it.createdAt || t,
     deletedAt: it.deletedAt || null,
     expiresAt: it.expiresAt || null,
     breach: it.breach || null,
+    protected: !!it.protected,
+    accessedAt: it.accessedAt || null,
+    policyId: it.policyId || null,
   };
 }
 
@@ -132,8 +162,11 @@ export function primaryKey(type) {
   return f ? f.key : null;
 }
 
-/** Apply an edit: bumps timestamps and keeps the replaced secret in history. */
-export function applyEdit(before, after) {
+/**
+ * Apply an edit: bumps timestamps and keeps the replaced secret in history
+ * (up to historyKeep old values; 0 keeps none, like Password Safe's "Keep N").
+ */
+export function applyEdit(before, after, { historyKeep = 30 } = {}) {
   const next = normalizeItem({ ...after, id: before ? before.id : after.id, createdAt: before ? before.createdAt : after.createdAt });
   const t = now();
   next.updatedAt = t;
@@ -141,11 +174,11 @@ export function applyEdit(before, after) {
   if (before && pk) {
     const old = before.fields[pk] || '';
     if (old && old !== (next.fields[pk] || '')) {
-      next.history = [{ value: old, changedAt: t }, ...before.history.filter((h) => h.value !== old)].slice(0, 30);
+      next.history = [{ value: old, changedAt: t }, ...before.history.filter((h) => h.value !== old)].slice(0, historyKeep);
       next.passwordChangedAt = t;
       next.breach = null;
     } else {
-      next.history = before.history;
+      next.history = before.history.slice(0, Math.max(historyKeep, 0));
       next.passwordChangedAt = before.passwordChangedAt;
     }
   }
@@ -217,7 +250,7 @@ export function folderTree(items, extra = []) {
 }
 
 /** Weak, reused, old, breached and expiring secrets. */
-export function healthReport(items, strengthFn, { oldDays = 365, at = Date.now() } = {}) {
+export function healthReport(items, strengthFn, { oldDays = 365, warnDays = 30, at = Date.now() } = {}) {
   const live = items.filter((i) => !i.deletedAt);
   const bySecret = new Map();
   const weak = [], old = [], breached = [], expiring = [], noTotp = [];
@@ -232,7 +265,7 @@ export function healthReport(items, strengthFn, { oldDays = 365, at = Date.now()
       if (it.type === 'login' && !it.fields.totp && it.fields.url) noTotp.push({ item: it });
     }
     if (it.breach && it.breach.count > 0) breached.push({ item: it, count: it.breach.count });
-    if (it.expiresAt && Date.parse(it.expiresAt) - at < 30 * 864e5) expiring.push({ item: it });
+    if (it.expiresAt && Date.parse(it.expiresAt) - at < warnDays * 864e5) expiring.push({ item: it });
     if (!bySecret.has(s)) bySecret.set(s, []);
     bySecret.get(s).push(it);
   }
@@ -279,7 +312,7 @@ export function mergePayloads(a, b) {
       const lost = pk && lose.fields[pk];
       if (lost && lost !== win.fields[pk] && !win.history.some((h) => h.value === lost)) {
         win = { ...win, history: [...win.history, { value: lost, changedAt: lose.updatedAt, note: 'from another device' }]
-          .sort((p, q) => (p.changedAt < q.changedAt ? 1 : -1)).slice(0, 30) };
+          .sort((p, q) => (p.changedAt < q.changedAt ? 1 : -1)).slice(0, MAX_HISTORY) };
       }
     }
     items[id] = win;
@@ -288,4 +321,34 @@ export function mergePayloads(a, b) {
   const other = settings === a.settings ? b.settings : a.settings;
   settings.folders = [...new Set([...(settings.folders || []), ...(other.folders || [])])];
   return { schema: 1, items, purged, settings };
+}
+
+/** Days from now as an ISO date (for default expiry). */
+export function daysFromNow(days, from = Date.now()) {
+  return new Date(from + days * 864e5).toISOString();
+}
+
+/** Parse "1,3,5" or "2-4, 9" into 1-based positions (Password Safe's "Display subset of password"). */
+export function parsePositions(spec, max) {
+  const out = [];
+  for (const part of String(spec).split(/[\s,;]+/).filter(Boolean)) {
+    const m = part.match(/^(-?\d+)(?:-(\d+))?$/);
+    if (!m) throw new Error('Use numbers like 1, 3, 5 or ranges like 2-4');
+    let a = parseInt(m[1], 10), b = m[2] ? parseInt(m[2], 10) : a;
+    if (a < 0) a = b = max + a + 1; // -1 is the last character
+    if (a < 1 || b > max || a > b) throw new Error(`Positions must be between 1 and ${max}`);
+    for (let i = a; i <= b; i++) out.push(i);
+  }
+  return [...new Set(out)];
+}
+
+/** Items matching a saved filter { query, kind, type, folder, tag }. */
+export function applyFilter(items, f) {
+  let out = items;
+  if (f.type) out = out.filter((i) => i.type === f.type);
+  if (f.folder) out = out.filter((i) => i.folder === f.folder || i.folder.startsWith(f.folder + '/'));
+  if (f.tag) out = out.filter((i) => i.tags.includes(f.tag));
+  if (f.favorite) out = out.filter((i) => i.favorite);
+  if (f.expiring) out = out.filter((i) => i.expiresAt);
+  return search(out, f.query || '');
 }

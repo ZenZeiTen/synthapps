@@ -4,7 +4,9 @@
 
 The file supplied was `pwsafe64-3.73.0.exe` (SHA-256
 `e65224b1a4cf20988f258e551da341f909894fe622e3030daa21ad3656f53ea1`, 18.5 MB). It was unpacked
-with 7-Zip and examined without running it.
+with 7-Zip and its files examined. Then `pwsafe.exe` was run under Wine 9.0 on a virtual screen
+and every screen was clicked through with a test database; [PASSWORD_SAFE_MAP.md](PASSWORD_SAFE_MAP.md)
+lists each screen and section and what Keyhold does there.
 
 | Finding | Evidence |
 |---|---|
@@ -83,7 +85,8 @@ neutralising spreadsheet formulas in exported CSV.
   zeroes the raw data key on lock, but copies may remain until the browser reuses that memory.
   Password Safe, as native code, can do better here.
 - **Not yet included**: auto-type into other windows, a browser extension for filling web forms,
-  YubiKey or other hardware keys, and file attachments.
+  YubiKey or other hardware keys, file attachments, alias (shortcut) entries, translations, and
+  per-entry global hotkeys. See PASSWORD_SAFE_MAP.md for the full list.
 - **`.psafe3` files are not read directly**; Password Safe's XML export is the bridge.
 - The Windows executable is not code-signed, so SmartScreen warns on first run.
 - The Windows build is checked by automated tests on Windows in CI; it was built and tested on

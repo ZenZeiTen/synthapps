@@ -30,7 +30,7 @@ var webFiles embed.FS
 
 // Set with -ldflags "-X main.version=... -X main.guiBuild=1".
 var (
-	version  = "1.0.0"
+	version  = "1.1.0"
 	guiBuild = "0"
 )
 

@@ -6,6 +6,10 @@ import {
 import { normalizePayload, mergePayloads, stableStringify, applyEdit, now } from './model.js';
 import { ConflictError, RemoteError, OfflineError, RemoteClient } from './storage.js';
 
+export class ReadOnlyError extends Error {
+  constructor() { super('The vault is open read-only. Switch to read-write in the status bar to make changes.'); this.name = 'ReadOnlyError'; }
+}
+
 export class NeedsPasswordError extends Error {
   constructor(msg = 'Your master password was changed on another device. Enter the new one to keep syncing.') { super(msg); this.name = 'NeedsPasswordError'; }
 }
@@ -38,6 +42,7 @@ export class Session {
     this.status = { state: this.remote ? 'idle' : 'local', message: '' };
     this.syncTimer = null;
     this.lastSaved = null;
+    this.readOnly = !!o.readOnly;
   }
 
   on(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
@@ -88,7 +93,8 @@ export class Session {
   }
 
   /** Change contents with fn(payload), save, then sync. */
-  change(fn) {
+  change(fn, { allowReadOnly = false } = {}) {
+    if (this.readOnly && !allowReadOnly) return Promise.reject(new ReadOnlyError());
     return this.serial(async () => {
       const before = structuredClone(this.payload);
       fn(this.payload);
@@ -101,12 +107,17 @@ export class Session {
   }
 
   upsert(item) {
-    return this.change((p) => { p.items[item.id] = applyEdit(p.items[item.id], item); });
+    return this.change((p) => { p.items[item.id] = applyEdit(p.items[item.id], item, { historyKeep: p.settings.historyKeep }); });
   }
   patchItem(id, patch) {
     return this.change((p) => { const it = p.items[id]; if (it) p.items[id] = { ...it, ...patch, updatedAt: now() }; });
   }
   trash(id) { return this.patchItem(id, { deletedAt: now() }); }
+  /** Record when a secret was last used, without counting it as an edit. Allowed in read-only mode. */
+  touch(id) {
+    if (!this.settings.trackAccess) return Promise.resolve();
+    return this.change((p) => { const it = p.items[id]; if (it) p.items[id] = { ...it, accessedAt: now() }; }, { allowReadOnly: true });
+  }
   restore(id) { return this.patchItem(id, { deletedAt: null }); }
   purge(ids) {
     return this.change((p) => { for (const id of [].concat(ids)) { delete p.items[id]; p.purged[id] = now(); } });
@@ -207,6 +218,8 @@ export class Session {
   changePassword(newPassword, opts) {
     return this.serial(async () => {
       const { envelope, authKey } = await rewrapPassword(this.envelope, this.keys, newPassword, opts);
+      const t = now();
+      this.payload.settings = { ...this.payload.settings, vault: { ...this.payload.settings.vault, passwordChangedAt: t }, updatedAt: t };
       const sealed = await encryptPayload(envelope, this.keys.dataKey, this.payload);
       if (this.remote) {
         await this.ensureLogin();

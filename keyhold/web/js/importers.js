@@ -119,6 +119,8 @@ export function importPasswordSafeXML(text) {
       expiresAt: toISO(textOf(e, 'xtimex')),
     });
     it.passwordChangedAt = changed || it.createdAt;
+    it.protected = textOf(e, 'protected') === '1';
+    it.accessedAt = toISO(textOf(e, 'atimex'));
     if (!it.fields.password && !it.fields.username && !url) it.type = 'note';
     items.push(it);
   }
@@ -227,4 +229,84 @@ export function exportCSV(items) {
       it.notes, extra.map(([k, v]) => `${k}: ${v}`).join('\n')].map((v, i) => csvCell(v, !EXACT.has(i))).join(','));
   }
   return lines.join('\r\n') + '\r\n';
+}
+
+// ---------- export to Password Safe ----------
+function cdata(v) { return '<![CDATA[' + String(v ?? '').split(']]>').join(']]]]><![CDATA[>') + ']]>'; }
+function pwsTime(iso) { return iso ? new Date(iso).toISOString().slice(0, 19) : ''; }
+/** Folder "Work/a.b" becomes Password Safe group "Work.a\.b". */
+export function folderToPwsGroup(folder) {
+  return folder.split('/').filter(Boolean).map((p) => p.replace(/\./g, '\\.')).join('.');
+}
+
+/**
+ * Password Safe XML (File > Import From > XML format in Password Safe 3.x).
+ * Fields Password Safe has no slot for (card numbers, identity details, Wi-Fi
+ * names...) become its custom fields; secrets are marked sensitive.
+ */
+export function exportPasswordSafeXML(items, { databaseName = 'Keyhold export' } = {}) {
+  const out = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    `<passwordsafe delimiter="&#187;" Database="${databaseName.replace(/[<>&"]/g, '')}" ExportTimeStamp="${pwsTime(new Date().toISOString())}" FromDatabaseFormat="Keyhold">`];
+  let n = 0;
+  for (const it of items) {
+    const f = it.fields, def = TYPES[it.type];
+    const pk = def.fields.find((x) => x.primary);
+    const isLogin = it.type === 'login';
+    const password = isLogin ? f.password : (pk && f[pk.key]) || '';
+    const e = [`  <entry id="${++n}" normal="true">`];
+    const add = (tag, v) => { if (v) e.push(`    <${tag}>${cdata(v)}</${tag}>`); };
+    add('group', folderToPwsGroup(it.folder));
+    e.push(`    <title>${cdata(it.title)}</title>`);
+    add('username', isLogin ? f.username : '');
+    e.push(`    <password>${cdata(password)}</password>`);
+    if (isLogin && f.totp && !/^otpauth:/i.test(f.totp)) add('twofactorkey', f.totp.replace(/\s/g, ''));
+    add('url', isLogin ? f.url : '');
+    add('notes', it.notes);
+    if (/^[0-9a-f-]{36}$/i.test(it.id)) e.push(`    <uuid>${it.id.replace(/-/g, '')}</uuid>`);
+    e.push(`    <ctimex>${pwsTime(it.createdAt)}</ctimex>`);
+    e.push(`    <pmtimex>${pwsTime(it.passwordChangedAt)}</pmtimex>`);
+    e.push(`    <rmtimex>${pwsTime(it.updatedAt)}</rmtimex>`);
+    if (it.accessedAt) e.push(`    <atimex>${pwsTime(it.accessedAt)}</atimex>`);
+    if (it.expiresAt) e.push(`    <xtimex>${pwsTime(it.expiresAt)}</xtimex>`);
+    if (it.history.length) {
+      const hist = it.history.slice(0, 255);
+      e.push(`    <pwhistory><status>1</status><max>${Math.max(hist.length, 3)}</max><num>${hist.length}</num><history_entries>`);
+      hist.forEach((h, i) => e.push(`      <history_entry num="${i + 1}"><changedx>${pwsTime(h.changedAt)}</changedx><oldpassword>${cdata(h.value)}</oldpassword></history_entry>`));
+      e.push('    </history_entries></pwhistory>');
+    }
+    add('email', isLogin ? f.email : f.email || '');
+    if (it.protected) e.push('    <protected>1</protected>');
+    const custom = [];
+    if (!isLogin) custom.push({ name: 'Keyhold type', value: def.label, hidden: false });
+    for (const fd of def.fields) {
+      if (isLogin || !f[fd.key] || fd === pk || fd.key === 'email') continue;
+      custom.push({ name: fd.label, value: f[fd.key], hidden: fd.kind === 'secret' });
+    }
+    if (isLogin && f.totp && /^otpauth:/i.test(f.totp)) custom.push({ name: 'Two-factor (otpauth)', value: f.totp, hidden: true });
+    if (it.tags.length) custom.push({ name: 'Tags', value: it.tags.join(', '), hidden: false });
+    custom.push(...it.custom);
+    if (custom.length) {
+      e.push('    <custom_fields>');
+      for (const c of custom) e.push(`      <custom_field><name>${cdata(c.name)}</name><value>${cdata(c.value)}</value><sensitive>${c.hidden ? 1 : 0}</sensitive></custom_field>`);
+      e.push('    </custom_fields>');
+    }
+    e.push('  </entry>');
+    out.push(...e);
+  }
+  out.push('</passwordsafe>', '');
+  return out.join('\r\n');
+}
+
+/** What an import brought in (Password Safe shows a report after every import). */
+export function importReport(items) {
+  const byType = {};
+  for (const i of items) byType[i.type] = (byType[i.type] || 0) + 1;
+  return {
+    total: items.length, byType,
+    folders: new Set(items.map((i) => i.folder).filter(Boolean)).size,
+    withTotp: items.filter((i) => i.fields.totp).length,
+    withHistory: items.filter((i) => i.history.length).length,
+    withCustom: items.filter((i) => i.custom.length).length,
+    withoutPassword: items.filter((i) => i.type === 'login' && !i.fields.password).length,
+  };
 }

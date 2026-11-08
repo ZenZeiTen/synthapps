@@ -6,4 +6,4 @@ Keyhold is a password manager that encrypts everything on your device. It works 
 
 Check downloads against `SHA256SUMS.txt`. The executables are not code-signed, so Windows SmartScreen may ask you to confirm the first time.
 
-Coming from Password Safe? Export your database as XML (File › Export To › XML format) and import it in Settings › Backup & import.
+Coming from Password Safe? Export your database as XML (File › Export To › XML format) and import it in Settings › Backup.

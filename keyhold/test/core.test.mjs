@@ -258,3 +258,84 @@ class FakeServer {
   }
 }
 const srvMods = await import('../web/js/storage.js');
+
+// ---------- features modelled on Password Safe's interface ----------
+test('policies: minimum counts, custom symbols, hex, pronounceable', () => {
+  for (let i = 0; i < 100; i++) {
+    const p = G.generatePassword({ length: 16, minDigits: 4, minSymbols: 3, symbolSet: '#!', minUpper: 2 });
+    assert.equal(p.length, 16);
+    assert.ok((p.match(/\d/g) || []).length >= 4, p);
+    assert.ok((p.match(/[#!]/g) || []).length >= 3, p);
+    assert.doesNotMatch(p, /[^A-Za-z0-9#!]/, 'only the custom symbols: ' + p);
+    assert.ok((p.match(/[A-Z]/g) || []).length >= 2, p);
+  }
+  assert.match(G.generatePassword({ length: 32, hex: true }), /^[0-9a-f]{32}$/);
+  const pr = G.generatePassword({ length: 14, pronounceable: true, minDigits: 2, symbols: false });
+  assert.equal(pr.length, 14);
+  assert.ok((pr.match(/\d/g) || []).length >= 2);
+  assert.throws(() => G.generatePassword({ length: 6, minDigits: 4, minSymbols: 4 }), /add up/);
+});
+
+test('history keeps the configured number; 0 keeps none', () => {
+  let it = M.newItem('login', { fields: { password: 'p0' } });
+  for (let i = 1; i <= 6; i++) it = M.applyEdit(it, { ...it, fields: { password: 'p' + i } }, { historyKeep: 3 });
+  assert.deepEqual(it.history.map((h) => h.value), ['p5', 'p4', 'p3']);
+  const none = M.applyEdit(it, { ...it, fields: { password: 'new' } }, { historyKeep: 0 });
+  assert.equal(none.history.length, 0);
+});
+
+test('subset of password positions', () => {
+  assert.deepEqual(M.parsePositions('1, 3,5', 8), [1, 3, 5]);
+  assert.deepEqual(M.parsePositions('2-4 -1', 8), [2, 3, 4, 8]);
+  assert.throws(() => M.parsePositions('9', 8), /between 1 and 8/);
+  assert.throws(() => M.parsePositions('a', 8), /numbers/);
+});
+
+test('saved filters and settings defaults survive old vaults', () => {
+  const old = { items: {}, settings: { autoLockMinutes: 1, policies: [{ id: 'x', name: 'PIN', length: 6, digits: true, lower: false, upper: false, symbols: false }] } };
+  const p = M.normalizePayload(old);
+  assert.equal(p.settings.autoLockMinutes, 1);
+  assert.equal(p.settings.historyKeep, 30);
+  assert.equal(p.settings.policies[0].minDigits, 1, 'policy filled from defaults');
+  assert.match(G.generatePassword(p.settings.policies[0]), /^\d{6}$/);
+  const items = [M.newItem('login', { title: 'Bank', folder: 'Finance/Banks', fields: { username: 'amy' } }), M.newItem('note', { title: 'Bank note', folder: 'Finance' })];
+  assert.equal(M.applyFilter(items, { query: 'bank', type: 'login' }).length, 1);
+  assert.equal(M.applyFilter(items, { folder: 'Finance' }).length, 2);
+});
+
+test('Password Safe XML export imports back into Password Safe format and into Keyhold', () => {
+  const login = M.newItem('login', { title: 'Mail ]]> & <co>', folder: 'Work/v1.2', tags: ['x'], fields: { username: 'amy', password: 'p]]>w&<', url: 'https://m.example', email: 'a@m.example', totp: 'JBSWY3DPEHPK3PXP' }, notes: 'two\nlines', custom: [{ name: 'PIN', value: '12', hidden: true }], history: [{ value: 'old', changedAt: '2020-01-01T00:00:00.000Z' }], protected: true });
+  const card = M.newItem('card', { title: 'Visa', fields: { cardholder: 'Amy', number: '4111111111111111', cvv: '123' } });
+  const xml = I.exportPasswordSafeXML([login, card]);
+  assert.match(xml, /<group><!\[CDATA\[Work\.v1\\\.2\]\]><\/group>/, 'dots inside a folder name are escaped');
+  const back = I.importPasswordSafeXML(xml);
+  assert.equal(back.length, 2);
+  const [l, c] = back;
+  assert.equal(l.title, login.title);
+  assert.equal(l.folder, 'Work/v1.2');
+  assert.equal(l.fields.password, 'p]]>w&<');
+  assert.equal(l.fields.totp, 'JBSWY3DPEHPK3PXP');
+  assert.equal(l.notes, 'two\nlines');
+  assert.equal(l.history[0].value, 'old');
+  assert.equal(l.protected, true);
+  assert.ok(l.custom.find((x) => x.name === 'PIN' && x.hidden));
+  assert.equal(c.fields.password, '4111111111111111', 'card number becomes the Password Safe password');
+  assert.ok(c.custom.find((x) => x.name === 'Security code' && x.value === '123' && x.hidden));
+  const rep = I.importReport(back);
+  assert.equal(rep.total, 2); assert.equal(rep.withTotp, 1); assert.equal(rep.withHistory, 1);
+});
+
+test('read-only sessions refuse changes but still record last use', async () => {
+  const local = new MemoryStore();
+  const { envelope, keys } = await C.createVault('read only test', M.emptyPayload(), FAST);
+  const s = new Session({ envelope, keys, payload: M.emptyPayload(), local });
+  const it = M.newItem('login', { title: 'A', fields: { password: 'x' } });
+  await s.upsert(it);
+  await s.updateSettings({ trackAccess: true });
+  s.readOnly = true;
+  await assert.rejects(s.upsert({ ...it, title: 'B' }), /read-only/);
+  await assert.rejects(s.trash(it.id), /read-only/);
+  await s.touch(it.id);
+  assert.ok(s.payload.items[it.id].accessedAt);
+  assert.equal(s.payload.items[it.id].title, 'A');
+});

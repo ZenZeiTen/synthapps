@@ -1,8 +1,9 @@
 // Larger views: settings, password generator, health report, recovery code.
 import { h, icon, iconBtn, clear, fill, toast, modal, confirmBox, askPassword, download, pickFile, timeAgo } from './ui.js';
 import { deriveFromPassword, openVault, decryptPayload, sha1Hex, WrongPasswordError } from './crypto.js';
-import { TYPES, mergePayloads, primaryKey, normalizePayload } from './model.js';
-import { importAny, exportCSV } from './importers.js';
+import { TYPES, mergePayloads, primaryKey, normalizePayload, DEFAULT_POLICY, MAX_HISTORY } from './model.js';
+import { policiesSection, policyForm } from './workbench.js';
+import { importAny, exportCSV, exportPasswordSafeXML, importReport } from './importers.js';
 import { generatePassword, generatePassphrase, loadWords } from './generator.js';
 import { RemoteClient } from './storage.js';
 
@@ -34,6 +35,8 @@ export async function chooseNewPassword(session, forced = false, app) {
     const result = await modal((close) => {
       const p1 = h('input', { class: 'input', type: 'password', autocomplete: 'new-password', autofocus: true });
       const p2 = h('input', { class: 'input', type: 'password', autocomplete: 'new-password' });
+      const diff = numSelect(Math.max(600000, session.envelope.kdf.iterations), DIFFICULTY, () => {});
+      diff.setAttribute('aria-label', 'Unlock difficulty');
       const err = h('div', { class: 'error' });
       const btn = h('button', { class: 'btn primary', type: 'submit' }, 'Set new password');
       return {
@@ -44,19 +47,24 @@ export async function chooseNewPassword(session, forced = false, app) {
             const msg = app ? await app.checkNewPassword(p1.value, p2.value) : (p1.value !== p2.value ? 'The two passwords are not the same.' : p1.value.length < 10 ? 'Use at least 10 characters.' : '');
             if (msg) { err.textContent = msg; return; }
             btn.disabled = true; btn.textContent = 'Saving…';
-            try { await session.changePassword(p1.value); close(true); }
+            try { await session.changePassword(p1.value, { iterations: +diff.value }); close(true); }
             catch (x) { err.textContent = x.message; btn.disabled = false; btn.textContent = 'Set new password'; }
           },
         }, forced ? h('p', { class: 'notice', text: 'You unlocked with your recovery code. Set a new master password to finish.' }) : null,
         session.remote ? h('p', { class: 'muted small', text: 'Your other devices will ask for the new password the next time they sync.' }) : null,
         h('label', { class: 'field' }, h('span', { text: 'New master password' }), p1),
-        h('label', { class: 'field' }, h('span', { text: 'Type it again' }), p2), err,
+        h('label', { class: 'field' }, h('span', { text: 'Type it again' }), p2),
+        h('label', { class: 'field' }, h('span', { text: 'Unlock difficulty' }), diff),
+        h('p', { class: 'hint', text: 'Higher makes guessing your master password slower for an attacker, and unlocking a little slower for you.' }), err,
         h('div', { class: 'dlg-foot', style: 'padding:6px 0 10px' }, forced ? null : h('button', { class: 'btn', type: 'button', onclick: () => close(false) }, 'Cancel'), btn)),
       };
     });
     if (result || !forced) return !!result;
   }
 }
+
+// Password Safe's "Unlock Difficulty" slider, as key-stretching rounds.
+const DIFFICULTY = [[600000, 'Standard (600,000 rounds)'], [1000000, 'Stronger (1,000,000 rounds)'], [2000000, 'Maximum (2,000,000 rounds, slower to unlock)']];
 
 /** Re-ask the master password before sensitive actions. */
 export async function confirmMaster(session, text) {
@@ -68,22 +76,30 @@ export async function confirmMaster(session, text) {
 }
 
 // ---------- generator ----------
-const genPrefs = { mode: 'password', length: 20, lower: true, upper: true, digits: true, symbols: true, avoidAmbiguous: false, words: 5, sep: '-' };
+const genPrefs = { mode: 'password', policyId: 'default', custom: null, words: 5, sep: '-' };
 
-export async function openGenerator(app, { pick = true } = {}) {
+/** Generator with Password Safe-style named policies. `policyId` preselects the item's policy. */
+export async function openGenerator(app, { pick = true, policyId = null } = {}) {
   let words = null;
   try { words = await loadWords(); } catch { genPrefs.mode = 'password'; }
+  const s = app.state.session;
+  const policies = s.settings.policies;
+  if (policyId && policies.find((p) => p.id === policyId)) { genPrefs.policyId = policyId; genPrefs.mode = 'password'; }
+  if (!policies.find((p) => p.id === genPrefs.policyId) && genPrefs.policyId !== 'custom') genPrefs.policyId = 'default';
   return modal((close) => {
     const out = h('div', { class: 'gen-out', 'aria-live': 'polite' });
     const meter = h('div', { class: 'meter-label' });
     const opts = h('div');
     let value = '';
+    const current = () => (genPrefs.policyId === 'custom' ? (genPrefs.custom || { ...DEFAULT_POLICY }) : policies.find((p) => p.id === genPrefs.policyId) || DEFAULT_POLICY);
     const gen = () => {
-      value = genPrefs.mode === 'password' ? generatePassword(genPrefs)
-        : generatePassphrase(words, { count: genPrefs.words, separator: genPrefs.sep, capitalize: true, number: true });
-      out.textContent = value;
-      const s = app.strength(value);
-      meter.textContent = `${s.label} · about ${s.bits} bits`;
+      try {
+        value = genPrefs.mode === 'password' ? generatePassword(current())
+          : generatePassphrase(words, { count: genPrefs.words, separator: genPrefs.sep, capitalize: true, number: true });
+        out.textContent = value;
+        const st = app.strength(value);
+        meter.textContent = `${st.label} · about ${st.bits} bits`;
+      } catch (e) { value = ''; out.textContent = ''; meter.textContent = e.message; }
     };
     const seg = h('div', { class: 'seg' });
     const draw = () => {
@@ -91,13 +107,18 @@ export async function openGenerator(app, { pick = true } = {}) {
         type: 'button', class: genPrefs.mode === m ? 'on' : '', disabled: m === 'passphrase' && !words,
         onclick: () => { genPrefs.mode = m; draw(); gen(); },
       }, m === 'password' ? 'Random characters' : 'Words')));
-      const toggle = (k, label) => h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: genPrefs[k], onchange: (e) => { genPrefs[k] = e.target.checked; gen(); } }), label);
       if (genPrefs.mode === 'password') {
-        const len = h('input', { type: 'range', min: 8, max: 64, value: genPrefs.length, 'aria-label': 'Length' });
-        const lab = h('span', { text: 'Length: ' + genPrefs.length });
-        len.addEventListener('input', () => { genPrefs.length = +len.value; lab.textContent = 'Length: ' + len.value; gen(); });
-        fill(opts, h('label', { class: 'field' }, lab, len), h('div', { class: 'grid2' },
-          toggle('lower', 'a–z'), toggle('upper', 'A–Z'), toggle('digits', '0–9'), toggle('symbols', '!@#$…'), toggle('avoidAmbiguous', 'Avoid look-alikes (l 1 O 0)')));
+        const sel = h('select', { class: 'input', 'aria-label': 'Password policy', onchange: (e) => { genPrefs.policyId = e.target.value; if (e.target.value === 'custom' && !genPrefs.custom) genPrefs.custom = { ...current(), id: null }; draw(); gen(); } },
+          policies.map((p) => h('option', { value: p.id }, p.name)), h('option', { value: 'custom' }, 'Custom for now…'));
+        sel.value = genPrefs.policyId;
+        const p = current();
+        const desc = p.hex ? `${p.length} hexadecimal digits` : `${p.length} characters: ` + [p.lower && 'a–z', p.upper && 'A–Z', p.digits && '0–9', p.symbols && (p.symbolSet || 'symbols')].filter(Boolean).join(', ')
+          + (p.pronounceable ? ', pronounceable' : '') + (p.avoidAmbiguous ? ', easy to read' : '');
+        fill(opts, h('label', { class: 'field' }, h('span', { text: 'Policy' }), sel), h('p', { class: 'hint', text: desc }),
+          h('div', { class: 'btn-row' },
+            h('button', { class: 'btn', type: 'button', onclick: () => policyForm(p, { title: 'Custom rules', onSave: (np) => { genPrefs.custom = { ...np, id: null }; genPrefs.policyId = 'custom'; draw(); gen(); } }) }, icon('edit'), 'Change rules…'),
+            genPrefs.policyId === 'custom' && !s.readOnly ? h('button', { class: 'btn', type: 'button', onclick: () => policyForm({ ...current(), name: 'My policy' }, { title: 'Save as a named policy',
+              onSave: (np) => s.updateSettings({ policies: [...policies, np] }).then(() => { genPrefs.policyId = np.id; toast('Policy saved'); close(undefined); }).catch(app.fail) }) }, icon('plus'), 'Save as policy…') : null));
       } else {
         const n = h('input', { type: 'range', min: 3, max: 10, value: genPrefs.words, 'aria-label': 'Words' });
         const lab = h('span', { text: 'Words: ' + genPrefs.words });
@@ -118,6 +139,27 @@ export async function openGenerator(app, { pick = true } = {}) {
         pick ? h('button', { class: 'btn primary', type: 'button', onclick: () => close(value) }, 'Use this') : null],
     };
   });
+}
+
+/** Export some items, as Keyhold CSV or Password Safe XML (both unencrypted). */
+export async function exportItems(app, items, label = 'items') {
+  const s = app.state.session;
+  const live = items.filter((i) => !i.deletedAt);
+  if (!live.length) return toast('Nothing to export.', { error: true });
+  const fmt = await modal((close) => ({
+    title: live.length === 1 ? `Export "${live[0].title}"` : `Export ${live.length} items`,
+    body: [h('p', { class: 'muted', text: 'Both formats are plain text that anyone can read. Delete the file once you are done with it.' }),
+      h('div', { class: 'btn-row' },
+        h('button', { class: 'btn', type: 'button', onclick: () => close('csv') }, icon('download'), 'CSV (spreadsheets, other managers)'),
+        h('button', { class: 'btn', type: 'button', onclick: () => close('pws') }, icon('download'), 'Password Safe XML'))],
+  }));
+  if (!fmt) return;
+  if (!(await confirmMaster(s, 'Exporting writes passwords in readable form. Enter your master password to continue.'))) return;
+  const day = new Date().toISOString().slice(0, 10);
+  const base = ('keyhold-' + String(label).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) + '-' + day).replace(/-+/g, '-');
+  if (fmt === 'csv') download(base + '.csv', exportCSV(live), 'text/csv');
+  else download(base + '.xml', exportPasswordSafeXML(live, { databaseName: s.settings.vault.name || 'Keyhold' }), 'application/xml');
+  toast('Exported. Delete the file when you are done with it.', { ms: 7000 });
 }
 
 // ---------- health ----------
@@ -183,14 +225,18 @@ async function breachCheck(app, btn, status) {
 export function openSettings(app, tab = 'security') {
   const s = app.state.session;
   const desktop = app.state.mode === 'desktop';
-  const tabs = [['security', 'Security'], ...(desktop ? [['sync', 'Sync']] : [['account', 'Account']]), ['backup', 'Backup & import'], ['look', 'Appearance'], ['about', 'About']];
+  // Arranged like Password Safe's Options, plus sync and the vault's properties.
+  const tabs = [['security', 'Security'], ['display', 'Display'], ['entries', 'Entries'], ['policies', 'Policies'],
+    ...(desktop ? [['sync', 'Sync']] : [['account', 'Account']]), ['backup', 'Backup'], ['vault', 'Vault'], ['about', 'About']];
+  if (tab === 'look') tab = 'display';
   let current = tab;
   return modal((close) => {
     const body = h('div');
     const bar = h('div', { class: 'tabs', role: 'tablist' });
     const draw = () => {
       fill(bar, tabs.map(([k, l]) => h('button', { type: 'button', role: 'tab', class: current === k ? 'on' : '', 'aria-selected': String(current === k), onclick: () => { current = k; draw(); } }, l)));
-      fill(body, ({ security: secSecurity, sync: secSync, account: secAccount, backup: secBackup, look: secLook, about: secAbout })[current](app, s, close, draw));
+      fill(body, s.readOnly && current !== 'about' ? h('p', { class: 'notice', text: 'The vault is open read-only, so settings cannot be changed. Switch to read-write in the status bar.' }) : null,
+        ({ security: secSecurity, display: secDisplay, entries: secEntries, policies: secPolicies, sync: secSync, account: secAccount, backup: secBackup, vault: secVault, about: secAbout })[current](app, s, close, draw));
     };
     draw();
     return { title: 'Settings', tabs: bar, body };
@@ -198,6 +244,11 @@ export function openSettings(app, tab = 'security') {
 }
 
 function sec(title, text, ...kids) { return h('div', { class: 'set-sec' }, h('h3', { text: title }), text ? h('p', { text }) : null, kids); }
+function check(s, key, label, after) {
+  return h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: s.settings[key], disabled: s.readOnly,
+    onchange: (e) => s.updateSettings({ [key]: e.target.checked }).then(after).catch((x) => toast(x.message, { error: true })) }), label);
+}
+const save = (s, patch, after) => s.updateSettings(patch).then(after).catch((x) => toast(x.message, { error: true }));
 function numSelect(value, options, onchange) {
   const sel = h('select', { class: 'input', style: 'max-width:260px', onchange: (e) => onchange(+e.target.value) }, options.map(([v, l]) => h('option', { value: v }, l)));
   sel.value = String(value);
@@ -211,8 +262,9 @@ function secSecurity(app, s, close, redraw) {
       numSelect(st.autoLockMinutes, [[1, 'After 1 minute without activity'], [5, 'After 5 minutes'], [15, 'After 15 minutes'], [60, 'After 1 hour'], [0, 'Never']], (v) => s.updateSettings({ autoLockMinutes: v })),
       h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: st.lockOnHide, onchange: (e) => s.updateSettings({ lockOnHide: e.target.checked }) }), 'Lock as soon as the window is minimised or hidden')),
     sec('Clipboard', 'Copied passwords are removed from the clipboard after:',
-      numSelect(st.clipboardSeconds, [[15, '15 seconds'], [30, '30 seconds'], [60, '1 minute'], [120, '2 minutes'], [0, 'Never clear']], (v) => s.updateSettings({ clipboardSeconds: v }))),
-    sec('Master password', `Key stretching: PBKDF2-SHA256, ${s.envelope.kdf.iterations.toLocaleString()} rounds.`,
+      numSelect(st.clipboardSeconds, [[15, '15 seconds'], [30, '30 seconds'], [60, '1 minute'], [120, '2 minutes'], [0, 'Never clear']], (v) => s.updateSettings({ clipboardSeconds: v })),
+      h('div', { class: 'btn-row', style: 'margin-top:8px' }, h('button', { class: 'btn', type: 'button', onclick: () => app.clearClipboard(true) }, icon('x'), 'Clear clipboard now'))),
+    sec('Master password', `Unlock difficulty: PBKDF2-SHA256, ${s.envelope.kdf.iterations.toLocaleString()} rounds. Last changed ${st.vault.passwordChangedAt ? timeAgo(st.vault.passwordChangedAt) : 'unknown'}. Changing the password also lets you raise the difficulty.`,
       h('button', { class: 'btn', type: 'button', onclick: async () => {
         if (!(await confirmMaster(s, 'Enter your current master password.'))) return;
         if (await chooseNewPassword(s, false, app)) toast('Master password changed');
@@ -365,6 +417,8 @@ function secBackup(app, s, close) {
         toast('Backup saved to your Downloads folder');
       } }, icon('download'), 'Download encrypted backup')),
     desktop ? sec('Automatic backups', 'Every save keeps the previous version (the last 30). Use these to undo a mistake.', local) : null,
+    sec('Merge another vault', 'Adds the items of another Keyhold vault or backup file (for example one kept on another computer). Nothing here is overwritten; where the same item exists in both, the newer version wins and the older password goes to its history.',
+      h('button', { class: 'btn', type: 'button', disabled: s.readOnly, onclick: () => mergeFile(app, s, close) }, icon('upload'), 'Merge a vault file…')),
     sec('Import', 'From Password Safe: use File › Export To › XML format, then import that file here. Also accepted: CSV from Bitwarden, 1Password, KeePass, LastPass, Chrome, Edge and Firefox, and Password Safe text exports.',
       h('button', { class: 'btn', type: 'button', onclick: async () => {
         const f = await pickFile('.xml,.csv,.txt,text/csv,text/xml,application/xml');
@@ -374,27 +428,138 @@ function secBackup(app, s, close) {
         if (!res.items.length) { toast('No entries found in that file.', { error: true }); return; }
         const ok = await confirmBox('Import ' + res.items.length + ' items?', `From ${f.name} (${res.kind}). Items are added; nothing is overwritten. Delete the export file afterwards: it is not encrypted.`, { ok: 'Import' });
         if (!ok) return;
-        await s.addItems(res.items);
+        try { await s.addItems(res.items); } catch (e) { return app.fail(e); }
         close(); app.setFilter({ kind: 'all' });
-        toast(`Imported ${res.items.length} items. Remember to delete ${f.name}.`, { ms: 8000 });
+        await showImportReport(res, f.name);
       } }, icon('upload'), 'Import a file…')),
-    sec('Export as plain text', 'A CSV file anyone can read. Only use it to move to another program, and delete it straight after.',
-      h('button', { class: 'btn danger', type: 'button', onclick: async () => {
-        if (!(await confirmMaster(s, 'Exporting writes every password in readable form. Enter your master password to continue.'))) return;
-        download(`keyhold-export-${new Date().toISOString().slice(0, 10)}.csv`, exportCSV(s.items().filter((i) => !i.deletedAt)), 'text/csv');
-        toast('Exported. Delete the file when you are done with it.', { ms: 7000 });
-      } }, icon('download'), 'Export CSV (unencrypted)')),
+    sec('Export as plain text', 'CSV (spreadsheets, other password managers) or Password Safe XML (File › Import From › XML format in Password Safe). Anyone can read these files: use them only to move to another program, and delete them straight after.',
+      h('div', { class: 'btn-row' },
+        h('button', { class: 'btn danger', type: 'button', onclick: () => app.exportItems(s.items(), 'all') }, icon('download'), 'Export everything…'),
+        h('button', { class: 'btn', type: 'button', onclick: () => app.exportItems(app.visibleItems(), 'view') }, icon('download'), `Export the current view (${app.visibleItems().filter((i) => !i.deletedAt).length})…`))),
   ];
 }
 
-function secLook(app, s) {
-  const sel = h('select', { class: 'input', style: 'max-width:260px', onchange: (e) => { app.applyTheme(e.target.value); s.updateSettings({ theme: e.target.value }); } },
+function secDisplay(app, s, close, redraw) {
+  const st = s.settings;
+  const theme = h('select', { class: 'input', style: 'max-width:260px', disabled: s.readOnly, onchange: (e) => { app.applyTheme(e.target.value); save(s, { theme: e.target.value }); } },
     h('option', { value: 'system' }, 'Same as the system'), h('option', { value: 'light' }, 'Light'), h('option', { value: 'dark' }, 'Dark'));
-  sel.value = s.settings.theme || 'system';
-  return [sec('Theme', null, sel),
-    sec('Keyboard', null, h('table', { class: 'table' }, [['/', 'Search'], ['N', 'New item'], ['↑ ↓ or J K', 'Move through the list'], ['E', 'Edit selected item'],
-      ['C', 'Copy password (or main secret)'], ['U', 'Copy username'], ['Ctrl+S', 'Save while editing'], ['Esc', 'Cancel editing, clear search'], ['Ctrl+Shift+L', 'Lock']]
-      .map(([k, d]) => h('tr', {}, h('td', {}, h('kbd', { text: k })), h('td', { text: d })))))];
+  theme.value = st.theme || 'system';
+  const tree = numSelectStr(st.initialTree, [['expanded', 'Folders open'], ['collapsed', 'Folders closed']], (v) => save(s, { initialTree: v }));
+  const warn = numSelect(st.expiryWarnDays, [[7, '7 days'], [14, '14 days'], [30, '30 days'], [60, '60 days'], [90, '90 days']], (v) => save(s, { expiryWarnDays: v }, app.renderAll));
+  [tree, warn].forEach((x) => { x.disabled = s.readOnly; });
+  return [
+    sec('Theme', null, theme),
+    sec('Item list', null,
+      check(s, 'showUsername', 'Show the username (or card, account, network) under each name', app.renderAll),
+      check(s, 'notesTooltip', 'Show notes as a tooltip when pointing at an item', app.renderAll),
+      h('p', { class: 'hint', text: 'Switch between the list and a table with sortable columns with the button next to the list title.' })),
+    sec('Folders when the vault opens', null, tree),
+    sec('Expiry warnings', 'Password health lists items whose change reminder is due within:', warn),
+    sec('Keyboard', null, h('table', { class: 'table' }, [['/', 'Search'], ['N', 'New item'], ['↑ ↓ or J K', 'Move through the list'], ['Enter', 'Open the selected item'], ['E', 'Edit selected item'],
+      ['C', 'Copy password (or main secret)'], ['U', 'Copy username'], ['Delete', 'Move to trash'], ['Shift+F10 or Menu key', 'Actions for the selected item'], ['Ctrl+S', 'Save while editing'],
+      ['Esc', 'Cancel editing, clear search'], ['Ctrl+Shift+L', 'Lock']].map(([k, d]) => h('tr', {}, h('td', {}, h('kbd', { text: k })), h('td', { text: d }))))),
+  ];
+}
+
+function numSelectStr(value, options, onchange) {
+  const sel = h('select', { class: 'input', style: 'max-width:260px', onchange: (e) => onchange(e.target.value) }, options.map(([v, l]) => h('option', { value: v }, l)));
+  sel.value = String(value);
+  return sel;
+}
+
+function secEntries(app, s, close, redraw) {
+  const st = s.settings;
+  const keep = numSelect(st.historyKeep, [[0, 'Keep none'], [3, 'Keep the last 3'], [5, 'Keep the last 5'], [10, 'Keep the last 10'], [30, 'Keep the last 30'], [MAX_HISTORY, `Keep the last ${MAX_HISTORY}`]], (v) => save(s, { historyKeep: v }));
+  const exp = numSelect(st.defaultExpiryDays, [[0, 'No reminder'], [30, 'After 30 days'], [90, 'After 90 days'], [180, 'After 180 days'], [365, 'After 1 year']], (v) => save(s, { defaultExpiryDays: v }));
+  const dbl = numSelectStr(st.doubleClick, [['copyPassword', 'Copy the password'], ['copyUsername', 'Copy the username'], ['openUrl', 'Open the website'], ['edit', 'Edit the item'], ['view', 'Nothing extra (just open it)']], (v) => save(s, { doubleClick: v }));
+  const user = h('input', { class: 'input', style: 'max-width:320px', value: st.defaultUsername, placeholder: 'None', 'aria-label': 'Default username' });
+  user.addEventListener('change', () => save(s, { defaultUsername: user.value.trim(), askedDefaultUsername: true }));
+  [keep, exp, dbl, user].forEach((x) => { x.disabled = s.readOnly; });
+  return [
+    sec('Password history', 'When a password (or card number, key...) changes, the old value is kept with the item:', keep,
+      h('div', { class: 'btn-row', style: 'margin-top:8px' }, h('button', { class: 'btn danger', type: 'button', disabled: s.readOnly, onclick: async () => {
+        const n = s.items().filter((i) => i.history.length).length;
+        if (!n) return toast('No item has previous values.');
+        if (!(await confirmBox('Clear all password history?', `Previous values are removed from ${n} item(s), on every device.`, { ok: 'Clear history', danger: true }))) return;
+        s.change((p) => { for (const [id, it] of Object.entries(p.items)) if (it.history.length) p.items[id] = { ...it, history: [], updatedAt: new Date().toISOString() }; }).then(() => toast('History cleared')).catch(app.fail);
+      } }, 'Clear the history of every item…'))),
+    sec('Change reminders', 'When you set a new password, remind me to change it:', exp),
+    sec('Default username', 'Filled in for new logins.', user),
+    sec('Double-click on an item', null, dbl),
+    sec('Safety', null,
+      check(s, 'confirmTrash', 'Ask before moving an item to the trash'),
+      check(s, 'trackAccess', 'Record when each password was last copied or used (shows a "Last used" column)', app.renderAll)),
+  ];
+}
+
+function secPolicies(app, s, close, redraw) {
+  return [sec('Password policies', 'Named rules for generated passwords, like "PIN: 6 digits" or "Bank: 12 characters, no symbols". Pick one per item in its edit form; the Generate button then follows it.',
+    policiesSection(app, redraw))];
+}
+
+function secVault(app, s, close, redraw) {
+  const st = s.settings, v = st.vault;
+  const live = s.items().filter((i) => !i.deletedAt);
+  const name = h('input', { class: 'input', value: v.name, placeholder: 'My vault', 'aria-label': 'Vault name', disabled: s.readOnly });
+  const desc = h('textarea', { class: 'input', 'aria-label': 'Vault description', disabled: s.readOnly, style: 'min-height:60px' }); desc.value = v.description;
+  const upd = () => save(s, { vault: { ...s.settings.vault, name: name.value.trim(), description: desc.value } }, () => toast('Saved'));
+  name.addEventListener('change', upd); desc.addEventListener('change', upd);
+  const folders = new Set(live.map((i) => i.folder).filter(Boolean)).size;
+  const rows = [
+    ['Items', `${live.length} (${s.items().length - live.length} in the trash)`],
+    ['Folders', folders], ['With two-factor codes', live.filter((i) => i.fields.totp).length],
+    ['Protected items', live.filter((i) => i.protected).length], ['Saved filters', st.savedFilters.length], ['Password policies', st.policies.length],
+    ['Created', v.createdAt ? new Date(v.createdAt).toLocaleString() : 'before this information was recorded'],
+    ['Master password last set', v.passwordChangedAt ? new Date(v.passwordChangedAt).toLocaleString() : 'unknown'],
+    ['Last saved', s.lastSaved ? s.lastSaved.toLocaleString() : 'not in this session'],
+    ['Stored', app.state.mode === 'desktop' ? 'On this computer' + (st.sync ? ', synced with ' + st.sync.url : '') : 'On ' + location.host + ', with a copy in this browser'],
+    ['Format', `Keyhold vault v${s.envelope.v}; ${s.envelope.kdf.name}, ${s.envelope.kdf.iterations.toLocaleString()} rounds; AES-256-GCM`],
+    ['Vault ID', s.envelope.id],
+    ['Recovery code', s.envelope.keys.recovery ? 'Set' : 'Not set'],
+  ];
+  return [
+    sec('Name and description', 'Shown here and in exports.', h('label', { class: 'field' }, h('span', { text: 'Name' }), name), h('label', { class: 'field' }, h('span', { text: 'Description' }), desc)),
+    sec('Details', null, h('table', { class: 'table' }, rows.map(([k, val]) => h('tr', {}, h('th', { text: k }), h('td', { text: String(val) }))))),
+  ];
+}
+
+async function mergeFile(app, s, close) {
+  const f = await pickFile('.keyhold,.json,application/json');
+  if (!f) return;
+  let env;
+  try { const j = JSON.parse(f.text); env = j.vault || j; if (env.format !== 'keyhold-vault') throw new Error(); }
+  catch { return toast('That is not a Keyhold vault file.', { error: true }); }
+  let payload;
+  try { payload = await decryptPayload(env, s.keys.dataKey); }
+  catch {
+    const opened = await askPassword('Open the other vault', `Enter the master password of ${f.name}.`, (pw) => openVault(env, pw));
+    if (!opened) return;
+    payload = opened.payload; opened.keys.lock();
+  }
+  const before = new Set(Object.keys(s.payload.items));
+  try { await s.change((p) => { const m = mergePayloads(p, payload); p.items = m.items; p.purged = m.purged; p.settings = { ...p.settings, folders: m.settings.folders, updatedAt: new Date().toISOString() }; }); }
+  catch (e) { return app.fail(e); }
+  const added = Object.keys(s.payload.items).filter((id) => !before.has(id)).length;
+  close(); app.setFilter({ kind: 'all' });
+  toast(`Merged ${f.name}: ${added} new item(s); items in both were brought up to date.`, { ms: 7000 });
+}
+
+/** Password Safe shows a report after an import; so does Keyhold. */
+function showImportReport(res, name) {
+  const r = importReport(res.items);
+  return modal((close) => ({
+    title: 'Import report',
+    body: [h('p', { text: `${r.total} item(s) imported from ${name} (${res.kind}).` }),
+      h('table', { class: 'table' },
+        Object.entries(r.byType).map(([k, n]) => h('tr', {}, h('th', { text: TYPES[k].plural }), h('td', { text: n }))),
+        h('tr', {}, h('th', { text: 'Folders' }), h('td', { text: r.folders })),
+        h('tr', {}, h('th', { text: 'With two-factor keys' }), h('td', { text: r.withTotp })),
+        h('tr', {}, h('th', { text: 'With password history' }), h('td', { text: r.withHistory })),
+        h('tr', {}, h('th', { text: 'With extra fields' }), h('td', { text: r.withCustom })),
+        r.withoutPassword ? h('tr', {}, h('th', { text: 'Logins without a password' }), h('td', { text: r.withoutPassword })) : null),
+      h('p', { class: 'notice', text: `Delete ${name} now: it is not encrypted.` })],
+    foot: h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'),
+  }));
 }
 
 function secAbout(app, s) {
