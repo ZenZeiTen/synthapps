@@ -1,0 +1,156 @@
+name: keyhold
+
+# Tests Keyhold, builds the Windows app and checks it on Windows.
+# Pushing a tag named keyhold-v* also publishes the builds as a GitHub release.
+on:
+  pull_request:
+    paths:
+      - "keyhold/**"
+      - ".github/workflows/keyhold.yml"
+  push:
+    branches: [main]
+    tags:
+      - "keyhold-v*"
+    paths:
+      - "keyhold/**"
+      - ".github/workflows/keyhold.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: keyhold
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: go vet ./...
+      - run: go test ./...
+      - run: node --test test/core.test.mjs
+
+  browser:
+    name: End-to-end in Chromium (desktop app, sync server, phone)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: keyhold
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Playwright with Chromium
+        timeout-minutes: 10
+        run: |
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - run: node test/e2e.mjs "$RUNNER_TEMP/keyhold-shots"
+        timeout-minutes: 10
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyhold-e2e-screenshots
+          path: ${{ runner.temp }}/keyhold-shots
+          if-no-files-found: ignore
+          retention-days: 14
+
+  windows:
+    name: Build Keyhold.exe and check it on Windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: keyhold
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Build every platform
+        shell: bash
+        run: ./scripts/build.sh
+      - name: Smoke test the Windows builds
+        shell: pwsh
+        run: |
+          $data = "$env:RUNNER_TEMP\kh-desk"
+          $srv  = "$env:RUNNER_TEMP\kh-srv"
+          & .\dist\keyhold.exe version
+          # Desktop mode: loopback server, per-launch key, no vault yet.
+          $p = Start-Process -FilePath ".\dist\keyhold.exe" -ArgumentList "desktop","--no-browser","--data",$data,"--port","47821" -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\desk.out"
+          Start-Sleep -Seconds 3
+          $inst = Get-Content "$data\instance.json" | ConvertFrom-Json
+          $mode = Invoke-RestMethod "http://127.0.0.1:$($inst.port)/api/mode"
+          if ($mode.mode -ne "desktop") { throw "wrong mode" }
+          try { Invoke-WebRequest "http://127.0.0.1:$($inst.port)/api/local/vault" -UseBasicParsing | Out-Null; throw "no token accepted" } catch { if ($_.Exception.Response.StatusCode.value__ -ne 401) { throw } }
+          try { Invoke-WebRequest "http://127.0.0.1:$($inst.port)/api/local/vault" -Headers @{Authorization="Bearer $($inst.token)"} -UseBasicParsing | Out-Null; throw "vault should not exist" } catch { if ($_.Exception.Response.StatusCode.value__ -ne 404) { throw } }
+          $html = Invoke-WebRequest "http://127.0.0.1:$($inst.port)/" -UseBasicParsing
+          if ($html.Headers["Content-Security-Policy"] -notmatch "script-src 'self'") { throw "CSP missing" }
+          # A second launch must reuse the running instance, not start another.
+          $second = & .\dist\keyhold.exe desktop --no-browser --data $data
+          if ("$second" -notmatch "47821") { throw "second launch did not find the first: $second" }
+          Stop-Process -Id $p.Id
+          # Sync server mode.
+          $s = Start-Process -FilePath ".\dist\keyhold.exe" -ArgumentList "serve","--addr","127.0.0.1:47822","--data",$srv -PassThru
+          Start-Sleep -Seconds 3
+          $m2 = Invoke-RestMethod "http://127.0.0.1:47822/api/mode"
+          if ($m2.mode -ne "server" -or $m2.signup -ne "closed") { throw "server mode wrong" }
+          Stop-Process -Id $s.Id
+          Write-Host "Windows smoke test passed"
+      - name: Windows app and other builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: Keyhold
+          path: keyhold/dist/*
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  release:
+    name: Publish the GitHub release
+    if: startsWith(github.ref, 'refs/tags/keyhold-v')
+    needs: [test, browser, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: keyhold/RELEASE_NOTES.md
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: Keyhold
+          path: files
+      - name: Create the release, or add the files to it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l files
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" files/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" files/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Keyhold ${GITHUB_REF_NAME#keyhold-v}" \
+              --notes-file keyhold/RELEASE_NOTES.md
+          fi
