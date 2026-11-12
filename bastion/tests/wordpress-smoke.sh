@@ -39,6 +39,13 @@ fail() { echo "FAIL: $*"; [ -f wp/wp-content/debug.log ] && cat wp/wp-content/de
 # grep reads a string, not a pipe: with pipefail, `curl | grep -q` fails when grep exits early.
 contains() { grep -q -- "$2" <<<"$1"; }
 status() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+# expect <code> <what failed> <curl arguments>: like status, and says which code came back.
+expect() {
+	local want=$1 label=$2 got
+	shift 2
+	got=$(status "$@")
+	[ "$got" = "$want" ] || fail "$label (HTTP $got, expected $want)"
+}
 
 [ "$(wp eval 'echo wp_next_scheduled( "zbst_hourly" ) && wp_next_scheduled( "zbst_backup" ) && wp_next_scheduled( "zbst_agents_refresh" ) ? "yes" : "no";')" = "yes" ] || fail "cron not scheduled on activation"
 # A site upgraded from 1.0.2 by "Replace current with uploaded" never runs activation: the agent
@@ -155,9 +162,18 @@ front_ok "visitor, agents in Protect mode" -A 'Mozilla/5.0 (X11; Linux x86_64) C
 front_ok "phone on IPv6, agents in Protect mode" -A 'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36' -H 'X-Forwarded-For: 2001:db8:3c4d:15::1a2f'
 front_ok "administrator, agents in Protect mode" -b "$COOKIES"
 front_ok "real Googlebot" -A "$GOOGLEBOT" -H 'X-Forwarded-For: 192.0.2.7'
-[ "$(code_as 203.0.113.9 "$URL/" -A "$GPTBOT")" = "403" ] || fail "Protect mode served a spoofed agent"
-[ "$(code_as 192.0.2.7 "$URL/wp-admin/" -A "$GOOGLEBOT")" = "403" ] || fail "a crawler opened wp-admin"
-[ "$(code_as 192.0.2.7 "$URL/?robots=1" -A "$GOOGLEBOT")" = "200" ] || fail "a real crawler was refused robots.txt"
+expect 403 "Protect mode served a spoofed agent" -H 'X-Forwarded-For: 203.0.113.9' -A "$GPTBOT" "$URL/"
+expect 403 "a crawler opened wp-admin" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/wp-admin/"
+
+# WordPress serves robots.txt through a rewrite rule, so these checks need pretty permalinks.
+wp rewrite structure '/%postname%/' >/dev/null
+expect 200 "a real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/robots.txt"
+# Even from a blocked address; every other page stays refused.
+wp bastion block 192.0.2.7 --minutes=5
+expect 403 "a blocked crawler was served a page" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/"
+expect 200 "a blocked real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/robots.txt"
+expect 403 "a blocked address that only claims to be a crawler got robots.txt" -H 'X-Forwarded-For: 192.0.2.7' "$URL/robots.txt"
+wp bastion unblock 192.0.2.7
 
 TRAP=$(wp eval 'echo ZenZeiTenBastion\Agents::traps()["path"];')
 KEY=$(wp eval 'echo ZenZeiTenBastion\Agents::traps()["key"];')
@@ -165,10 +181,13 @@ contains "$(wp bastion agents traps)" "$TRAP" || fail "wp bastion agents traps"
 HOME_HTML=$(as 198.51.100.204 "$URL/")
 contains "$HOME_HTML" "$TRAP/\" rel=\"nofollow\"" || fail "no hidden trap link on the page"
 contains "$HOME_HTML" "api_key=$KEY -->" || fail "no fake key on the page"
-contains "$(as 198.51.100.204 "$URL/?robots=1")" "Disallow: $TRAP/" || fail "robots.txt does not forbid the trap"
-[ "$(code_as 203.0.113.40 "$URL$TRAP/" -H 'Sec-Purpose: prefetch')" = "404" ] || fail "a prefetch of the trap was not answered with 404"
-[ "$(code_as 203.0.113.40 "$URL$TRAP/")" = "403" ] || fail "trap URL not refused"
-[ "$(code_as 203.0.113.41 "$URL/?rest_route=/wp/v2/posts" -H "Authorization: Bearer $KEY")" = "403" ] || fail "fake key not refused"
+ROBOTS=$(as 198.51.100.204 "$URL/robots.txt")
+contains "$ROBOTS" "Disallow: $TRAP/" || { echo "$ROBOTS"; fail "robots.txt does not forbid the trap"; }
+wp option update permalink_structure '' >/dev/null
+wp rewrite flush >/dev/null
+expect 404 "a prefetch of the trap was not answered with 404" -H 'X-Forwarded-For: 203.0.113.40' -H 'Sec-Purpose: prefetch' "$URL$TRAP/"
+expect 403 "trap URL not refused" -H 'X-Forwarded-For: 203.0.113.40' "$URL$TRAP/"
+expect 403 "fake key not refused" -H 'X-Forwarded-For: 203.0.113.41' -H "Authorization: Bearer $KEY" "$URL/?rest_route=/wp/v2/posts"
 [ "$(status -b "$COOKIES" "$URL$TRAP/")" != "403" ] || fail "an administrator opening the trap was refused"
 TRAPS=$(wp db query "SELECT COUNT(*) FROM wp_zbst_events WHERE type = 'agent_trap' AND score = 10" --skip-column-names)
 [ "$TRAPS" = "2" ] || fail "expected two scored trap events, got $TRAPS"
