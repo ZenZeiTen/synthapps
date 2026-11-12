@@ -196,7 +196,9 @@ contains "$HOME_HTML" "$TRAP/\" rel=\"nofollow\"" || fail "no hidden trap link o
 contains "$HOME_HTML" "api_key=$KEY -->" || fail "no fake key on the page"
 # The line Bastion adds to WordPress's robots.txt, through the same filter WordPress applies.
 ROBOTS=$(wp eval 'echo apply_filters( "robots_txt", "User-agent: *\nDisallow: /wp-admin/\n", true );')
-contains "$ROBOTS" "Disallow: $TRAP/" || { echo "$ROBOTS"; fail "robots.txt does not forbid the trap"; }
+# The rule carries the folder WordPress believes it lives in (this test site's home is /wp).
+HOME_PATH=$(wp eval 'echo rtrim( (string) wp_parse_url( home_url( "/" ), PHP_URL_PATH ), "/" );')
+contains "$ROBOTS" "Disallow: $HOME_PATH$TRAP/" || { echo "$ROBOTS"; fail "robots.txt does not forbid the trap"; }
 expect 404 "a prefetch of the trap was not answered with 404" -H 'X-Forwarded-For: 203.0.113.40' -H 'Sec-Purpose: prefetch' "$URL$TRAP/"
 expect 403 "trap URL not refused" -H 'X-Forwarded-For: 203.0.113.40' "$URL$TRAP/"
 expect 403 "fake key not refused" -H 'X-Forwarded-For: 203.0.113.41' -H "Authorization: Bearer $KEY" "$URL/?rest_route=/wp/v2/posts"
