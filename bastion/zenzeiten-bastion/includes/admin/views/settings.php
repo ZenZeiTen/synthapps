@@ -4,9 +4,11 @@
  *
  * @package ZenZeiTenBastion
  *
- * @var array  $s      Settings.
- * @var array  $rules  Firewall rule labels.
- * @var string $own_ip The administrator's address as the plugin sees it.
+ * @var array      $s      Settings.
+ * @var array      $rules  Firewall rule labels.
+ * @var string     $own_ip The administrator's address as the plugin sees it.
+ * @var array      $agents Agents::status().
+ * @var array|null $traps  The trap path and fake key while the traps are on.
  */
 
 use ZenZeiTenBastion\Admin\Admin;
@@ -83,7 +85,7 @@ $zbst_number = function ( array $s, $key, $min, $max ) {
 		<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Automatic blocking', 'zenzeiten-bastion' ); ?></th>
-				<td><?php $zbst_check( $s, 'auto_block', __( 'Block addresses whose threat score reaches the threshold', 'zenzeiten-bastion' ), __( 'Each attack adds to the address\'s score: critical 10, high 5, medium 3, failed login 2.', 'zenzeiten-bastion' ) ); ?></td>
+				<td><?php $zbst_check( $s, 'auto_block', __( 'Block addresses whose threat score reaches the threshold', 'zenzeiten-bastion' ), __( 'Each attack adds to the address\'s score: critical 10, high 5, medium 3, failed login 2. A spoofed agent counts as high, a trap hit as critical.', 'zenzeiten-bastion' ) ); ?></td>
 			</tr>
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Threshold', 'zenzeiten-bastion' ); ?></th>
@@ -95,6 +97,18 @@ $zbst_number = function ( array $s, $key, $min, $max ) {
 					echo ' ' . esc_html__( 'minutes', 'zenzeiten-bastion' );
 					?>
 					<p class="description"><?php esc_html_e( 'Blocks last 1 hour, then 1 day, 1 week and 30 days for repeat offenders.', 'zenzeiten-bastion' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Slow scanners', 'zenzeiten-bastion' ); ?></th>
+				<td>
+					<?php
+					$zbst_number( $s, 'score_threshold_long', 5, 1000 );
+					echo ' ' . esc_html__( 'points within', 'zenzeiten-bastion' ) . ' ';
+					$zbst_number( $s, 'score_window_long', 0, 10080 );
+					echo ' ' . esc_html__( 'minutes, counting only high and critical attacks (0 minutes turns this off)', 'zenzeiten-bastion' );
+					?>
+					<p class="description"><?php esc_html_e( 'Catches a scanner that probes a few times a day and so never reaches the threshold above. Failed logins are not counted here, so mistyping a password many times in one day never causes a block. The window is at least 60 minutes and never longer than the attack log is kept.', 'zenzeiten-bastion' ); ?></p>
 				</td>
 			</tr>
 			<tr>
@@ -126,6 +140,88 @@ $zbst_number = function ( array $s, $key, $min, $max ) {
 					<textarea id="zbst-allowlist" name="zbst[allowlist]" rows="4" class="large-text code"><?php echo esc_textarea( $s['allowlist'] ); ?></textarea>
 					<?php /* translators: %s: the administrator's IP address */ ?>
 					<p class="description"><?php echo esc_html( sprintf( __( 'Addresses or ranges (one per line, e.g. 203.0.113.0/24) that are never inspected or blocked: your office, uptime monitors, payment gateway callbacks. Your current address is %s.', 'zenzeiten-bastion' ), $own_ip ) ); ?></p>
+				</td>
+			</tr>
+		</table>
+
+		<h2 id="zbst-agents"><?php esc_html_e( 'Agents', 'zenzeiten-bastion' ); ?></h2>
+		<p><?php esc_html_e( 'Search crawlers and AI agents say who they are in their user-agent, and anyone can copy that. Bastion checks each such claim against the list of addresses the crawler\'s owner publishes.', 'zenzeiten-bastion' ); ?></p>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Mode', 'zenzeiten-bastion' ); ?></th>
+				<td>
+					<?php
+					$zbst_agent_modes = array(
+						'protect' => __( 'Protect: refuse visitors that falsely claim to be a known crawler, and crawlers that misbehave', 'zenzeiten-bastion' ),
+						'log'     => __( 'Log only: record them without refusing (use this for a week first, then check the attack log)', 'zenzeiten-bastion' ),
+						'off'     => __( 'Off', 'zenzeiten-bastion' ),
+					);
+					foreach ( $zbst_agent_modes as $zbst_value => $zbst_label ) {
+						echo '<label class="zbst-radio"><input type="radio" name="zbst[agent_mode]" value="' . esc_attr( $zbst_value ) . '" ' . checked( $s['agent_mode'], $zbst_value, false ) . ' /> ' . esc_html( $zbst_label ) . '</label>';
+					}
+					?>
+					<p class="description"><?php esc_html_e( 'In both modes each event adds to the address\'s threat score, so repeat offenders are still blocked automatically. A real crawler is never refused robots.txt. A claim that cannot be checked, because a list is missing or older than 3 days, is let through.', 'zenzeiten-bastion' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Crawl ceiling', 'zenzeiten-bastion' ); ?></th>
+				<td>
+					<?php
+					$zbst_number( $s, 'agent_crawl_ceiling', 0, 10000 );
+					echo ' ' . esc_html__( 'requests per minute from one address of a real crawler (0 turns this off)', 'zenzeiten-bastion' );
+					?>
+					<p class="description"><?php esc_html_e( 'Real crawlers are spared the rate limit and the 404 flood rule; this ceiling covers them instead. In Protect mode a crawler over the ceiling gets "429 Too many requests".', 'zenzeiten-bastion' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Traps', 'zenzeiten-bastion' ); ?></th>
+				<td>
+					<?php $zbst_check( $s, 'agent_traps', __( 'Set two traps for automation that ignores robots.txt or collects keys from pages', 'zenzeiten-bastion' ), __( 'Adds a hidden link to an address that robots.txt forbids, and a fake key in an HTML comment. People never see either. Anything that opens the link or uses the key scores as a critical attack. If you run a link checker that ignores robots.txt, add its address to the allowlist first. Clear your page cache after changing this. If your site has its own robots.txt file, add the Disallow line below to it by hand.', 'zenzeiten-bastion' ) ); ?>
+					<?php if ( $traps ) : ?>
+						<p><?php esc_html_e( 'Trap address:', 'zenzeiten-bastion' ); ?> <code><?php echo esc_html( home_url( $traps['path'] . '/' ) ); ?></code><br />
+						<?php esc_html_e( 'robots.txt line:', 'zenzeiten-bastion' ); ?> <code>Disallow: <?php echo esc_html( rtrim( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ), '/' ) . $traps['path'] . '/' ); ?></code><br />
+						<?php esc_html_e( 'Fake key:', 'zenzeiten-bastion' ); ?> <code><?php echo esc_html( $traps['key'] ); ?></code></p>
+						<p><button type="submit" class="button" form="zbst-regenerate-traps"><?php esc_html_e( 'Regenerate traps', 'zenzeiten-bastion' ); ?></button></p>
+					<?php endif; ?>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Address lists', 'zenzeiten-bastion' ); ?></th>
+				<td>
+					<table class="widefat striped zbst-agents">
+						<thead>
+							<tr>
+								<th scope="col"><?php esc_html_e( 'Agent', 'zenzeiten-bastion' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'Owner', 'zenzeiten-bastion' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'Prefixes', 'zenzeiten-bastion' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'Last refresh', 'zenzeiten-bastion' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'Age in days', 'zenzeiten-bastion' ); ?></th>
+								<th scope="col"><?php esc_html_e( 'Status', 'zenzeiten-bastion' ); ?></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php
+							$zbst_statuses = array(
+								'fresh'  => __( 'Fresh', 'zenzeiten-bastion' ),
+								'stale'  => __( 'Stale: claims are let through', 'zenzeiten-bastion' ),
+								'failed' => __( 'Last refresh failed', 'zenzeiten-bastion' ),
+								'none'   => __( 'No list published: claims are let through', 'zenzeiten-bastion' ),
+							);
+							foreach ( $agents as $zbst_agent ) :
+								?>
+								<tr>
+									<td><?php echo esc_html( $zbst_agent['agent'] ); ?><br /><code><?php echo esc_html( $zbst_agent['id'] ); ?></code></td>
+									<td><?php echo esc_html( $zbst_agent['vendor'] ); ?></td>
+									<td><?php echo esc_html( number_format_i18n( $zbst_agent['prefixes'] ) ); ?></td>
+									<td><?php echo $zbst_agent['fetched_at'] ? esc_html( wp_date( 'Y-m-d H:i', $zbst_agent['fetched_at'] ) ) : esc_html__( 'Never', 'zenzeiten-bastion' ); ?></td>
+									<td><?php echo null === $zbst_agent['age_days'] ? '' : esc_html( (string) $zbst_agent['age_days'] ); ?></td>
+									<td><span class="zbst-badge <?php echo 'fresh' === $zbst_agent['status'] ? '' : 'zbst-badge-2'; ?>"><?php echo esc_html( $zbst_statuses[ $zbst_agent['status'] ] ); ?></span><?php if ( '' !== $zbst_agent['error'] ) : ?><br /><small><?php echo esc_html( $zbst_agent['error'] ); ?></small><?php endif; ?></td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+					<p class="description"><?php esc_html_e( 'The lists are fetched from their owners once a day. Nothing is fetched while a visitor waits.', 'zenzeiten-bastion' ); ?></p>
+					<p><button type="submit" class="button" form="zbst-refresh-agents"><?php esc_html_e( 'Refresh lists now', 'zenzeiten-bastion' ); ?></button></p>
 				</td>
 			</tr>
 		</table>
@@ -249,5 +345,15 @@ $zbst_number = function ( array $s, $key, $min, $max ) {
 		</table>
 
 		<?php submit_button( __( 'Save settings', 'zenzeiten-bastion' ) ); ?>
+	</form>
+
+	<?php // The two buttons in the Agents section belong to these forms; a form cannot sit inside another. ?>
+	<form id="zbst-refresh-agents" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<input type="hidden" name="action" value="zbst_refresh_agents" />
+		<?php wp_nonce_field( 'zbst_refresh_agents' ); ?>
+	</form>
+	<form id="zbst-regenerate-traps" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<input type="hidden" name="action" value="zbst_regenerate_traps" />
+		<?php wp_nonce_field( 'zbst_regenerate_traps' ); ?>
 	</form>
 </div>

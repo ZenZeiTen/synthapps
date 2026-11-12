@@ -3,11 +3,11 @@ Contributors: zenzeiten
 Tags: security, firewall, brute force, ip blocking, backup
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.1.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Website security: a firewall, real-time attack monitoring, automatic IP blocking, login protection and automatic database backups with one-click restore.
+Website security: firewall, live attack monitoring, automatic IP blocking, crawler and AI agent checks, login protection and database backups.
 
 == Description ==
 
@@ -30,6 +30,7 @@ Every request from a visitor is checked against 18 attack signatures before your
 = Automatic IP detection and blocking =
 
 * Every attack adds to the attacking address's threat score (critical 10, high 5, medium 3, failed login 2). When the score reaches the threshold (20 points in 60 minutes by default), the address is blocked automatically.
+* A second, longer window (20 points in 24 hours by default) counts only high and critical attacks. It catches scanners that probe a few times a day. Failed logins are not counted in it, so mistyping a password many times in one day never causes a block.
 * Repeat offenders are blocked for longer: 1 hour, then 1 day, 1 week and 30 days.
 * Brute-force protection: 5 failed logins in 15 minutes locks the address out for 60 minutes (all adjustable). XML-RPC password logins and system.multicall are refused by default.
 * 404 floods (scanners guessing file names) and, optionally, too many requests per minute count as attacks.
@@ -37,6 +38,18 @@ Every request from a visitor is checked against 18 attack signatures before your
 * Block or unblock addresses and CIDR ranges by hand, IPv4 and IPv6.
 * Addresses administrators signed in from are spared from automatic blocks, and an allowlist covers offices and services you trust.
 * Works behind Cloudflare and other proxies: forwarded-for headers are believed only from proxies you trust, so attackers cannot fake their address.
+
+= Crawlers and AI agents =
+
+Search crawlers and AI agents say who they are in their user-agent, and anyone can copy that. Bastion checks the claim against the list of addresses the crawler's owner publishes.
+
+* Known agents: Googlebot, GoogleOther, AdsBot-Google, Mediapartners-Google, Google-Agent, Google Site Verifier, Google Read Aloud, Bingbot, GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-User, Claude-SearchBot, PerplexityBot and Perplexity-User.
+* A visitor that claims one of these names from an address outside its list is a spoofed agent: logged, scored as a high attack and, in Protect mode, refused.
+* A real crawler that misbehaves is scored too: sending a login, opening wp-admin, or passing the crawl ceiling (120 requests per minute by default).
+* Real crawlers are spared the 404 flood rule and the rate limit, and are never refused robots.txt.
+* Two optional traps: a hidden link to an address that robots.txt forbids, and a fake key in an HTML comment. People never see either. Anything that opens the link or uses the key scores as a critical attack.
+* The lists are fetched from Google, Microsoft, OpenAI, Anthropic and Perplexity once a day in the background. A claim that cannot be checked, because a list is missing or older than 3 days, is let through.
+* Three modes: Protect, Log only and Off. The feature starts in Log only.
 
 = Automatic database backup and recovery =
 
@@ -46,6 +59,10 @@ Every request from a visitor is checked against 18 attack signatures before your
 * Backups are checked for damage or tampering before a restore.
 * Download backups, and upload one to restore it on a new server.
 * WP-CLI commands restore the database even when the admin area is broken: `wp bastion restore latest --yes`.
+
+= Outside services =
+
+To check crawlers, the plugin downloads the public address lists that Google (developers.google.com), Microsoft (www.bing.com), OpenAI (openai.com), Anthropic (claude.com) and Perplexity (www.perplexity.com) publish for their crawlers. It does this once a day and sends nothing about your site or your visitors. Set the Agents mode to Off to stop these downloads.
 
 == Installation ==
 
@@ -89,7 +106,30 @@ Blocked addresses are checked from a small cached list without a database query.
 
 Nothing, unless you tick "Delete the log, blocks, settings and all backups when the plugin is deleted" in Settings first.
 
+= What should I do after updating to 1.1.0? =
+
+Nothing has to change. The new crawler and AI agent check starts in Log only mode: it records and scores, and refuses nobody. After about a week, open Bastion > Attack log and filter by "Spoofed agent". If no real Googlebot, Bingbot or ClaudeBot address appears there, set Bastion > Settings > Agents > Mode to Protect.
+
+= What do the traps do, and are they safe for real visitors? =
+
+They are off until you tick Traps in Bastion > Settings > Agents. Bastion then adds a link that is not displayed, that screen readers and the Tab key skip, and that browsers are told not to load ahead of a click. robots.txt forbids its address, so crawlers that follow the rules never open it. Logged-in users, the addresses administrators sign in from and your allowlist are never scored. If you run a link checker or a site audit tool that opens every link and ignores robots.txt, add its address to the allowlist first. Clear your page cache after switching the traps on or off. If your site has its own robots.txt file, WordPress cannot add the line; copy the Disallow line from the settings screen into that file.
+
+= Bastion blocked an address in Cloudflare's network. What now? =
+
+If your site is behind Cloudflare and "This site is behind Cloudflare" is not ticked, Bastion sees Cloudflare's address in place of each visitor's. Open Bastion > Settings and look at "Your address as Bastion sees it". If it is not your own address, tick the box and save. Until you do, Bastion keeps automatic blocks of Cloudflare addresses to one hour.
+
 == Changelog ==
+
+= 1.1.0 =
+* New: crawler and AI agent checks. A visitor that claims to be Googlebot, Bingbot, GPTBot, ClaudeBot, PerplexityBot or another known agent is checked against the address list its owner publishes. Starts in Log only mode.
+* New: a second threat-score window (20 points in 24 hours, high and critical attacks only) blocks scanners that probe a few times a day.
+* New: two optional traps for automation that ignores robots.txt or collects keys from pages.
+* New: `wp bastion agents status`, `refresh`, `check` and `traps` commands.
+* Fix: probes for `/.git`, `/.svn` and `/.hg` without a trailing slash are now caught.
+* Fix: real crawlers no longer trip the 404 flood rule or the rate limit; a crawl ceiling covers them instead.
+* Fix: when "This site is behind Cloudflare" is off, an automatic block of a Cloudflare address lasts one hour at most, and a notice asks you to check the setting.
+* Faster: large forms are read once instead of being copied for each field.
+* No database change. Settings, log, blocks and backups are kept.
 
 = 1.0.2 =
 * Docs: after installing or updating, clear any page cache; a stale cached page can show visitors a blank page.

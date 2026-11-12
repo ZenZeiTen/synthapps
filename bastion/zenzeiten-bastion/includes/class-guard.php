@@ -21,7 +21,8 @@ final class Guard {
 	const ERROR_OPTION = 'zbst_last_error';
 
 	/**
-	 * Holds the latest automatic block of a Cloudflare address, for the admin notice.
+	 * Holds the first automatic block of a Cloudflare address, for the admin notice. The notice
+	 * is shown once: after it is dismissed the option keeps only the time of dismissal.
 	 */
 	const CLOUDFLARE_OPTION = 'zbst_cloudflare_notice';
 
@@ -213,7 +214,7 @@ final class Guard {
 		if ( ! $block ) {
 			return null;
 		}
-		if ( $proxy ) {
+		if ( $proxy && false === get_option( self::CLOUDFLARE_OPTION ) ) {
 			update_option(
 				self::CLOUDFLARE_OPTION,
 				array(

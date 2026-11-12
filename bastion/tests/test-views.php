@@ -92,9 +92,82 @@ function test_view_settings() {
 	check( false !== strpos( $html, 'Bastion sees it: 198.51.100.9' ), 'shows the administrator their own address' );
 }
 
+function test_view_settings_agents_section() {
+	zbst_seed_views();
+	zbst_seed_agent_lists( 1 );
+	$lists = get_option( ZenZeiTenBastion\Agents::LISTS_OPTION );
+	$lists['openai-gptbot']['error'] = 'https://openai.com/gptbot.json (HTTP 500 <b>)';
+	update_option( ZenZeiTenBastion\Agents::LISTS_OPTION, $lists );
+	ZenZeiTenBastion\Agents::reset();
+	$html = zbst_render( array( new Admin(), 'page_settings' ) );
+	foreach ( array( 'agent_mode', 'agent_traps', 'agent_crawl_ceiling', 'score_window_long', 'score_threshold_long' ) as $key ) {
+		check( false !== strpos( $html, 'name="zbst[' . $key . ']"' ), 'no field for ' . $key );
+	}
+	check( false !== strpos( $html, 'name="zbst[agent_mode]" value="log"  checked' ), 'ships in Log-only mode' );
+	check_same( count( ZenZeiTenBastion\Agents::registry() ), substr_count( $html, '<td><span class="zbst-badge' ), 'one row per agent' );
+	check( false !== strpos( $html, 'google-googlebot' ) && false !== strpos( $html, 'Fresh' ) && false !== strpos( $html, 'Last refresh failed' ) && false !== strpos( $html, 'No list published' ) );
+	check( false !== strpos( $html, 'HTTP 500 &lt;b&gt;' ) && false === strpos( $html, '500 <b>' ), 'the failure text is escaped' );
+	check( false !== strpos( $html, 'form="zbst-refresh-agents"' ) && false !== strpos( $html, 'id="zbst-refresh-agents"' ) && false !== strpos( $html, 'value="zbst_refresh_agents"' ) );
+	check( false === strpos( $html, 'form="zbst-regenerate-traps"' ), 'no Regenerate button while the traps are off' );
+	check( false === get_option( ZenZeiTenBastion\Agents::TRAPS_OPTION ), 'viewing the screen creates no trap' );
+	// Forms cannot be nested: the button forms come after the settings form closes.
+	check( strpos( $html, 'id="zbst-refresh-agents"' ) > strrpos( $html, 'Save settings' ) );
+
+	zbst_set( array( 'agent_traps' => 1 ) );
+	$html = zbst_render( array( new Admin(), 'page_settings' ) );
+	$trap = ZenZeiTenBastion\Agents::traps();
+	check( false !== strpos( $html, 'form="zbst-regenerate-traps"' ) );
+	check( false !== strpos( $html, 'Disallow: ' . $trap['path'] . '/' ) && false !== strpos( $html, $trap['key'] ) );
+}
+
+function test_agent_buttons() {
+	WP_Stub::$user = (object) array( 'ID' => 1, 'roles' => array( 'administrator' ) );
+	zbst_set( array( 'agent_traps' => 1 ) );
+	$before = ZenZeiTenBastion\Agents::traps();
+	try {
+		( new Admin() )->handle_regenerate_traps();
+	} catch ( Zbst_Stop $e ) {
+	}
+	check( ZenZeiTenBastion\Agents::traps()['path'] !== $before['path'] );
+
+	// Refresh with one list failing: the notice names it.
+	foreach ( ZenZeiTenBastion\Agents::registry() as $agent ) {
+		foreach ( $agent['urls'] as $url ) {
+			WP_Stub::$http[ $url ] = array( 200, '{"prefixes":[{"ipv4Prefix":"192.0.2.0/24"}]}' );
+		}
+	}
+	WP_Stub::$http['https://www.bing.com/toolbox/bingbot.json'] = array( 503, '' );
+	try {
+		( new Admin() )->handle_refresh_agents();
+	} catch ( Zbst_Stop $e ) {
+	}
+	$notice = get_transient( 'zbst_notice_1' );
+	check_same( 'error', $notice[0] );
+	check( false !== strpos( $notice[1], 'microsoft-bingbot' ) && false === strpos( $notice[1], 'openai' ), $notice[1] );
+	check_same( 1, get_option( ZenZeiTenBastion\Agents::LISTS_OPTION )['openai-gptbot']['count'] );
+}
+
+function test_cloudflare_notice() {
+	WP_Stub::$user = (object) array( 'ID' => 1, 'roles' => array( 'administrator' ) );
+	check_same( '', zbst_render( array( new Admin(), 'cloudflare_notice' ) ), 'no notice without such a block' );
+	ZenZeiTenBastion\Guard::auto_block( '2a06:98c0:3600::103', 'auto', 'test', null );
+	$html = zbst_render( array( new Admin(), 'cloudflare_notice' ) );
+	check( false !== strpos( $html, '2a06:98c0:3600::103' ) && false !== strpos( $html, 'Your address as Bastion sees it' ) && false !== strpos( $html, 'zbst_dismiss_cloudflare' ) );
+	WP_Stub::$user = (object) array( 'ID' => 5, 'roles' => array( 'subscriber' ) );
+	check_same( '', zbst_render( array( new Admin(), 'cloudflare_notice' ) ), 'hidden from users without the capability' );
+	WP_Stub::$user = (object) array( 'ID' => 1, 'roles' => array( 'administrator' ) );
+	try {
+		( new Admin() )->handle_dismiss_cloudflare();
+	} catch ( Zbst_Stop $e ) {
+	}
+	check_same( '', zbst_render( array( new Admin(), 'cloudflare_notice' ) ), 'gone after it is dismissed' );
+	ZenZeiTenBastion\Guard::auto_block( '104.16.0.9', 'auto', 'test', null );
+	check_same( '', zbst_render( array( new Admin(), 'cloudflare_notice' ) ), 'and shown only once' );
+}
+
 function test_screens_check_the_capability() {
 	WP_Stub::$user = (object) array( 'ID' => 5, 'roles' => array( 'subscriber' ) );
-	foreach ( array( 'page_dashboard', 'page_events', 'page_blocks', 'page_backups', 'page_settings', 'handle_restore', 'handle_backup_now', 'handle_download', 'handle_save_settings', 'handle_block' ) as $method ) {
+	foreach ( array( 'page_dashboard', 'page_events', 'page_blocks', 'page_backups', 'page_settings', 'handle_restore', 'handle_backup_now', 'handle_download', 'handle_save_settings', 'handle_block', 'handle_refresh_agents', 'handle_regenerate_traps', 'handle_dismiss_cloudflare' ) as $method ) {
 		$denied = false;
 		try {
 			zbst_render( array( new Admin(), $method ) );

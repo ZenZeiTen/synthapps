@@ -535,6 +535,8 @@ function test_cloudflare_autoblock_capped() {
 	zbst_set( array( 'trust_cloudflare' => 1 ) );
 	delete_option( Guard::CLOUDFLARE_OPTION );
 	Guard::auto_block( '2a06:98c0:3600::104', 'auto', 'test', null );
+	Blocklist::remove( '2a06:98c0:3600::104' );
+	check_same( 1440, (int) round( ( strtotime( Guard::auto_block( '2a06:98c0:3600::104', 'auto', 'test', null )['expires_at'] . ' UTC' ) - time() ) / 60 ), 'a second offence escalates to a day' );
 	$block   = Guard::auto_block( '2a06:98c0:3600::105', 'login', 'test', 240 );
 	$minutes = ( strtotime( $block['expires_at'] . ' UTC' ) - time() ) / 60;
 	check( $minutes > 238 );

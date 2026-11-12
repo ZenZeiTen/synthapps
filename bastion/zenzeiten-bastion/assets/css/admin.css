@@ -45,3 +45,5 @@
 .zbst-actions form { display: inline; }
 .zbst-rules label, .zbst-radio { display: block; margin: 4px 0; }
 .zbst-wrap pre { background: #f6f7f7; padding: 10px 12px; border-radius: 6px; overflow-x: auto; }
+.zbst-agents { max-width: 900px; }
+.zbst-agents td { vertical-align: top; }
