@@ -168,24 +168,13 @@ front_ok "real Googlebot" -A "$GOOGLEBOT" -H 'X-Forwarded-For: 192.0.2.7'
 expect 403 "Protect mode served a spoofed agent" -H 'X-Forwarded-For: 203.0.113.9' -A "$GPTBOT" "$URL/"
 expect 403 "a crawler opened wp-admin" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/wp-admin/"
 
-# A verified crawler is never refused robots.txt by Bastion, even from a blocked address. PHP's
-# built-in server answers /robots.txt itself, so the request goes through index.php; Bastion sees
-# a path that ends in /robots.txt either way. What WordPress then answers on this test server
-# (its 404 page) is not Bastion's doing: the check is that Bastion's 403 or 429 does not come back.
-allowed() {
-	local label=$1 got
-	shift
-	got=$(status "$@")
-	case "$got" in
-		403|429) fail "$label (HTTP $got)" ;;
-	esac
-}
-allowed "a real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
+# A blocked address is refused everywhere, also when it is a real crawler and the address only
+# looks like robots.txt. (A plain read of the site's own robots.txt is spared; PHP's built-in
+# server answers that path itself, so that case is covered by the unit and browser tests.)
 wp bastion block 192.0.2.7 --minutes=5
 expect 403 "a blocked crawler was served a page" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/"
-expect 403 "a blocked crawler was served a page under index.php" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/about/"
-allowed "a blocked real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
-expect 403 "a blocked address that only claims to be a crawler got robots.txt" -H 'X-Forwarded-For: 192.0.2.7' "$URL/index.php/robots.txt"
+expect 403 "a blocked crawler got in through a path ending in robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
+expect 403 "a blocked crawler reached the REST API" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/?rest_route=/wp/v2/posts"
 wp bastion unblock 192.0.2.7
 
 TRAP=$(wp eval 'echo ZenZeiTenBastion\Agents::traps()["path"];')

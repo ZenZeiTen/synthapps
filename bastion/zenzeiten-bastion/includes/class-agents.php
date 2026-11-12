@@ -291,17 +291,26 @@ final class Agents {
 	}
 
 	/**
-	 * Whether the request is for robots.txt.
+	 * Whether the request only reads the site's robots.txt: a GET or HEAD for exactly that path,
+	 * with no query string. Anything looser would let a request reach the rest of WordPress under
+	 * the cover of robots.txt, for example /robots.txt?rest_route=/wp/v2/users.
 	 *
 	 * @return bool
 	 */
 	private static function is_robots() {
-		return (bool) preg_match( '#/robots\.txt$#i', self::path() );
+		if ( ! in_array( Request::method(), array( 'GET', 'HEAD' ), true ) ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- compared against one fixed path only.
+		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+		$base = rtrim( (string) wp_parse_url( home_url( '/' ), PHP_URL_PATH ), '/' );
+		return $base . '/robots.txt' === $uri;
 	}
 
 	/**
 	 * A verified agent is never refused robots.txt, even from a blocked address: Anthropic warns
-	 * that blocking its addresses can stop it from reading the rules it would follow.
+	 * that blocking its addresses can stop it from reading the rules it would follow. Only a plain
+	 * read of robots.txt is spared; see is_robots().
 	 *
 	 * @return bool
 	 */

@@ -231,6 +231,31 @@ function test_verified_agent_always_gets_robots_txt() {
 	check_same( 403, zbst_run_guard() );
 	zbst_agent_request( '2001:db8::5', ZBST_UA_CLAUDEBOT, '/robots.txt' );
 	check_same( 0, zbst_run_guard() );
+	// Only a plain read of the site's own robots.txt is spared. Anything else from the blocked
+	// address is refused, however much it looks like robots.txt.
+	$sneaky = array(
+		'/robots.txt?rest_route=/wp/v2/users' => array(),
+		'/robots.txt?'                        => array(),
+		'/index.php/robots.txt'               => array(),
+		'/wp-json/wp/v2/robots.txt'           => array(),
+		'/ROBOTS.TXT'                         => array(),
+		'/robots.txt/'                        => array(),
+		'/robots.txt'                         => array( 'x' => '1' ),
+	);
+	foreach ( $sneaky as $uri => $post ) {
+		zbst_agent_request( '2001:db8::5', ZBST_UA_CLAUDEBOT, $uri, array(), $post );
+		check_same( 403, zbst_run_guard(), 'a blocked address got through with ' . ( $post ? 'POST ' : '' ) . $uri );
+	}
+	zbst_agent_request( '2001:db8::5', ZBST_UA_CLAUDEBOT, '/robots.txt', array( 'REQUEST_METHOD' => 'HEAD' ) );
+	check_same( 0, zbst_run_guard(), 'HEAD is a read too' );
+	// A site in a folder has its robots.txt rule under that folder.
+	WP_Stub::$home = 'https://example.com/blog';
+	zbst_agent_request( '2001:db8::5', ZBST_UA_CLAUDEBOT, '/blog/robots.txt' );
+	check_same( 0, zbst_run_guard() );
+	zbst_agent_request( '2001:db8::5', ZBST_UA_CLAUDEBOT, '/robots.txt' );
+	check_same( 403, zbst_run_guard() );
+	WP_Stub::$home = 'https://example.com';
+
 	// A blocked address that only claims to be a crawler stays blocked.
 	Blocklist::add( '203.0.113.50', 'manual', 'test', 0 );
 	zbst_agent_request( '203.0.113.50', ZBST_UA_CLAUDEBOT, '/robots.txt' );
