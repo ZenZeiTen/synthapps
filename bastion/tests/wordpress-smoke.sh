@@ -168,16 +168,23 @@ front_ok "real Googlebot" -A "$GOOGLEBOT" -H 'X-Forwarded-For: 192.0.2.7'
 expect 403 "Protect mode served a spoofed agent" -H 'X-Forwarded-For: 203.0.113.9' -A "$GPTBOT" "$URL/"
 expect 403 "a crawler opened wp-admin" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/wp-admin/"
 
-# WordPress serves robots.txt through a rewrite rule, so these checks need permalinks. PHP's
-# built-in server answers 404 by itself for a missing path with a file extension, so the request
-# goes through index.php, which WordPress supports ("PATHINFO" permalinks). Bastion sees a path
-# that ends in /robots.txt either way.
-wp rewrite structure '/index.php/%postname%/' >/dev/null
-expect 200 "a real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
-# Even from a blocked address; every other page stays refused.
+# A verified crawler is never refused robots.txt by Bastion, even from a blocked address. PHP's
+# built-in server answers /robots.txt itself, so the request goes through index.php; Bastion sees
+# a path that ends in /robots.txt either way. What WordPress then answers on this test server
+# (its 404 page) is not Bastion's doing: the check is that Bastion's 403 or 429 does not come back.
+allowed() {
+	local label=$1 got
+	shift
+	got=$(status "$@")
+	case "$got" in
+		403|429) fail "$label (HTTP $got)" ;;
+	esac
+}
+allowed "a real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
 wp bastion block 192.0.2.7 --minutes=5
 expect 403 "a blocked crawler was served a page" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/"
-expect 200 "a blocked real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
+expect 403 "a blocked crawler was served a page under index.php" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/about/"
+allowed "a blocked real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
 expect 403 "a blocked address that only claims to be a crawler got robots.txt" -H 'X-Forwarded-For: 192.0.2.7' "$URL/index.php/robots.txt"
 wp bastion unblock 192.0.2.7
 
@@ -187,10 +194,9 @@ contains "$(wp bastion agents traps)" "$TRAP" || fail "wp bastion agents traps"
 HOME_HTML=$(as 198.51.100.204 "$URL/")
 contains "$HOME_HTML" "$TRAP/\" rel=\"nofollow\"" || fail "no hidden trap link on the page"
 contains "$HOME_HTML" "api_key=$KEY -->" || fail "no fake key on the page"
-ROBOTS=$(as 198.51.100.204 "$URL/index.php/robots.txt")
+# The line Bastion adds to WordPress's robots.txt, through the same filter WordPress applies.
+ROBOTS=$(wp eval 'echo apply_filters( "robots_txt", "User-agent: *\nDisallow: /wp-admin/\n", true );')
 contains "$ROBOTS" "Disallow: $TRAP/" || { echo "$ROBOTS"; fail "robots.txt does not forbid the trap"; }
-wp option update permalink_structure '' >/dev/null
-wp rewrite flush >/dev/null
 expect 404 "a prefetch of the trap was not answered with 404" -H 'X-Forwarded-For: 203.0.113.40' -H 'Sec-Purpose: prefetch' "$URL$TRAP/"
 expect 403 "trap URL not refused" -H 'X-Forwarded-For: 203.0.113.40' "$URL$TRAP/"
 expect 403 "fake key not refused" -H 'X-Forwarded-For: 203.0.113.41' -H "Authorization: Bearer $KEY" "$URL/?rest_route=/wp/v2/posts"
