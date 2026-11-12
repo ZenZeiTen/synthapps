@@ -74,7 +74,7 @@ class ContextChat_Frontend {
 			$show = ! in_array( (int) get_queried_object_id(), $ids, true );
 		}
 		if ( $show && '' !== $s['exclude_paths'] ) {
-			$path = isset( $_SERVER['REQUEST_URI'] ) ? strtolower( rawurldecode( wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only compared.
+			$path = ContextChat_Context::request_path();
 			foreach ( explode( "\n", strtolower( $s['exclude_paths'] ) ) as $needle ) {
 				$needle = trim( $needle );
 				if ( '' !== $needle && false !== strpos( $path, $needle ) ) {
@@ -96,13 +96,14 @@ class ContextChat_Frontend {
 	 * Print the floating button and panel.
 	 */
 	public static function render_float() {
-		if ( ! self::should_display() ) {
+		$resolved = self::should_display() ? ContextChat_Context::resolve( 'float' ) : null;
+		// No agents: a filter asked for the button on a page where nobody can be reached.
+		if ( ! $resolved || ! $resolved['agents'] ) {
 			self::print_config_if_needed();
 			return;
 		}
 
 		$s        = ContextChat_Settings::get();
-		$resolved = ContextChat_Context::resolve( 'float' );
 		$vars     = ContextChat_Context::vars();
 		$agents   = $resolved['agents'];
 		$first    = $agents[0];
@@ -127,13 +128,14 @@ class ContextChat_Frontend {
 		}
 
 		$style = sprintf(
-			'--ctxc-color:%1$s;--ctxc-icon:%2$s;--ctxc-header:%3$s;--ctxc-size:%4$dpx;--ctxc-x:%5$dpx;--ctxc-y:%6$dpx;',
+			'--ctxc-color:%1$s;--ctxc-icon:%2$s;--ctxc-header:%3$s;--ctxc-size:%4$dpx;--ctxc-x:%5$dpx;--ctxc-y:%6$dpx;--ctxc-delay:%7$ds;',
 			$s['color'],
 			$s['icon_color'],
 			$s['header_color'],
 			$s['size'],
 			$s['offset_x'],
-			$s['offset_y']
+			$s['offset_y'],
+			$s['delay']
 		);
 
 		self::$needs_assets = true;
@@ -244,7 +246,7 @@ class ContextChat_Frontend {
 			return '';
 		}
 
-		$source   = in_array( $atts['source'], array( 'shortcode', 'product', 'block' ), true ) ? $atts['source'] : 'shortcode';
+		$source   = 'float' !== $atts['source'] && in_array( $atts['source'], ContextChat_Analytics::SOURCES, true ) ? $atts['source'] : 'shortcode';
 		$resolved = ContextChat_Context::resolve( $source );
 		$agents   = $resolved['agents'];
 		if ( '' !== $atts['agent'] ) {
@@ -321,7 +323,7 @@ class ContextChat_Frontend {
 					static function ( $a ) {
 						return array(
 							'value' => $a['id'],
-							'label' => '' !== $a['name'] ? $a['name'] : $a['phone'],
+							'label' => ContextChat_Settings::agent_label( $a ),
 						);
 					},
 					ContextChat_Settings::get()['agents']

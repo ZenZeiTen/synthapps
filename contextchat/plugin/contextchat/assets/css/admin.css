@@ -51,6 +51,9 @@
 }
 .ctxc-avatar-btn.has-image { border-style: solid; border-color: #fff; box-shadow: 0 0 0 1px #dcdcde; }
 .ctxc-avatar-btn.has-image .dashicons { display: none; }
+.ctxc-avatar-pick { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 64px; }
+.ctxc-avatar-remove { font-size: 12px; text-align: center; }
+.ctxc-avatar-remove[hidden] { display: none; }
 
 /* Template editor */
 .ctxc-template { max-width: 760px; }
