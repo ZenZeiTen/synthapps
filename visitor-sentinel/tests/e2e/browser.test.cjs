@@ -6,6 +6,8 @@
  * Scenario 1 behaves like a person (no webdriver flag, real mouse, scrolling, waiting).
  * Scenario 2 is an automated browser that clicks an ad by script at once. The plugin should
  * keep scenario 1 clean, score scenario 2 as fraud, block the IP and hide the ads.
+ * Scenario 3 is a page the browser prerenders: nothing is recorded until it is shown, and
+ * nothing more once the visitor withdraws consent.
  */
 'use strict';
 
@@ -162,6 +164,18 @@ function center( box ) {
 		for ( const rule of [ 'headless', 'untrusted_event', 'fast_click', 'no_interaction' ] ) {
 			assert.ok( botClick.fraud_reasons.includes( rule ), 'reason ' + rule + ' in ' + botClick.fraud_reasons );
 		}
+		// Hiding the ads changes the layout, and the browser answers with a mousemove for a pointer
+		// that never moved. That is not a person moving the mouse.
+		await botPage.waitForFunction( () => document.documentElement.classList.contains( 'vsen-flagged' ) );
+		await botPage.evaluate( () => {
+			for ( let i = 0; i < 3; i++ ) {
+				document.dispatchEvent( new MouseEvent( 'mousemove', { screenX: 0, screenY: 0, bubbles: true } ) );
+			}
+			document.querySelector( '#ad-link' ).click();
+		} );
+		s = await waitFor( ( st ) => st.clicks.filter( ( c ) => c.click_type === 'ad_click' && Number( c.visitor_id ) === Number( botVisitor.id ) ).length === 2, 'the second scripted click' );
+		const again = s.clicks.filter( ( c ) => c.click_type === 'ad_click' && Number( c.visitor_id ) === Number( botVisitor.id ) )[ 1 ];
+		assert.strictEqual( JSON.parse( again.signals ).it, 0, 'a mousemove without movement is not an interaction' );
 		assert.strictEqual( s.blocklist.length, 1, 'IP auto-blocked' );
 
 		await botPage.waitForFunction( () => document.documentElement.classList.contains( 'vsen-flagged' ) );
@@ -172,6 +186,36 @@ function center( box ) {
 		assert.strictEqual( await botPage.locator( '#ad-link' ).isVisible(), false );
 		console.log( '  ok    automated clicker: bot, scripted fraud click, auto-block, ads hidden on this and the next page' );
 		await bot.close();
+
+		// ------------------------------------------- Scenario 3: prerender, then consent withdrawn.
+		const pre = await browser.newContext( { userAgent: HUMAN_UA } );
+		await pre.addInitScript( () => {
+			let prerendering = true;
+			Object.defineProperty( Document.prototype, 'prerendering', { get: () => prerendering, configurable: true } );
+			window.vsenActivate = () => {
+				prerendering = false;
+				document.dispatchEvent( new Event( 'prerenderingchange' ) );
+			};
+		} );
+		const prePage = await pre.newPage();
+		const before = await state();
+		await prePage.goto( `${ BASE }/page` );
+		await sleep( 700 );
+		s = await state();
+		assert.strictEqual( s.pageviews.length, before.pageviews.length, 'a prerendered page is not a pageview' );
+
+		await prePage.evaluate( () => window.vsenActivate() );
+		s = await waitFor( ( st ) => st.pageviews.length === before.pageviews.length + 1, 'the pageview once the page is shown' );
+
+		await prePage.locator( '#signup' ).click( { force: true } );
+		s = await waitFor( ( st ) => st.clicks.length === before.clicks.length + 1, 'a click while consent stands' );
+		await prePage.evaluate( () => window.VisitorSentinel.consent( false ) );
+		await prePage.locator( '#signup' ).click( { force: true } );
+		await sleep( 700 );
+		s = await state();
+		assert.strictEqual( s.clicks.length, before.clicks.length + 1, 'nothing is sent after consent is withdrawn' );
+		console.log( '  ok    prerendered page waits until it is shown; withdrawing consent stops the tracker' );
+		await pre.close();
 	} catch ( e ) {
 		failed = true;
 		console.error( '  FAIL ', e.message );

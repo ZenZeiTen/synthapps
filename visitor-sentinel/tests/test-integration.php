@@ -461,3 +461,152 @@ function test_auto_block_when_a_later_score_crosses_the_threshold() {
 	check_same( 100, (int) vsen_db()->get_var( 'SELECT fraud_score FROM wp_vsen_clicks' ) );
 	check_same( 1, vsen_count( 'blocklist' ), 'blocked once the score crosses the threshold' );
 }
+
+function test_reviewed_click_leaves_the_finalize_queue() {
+	list( , $pv ) = vsen_pv( 'https://example.com/' );
+	vsen_collect( array( 'e' => 'click', 'k' => 'ad', 'pv' => $pv['pv'], 't' => $pv['t'], 'ms' => 10, 'it' => 0, 'tr' => 0 ) );
+	$id = (int) vsen_db()->get_var( 'SELECT id FROM wp_vsen_clicks' );
+	Repository::instance()->update_click( $id, array( 'reviewed' => 1, 'status' => 0 ) );
+	vsen_db()->query( "UPDATE wp_vsen_clicks SET created_at = '" . Repository::now( -1200 ) . "'" );
+	check_same( 1, Cron::finalize_clicks() );
+	$click = vsen_db()->get_row( 'SELECT * FROM wp_vsen_clicks' );
+	check_same( array( 1, 0, 1 ), array( (int) $click->finalized, (int) $click->status, (int) $click->reviewed ), 'closed, with the administrator\'s verdict kept' );
+	check_same( 0, Cron::finalize_clicks(), 'a reviewed click is not picked up again every hour' );
+}
+
+function test_fraud_found_at_the_final_score_is_emailed() {
+	vsen_test_reset( array( 'suspicious_networks' => '198.51.100.0/24' ) );
+	update_option( 'admin_email', 'owner@example.com' );
+	VisitorSentinel\Alerts::send_digest();
+
+	// Click A: a landing no browser confirms. Suspicious (40) now, fraudulent (80) at the final score.
+	vsen_visit( array( 'gclid' => 'LATEFRAUDCLICK' ), array( 'REMOTE_ADDR' => '198.51.100.20' ) );
+	check_same( Fraud_Engine::STATUS_SUSPICIOUS, (int) vsen_db()->get_var( 'SELECT status FROM wp_vsen_clicks' ) );
+
+	// Click B, recorded later, is fraudulent at once and goes out in the next email.
+	list( , $pv ) = vsen_pv( 'https://example.com/' );
+	vsen_collect( array( 'e' => 'click', 'k' => 'ad', 'pv' => $pv['pv'], 't' => $pv['t'], 'ms' => 10, 'it' => 0, 'tr' => 0 ) );
+	check( VisitorSentinel\Alerts::send_digest() );
+	check_same( 1, count( WP_Stub::$mail ) );
+	check( false === strpos( WP_Stub::$mail[0]['body'], '198.51.100.20' ) );
+
+	vsen_db()->query( "UPDATE wp_vsen_clicks SET created_at = '" . Repository::now( -1200 ) . "'" );
+	Cron::finalize_clicks();
+	check( VisitorSentinel\Alerts::send_digest(), 'the older click turned fraudulent after a newer one was reported' );
+	check_same( 2, count( WP_Stub::$mail ) );
+	check( false !== strpos( WP_Stub::$mail[1]['body'], '198.51.100.20' ) );
+	check( false === strpos( WP_Stub::$mail[1]['body'], '203.0.113.10' ), 'click B is not reported twice' );
+	check( ! VisitorSentinel\Alerts::send_digest() );
+}
+
+function test_alerts_off_does_not_save_up_history() {
+	vsen_test_reset( array( 'alerts_enabled' => 0 ) );
+	update_option( 'admin_email', 'owner@example.com' );
+	VisitorSentinel\Alerts::send_digest();
+	list( , $pv ) = vsen_pv( 'https://example.com/' );
+	vsen_collect( array( 'e' => 'click', 'k' => 'ad', 'pv' => $pv['pv'], 't' => $pv['t'], 'ms' => 10, 'it' => 0, 'tr' => 0 ) );
+	check( ! VisitorSentinel\Alerts::send_digest() );
+	update_option( VisitorSentinel\Settings::OPTION, array_merge( VisitorSentinel\Settings::defaults(), array( 'alerts_enabled' => 1 ) ) );
+	VisitorSentinel\Settings::flush();
+	check( ! VisitorSentinel\Alerts::send_digest(), 'switching alerts on does not email what happened while they were off' );
+	check_same( 0, count( WP_Stub::$mail ) );
+}
+
+function test_upgrade_does_not_email_clicks_already_reported() {
+	list( , $pv ) = vsen_pv( 'https://example.com/' );
+	$click = array( 'e' => 'click', 'k' => 'ad', 'pv' => $pv['pv'], 't' => $pv['t'], 'ms' => 10, 'it' => 0, 'tr' => 0 );
+	vsen_collect( array_merge( $click, array( 'l' => 'one' ) ) );
+	vsen_collect( array_merge( $click, array( 'l' => 'two' ) ), array( 'REMOTE_ADDR' => '192.0.2.77' ) );
+	update_option( 'admin_email', 'owner@example.com' );
+	// Version 1 remembered the last click it had emailed.
+	update_option( 'vsen_alert_cursor', (int) vsen_db()->get_var( 'SELECT MIN(id) FROM wp_vsen_clicks' ) );
+	VisitorSentinel\Installer::migrate( '1' );
+	check( VisitorSentinel\Alerts::send_digest() );
+	check_same( 1, count( WP_Stub::$mail ) );
+	check( false !== strpos( WP_Stub::$mail[0]['body'], '192.0.2.77' ) && false === strpos( WP_Stub::$mail[0]['body'], '203.0.113.10' ) );
+}
+
+function test_repeat_click_rule_ignores_unattached_clicks_from_other_ips() {
+	// Clicks that arrive without a pageview token belong to no visitor. They must not be
+	// mistaken for one visitor clicking the same ad again.
+	$click = array( 'e' => 'click', 'k' => 'ad', 'l' => 'header', 'n' => 'site', 'ms' => 14000, 'it' => 30, 'tr' => 1, 'xy' => 1 );
+	vsen_collect( $click, array( 'REMOTE_ADDR' => '192.0.2.10' ) );
+	vsen_collect( $click, array( 'REMOTE_ADDR' => '192.0.2.11' ) );
+	$second = vsen_db()->get_row( 'SELECT * FROM wp_vsen_clicks ORDER BY id DESC LIMIT 1' );
+	check_same( array( 0, 0, '' ), array( (int) $second->visitor_id, (int) $second->fraud_score, $second->fraud_reasons ) );
+	vsen_collect( $click, array( 'REMOTE_ADDR' => '192.0.2.11' ) );
+	check_same( 'repeat_target', vsen_db()->get_var( 'SELECT fraud_reasons FROM wp_vsen_clicks ORDER BY id DESC LIMIT 1' ), 'the same IP clicking again still counts' );
+}
+
+function test_blocked_visitor_page_is_not_cached() {
+	$protection = new Protection();
+	$_SERVER    = array( 'REMOTE_ADDR' => '198.51.100.90' );
+	Request_Context::reset();
+	$protection->keep_out_of_page_cache();
+	check_same( 0, WP_Stub::$nocache, 'pages for ordinary visitors stay cacheable' );
+	check( ! defined( 'DONOTCACHEPAGE' ) );
+
+	Protection::block_manual( '198.51.100.90', 'test', 0 );
+	$protection->keep_out_of_page_cache();
+	check_same( 1, WP_Stub::$nocache, 'a page with the ads removed must not be cached for everyone' );
+	check( defined( 'DONOTCACHEPAGE' ) && DONOTCACHEPAGE );
+
+	vsen_test_reset( array( 'protection_action' => 'log_only' ) );
+	Protection::block_manual( '198.51.100.90', 'test', 0 );
+	$_SERVER = array( 'REMOTE_ADDR' => '198.51.100.90' );
+	Request_Context::reset();
+	$protection->keep_out_of_page_cache();
+	check_same( 0, WP_Stub::$nocache, 'log only changes nothing on the page' );
+}
+
+function test_prefetch_is_not_recorded_as_a_landing() {
+	vsen_visit( array( 'gclid' => 'PREFETCHCLICK1' ), array( 'HTTP_SEC_PURPOSE' => 'prefetch;prerender' ) );
+	vsen_visit( array( 'gclid' => 'PREFETCHCLICK2' ), array( 'HTTP_PURPOSE' => 'prefetch' ) );
+	vsen_visit( array( 'gclid' => 'PREFETCHCLICK3' ), array( 'HTTP_X_MOZ' => 'prefetch' ) );
+	check_same( 0, vsen_count( 'clicks' ), 'a page fetched ahead of time is not a visit yet' );
+	vsen_visit( array( 'gclid' => 'PREFETCHCLICK1' ) );
+	check_same( 1, vsen_count( 'clicks' ) );
+}
+
+function test_finalize_works_through_a_backlog_in_batches() {
+	for ( $i = 1; $i <= 5; $i++ ) {
+		vsen_visit( array( 'gclid' => 'BACKLOGCLICK' . $i ), array( 'REMOTE_ADDR' => '192.0.2.' . $i ) );
+	}
+	vsen_db()->query( "UPDATE wp_vsen_clicks SET created_at = '" . Repository::now( -1200 ) . "'" );
+	check_same( 2, Cron::finalize_clicks( 2, 1 ), 'one batch' );
+	check_same( 3, Cron::finalize_clicks( 2, 5 ), 'the rest, over several batches' );
+	check_same( 0, vsen_count( 'clicks', 'finalized = 0' ) );
+}
+
+function test_rate_limit_stops_writing_once_over() {
+	add_filter( 'vsen_rate_limit', function () { return 3; } );
+	for ( $i = 0; $i < 10; $i++ ) {
+		vsen_pv( 'https://example.com/' );
+	}
+	$counts = array();
+	foreach ( WP_Stub::$transients as $name => $value ) {
+		if ( 0 === strpos( $name, 'vsen_rl_' ) ) {
+			$counts[] = $value[0];
+		}
+	}
+	check_same( array( 4 ), $counts, 'the counter stops one past the limit' );
+	check_same( 3, vsen_count( 'pageviews' ) );
+}
+
+function test_csv_export_streams_in_chunks() {
+	list( , $pv ) = vsen_pv( 'https://example.com/' );
+	foreach ( array( '=cmd|calc', 'two', 'three' ) as $label ) {
+		vsen_collect( array( 'e' => 'click', 'k' => 'trk', 'pv' => $pv['pv'], 't' => $pv['t'], 'l' => $label ) );
+	}
+	$out = fopen( 'php://memory', 'w+' );
+	check_same( 3, VisitorSentinel\Admin\Admin::write_csv( 'clicks', $out, 2 ), 'rows from two chunks' );
+	rewind( $out );
+	$lines = array_values( array_filter( explode( "\n", stream_get_contents( $out ) ) ) );
+	check_same( 4, count( $lines ), 'one header and three rows' );
+	check( 0 === strpos( $lines[0], 'id,created_at,click_type' ) );
+	check( false !== strpos( $lines[3], "'=cmd|calc" ), 'formulas are neutralized: ' . $lines[3] );
+	check( false !== strpos( $lines[1], 'three' ), 'newest first' );
+
+	$out = fopen( 'php://memory', 'w+' );
+	check_same( 1, VisitorSentinel\Admin\Admin::write_csv( 'visitors', $out ) );
+}

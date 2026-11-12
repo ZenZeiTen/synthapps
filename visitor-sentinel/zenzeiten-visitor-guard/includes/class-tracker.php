@@ -41,6 +41,16 @@ final class Tracker {
 	);
 
 	/**
+	 * Tracker click kinds and the click type each is stored as.
+	 */
+	const CLICK_KINDS = array(
+		'ad'  => 'ad_click',
+		'out' => 'outbound',
+		'dl'  => 'download',
+		'trk' => 'tracked',
+	);
+
+	/**
 	 * utm_medium values that mean paid traffic.
 	 */
 	const PAID_MEDIUM = '/^(cpc|ppc|paid|paid[_-]?search|paidsearch|paid[_-]?social|paidsocial|cpm|cpv|cpa|display|banner|ads?|retargeting|remarketing)$/';
@@ -136,7 +146,7 @@ final class Tracker {
 	 */
 	public function capture_landing() {
 		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '';
-		if ( 'GET' !== $method || is_admin() || wp_doing_ajax() || is_feed() || is_robots() || is_preview() ) {
+		if ( 'GET' !== $method || is_admin() || wp_doing_ajax() || is_feed() || is_robots() || is_preview() || self::is_prefetch() ) {
 			return;
 		}
 		// Without consent nothing may be stored before the visitor agrees in the browser.
@@ -184,6 +194,24 @@ final class Tracker {
 			)
 		);
 		( new Fraud_Service() )->evaluate( $id );
+	}
+
+	/**
+	 * Whether the browser is fetching this page ahead of time (prefetch or prerender) or for a
+	 * link preview. Nobody has visited yet, so the page may never run. Counting it would score a
+	 * real ad click as "no browser ran the page". If the visitor does arrive, the tracker
+	 * records the landing.
+	 *
+	 * @return bool
+	 */
+	public static function is_prefetch() {
+		foreach ( array( 'HTTP_SEC_PURPOSE', 'HTTP_PURPOSE', 'HTTP_X_PURPOSE', 'HTTP_X_MOZ' ) as $header ) {
+			$value = isset( $_SERVER[ $header ] ) ? strtolower( sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) ) ) : '';
+			if ( '' !== $value && preg_match( '/prefetch|prerender|preview/', $value ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -328,7 +356,7 @@ final class Tracker {
 		$is_bot = $ctx->ua['is_bot'] || ! empty( $client['wd'] );
 
 		$visitor_id = $repo->upsert_visitor(
-			$this->visitor_hash( isset( $data['v'] ) ? $data['v'] : '', $ctx ),
+			$this->visitor_hash( self::is_key( $data, 'v' ) ? $data['v'] : '', $ctx ),
 			array(
 				'ip'         => $ctx->ip_store,
 				'ip_hash'    => $ctx->ip_hash,
@@ -354,7 +382,8 @@ final class Tracker {
 		$session = $this->find_session( $data, $visitor_id );
 		if ( ! $session ) {
 			$ref_host   = '' !== $referrer ? strtolower( (string) wp_parse_url( $referrer, PHP_URL_HOST ) ) : '';
-			$key        = isset( $data['s'] ) && is_string( $data['s'] ) && preg_match( '/^[a-f0-9]{32}$/', $data['s'] ) && ! $repo->get_session_by_key( $data['s'] ) ? $data['s'] : bin2hex( random_bytes( 16 ) );
+			// A new session keeps the key the browser chose, unless that key is taken.
+			$key        = self::is_key( $data, 's' ) && ! $repo->get_session_by_key( $data['s'] ) ? $data['s'] : bin2hex( random_bytes( 16 ) );
 			$session_id = $repo->insert_session(
 				array(
 					'session_key'   => $key,
@@ -419,7 +448,7 @@ final class Tracker {
 	private function find_session( array $data, $visitor_id ) {
 		$repo  = Repository::instance();
 		$since = Repository::now( -self::SESSION_TIMEOUT );
-		if ( isset( $data['s'] ) && is_string( $data['s'] ) && preg_match( '/^[a-f0-9]{32}$/', $data['s'] ) ) {
+		if ( self::is_key( $data, 's' ) ) {
 			$session = $repo->get_session_by_key( $data['s'] );
 			if ( $session && (int) $session->visitor_id === (int) $visitor_id && $session->last_activity >= $since ) {
 				return $session;
@@ -467,7 +496,6 @@ final class Tracker {
 		if ( $mine ) {
 			if ( 0 === (int) $mine->session_id ) {
 				// The server recorded this landing; the browser now confirms it ran the page.
-				$stored = json_decode( (string) $mine->signals, true );
 				$repo->update_click(
 					$mine->id,
 					array(
@@ -475,7 +503,7 @@ final class Tracker {
 						'session_id'   => (int) $session->id,
 						'pageview_id'  => $pageview_id,
 						'js_confirmed' => 1,
-						'signals'      => wp_json_encode( array_merge( is_array( $stored ) ? $stored : array(), $signals ) ),
+						'signals'      => wp_json_encode( array_merge( Repository::signals( $mine ), $signals ) ),
 					)
 				);
 				$repo->bump_visitor( $visitor_id, 'clicks' );
@@ -523,11 +551,13 @@ final class Tracker {
 		if ( ! $pageview ) {
 			return $this->reply( array( 'ok' => false ), 404 );
 		}
+		// The tracker reports milliseconds, capped at six hours.
+		$seconds = (int) ( $this->int_in( $data, 'tt', 0, 21600000 ) / 1000 );
 		$repo->update_engagement(
 			$pageview,
 			array(
-				'time_on_page' => $this->int_in( $data, 'tt', 0, 21600000 ) / 1000,
-				'active_time'  => $this->int_in( $data, 'at', 0, 21600000 ) / 1000,
+				'time_on_page' => $seconds,
+				'active_time'  => (int) ( $this->int_in( $data, 'at', 0, 21600000 ) / 1000 ),
 				'max_scroll'   => $this->int_in( $data, 'sc', 0, 100 ),
 				'interactions' => $this->int_in( $data, 'it', 0, 100000 ),
 			)
@@ -535,8 +565,8 @@ final class Tracker {
 		$session = $repo->get_session( (int) $pageview->session_id );
 		if ( $session ) {
 			// Session length reaches at least to the end of this page's measured time.
-			$offset = (int) strtotime( $pageview->created_at . ' UTC' ) - (int) strtotime( $session->started_at . ' UTC' );
-			$repo->touch_session( $session, '', false, max( 0, $offset ) + (int) ( $this->int_in( $data, 'tt', 0, 21600000 ) / 1000 ) );
+			$offset = Repository::timestamp( $pageview->created_at ) - Repository::timestamp( $session->started_at );
+			$repo->touch_session( $session, '', false, max( 0, $offset ) + $seconds );
 			$service = new Fraud_Service();
 			foreach ( $repo->session_landings( (int) $session->id ) as $click_id ) {
 				$service->evaluate( (int) $click_id );
@@ -553,13 +583,7 @@ final class Tracker {
 	 * @return \WP_REST_Response
 	 */
 	private function click( array $data, Request_Context $ctx ) {
-		$kinds = array(
-			'ad'  => 'ad_click',
-			'out' => 'outbound',
-			'dl'  => 'download',
-			'trk' => 'tracked',
-		);
-		$kind  = isset( $data['k'] ) && is_string( $data['k'] ) && isset( $kinds[ $data['k'] ] ) ? $data['k'] : '';
+		$kind = isset( $data['k'] ) && is_string( $data['k'] ) && isset( self::CLICK_KINDS[ $data['k'] ] ) ? $data['k'] : '';
 		if ( '' === $kind ) {
 			return $this->reply( array( 'ok' => false ), 400 );
 		}
@@ -581,7 +605,7 @@ final class Tracker {
 				$session    = $repo->get_session( (int) $row->session_id );
 			}
 		}
-		if ( ! $session && isset( $data['s'] ) && is_string( $data['s'] ) && preg_match( '/^[a-f0-9]{32}$/', $data['s'] ) ) {
+		if ( ! $session && self::is_key( $data, 's' ) ) {
 			// The click came before the pageview reply; attach it by session key, but only to a
 			// session that belongs to the same IP.
 			$candidate = $repo->get_session_by_key( $data['s'] );
@@ -597,7 +621,7 @@ final class Tracker {
 
 		$id = $repo->insert_click(
 			array(
-				'click_type'    => $kinds[ $kind ],
+				'click_type'    => self::CLICK_KINDS[ $kind ],
 				'network'       => $net,
 				'visitor_id'    => $visitor_id,
 				'session_id'    => $session ? (int) $session->id : 0,
@@ -669,12 +693,12 @@ final class Tracker {
 	/**
 	 * Visitor hash: from the browser's random ID when storage is allowed, else from IP and user agent.
 	 *
-	 * @param mixed           $client_id Browser ID.
+	 * @param string          $client_id Browser ID, '' when the browser sent none.
 	 * @param Request_Context $ctx       Request.
 	 * @return string
 	 */
 	private function visitor_hash( $client_id, Request_Context $ctx ) {
-		if ( Settings::get( 'use_storage' ) && is_string( $client_id ) && preg_match( '/^[a-f0-9]{32}$/', $client_id ) ) {
+		if ( Settings::get( 'use_storage' ) && '' !== $client_id ) {
 			return hash_hmac( 'sha256', 'c|' . $client_id, Plugin::secret() );
 		}
 		return hash_hmac( 'sha256', 'i|' . $ctx->ip_hash . '|' . $ctx->user_agent, Plugin::secret() );
@@ -698,11 +722,18 @@ final class Tracker {
 			wp_cache_add( $bucket, 0, 'vsen', 120 );
 			$count = (int) wp_cache_incr( $bucket, 1, 'vsen' );
 		} else {
+			// Without an object cache the counter is a row in the options table. It stops one
+			// past the limit, so a flood costs a read per request and no more writes.
 			$count = (int) get_transient( 'vsen_' . $bucket ) + 1;
+			if ( $count > $limit + 1 ) {
+				return true;
+			}
 			set_transient( 'vsen_' . $bucket, $count, 120 );
 		}
 		if ( $count > $limit ) {
-			set_transient( 'vsen_rlhit_' . substr( $ip_hash, 0, 24 ), 1, HOUR_IN_SECONDS );
+			if ( $count === $limit + 1 ) {
+				set_transient( 'vsen_rlhit_' . substr( $ip_hash, 0, 24 ), 1, HOUR_IN_SECONDS );
+			}
 			return true;
 		}
 		return false;
@@ -754,6 +785,17 @@ final class Tracker {
 		 */
 		$own = (array) apply_filters( 'vsen_allowed_hosts', $own );
 		return in_array( $host, $own, true );
+	}
+
+	/**
+	 * Whether a payload field is a 32-character hex ID, the form of visitor and session keys.
+	 *
+	 * @param array  $data Payload.
+	 * @param string $key  Field.
+	 * @return bool
+	 */
+	private static function is_key( array $data, $key ) {
+		return isset( $data[ $key ] ) && is_string( $data[ $key ] ) && 1 === preg_match( '/^[a-f0-9]{32}$/', $data[ $key ] );
 	}
 
 	/**

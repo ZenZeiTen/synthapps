@@ -29,6 +29,7 @@ final class Protection {
 	 */
 	public function register() {
 		add_action( 'init', array( $this, 'enforce' ), 1 );
+		add_action( 'template_redirect', array( $this, 'keep_out_of_page_cache' ), 0 );
 		add_action( 'wp_head', array( $this, 'print_head' ), 1 );
 		add_shortcode( 'vsen_ad', array( $this, 'shortcode_ad' ) );
 	}
@@ -43,20 +44,38 @@ final class Protection {
 		if ( '' === $ctx->ip || $ctx->allowlisted ) {
 			return false;
 		}
-		$index = self::index();
-		$now   = time();
-		if ( isset( $index['h'][ $ctx->ip_hash ] ) ) {
-			$expires = (int) $index['h'][ $ctx->ip_hash ];
-			if ( 0 === $expires || $expires > $now ) {
-				return true;
-			}
+		if ( self::hash_blocked( $ctx->ip_hash ) ) {
+			return true;
 		}
+		$index = self::index();
 		foreach ( $index['r'] as $range ) {
-			if ( ( 0 === (int) $range[1] || (int) $range[1] > $now ) && IP::in_range( $ctx->ip, $range[0] ) ) {
+			if ( self::in_force( $range[1] ) && IP::in_range( $ctx->ip, $range[0] ) ) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Whether one IP hash has its own entry on the blocklist. Blocked ranges are not checked,
+	 * because a hash cannot be matched against a range.
+	 *
+	 * @param string $ip_hash IP hash.
+	 * @return bool
+	 */
+	public static function hash_blocked( $ip_hash ) {
+		$index = self::index();
+		return '' !== (string) $ip_hash && isset( $index['h'][ $ip_hash ] ) && self::in_force( $index['h'][ $ip_hash ] );
+	}
+
+	/**
+	 * Whether a block with this expiry still applies.
+	 *
+	 * @param int $expires Unix time, 0 for never.
+	 * @return bool
+	 */
+	private static function in_force( $expires ) {
+		return 0 === (int) $expires || (int) $expires > time();
 	}
 
 	/**
@@ -83,7 +102,7 @@ final class Protection {
 			'r' => array(),
 		);
 		foreach ( (array) Repository::instance()->active_blocks() as $row ) {
-			$expires = $row->expires_at ? (int) strtotime( $row->expires_at . ' UTC' ) : 0;
+			$expires = $row->expires_at ? Repository::timestamp( $row->expires_at ) : 0;
 			if ( 'range' === $row->match_type ) {
 				$index['r'][] = array( $row->ip_range, $expires );
 			} elseif ( '' !== (string) $row->ip_hash ) {
@@ -220,6 +239,30 @@ final class Protection {
 	}
 
 	/**
+	 * Tell page caches not to store a page built for a blocked visitor. That page has the ads
+	 * taken out, and a cache would go on serving it to everyone else.
+	 */
+	public function keep_out_of_page_cache() {
+		if ( ! self::hides_ads_now() ) {
+			return;
+		}
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true ); // Read by WP Super Cache, W3 Total Cache, WP Rocket, LiteSpeed Cache and others.
+		}
+		nocache_headers();
+	}
+
+	/**
+	 * Whether this request is from a blocked visitor whose page is served without ads.
+	 * Logged-in users always see the ads, so they can check their own pages.
+	 *
+	 * @return bool
+	 */
+	private static function hides_ads_now() {
+		return 'hide_ads' === Settings::get( 'protection_action' ) && ! is_user_logged_in() && self::is_blocked( Request_Context::current() );
+	}
+
+	/**
 	 * Whether this is a login, logout or password request.
 	 *
 	 * @return bool
@@ -246,10 +289,8 @@ final class Protection {
 		foreach ( $selectors as $selector ) {
 			$css[] = 'html.vsen-flagged ' . $selector;
 		}
-		$blocked_now = ! is_user_logged_in() && self::is_blocked( Request_Context::current() );
-
 		$script = "try{var f=localStorage.getItem('vsen_f');if(f&&+f>Date.now())document.documentElement.classList.add('vsen-flagged');}catch(e){}";
-		if ( $blocked_now ) {
+		if ( self::hides_ads_now() ) {
 			$script .= "document.documentElement.classList.add('vsen-flagged');";
 		}
 		echo '<style id="vsen-protect">' . implode( ',', $css ) . '{display:none!important;visibility:hidden!important;pointer-events:none!important}</style>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- selectors are validated in Settings::ad_selectors().

@@ -75,7 +75,10 @@ in Google Ads "IP exclusions" format. An hourly email digest reports new fraud.
   over-count in edge cases.
 - Country needs Cloudflare or a geolocation hook. No geo database is bundled.
 - The "no JavaScript" signal needs the uncached page for ad landings. Most page caches bypass
-  URLs that carry click IDs, but check yours.
+  URLs that carry click IDs, but check yours. Requests a browser marks as prefetch, prerender or
+  preview are not counted, because the page may never be shown.
+- A page built for a blocked visitor has the ads taken out, so the plugin marks it as not cacheable
+  (`DONOTCACHEPAGE` and no-cache headers). A cache that ignores both could serve it to others.
 - Without a persistent object cache, the rate limiter stores short-lived transients in the
   options table.
 - The plugin opts out of WordPress.org updates (`Update URI: false`, and it drops any cached offer),
@@ -88,7 +91,7 @@ in Google Ads "IP exclusions" format. An hourly email digest reports new fraud.
 php tests/run.php
 ```
 
-The test suite has 54 unit and integration tests. They run the real plugin code against a
+The test suite has 65 unit and integration tests. They run the real plugin code against a
 SQLite-backed `$wpdb` and a small stub of WordPress, because every query is written to run on both
 MySQL and SQLite. Any PHP warning or notice fails a test.
 
@@ -98,14 +101,15 @@ node tests/e2e/browser.test.cjs
 
 This runs the real `tracker.js` in Chromium (Playwright) against the real PHP endpoint. A
 person-like session stays clean. An automated browser that clicks an ad by script is scored as
-fraud and blocked, and has its ads hidden on the same page and the next one.
+fraud and blocked, and has its ads hidden on the same page and the next one. A prerendered page
+records nothing until it is shown, and nothing after the visitor withdraws consent.
 
 ```bash
 DB_HOST=127.0.0.1 DB_USER=root DB_PASS=root bash tests/wordpress-smoke.sh
 ```
 
 This installs WordPress on MySQL with WP-CLI, switches from an old `visitor-sentinel` copy to the
-renamed plugin (data kept, cron rescheduled, no WordPress.org update offered), records a server-side and a
-browser-reported ad landing, runs cron, and loads every admin screen as an administrator. The
-[CI workflow](../.github/workflows/visitor-sentinel.yml) runs all three, with the unit tests on
-PHP 7.4 to 8.3.
+renamed plugin (data kept, cron rescheduled, no WordPress.org update offered), upgrades the tables
+from the 1.1.0 layout, records a server-side and a browser-reported ad landing, runs cron, and loads
+every admin screen as an administrator. The [CI workflow](../.github/workflows/visitor-sentinel.yml)
+runs all three, with the unit tests on PHP 7.4 to 8.4.

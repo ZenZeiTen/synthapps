@@ -3,7 +3,7 @@
  * Plugin Name:       ZenZeiTen Visitor Guard
  * Plugin URI:        https://github.com/ZenZeiTen/synthapps/tree/main/visitor-sentinel
  * Description:       Visitor analytics with IP address tracking, page activity tracking and fraudulent click detection for paid ad clicks and on-site ads.
- * Version:           1.1.0
+ * Version:           1.2.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            ZenZeiTen
@@ -33,8 +33,8 @@ if ( defined( 'VSEN_FILE' ) ) {
 	return;
 }
 
-define( 'VSEN_VERSION', '1.1.0' );
-define( 'VSEN_DB_VERSION', '1' );
+define( 'VSEN_VERSION', '1.2.0' );
+define( 'VSEN_DB_VERSION', '2' );
 define( 'VSEN_FILE', __FILE__ );
 define( 'VSEN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VSEN_URL', plugin_dir_url( __FILE__ ) );

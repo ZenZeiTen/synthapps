@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Smoke test in real WordPress with MySQL: switch from the old Visitor Sentinel folder, record a
-# server-side and a browser-reported ad landing, run cron, then load every admin screen as an
-# administrator.
+# Smoke test in real WordPress with MySQL: switch from the old Visitor Sentinel folder, upgrade the
+# tables from the 1.1.0 layout, record a server-side and a browser-reported ad landing, run cron,
+# then load every admin screen as an administrator.
 #
 # Needs php, curl and a MySQL server. Environment:
 #   DB_HOST (127.0.0.1)  DB_USER (root)  DB_PASS (root)  DB_NAME (wordpress)  WORK (./.wp-smoke)
@@ -68,6 +68,17 @@ UPDATE=$(wp plugin list --name=zenzeiten-visitor-guard --field=update)
 echo "WordPress.org raw offer: $(wp eval '$t = get_option( "_site_transient_update_plugins" ); $f = "zenzeiten-visitor-guard/zenzeiten-visitor-guard.php"; $r = is_object( $t ) && isset( $t->response[ $f ] ) ? $t->response[ $f ] : null; echo $r ? "version " . $r->new_version : "none";')"
 [ "$UPDATE" = "none" ] || fail "WordPress offers an update for zenzeiten-visitor-guard ($UPDATE)"
 
+# A site on the 1.1.0 tables (schema 1) gets the new clicks column and index on its next request,
+# and clicks the old version had already emailed are not emailed again.
+wp db query "ALTER TABLE wp_vsen_clicks DROP INDEX status_alerted, DROP COLUMN alerted"
+wp db query "INSERT INTO wp_vsen_clicks (click_type, created_at, signals, status, finalized) VALUES ('ad_click', UTC_TIMESTAMP(), '{}', 2, 1)"
+wp eval 'update_option( "vsen_db_version", "1" ); update_option( "vsen_alert_cursor", 1 );'
+curl -s -o /dev/null "$URL/"
+[ "$(wp option get vsen_db_version)" = "2" ] || fail "tables not upgraded from schema 1"
+[ "$(wp db query "SELECT alerted FROM wp_vsen_clicks WHERE id = 1" --skip-column-names)" = "1" ] || fail "the alerted column was not added, or the reported click not marked"
+[ -n "$(wp db query "SHOW INDEX FROM wp_vsen_clicks WHERE Key_name = 'status_alerted'" --skip-column-names)" ] || fail "index status_alerted not added"
+wp db query "DELETE FROM wp_vsen_clicks"
+
 # The tracker is on public pages.
 HOME_HTML=$(curl -s -A "$UA" "$URL/")
 contains "$HOME_HTML" 'zenzeiten-visitor-guard/assets/js/tracker.js' || fail "tracker script not enqueued"
@@ -86,7 +97,9 @@ CLICKS=$(wp db query "SELECT COUNT(*) FROM wp_vsen_clicks WHERE click_type = 'ad
 [ "$CLICKS" = "2" ] || fail "expected 2 ad landings, got $CLICKS"
 
 wp db query "UPDATE wp_vsen_clicks SET created_at = DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 HOUR)"
-wp eval 'VisitorSentinel\Cron::run();'
+# The hourly job emails new fraud. Catch the email instead of sending it.
+MAILED=$(wp eval 'add_filter( "pre_wp_mail", function ( $r, $mail ) { echo $mail["subject"]; return true; }, 10, 2 ); VisitorSentinel\Cron::run();')
+contains "$MAILED" '1 fraudulent clicks detected' || fail "no alert email for the fraudulent landing (got: $MAILED)"
 FRAUD=$(wp db query "SELECT COUNT(*) FROM wp_vsen_clicks WHERE status = 2" --skip-column-names)
 [ "$FRAUD" = "1" ] || fail "expected the no-JavaScript landing to be fraudulent, got $FRAUD"
 echo "server landing scored: $(wp db query "SELECT fraud_score, fraud_reasons FROM wp_vsen_clicks WHERE status = 2" --skip-column-names)"

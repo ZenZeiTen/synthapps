@@ -7,6 +7,7 @@
 
 namespace VisitorSentinel\Admin;
 
+use VisitorSentinel\Protection;
 use VisitorSentinel\Repository;
 
 defined( 'ABSPATH' ) || exit;
@@ -165,7 +166,7 @@ final class Visitors_Table extends \WP_List_Table {
 	 */
 	protected function column_ip( $item ) {
 		$link    = admin_url( 'admin.php?page=vsen-visitors&visitor=' . (int) $item->id );
-		$blocked = '' !== (string) $item->ip_hash && Admin::hash_blocked( $item->ip_hash );
+		$blocked = Protection::hash_blocked( $item->ip_hash );
 		$html    = '<strong><a class="vsen-ip" href="' . esc_url( $link ) . '">' . esc_html( Admin::ip_label( $item->ip, $item->ip_hash ) ) . '</a></strong>';
 		if ( '' !== (string) $item->country ) {
 			$html .= ' <span class="vsen-country" title="' . esc_attr( $item->country ) . '">' . esc_html( Admin::flag( $item->country ) . ' ' . $item->country ) . '</span>';

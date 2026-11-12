@@ -108,6 +108,37 @@ final class Repository {
 	}
 
 	/**
+	 * Unix time of a stored UTC datetime.
+	 *
+	 * @param string $utc Datetime in MySQL format.
+	 * @return int
+	 */
+	public static function timestamp( $utc ) {
+		return (int) strtotime( $utc . ' UTC' );
+	}
+
+	/**
+	 * The signals stored with a click, decoded.
+	 *
+	 * @param object $click Click row.
+	 * @return array
+	 */
+	public static function signals( $click ) {
+		$signals = json_decode( (string) $click->signals, true );
+		return is_array( $signals ) ? $signals : array();
+	}
+
+	/**
+	 * SQL condition that matches ad clicks (paid landings and on-site ad clicks).
+	 *
+	 * @param string $alias Table alias with its dot, e.g. 'c.'.
+	 * @return string
+	 */
+	private function is_ad( $alias = '' ) {
+		return $alias . "click_type IN ('" . implode( "', '", self::AD_TYPES ) . "')";
+	}
+
+	/**
 	 * All table names.
 	 *
 	 * @return string[]
@@ -354,7 +385,7 @@ final class Repository {
 	 */
 	public function touch_session( $session, $exit_url = '', $pageview = false, $min_duration = 0 ) {
 		$now      = time();
-		$duration = max( (int) $session->duration, $now - (int) strtotime( $session->started_at . ' UTC' ), (int) $min_duration );
+		$duration = max( (int) $session->duration, $now - self::timestamp( $session->started_at ), (int) $min_duration );
 		$sql      = "UPDATE {$this->sessions} SET last_activity = %s, duration = %d";
 		$params   = array( gmdate( 'Y-m-d H:i:s', $now ), min( $duration, 86400 ) );
 		if ( '' !== $exit_url ) {
@@ -541,6 +572,7 @@ final class Repository {
 				'status'        => 0,
 				'reviewed'      => 0,
 				'finalized'     => 0,
+				'alerted'       => 0,
 			),
 			$data
 		);
@@ -569,7 +601,7 @@ final class Repository {
 	public function count_ip_ad_clicks( $ip_hash, $since, $until_id ) {
 		return (int) $this->db->get_var(
 			$this->db->prepare(
-				"SELECT COUNT(*) FROM {$this->clicks} WHERE ip_hash = %s AND created_at >= %s AND id <= %d AND click_type IN ('ad_landing', 'ad_click')",
+				"SELECT COUNT(*) FROM {$this->clicks} WHERE ip_hash = %s AND created_at >= %s AND id <= %d AND {$this->is_ad()}",
 				$ip_hash,
 				$since,
 				$until_id
@@ -585,17 +617,23 @@ final class Repository {
 	 * @return int
 	 */
 	public function count_same_target( $click, $since ) {
-		return (int) $this->db->get_var(
-			$this->db->prepare(
-				"SELECT COUNT(*) FROM {$this->clicks} WHERE click_type = 'ad_click' AND id < %d AND created_at >= %s AND target = %s AND label = %s AND (visitor_id = %d OR ip_hash = %s)",
-				(int) $click->id,
-				$since,
-				(string) $click->target,
-				(string) $click->label,
-				(int) $click->visitor_id,
-				(string) $click->ip_hash
-			)
-		);
+		// A click with no visitor or no IP hash matches on the other one alone. Otherwise every
+		// click that has no visitor would count as the same person.
+		$who    = array();
+		$params = array( (int) $click->id, $since, (string) $click->target, (string) $click->label );
+		if ( (int) $click->visitor_id > 0 ) {
+			$who[]    = 'visitor_id = %d';
+			$params[] = (int) $click->visitor_id;
+		}
+		if ( '' !== (string) $click->ip_hash ) {
+			$who[]    = 'ip_hash = %s';
+			$params[] = (string) $click->ip_hash;
+		}
+		if ( empty( $who ) ) {
+			return 0;
+		}
+		$who = implode( ' OR ', $who );
+		return (int) $this->db->get_var( $this->db->prepare( "SELECT COUNT(*) FROM {$this->clicks} WHERE click_type = 'ad_click' AND id < %d AND created_at >= %s AND target = %s AND label = %s AND ({$who})", $params ) );
 	}
 
 	/**
@@ -646,7 +684,7 @@ final class Repository {
 				$where[] = 'c.status = 1';
 				break;
 			case 'clean':
-				$where[] = "c.status = 0 AND c.click_type IN ('ad_landing', 'ad_click')";
+				$where[] = 'c.status = 0 AND ' . $this->is_ad( 'c.' );
 				break;
 			case 'landing':
 				$where[] = "c.click_type = 'ad_landing'";
@@ -655,10 +693,10 @@ final class Repository {
 				$where[] = "c.click_type = 'ad_click'";
 				break;
 			case 'activity':
-				$where[] = "c.click_type NOT IN ('ad_landing', 'ad_click')";
+				$where[] = 'NOT (' . $this->is_ad( 'c.' ) . ')';
 				break;
 			default:
-				$where[] = "c.click_type IN ('ad_landing', 'ad_click')";
+				$where[] = $this->is_ad( 'c.' );
 		}
 		if ( ! empty( $args['visitor_id'] ) ) {
 			$where[]  = 'c.visitor_id = %d';
@@ -696,15 +734,16 @@ final class Repository {
 	 * @return int[]
 	 */
 	public function click_view_counts() {
-		$row = $this->db->get_row(
+		$is_ad = $this->is_ad();
+		$row   = $this->db->get_row(
 			"SELECT
-				SUM(CASE WHEN click_type IN ('ad_landing', 'ad_click') THEN 1 ELSE 0 END) AS ads,
+				SUM(CASE WHEN {$is_ad} THEN 1 ELSE 0 END) AS ads,
 				SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS fraud,
 				SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS suspicious,
-				SUM(CASE WHEN status = 0 AND click_type IN ('ad_landing', 'ad_click') THEN 1 ELSE 0 END) AS clean,
+				SUM(CASE WHEN status = 0 AND {$is_ad} THEN 1 ELSE 0 END) AS clean,
 				SUM(CASE WHEN click_type = 'ad_landing' THEN 1 ELSE 0 END) AS landing,
 				SUM(CASE WHEN click_type = 'ad_click' THEN 1 ELSE 0 END) AS onsite,
-				SUM(CASE WHEN click_type NOT IN ('ad_landing', 'ad_click') THEN 1 ELSE 0 END) AS activity
+				SUM(CASE WHEN {$is_ad} THEN 0 ELSE 1 END) AS activity
 			FROM {$this->clicks}"
 		);
 		$out = array();
@@ -715,23 +754,40 @@ final class Repository {
 	}
 
 	/**
-	 * Fraudulent clicks newer than an ID, for alerts.
+	 * Fraudulent clicks no alert has reported yet, oldest first.
 	 *
-	 * @param int $after_id Last ID already reported.
-	 * @param int $limit    Limit.
+	 * @param int $limit Limit.
 	 * @return array
 	 */
-	public function fraud_clicks_after( $after_id, $limit = 25 ) {
-		return $this->db->get_results( $this->db->prepare( "SELECT * FROM {$this->clicks} WHERE id > %d AND status = 2 AND reviewed = 0 ORDER BY id ASC LIMIT %d", $after_id, $limit ) );
+	public function unreported_fraud( $limit = 25 ) {
+		$rows = $this->db->get_results( $this->db->prepare( "SELECT * FROM {$this->clicks} WHERE status = 2 AND alerted = 0 AND reviewed = 0 ORDER BY id ASC LIMIT %d", $limit ) );
+		return $rows ? $rows : array();
 	}
 
 	/**
-	 * Highest click ID.
+	 * Mark clicks as reported so no later alert lists them again.
 	 *
-	 * @return int
+	 * @param int[]|null $ids Click IDs, or null for every fraudulent click recorded so far.
 	 */
-	public function max_click_id() {
-		return (int) $this->db->get_var( "SELECT MAX(id) FROM {$this->clicks}" );
+	public function mark_alerted( $ids = null ) {
+		if ( null === $ids ) {
+			$this->db->query( "UPDATE {$this->clicks} SET alerted = 1 WHERE status = 2 AND alerted = 0" );
+			return;
+		}
+		$ids = array_filter( array_map( 'intval', (array) $ids ) );
+		if ( ! empty( $ids ) ) {
+			$this->db->query( "UPDATE {$this->clicks} SET alerted = 1 WHERE id IN (" . implode( ',', $ids ) . ')' );
+		}
+	}
+
+	/**
+	 * Mark every click up to an ID as reported. Used once, when upgrading from the version
+	 * that remembered only the last click it had emailed.
+	 *
+	 * @param int $id Highest click ID already reported.
+	 */
+	public function mark_alerted_up_to( $id ) {
+		$this->db->query( $this->db->prepare( "UPDATE {$this->clicks} SET alerted = 1 WHERE id <= %d", $id ) );
 	}
 
 	/**
@@ -900,7 +956,7 @@ final class Repository {
 					SUM(CASE WHEN click_type = 'ad_click' THEN 1 ELSE 0 END) AS onsite,
 					SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS suspicious,
 					SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS fraud
-				FROM {$this->clicks} WHERE created_at >= %s AND created_at < %s AND click_type IN ('ad_landing', 'ad_click')",
+				FROM {$this->clicks} WHERE created_at >= %s AND created_at < %s AND {$this->is_ad()}",
 				$from,
 				$to
 			)
@@ -952,7 +1008,7 @@ final class Repository {
 		$rows = $this->db->get_results(
 			$this->db->prepare(
 				"SELECT SUBSTR(created_at, 1, 13) AS hr, COUNT(*) AS n, SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS fraud
-				FROM {$this->clicks} WHERE created_at >= %s AND click_type IN ('ad_landing', 'ad_click') GROUP BY SUBSTR(created_at, 1, 13)",
+				FROM {$this->clicks} WHERE created_at >= %s AND {$this->is_ad()} GROUP BY SUBSTR(created_at, 1, 13)",
 				$from
 			)
 		);
@@ -999,7 +1055,7 @@ final class Repository {
 				$sql     = "SELECT v.{$col} AS label, COUNT(*) AS n FROM {$s} s JOIN {$v} v ON v.id = s.visitor_id WHERE s.started_at >= %s AND s.started_at < %s AND s.is_bot = 0 GROUP BY v.{$col} ORDER BY n DESC LIMIT %d";
 				break;
 			case 'networks':
-				$sql = "SELECT network AS label, COUNT(*) AS n, SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS fraud FROM {$this->clicks} WHERE created_at >= %s AND created_at < %s AND click_type IN ('ad_landing', 'ad_click') GROUP BY network ORDER BY n DESC LIMIT %d";
+				$sql = "SELECT network AS label, COUNT(*) AS n, SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS fraud FROM {$this->clicks} WHERE created_at >= %s AND created_at < %s AND {$this->is_ad()} GROUP BY network ORDER BY n DESC LIMIT %d";
 				break;
 			default:
 				return array();
@@ -1038,17 +1094,21 @@ final class Repository {
 	}
 
 	/**
-	 * Rows for CSV export.
+	 * Rows for CSV export, newest first.
 	 *
-	 * @param string $what visitors or clicks.
-	 * @param int    $limit Limit.
+	 * @param string $what   visitors or clicks.
+	 * @param int    $limit  Limit.
+	 * @param int    $offset Rows to skip, so a large export can be read in parts.
 	 * @return array
 	 */
-	public function export_rows( $what, $limit = 50000 ) {
+	public function export_rows( $what, $limit = 50000, $offset = 0 ) {
 		if ( 'clicks' === $what ) {
-			return $this->db->get_results( $this->db->prepare( "SELECT id, created_at, click_type, network, ip, visitor_id, session_id, target, label, time_to_click, fraud_score, fraud_reasons, status, reviewed FROM {$this->clicks} ORDER BY id DESC LIMIT %d", $limit ), ARRAY_A );
+			$sql = "SELECT id, created_at, click_type, network, ip, visitor_id, session_id, target, label, time_to_click, fraud_score, fraud_reasons, status, reviewed FROM {$this->clicks} ORDER BY id DESC LIMIT %d OFFSET %d";
+		} else {
+			$sql = "SELECT id, ip, country, browser, os, device, is_bot, first_seen, last_seen, sessions, pageviews, clicks, fraud_score, user_agent FROM {$this->visitors} ORDER BY last_seen DESC, id DESC LIMIT %d OFFSET %d";
 		}
-		return $this->db->get_results( $this->db->prepare( "SELECT id, ip, country, browser, os, device, is_bot, first_seen, last_seen, sessions, pageviews, clicks, fraud_score, user_agent FROM {$this->visitors} ORDER BY last_seen DESC LIMIT %d", $limit ), ARRAY_A );
+		$rows = $this->db->get_results( $this->db->prepare( $sql, $limit, $offset ), ARRAY_A );
+		return $rows ? $rows : array();
 	}
 
 	/**

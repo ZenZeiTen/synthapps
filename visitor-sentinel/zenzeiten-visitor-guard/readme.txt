@@ -3,7 +3,7 @@ Contributors: zenzeiten
 Tags: analytics, click fraud, ip tracking, visitor tracking, ad protection
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -87,6 +87,19 @@ Add `data-vsen-track="label"` to an element, or call `VisitorSentinel.track('lab
 * `vsen_blocked_request` action: fires before a blocked visitor is refused.
 
 == Changelog ==
+
+= 1.2.0 =
+* Fixed: a click that turned fraudulent at its final score, 15 minutes after it was recorded, was left out of the email alert when a newer click had already been reported.
+* Fixed: clicks an administrator reviewed before their final score came back for scoring every hour, and could hold up the queue.
+* Fixed: on-site ad clicks that belonged to no visitor were counted as the same person clicking the ad again.
+* Fixed: a page built for a blocked visitor, with the ads taken out, could be stored by a page cache and served to everyone. Such pages are now marked as not cacheable.
+* Fixed: a mouse move with no movement, which browsers send after the page layout changes, counted as visitor activity. A client with no pointer could escape the "no activity before the click" rule that way.
+* Pages a browser fetches ahead of time (prefetch, prerender) or for a link preview are no longer recorded as ad visits without a browser.
+* The tracker stops reporting when a visitor withdraws consent, and waits until a prerendered page is shown.
+* The hourly job scores a backlog in batches of 500 instead of stopping at 500 clicks.
+* CSV exports are written in parts, so large tables no longer need to fit in memory. Works on PHP 8.4 without notices.
+* Over the rate limit, a request now costs one read and no database write.
+* An alert email that says "and more" is no longer followed by further emails about the same clicks.
 
 = 1.1.0 =
 * Renamed from Visitor Sentinel to ZenZeiTen Visitor Guard, in the folder zenzeiten-visitor-guard. An unrelated WordPress.org plugin uses the old folder name, and WordPress offered it as an "update" that replaced this plugin.

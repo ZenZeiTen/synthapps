@@ -59,6 +59,11 @@ final class Fraud_Service {
 			return null;
 		}
 		if ( (int) $click->reviewed > 0 ) {
+			// The verdict stands, but the click is done: without this it would come back for a
+			// final score every hour.
+			if ( $final && ! (int) $click->finalized ) {
+				$this->repo->update_click( $click->id, array( 'finalized' => 1 ) );
+			}
 			return null;
 		}
 
@@ -93,7 +98,7 @@ final class Fraud_Service {
 		// that an administrator has since unblocked.
 		$threshold = (int) Settings::get( 'auto_block_threshold' );
 		if ( $update['fraud_score'] >= $threshold && (int) $click->fraud_score < $threshold ) {
-			$this->maybe_auto_block( $click, $update['fraud_score'], $result['reasons'], $this->signals( $click ) );
+			$this->maybe_auto_block( $click, $update['fraud_score'], $result['reasons'], Repository::signals( $click ) );
 		}
 		if ( Fraud_Engine::STATUS_FRAUD === (int) $result['status'] && Fraud_Engine::STATUS_FRAUD !== (int) $click->status ) {
 			/**
@@ -116,8 +121,8 @@ final class Fraud_Service {
 	 * @return array
 	 */
 	public function facts( $click, $final ) {
-		$signals = $this->signals( $click );
-		$created = (int) strtotime( $click->created_at . ' UTC' );
+		$signals = Repository::signals( $click );
+		$created = Repository::timestamp( $click->created_at );
 		$at      = function ( $seconds ) use ( $created ) {
 			return gmdate( 'Y-m-d H:i:s', $created - $seconds );
 		};
@@ -171,17 +176,6 @@ final class Fraud_Service {
 		 * @param object $click Click row.
 		 */
 		return apply_filters( 'vsen_fraud_facts', $facts, $click );
-	}
-
-	/**
-	 * Decode a click's stored signals.
-	 *
-	 * @param object $click Click row.
-	 * @return array
-	 */
-	private function signals( $click ) {
-		$signals = json_decode( (string) $click->signals, true );
-		return is_array( $signals ) ? $signals : array();
 	}
 
 	/**

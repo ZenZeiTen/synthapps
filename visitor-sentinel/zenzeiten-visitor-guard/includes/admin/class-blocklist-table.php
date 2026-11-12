@@ -106,7 +106,7 @@ final class Blocklist_Table extends \WP_List_Table {
 	 */
 	protected function column_ip_range( $item ) {
 		$label   = '' !== (string) $item->ip_range ? $item->ip_range : '#' . substr( (string) $item->ip_hash, 0, 10 );
-		$expired = $item->expires_at && strtotime( $item->expires_at . ' UTC' ) <= time();
+		$expired = $item->expires_at && Repository::timestamp( $item->expires_at ) <= time();
 		$html    = '<strong class="vsen-ip">' . esc_html( $label ) . '</strong>';
 		if ( $expired ) {
 			$html .= ' <span class="vsen-pill">' . esc_html__( 'Expired', 'zenzeiten-visitor-guard' ) . '</span>';
