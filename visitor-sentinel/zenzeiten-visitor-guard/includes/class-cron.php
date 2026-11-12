@@ -60,18 +60,32 @@ final class Cron {
 	/**
 	 * Give every click older than FINALIZE_AFTER its final score.
 	 *
+	 * Clicks are read in batches, oldest first, so a busy hour is worked through in one run
+	 * without loading it all at once. The run stops after $max_batches or 20 seconds; what is
+	 * left waits for the next run.
+	 *
+	 * @param int $batch       Clicks per batch.
+	 * @param int $max_batches Batches per run.
 	 * @return int Clicks finalized.
 	 */
-	public static function finalize_clicks() {
+	public static function finalize_clicks( $batch = 500, $max_batches = 10 ) {
 		$repo    = Repository::instance();
 		$service = new Fraud_Service();
+		$before  = Repository::now( -self::FINALIZE_AFTER );
+		$stop_at = time() + 20;
 		$count   = 0;
-		foreach ( (array) $repo->unfinalized_clicks( Repository::now( -self::FINALIZE_AFTER ) ) as $click ) {
-			if ( 'ad_landing' === $click->click_type && 0 === (int) $click->visitor_id ) {
-				self::attach_server_visitor( $click );
+		for ( $i = 0; $i < $max_batches && time() < $stop_at; $i++ ) {
+			$clicks = (array) $repo->unfinalized_clicks( $before, $batch );
+			foreach ( $clicks as $click ) {
+				if ( 'ad_landing' === $click->click_type && 0 === (int) $click->visitor_id ) {
+					self::attach_server_visitor( $click );
+				}
+				$service->evaluate( (int) $click->id, true );
+				++$count;
 			}
-			$service->evaluate( (int) $click->id, true );
-			++$count;
+			if ( count( $clicks ) < $batch ) {
+				break;
+			}
 		}
 		return $count;
 	}
@@ -83,8 +97,7 @@ final class Cron {
 	 * @param object $click Click row.
 	 */
 	private static function attach_server_visitor( $click ) {
-		$signals = json_decode( (string) $click->signals, true );
-		$signals = is_array( $signals ) ? $signals : array();
+		$signals = Repository::signals( $click );
 		$repo    = Repository::instance();
 		$id      = $repo->upsert_visitor(
 			hash_hmac( 'sha256', 'srv|' . $click->ip_hash, Plugin::secret() ),

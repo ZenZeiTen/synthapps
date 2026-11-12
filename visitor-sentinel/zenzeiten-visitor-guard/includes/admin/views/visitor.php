@@ -11,10 +11,11 @@
  */
 
 use VisitorSentinel\Admin\Admin;
+use VisitorSentinel\Protection;
 
 defined( 'ABSPATH' ) || exit;
 
-$vsen_blocked = '' !== (string) $visitor->ip_hash && Admin::hash_blocked( $visitor->ip_hash );
+$vsen_blocked = Protection::hash_blocked( $visitor->ip_hash );
 
 // One timeline from pageviews and clicks, newest first.
 $vsen_events = array();

@@ -36,6 +36,7 @@ final class WP_Stub {
 	public static $mail       = array();
 	public static $user       = null;
 	public static $home       = 'https://example.com';
+	public static $nocache    = 0;
 
 	public static function reset() {
 		self::$options    = array();
@@ -43,6 +44,7 @@ final class WP_Stub {
 		self::$filters    = array();
 		self::$mail       = array();
 		self::$user       = null;
+		self::$nocache    = 0;
 	}
 }
 
@@ -333,7 +335,7 @@ function wp_nonce_field( $action ) { echo '<input type="hidden" name="_wpnonce" 
 function wp_next_scheduled( $hook ) { return false; }
 function wp_schedule_event( ...$args ) { return true; }
 function wp_clear_scheduled_hook( $hook ) { return 0; }
-function nocache_headers() {}
+function nocache_headers() { ++WP_Stub::$nocache; }
 function wp_die( $message = '', $title = '', $args = array() ) { throw new RuntimeException( 'wp_die: ' . $message ); }
 function wp_print_inline_script_tag( $js, $attrs = array() ) { echo '<script>' . $js . '</script>'; }
 function is_preview() { return false; }

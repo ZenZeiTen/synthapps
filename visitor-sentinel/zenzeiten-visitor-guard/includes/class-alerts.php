@@ -10,11 +10,18 @@ namespace VisitorSentinel;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Sends at most one email per hourly run, listing fraudulent clicks found since the last email.
+ * Sends at most one email per hourly run, listing fraudulent clicks no earlier email reported.
+ *
+ * Each click is marked once it has been reported. A click can turn fraudulent long after it
+ * was recorded (a landing no browser confirms is scored 15 minutes later), so "newer than the
+ * last one emailed" would miss it.
  */
 final class Alerts {
 
-	const CURSOR_OPTION = 'vsen_alert_cursor';
+	/**
+	 * Clicks listed in one email.
+	 */
+	const PER_EMAIL = 25;
 
 	/**
 	 * Send the digest when there is something new.
@@ -22,32 +29,32 @@ final class Alerts {
 	 * @return bool Whether an email was sent.
 	 */
 	public static function send_digest() {
-		$repo   = Repository::instance();
-		$cursor = get_option( self::CURSOR_OPTION, null );
-		if ( null === $cursor ) {
-			// First run: start from now instead of reporting history.
-			update_option( self::CURSOR_OPTION, $repo->max_click_id(), false );
+		$repo = Repository::instance();
+		$to   = Settings::get( 'alert_email' );
+		$to   = is_email( $to ) ? $to : get_option( 'admin_email' );
+		if ( ! Settings::get( 'alerts_enabled' ) || ! is_email( $to ) ) {
+			// Nothing is saved up for later: switching alerts on reports only what follows.
+			$repo->mark_alerted();
 			return false;
 		}
-		$clicks = (array) $repo->fraud_clicks_after( (int) $cursor, 26 );
+		$clicks = $repo->unreported_fraud( self::PER_EMAIL + 1 );
 		if ( empty( $clicks ) ) {
 			return false;
 		}
-		$last = end( $clicks );
-		update_option( self::CURSOR_OPTION, (int) $last->id, false );
-
-		if ( ! Settings::get( 'alerts_enabled' ) ) {
-			return false;
-		}
-		$to = Settings::get( 'alert_email' );
-		$to = is_email( $to ) ? $to : get_option( 'admin_email' );
-		if ( ! is_email( $to ) ) {
-			return false;
+		$more   = count( $clicks ) > self::PER_EMAIL;
+		$clicks = array_slice( $clicks, 0, self::PER_EMAIL );
+		if ( $more ) {
+			// One email says "and more"; the rest is on the dashboard, not in the next email.
+			$repo->mark_alerted();
+		} else {
+			$ids = array();
+			foreach ( $clicks as $click ) {
+				$ids[] = (int) $click->id;
+			}
+			$repo->mark_alerted( $ids );
 		}
 
 		$labels = Fraud_Engine::labels();
-		$more   = count( $clicks ) > 25;
-		$clicks = array_slice( $clicks, 0, 25 );
 		$lines  = array();
 		foreach ( $clicks as $click ) {
 			$reasons = array();

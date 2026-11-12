@@ -154,12 +154,21 @@ final class Settings {
 	 * @return string[]
 	 */
 	public static function ad_selectors() {
-		$lines = preg_split( '/[\r\n]+/', (string) self::get( 'ad_selectors' ) );
-		$out   = array();
-		foreach ( $lines as $line ) {
+		return self::selector_lines( (string) self::get( 'ad_selectors' ) );
+	}
+
+	/**
+	 * The usable selectors in a block of text, one per line.
+	 *
+	 * @param string $text Text.
+	 * @return string[]
+	 */
+	private static function selector_lines( $text ) {
+		$out = array();
+		foreach ( preg_split( '/[\r\n]+/', $text ) as $line ) {
 			$line = trim( $line );
 			// Selectors are printed into CSS and JS, so refuse anything that could close a rule or a tag.
-			if ( '' !== $line && ! preg_match( '/[{}<>;@\\\\]/', $line ) ) {
+			if ( '' !== $line && strlen( $line ) <= 200 && ! preg_match( '/[{}<>;@\\\\]/', $line ) ) {
 				$out[] = $line;
 			}
 		}
@@ -216,15 +225,8 @@ final class Settings {
 		$out['fraud_sensitivity'] = self::pick( $input, 'fraud_sensitivity', array( 'low', 'medium', 'high' ), $defaults['fraud_sensitivity'] );
 		$out['protection_action'] = self::pick( $input, 'protection_action', array( 'log_only', 'hide_ads', 'block_site' ), $defaults['protection_action'] );
 
-		$selectors = isset( $input['ad_selectors'] ) ? (string) $input['ad_selectors'] : '';
-		$kept      = array();
-		foreach ( preg_split( '/[\r\n]+/', $selectors ) as $line ) {
-			$line = trim( wp_strip_all_tags( $line ) );
-			if ( '' !== $line && ! preg_match( '/[{}<>;@\\\\]/', $line ) && strlen( $line ) <= 200 ) {
-				$kept[] = $line;
-			}
-		}
-		$out['ad_selectors'] = implode( "\n", array_slice( array_unique( $kept ), 0, 50 ) );
+		$selectors           = self::selector_lines( isset( $input['ad_selectors'] ) ? (string) $input['ad_selectors'] : '' );
+		$out['ad_selectors'] = implode( "\n", array_slice( array_unique( $selectors ), 0, 50 ) );
 
 		$email              = isset( $input['alert_email'] ) ? sanitize_email( (string) $input['alert_email'] ) : '';
 		$out['alert_email'] = is_email( $email ) ? $email : '';

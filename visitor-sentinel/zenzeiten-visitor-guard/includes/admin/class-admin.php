@@ -25,6 +25,11 @@ final class Admin {
 	const SLUG = 'vsen-dashboard';
 
 	/**
+	 * Most rows one CSV export contains.
+	 */
+	const EXPORT_MAX = 50000;
+
+	/**
 	 * Hook into WordPress.
 	 */
 	public function register() {
@@ -254,17 +259,42 @@ final class Admin {
 	}
 
 	/**
+	 * The rows ticked for a bulk action, once the request is verified. Empty when this page
+	 * load is not a bulk action.
+	 *
+	 * @param string|false $action Action the list table reports.
+	 * @param string       $plural The table's plural name, which names its nonce.
+	 * @return int[]
+	 */
+	private function bulk_ids( $action, $plural ) {
+		$ids = isset( $_REQUEST['ids'] ) ? array_filter( array_map( 'absint', (array) wp_unslash( $_REQUEST['ids'] ) ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified below.
+		if ( ! $action || empty( $ids ) ) {
+			return array();
+		}
+		check_admin_referer( 'bulk-' . $plural );
+		$this->require_cap();
+		return $ids;
+	}
+
+	/**
+	 * Return to the list after a bulk action, without the action in the URL.
+	 *
+	 * @param string $code  Notice code.
+	 * @param int    $count Rows changed.
+	 */
+	private function bulk_done( $code, $count ) {
+		$this->redirect( remove_query_arg( array( 'action', 'action2', 'ids', '_wpnonce', '_wp_http_referer' ) ), $code, $count );
+	}
+
+	/**
 	 * Bulk actions on visitors.
 	 */
 	public function load_visitors() {
-		$table  = $this->visitors_table();
-		$action = $table->current_action();
-		$ids    = isset( $_REQUEST['ids'] ) ? array_map( 'absint', (array) wp_unslash( $_REQUEST['ids'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified below.
-		if ( ! $action || empty( $ids ) ) {
+		$action = $this->visitors_table()->current_action();
+		$ids    = $this->bulk_ids( $action, 'visitors' );
+		if ( empty( $ids ) ) {
 			return;
 		}
-		check_admin_referer( 'bulk-visitors' );
-		$this->require_cap();
 		$repo  = Repository::instance();
 		$count = 0;
 		foreach ( $ids as $id ) {
@@ -280,21 +310,18 @@ final class Admin {
 				++$count;
 			}
 		}
-		$this->redirect( remove_query_arg( array( 'action', 'action2', 'ids', '_wpnonce', '_wp_http_referer' ) ), 'block' === $action ? 'blocked' : 'unblocked', $count );
+		$this->bulk_done( 'block' === $action ? 'blocked' : 'unblocked', $count );
 	}
 
 	/**
 	 * Bulk actions on clicks.
 	 */
 	public function load_fraud() {
-		$table  = $this->clicks_table();
-		$action = $table->current_action();
-		$ids    = isset( $_REQUEST['ids'] ) ? array_map( 'absint', (array) wp_unslash( $_REQUEST['ids'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified below.
-		if ( ! $action || empty( $ids ) ) {
+		$action = $this->clicks_table()->current_action();
+		$ids    = $this->bulk_ids( $action, 'clicks' );
+		if ( empty( $ids ) ) {
 			return;
 		}
-		check_admin_referer( 'bulk-clicks' );
-		$this->require_cap();
 		$count = 0;
 		foreach ( $ids as $id ) {
 			if ( $this->apply_click_action( $action, $id ) ) {
@@ -306,26 +333,23 @@ final class Admin {
 			'fraud' => 'marked_fraud',
 			'block' => 'blocked',
 		);
-		$this->redirect( remove_query_arg( array( 'action', 'action2', 'ids', '_wpnonce', '_wp_http_referer' ) ), isset( $codes[ $action ] ) ? $codes[ $action ] : 'done', $count );
+		$this->bulk_done( isset( $codes[ $action ] ) ? $codes[ $action ] : 'failed', $count );
 	}
 
 	/**
 	 * Bulk removal from the blocklist.
 	 */
 	public function load_blocklist() {
-		$table  = $this->blocklist_table();
-		$action = $table->current_action();
-		$ids    = isset( $_REQUEST['ids'] ) ? array_map( 'absint', (array) wp_unslash( $_REQUEST['ids'] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified below.
-		if ( 'remove' !== $action || empty( $ids ) ) {
+		$action = $this->blocklist_table()->current_action();
+		$ids    = 'remove' === $action ? $this->bulk_ids( $action, 'blocks' ) : array();
+		if ( empty( $ids ) ) {
 			return;
 		}
-		check_admin_referer( 'bulk-blocks' );
-		$this->require_cap();
 		foreach ( $ids as $id ) {
 			Repository::instance()->delete_block( $id );
 		}
 		Protection::rebuild_index();
-		$this->redirect( remove_query_arg( array( 'action', 'action2', 'ids', '_wpnonce', '_wp_http_referer' ) ), 'unblocked', count( $ids ) );
+		$this->bulk_done( 'unblocked', count( $ids ) );
 	}
 
 	/**
@@ -488,18 +512,51 @@ final class Admin {
 		}
 
 		$what = 'clicks' === $what ? 'clicks' : 'visitors';
-		$rows = (array) Repository::instance()->export_rows( $what );
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="visitor-guard-' . $what . '-' . $stamp . '.csv"' );
 		$out = fopen( 'php://output', 'w' );
-		if ( ! empty( $rows ) ) {
-			fputcsv( $out, array_keys( $rows[0] ) );
-			foreach ( $rows as $row ) {
-				fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), $row ) );
-			}
-		}
+		self::write_csv( $what, $out );
 		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		exit;
+	}
+
+	/**
+	 * Write visitors or clicks as CSV, newest first. Rows are read and written a chunk at a
+	 * time, so a large table does not have to fit in memory.
+	 *
+	 * @param string   $what  visitors or clicks.
+	 * @param resource $out   Stream to write to.
+	 * @param int      $chunk Rows read per query.
+	 * @return int Rows written, at most EXPORT_MAX.
+	 */
+	public static function write_csv( $what, $out, $chunk = 2000 ) {
+		$repo    = Repository::instance();
+		$written = 0;
+		while ( $written < self::EXPORT_MAX ) {
+			$rows = $repo->export_rows( $what, min( $chunk, self::EXPORT_MAX - $written ), $written );
+			if ( 0 === $written && ! empty( $rows ) ) {
+				self::csv_line( $out, array_keys( $rows[0] ) );
+			}
+			foreach ( $rows as $row ) {
+				self::csv_line( $out, array_map( array( __CLASS__, 'csv_cell' ), $row ) );
+			}
+			$written += count( $rows );
+			if ( count( $rows ) < $chunk ) {
+				break;
+			}
+		}
+		return $written;
+	}
+
+	/**
+	 * Write one CSV line. The escape character is passed because PHP 8.4 deprecates leaving
+	 * it out; '' means quotes are escaped by doubling them, as spreadsheets expect.
+	 *
+	 * @param resource $out    Stream.
+	 * @param array    $fields Cells.
+	 */
+	private static function csv_line( $out, array $fields ) {
+		fputcsv( $out, $fields, ',', '"', '' );
 	}
 
 	/**
@@ -586,7 +643,7 @@ final class Admin {
 				'browser' => (string) $s->browser,
 				'paid'    => (bool) $s->is_paid,
 				'score'   => (int) $s->fraud_score,
-				'ago'     => human_time_diff( (int) strtotime( $s->last_activity . ' UTC' ), time() ),
+				'ago'     => human_time_diff( Repository::timestamp( $s->last_activity ), time() ),
 				'link'    => esc_url_raw( admin_url( 'admin.php?page=vsen-visitors&visitor=' . (int) $s->visitor_id ) ),
 			);
 		}
@@ -809,7 +866,7 @@ final class Admin {
 			return '—';
 		}
 		$format = '' !== (string) $format ? $format : trim( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) );
-		return wp_date( '' !== $format ? $format : 'Y-m-d H:i', (int) strtotime( $utc . ' UTC' ) );
+		return wp_date( '' !== $format ? $format : 'Y-m-d H:i', Repository::timestamp( $utc ) );
 	}
 
 	/**
@@ -827,20 +884,5 @@ final class Admin {
 			return floor( $seconds / 60 ) . 'm ' . ( $seconds % 60 ) . 's';
 		}
 		return floor( $seconds / 3600 ) . 'h ' . floor( ( $seconds % 3600 ) / 60 ) . 'm';
-	}
-
-	/**
-	 * Whether an IP hash is on the active blocklist.
-	 *
-	 * @param string $ip_hash IP hash.
-	 * @return bool
-	 */
-	public static function hash_blocked( $ip_hash ) {
-		$index = Protection::index();
-		if ( ! isset( $index['h'][ $ip_hash ] ) ) {
-			return false;
-		}
-		$expires = (int) $index['h'][ $ip_hash ];
-		return 0 === $expires || $expires > time();
 	}
 }

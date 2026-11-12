@@ -20,12 +20,14 @@
 	var DOWNLOAD = /\.(pdf|zip|rar|7z|gz|tgz|tar|dmg|exe|msi|apk|docx?|xlsx?|pptx?|csv|txt|rtf|odt|ods|odp|epub|mp3|mp4|m4a|mov|avi|wav|webm)(?:[?#]|$)/i;
 
 	var started = false;
+	var halted = false;
 	var loadedAt = now();
 	var pageview = null;
 	var token = null;
 	var sessionKey = null;
 	var interactions = 0;
 	var lastInteraction = 0;
+	var pointerAt = null;
 	var maxScroll = 0;
 	var visibleMs = 0;
 	var visibleSince = d.hidden ? 0 : loadedAt;
@@ -144,6 +146,9 @@
 	 * survives unload but returns the reply; anything else is a plain request.
 	 */
 	function send( payload, mode ) {
+		if ( halted ) {
+			return null;
+		}
 		var body = JSON.stringify( payload );
 		if ( 'beacon' === mode && nav.sendBeacon ) {
 			try {
@@ -181,6 +186,18 @@
 		if ( t - lastInteraction > 400 ) {
 			interactions++;
 			lastInteraction = t;
+		}
+	}
+
+	// After the layout changes, browsers send a mousemove for a pointer that has not moved, to
+	// update what it hovers over. A client with no pointer at all gets one too. Count a move only
+	// when the pointer is somewhere other than where the last mousemove left it.
+	function onMove( event ) {
+		var at = event.screenX + ',' + event.screenY;
+		var moved = null !== pointerAt && at !== pointerAt;
+		pointerAt = at;
+		if ( moved ) {
+			interacted();
 		}
 	}
 
@@ -382,7 +399,7 @@
 		listen( d, 'pointerdown', interacted );
 		listen( d, 'keydown', interacted );
 		listen( d, 'touchstart', interacted );
-		listen( d, 'mousemove', interacted );
+		listen( d, 'mousemove', onMove );
 		listen( w, 'scroll', onScroll );
 		listen( d, 'click', onClick );
 		listen( d, 'mouseover', onOver );
@@ -425,6 +442,34 @@
 		}
 	}
 
+	// A page the browser loads ahead of time (prerender) has no visitor yet. Wait until it is
+	// shown, and measure time on page from that moment.
+	function begin() {
+		if ( d.prerendering ) {
+			d.addEventListener(
+				'prerenderingchange',
+				function () {
+					loadedAt = now();
+					visibleSince = d.hidden ? 0 : loadedAt;
+					start();
+				},
+				{ once: true }
+			);
+			return;
+		}
+		start();
+	}
+
+	// Stop or resume reporting when the visitor changes their mind about consent.
+	function setHalted( stop ) {
+		halted = stop;
+		if ( stop ) {
+			clearTimeout( beatTimer );
+		} else if ( started ) {
+			scheduleBeat();
+		}
+	}
+
 	function hasConsent() {
 		if ( 'function' === typeof w.wp_has_consent ) {
 			return !! w.wp_has_consent( 'statistics' );
@@ -440,9 +485,10 @@
 		 */
 		consent: function ( granted ) {
 			w.vsenConsent = !! granted;
+			setHalted( ! granted );
 			if ( granted ) {
 				storeSet( 'vsen_consent', '1' );
-				start();
+				begin();
 			} else {
 				storeRemove( 'vsen_consent' );
 			}
@@ -463,14 +509,20 @@
 		return;
 	}
 
-	if ( cfg.consent && ! hasConsent() ) {
+	if ( cfg.consent ) {
 		d.addEventListener( 'wp_listen_for_consent_change', function ( event ) {
-			if ( event.detail && 'allow' === event.detail.statistics ) {
-				start();
+			var choice = event.detail && event.detail.statistics;
+			if ( 'allow' === choice ) {
+				setHalted( false );
+				begin();
+			} else if ( 'deny' === choice ) {
+				setHalted( true );
 			}
 		} );
-		return;
+		if ( ! hasConsent() ) {
+			return;
+		}
 	}
 
-	start();
+	begin();
 } )();

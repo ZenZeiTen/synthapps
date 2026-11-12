@@ -47,13 +47,32 @@ final class Installer {
 
 		$repo    = Repository::instance();
 		$charset = $wpdb->get_charset_collate();
+		$from    = (string) get_option( 'vsen_db_version', '' );
 
 		dbDelta( self::schema( $repo, $charset ) );
+		self::migrate( $from );
 
 		add_option( Settings::OPTION, Settings::defaults() );
 		Plugin::secret();
 		update_option( 'vsen_db_version', VSEN_DB_VERSION );
 		Protection::rebuild_index();
+	}
+
+	/**
+	 * Carry data over from an older schema. Runs after dbDelta() has added any new columns.
+	 *
+	 * @param string $from Schema version the site had, '' on a new install.
+	 */
+	public static function migrate( $from ) {
+		if ( '1' === (string) $from ) {
+			// Version 1 remembered the last click it had emailed. Version 2 marks each click
+			// instead, so mark what was already sent, or the first alert would repeat it.
+			$cursor = get_option( 'vsen_alert_cursor', null );
+			if ( null !== $cursor && false !== $cursor ) {
+				Repository::instance()->mark_alerted_up_to( (int) $cursor );
+				delete_option( 'vsen_alert_cursor' );
+			}
+		}
 	}
 
 	/**
@@ -158,6 +177,7 @@ final class Installer {
   status tinyint(1) NOT NULL DEFAULT 0,
   reviewed tinyint(1) NOT NULL DEFAULT 0,
   finalized tinyint(1) NOT NULL DEFAULT 0,
+  alerted tinyint(1) NOT NULL DEFAULT 0,
   evaluated_at datetime NULL DEFAULT NULL,
   PRIMARY KEY  (id),
   KEY ip_created (ip_hash,created_at),
@@ -166,6 +186,7 @@ final class Installer {
   KEY created_at (created_at),
   KEY click_ref (click_ref),
   KEY status_created (status,created_at),
+  KEY status_alerted (status,alerted),
   KEY finalized (finalized,created_at)
 ) {$charset};",
 			"CREATE TABLE {$repo->blocklist} (

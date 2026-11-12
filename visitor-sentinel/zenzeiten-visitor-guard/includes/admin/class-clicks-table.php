@@ -7,6 +7,7 @@
 
 namespace VisitorSentinel\Admin;
 
+use VisitorSentinel\Protection;
 use VisitorSentinel\Repository;
 
 defined( 'ABSPATH' ) || exit;
@@ -173,7 +174,7 @@ final class Clicks_Table extends \WP_List_Table {
 				$actions['fraud'] = '<a href="' . esc_url( Admin::action_url( 'click', array( 'verb' => 'fraud', 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Confirm fraud', 'zenzeiten-visitor-guard' ) . '</a>';
 			}
 		}
-		if ( '' !== (string) $item->ip_hash && ! Admin::hash_blocked( $item->ip_hash ) ) {
+		if ( '' !== (string) $item->ip_hash && ! Protection::hash_blocked( $item->ip_hash ) ) {
 			$actions['block'] = '<a class="vsen-danger" href="' . esc_url( Admin::action_url( 'click', array( 'verb' => 'block', 'id' => (int) $item->id ) ) ) . '">' . esc_html__( 'Block IP', 'zenzeiten-visitor-guard' ) . '</a>';
 		}
 		return $html . $this->row_actions( $actions );
@@ -210,7 +211,7 @@ final class Clicks_Table extends \WP_List_Table {
 		if ( ! empty( $item->device ) ) {
 			$html .= '<br><span class="vsen-muted">' . esc_html( trim( ucfirst( (string) $item->device ) . ' · ' . $item->browser, ' ·' ) ) . '</span>';
 		}
-		if ( '' !== (string) $item->ip_hash && Admin::hash_blocked( $item->ip_hash ) ) {
+		if ( Protection::hash_blocked( $item->ip_hash ) ) {
 			$html .= ' <span class="vsen-pill vsen-pill--fraud">' . esc_html__( 'Blocked', 'zenzeiten-visitor-guard' ) . '</span>';
 		}
 		return $html;
