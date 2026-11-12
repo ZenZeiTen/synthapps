@@ -21,6 +21,16 @@ final class Guard {
 	const ERROR_OPTION = 'zbst_last_error';
 
 	/**
+	 * Holds the latest automatic block of a Cloudflare address, for the admin notice.
+	 */
+	const CLOUDFLARE_OPTION = 'zbst_cloudflare_notice';
+
+	/**
+	 * Longest automatic block, in minutes, of an address that may be a proxy in front of the site.
+	 */
+	const PROXY_BLOCK_MINUTES = 60;
+
+	/**
 	 * Register hooks.
 	 */
 	public static function register() {
@@ -107,7 +117,9 @@ final class Guard {
 	}
 
 	/**
-	 * Every request: refuse blocked addresses, apply the rate limit, then run the firewall.
+	 * Every request: refuse blocked addresses, judge agents, apply the rate limit, then run the
+	 * firewall. The agent check comes right after the blocklist, so a blocked address costs
+	 * nothing extra, and before the rate limit, so verified crawlers can be spared from it.
 	 */
 	public static function early() {
 		if ( self::exempt() ) {
@@ -115,7 +127,7 @@ final class Guard {
 		}
 		$ip      = Request::ip();
 		$blocked = Blocklist::match( $ip );
-		if ( null !== $blocked ) {
+		if ( null !== $blocked && ! Agents::spared_on_robots() ) {
 			Blocklist::hit( $blocked );
 			// One log line per address every five minutes is enough to show it is still trying.
 			$key = 'zbst_seen_' . md5( $ip );
@@ -132,12 +144,19 @@ final class Guard {
 			}
 			self::deny( 403, 'Your access to this site has been blocked.' );
 		}
+		$inspected = Agents::check();
 		Hardening::rate_limit();
-		Firewall::run();
+		if ( ! $inspected ) {
+			Firewall::run();
+		}
 	}
 
 	/**
-	 * Record a threat, and block the address when its score over the window reaches the threshold.
+	 * Record a threat, and block the address when its score reaches a threshold.
+	 *
+	 * Two windows are checked. The short one counts every event. The long one counts only high
+	 * and critical events, so it catches a scanner that probes a few times a day without ever
+	 * blocking someone for mistyping a password.
 	 *
 	 * @param array $event Event for Log::add().
 	 * @return array|null The block placed, if any.
@@ -148,12 +167,26 @@ final class Guard {
 		if ( ! Settings::get( 'auto_block' ) || '' === $ip ) {
 			return null;
 		}
-		$score = Log::score( $ip, (int) Settings::get( 'score_window' ) );
-		if ( $score < (int) Settings::get( 'score_threshold' ) ) {
+		// An event that adds no points cannot push a score over a threshold.
+		if ( Log::points( $event ) <= 0 ) {
 			return null;
 		}
-		$reason = sprintf( 'Threat score %1$d in %2$d minutes', $score, (int) Settings::get( 'score_window' ) );
-		return self::auto_block( $ip, 'auto', $reason, null );
+
+		$window = (int) Settings::get( 'score_window' );
+		$score  = Log::score( $ip, $window );
+		if ( $score >= (int) Settings::get( 'score_threshold' ) ) {
+			return self::auto_block( $ip, 'auto', sprintf( 'Threat score %1$d in %2$d minutes', $score, $window ), null );
+		}
+
+		$window = (int) Settings::get( 'score_window_long' );
+		if ( $window <= 0 ) {
+			return null;
+		}
+		$score = Log::score_min( $ip, $window, Log::SEVERITY_HIGH );
+		if ( $score >= (int) Settings::get( 'score_threshold_long' ) ) {
+			return self::auto_block( $ip, 'auto', sprintf( 'Threat score %1$d in %2$d minutes (high and critical only)', $score, $window ), null );
+		}
+		return null;
 	}
 
 	/**
@@ -169,9 +202,26 @@ final class Guard {
 		if ( null !== Blocklist::match( $ip ) || Blocklist::is_admin_ip( $ip ) ) {
 			return null;
 		}
+		// An address inside Cloudflare's ranges, on a site that does not say it is behind
+		// Cloudflare, may be Cloudflare's edge standing in for every visitor. Keep the block
+		// short and ask the owner to check, rather than escalate to days.
+		$proxy = ! Settings::get( 'trust_cloudflare' ) && IP::in_any( $ip, Settings::CLOUDFLARE_RANGES );
+		if ( $proxy && ( null === $minutes || $minutes <= 0 || $minutes > self::PROXY_BLOCK_MINUTES ) ) {
+			$minutes = self::PROXY_BLOCK_MINUTES;
+		}
 		$block = Blocklist::add( $ip, $source, $reason, $minutes );
 		if ( ! $block ) {
 			return null;
+		}
+		if ( $proxy ) {
+			update_option(
+				self::CLOUDFLARE_OPTION,
+				array(
+					'ip'   => $block['ip'],
+					'time' => time(),
+				),
+				false
+			);
 		}
 		$until = $block['expires_at'] ? $block['expires_at'] . ' UTC' : 'permanently';
 		Log::add(

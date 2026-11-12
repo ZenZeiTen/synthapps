@@ -52,7 +52,7 @@ final class Firewall {
 			'php-object'      => array( $c, array( 'args', 'cookies' ), '/(?:^|[;{])\s*[OC]:\d+:"[a-z0-9_\\\\]+":\d+:\{/i' ),
 			'null-byte'       => array( $h, array( 'args', 'uri' ), '/\x00/' ),
 			'upload-script'   => array( $c, array( 'files' ), '/\.(?:php[0-9s]?|pht(?:ml)?|phar|shtml|cgi|pl|asp|aspx|jsp|htaccess|user\.ini)(?:\.|$)/i' ),
-			'sensitive-file'  => array( $h, array( 'path' ), '/(?:^|\/)(?:wp-config\.php.+|\.env(?:\.[a-z]+)?$|\.git\/|\.svn\/|\.hg\/|\.htpasswd$|\.DS_Store$|phpinfo\.php$|(?:db|database|dump|backup)[\w.-]*\.(?:sql|sql\.gz|zip|tar\.gz)$|wp-content\/debug\.log$)/i' ),
+			'sensitive-file'  => array( $h, array( 'path' ), '/(?:^|\/)(?:wp-config\.php.+|\.env(?:\.[a-z]+)?$|\.(?:git|svn|hg)(?:\/|$)|\.htpasswd$|\.DS_Store$|phpinfo\.php$|(?:db|database|dump|backup)[\w.-]*\.(?:sql|sql\.gz|zip|tar\.gz)$|wp-content\/debug\.log$)/i' ),
 			'scanner-ua'      => array( $h, array( 'ua' ), '/\b(?:sqlmap|nikto|wpscan|acunetix|nessus|openvas|masscan|zgrab|nuclei|dirbuster|gobuster|ffuf|wfuzz|hydra|jorgee|zmeu|morfeus|netsparker|w3af|havij|appscan|fimap|commix|nmap scripting engine)\b/i' ),
 		);
 	}
@@ -152,22 +152,42 @@ final class Firewall {
 	}
 
 	/**
-	 * Flatten nested request arrays into a list of keys and values.
+	 * Every key and scalar value of a nested input array as a flat list of strings. Arrays nested
+	 * more than eight levels deep are ignored.
 	 *
-	 * @param mixed $input Request array.
-	 * @param int   $depth Recursion guard.
+	 * @param mixed $input Input.
+	 * @param int   $depth Nesting depth.
 	 * @return string[]
 	 */
 	public static function flatten( $input, $depth = 0 ) {
-		$out = array();
-		if ( ! is_array( $input ) || $depth > 8 ) {
+		if ( ! is_array( $input ) ) {
 			return is_scalar( $input ) ? array( (string) $input ) : array();
+		}
+		$out = array();
+		self::collect( $input, $depth, $out );
+		return $out;
+	}
+
+	/**
+	 * Append the keys and values of an array to a list. One shared list keeps a large form from
+	 * being copied once per field.
+	 *
+	 * @param array    $input Input.
+	 * @param int      $depth Nesting depth.
+	 * @param string[] $out   List to append to.
+	 */
+	private static function collect( array $input, $depth, array &$out ) {
+		if ( $depth > 8 ) {
+			return;
 		}
 		foreach ( $input as $key => $value ) {
 			$out[] = (string) $key;
-			$out   = array_merge( $out, self::flatten( $value, $depth + 1 ) );
+			if ( is_array( $value ) ) {
+				self::collect( $value, $depth + 1, $out );
+			} elseif ( is_scalar( $value ) ) {
+				$out[] = (string) $value;
+			}
 		}
-		return $out;
 	}
 
 	/**
@@ -207,20 +227,32 @@ final class Firewall {
 	}
 
 	/**
-	 * Inspect the current request and act on a match. Users who may post unfiltered HTML (site
-	 * administrators and editors) are not inspected, because they legitimately send markup and code.
+	 * The rule the current request breaks, if the firewall is on and inspects this visitor. Users
+	 * who may post unfiltered HTML (site administrators and editors) are not inspected, because
+	 * they legitimately send markup and code.
+	 *
+	 * @return array|null Match from inspect().
+	 */
+	public static function pending() {
+		if ( 'off' === Settings::get( 'firewall_mode' ) ) {
+			return null;
+		}
+		$user = Guard::cookie_user_id();
+		if ( $user && user_can( $user, 'unfiltered_html' ) ) {
+			return null;
+		}
+		return self::inspect( self::current_request(), (array) Settings::get( 'disabled_rules' ) );
+	}
+
+	/**
+	 * Inspect the current request and act on a match.
 	 */
 	public static function run() {
-		$mode = Settings::get( 'firewall_mode' );
-		$user = Guard::cookie_user_id();
-		if ( 'off' === $mode || ( $user && user_can( $user, 'unfiltered_html' ) ) ) {
-			return;
-		}
-		$match = self::inspect( self::current_request(), (array) Settings::get( 'disabled_rules' ) );
+		$match = self::pending();
 		if ( ! $match ) {
 			return;
 		}
-		$block = 'protect' === $mode;
+		$block = 'protect' === Settings::get( 'firewall_mode' );
 		Guard::report(
 			array(
 				'type'     => 'firewall',

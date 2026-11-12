@@ -62,6 +62,10 @@ final class Log {
 			'backup'        => __( 'Backup', 'zenzeiten-bastion' ),
 			'restore'       => __( 'Restore', 'zenzeiten-bastion' ),
 			'admin_change'  => __( 'Administrator change', 'zenzeiten-bastion' ),
+			'agent_spoof'   => __( 'Spoofed agent', 'zenzeiten-bastion' ),
+			'agent_abuse'   => __( 'Agent misbehaving', 'zenzeiten-bastion' ),
+			'agent_trap'    => __( 'Trap hit', 'zenzeiten-bastion' ),
+			'agent_list'    => __( 'Agent list refresh', 'zenzeiten-bastion' ),
 		);
 	}
 
@@ -80,6 +84,26 @@ final class Log {
 	}
 
 	/**
+	 * An event's severity, kept within the known levels.
+	 *
+	 * @param array $event Event for add().
+	 * @return int
+	 */
+	public static function severity( array $event ) {
+		return isset( $event['severity'] ) ? max( self::SEVERITY_LOW, min( self::SEVERITY_CRITICAL, (int) $event['severity'] ) ) : self::SEVERITY_LOW;
+	}
+
+	/**
+	 * Threat score an event adds: its own score when it names one, otherwise its severity's weight.
+	 *
+	 * @param array $event Event for add().
+	 * @return int
+	 */
+	public static function points( array $event ) {
+		return isset( $event['score'] ) ? max( 0, (int) $event['score'] ) : self::WEIGHTS[ self::severity( $event ) ];
+	}
+
+	/**
 	 * Record an event. Missing request details are filled in from the current request.
 	 *
 	 * @param array $event Keys: type, severity, rule, action, details, ip, username, method, uri, user_agent.
@@ -87,13 +111,13 @@ final class Log {
 	 */
 	public static function add( array $event ) {
 		global $wpdb;
-		$severity = isset( $event['severity'] ) ? max( 1, min( 4, (int) $event['severity'] ) ) : self::SEVERITY_LOW;
+		$severity = self::severity( $event );
 		$row      = array(
 			'created_at' => gmdate( 'Y-m-d H:i:s' ),
 			'ip'         => isset( $event['ip'] ) ? (string) $event['ip'] : Request::ip(),
 			'type'       => isset( $event['type'] ) ? sanitize_key( $event['type'] ) : 'firewall',
 			'severity'   => $severity,
-			'score'      => isset( $event['score'] ) ? max( 0, (int) $event['score'] ) : self::WEIGHTS[ $severity ],
+			'score'      => self::points( $event ),
 			'rule'       => Request::clip( isset( $event['rule'] ) ? $event['rule'] : '', 64 ),
 			'action'     => Request::clip( isset( $event['action'] ) ? $event['action'] : 'logged', 16 ),
 			'method'     => Request::clip( isset( $event['method'] ) ? $event['method'] : Request::method(), 10 ),
@@ -127,6 +151,21 @@ final class Log {
 		global $wpdb;
 		$table = self::table();
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(score), 0) FROM {$table} WHERE ip = %s AND created_at >= %s", $ip, self::ago( $minutes ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+	}
+
+	/**
+	 * Threat score an address built up over a window, counting only events at or above a severity.
+	 * The long window uses it so that a day of mistyped passwords never adds up to a block.
+	 *
+	 * @param string $ip           Address.
+	 * @param int    $minutes      Window.
+	 * @param int    $min_severity Lowest severity counted.
+	 * @return int
+	 */
+	public static function score_min( $ip, $minutes, $min_severity ) {
+		global $wpdb;
+		$table = self::table();
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(score), 0) FROM {$table} WHERE ip = %s AND created_at >= %s AND severity >= %d", $ip, self::ago( $minutes ), (int) $min_severity ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 	}
 
 	/**

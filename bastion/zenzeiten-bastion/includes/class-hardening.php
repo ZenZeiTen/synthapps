@@ -99,6 +99,7 @@ final class Hardening {
 		if ( Guard::exempt() || is_user_logged_in() ) {
 			return;
 		}
+		$verified = 'verified' === Agents::verdict();
 		// ?author=1 redirects to /author/admin/, which reveals the login name.
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only check.
 		if ( Settings::get( 'block_enumeration' ) && isset( $_GET['author'] ) && is_numeric( $_GET['author'] ) ) {
@@ -114,7 +115,8 @@ final class Hardening {
 			exit;
 		}
 		$limit = (int) Settings::get( 'not_found_limit' );
-		if ( $limit > 0 && is_404() && Guard::bump( 'nf' . Request::ip(), 60 ) === $limit + 1 ) {
+		// A verified crawler following old links is not a scan; its crawl ceiling covers its rate.
+		if ( $limit > 0 && ! $verified && is_404() && Guard::bump( 'nf' . Request::ip(), 60 ) === $limit + 1 ) {
 			Guard::report(
 				array(
 					'type'     => 'not_found',
@@ -194,13 +196,13 @@ final class Hardening {
 	}
 
 	/**
-	 * Limit how many requests one address may make per minute. Logged-in users and cron are not
-	 * counted; static files never reach WordPress. Runs before translations load, so its text is
-	 * plain English.
+	 * Limit how many requests one address may make per minute. Logged-in users, cron and verified
+	 * crawlers (which have their own ceiling) are not counted; static files never reach WordPress.
+	 * Runs before translations load, so its text is plain English.
 	 */
 	public static function rate_limit() {
 		$limit = (int) Settings::get( 'rate_limit' );
-		if ( $limit <= 0 || Guard::cookie_user_id() || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
+		if ( $limit <= 0 || Guard::cookie_user_id() || ( defined( 'DOING_CRON' ) && DOING_CRON ) || 'verified' === Agents::verdict() ) {
 			return;
 		}
 		$ip    = Request::ip();

@@ -31,6 +31,7 @@ require_once ZBST_DIR . 'includes/class-log.php';
 require_once ZBST_DIR . 'includes/class-blocklist.php';
 require_once ZBST_DIR . 'includes/class-alerts.php';
 require_once ZBST_DIR . 'includes/class-guard.php';
+require_once ZBST_DIR . 'includes/class-agents.php';
 require_once ZBST_DIR . 'includes/class-firewall.php';
 require_once ZBST_DIR . 'includes/class-hardening.php';
 require_once ZBST_DIR . 'includes/class-backup.php';
