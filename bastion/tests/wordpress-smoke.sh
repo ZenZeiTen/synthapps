@@ -44,7 +44,10 @@ expect() {
 	local want=$1 label=$2 got
 	shift 2
 	got=$(status "$@")
-	[ "$got" = "$want" ] || fail "$label (HTTP $got, expected $want)"
+	if [ "$got" != "$want" ]; then
+		echo "--- start of response ---"; curl -s -i "$@" | head -c 1500; echo; echo "--- end ---"
+		fail "$label (HTTP $got, expected $want)"
+	fi
 }
 
 [ "$(wp eval 'echo wp_next_scheduled( "zbst_hourly" ) && wp_next_scheduled( "zbst_backup" ) && wp_next_scheduled( "zbst_agents_refresh" ) ? "yes" : "no";')" = "yes" ] || fail "cron not scheduled on activation"
