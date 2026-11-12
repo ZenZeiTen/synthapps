@@ -165,14 +165,17 @@ front_ok "real Googlebot" -A "$GOOGLEBOT" -H 'X-Forwarded-For: 192.0.2.7'
 expect 403 "Protect mode served a spoofed agent" -H 'X-Forwarded-For: 203.0.113.9' -A "$GPTBOT" "$URL/"
 expect 403 "a crawler opened wp-admin" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/wp-admin/"
 
-# WordPress serves robots.txt through a rewrite rule, so these checks need pretty permalinks.
-wp rewrite structure '/%postname%/' >/dev/null
-expect 200 "a real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/robots.txt"
+# WordPress serves robots.txt through a rewrite rule, so these checks need permalinks. PHP's
+# built-in server answers 404 by itself for a missing path with a file extension, so the request
+# goes through index.php, which WordPress supports ("PATHINFO" permalinks). Bastion sees a path
+# that ends in /robots.txt either way.
+wp rewrite structure '/index.php/%postname%/' >/dev/null
+expect 200 "a real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
 # Even from a blocked address; every other page stays refused.
 wp bastion block 192.0.2.7 --minutes=5
 expect 403 "a blocked crawler was served a page" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/"
-expect 200 "a blocked real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/robots.txt"
-expect 403 "a blocked address that only claims to be a crawler got robots.txt" -H 'X-Forwarded-For: 192.0.2.7' "$URL/robots.txt"
+expect 200 "a blocked real crawler was refused robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
+expect 403 "a blocked address that only claims to be a crawler got robots.txt" -H 'X-Forwarded-For: 192.0.2.7' "$URL/index.php/robots.txt"
 wp bastion unblock 192.0.2.7
 
 TRAP=$(wp eval 'echo ZenZeiTenBastion\Agents::traps()["path"];')
@@ -181,7 +184,7 @@ contains "$(wp bastion agents traps)" "$TRAP" || fail "wp bastion agents traps"
 HOME_HTML=$(as 198.51.100.204 "$URL/")
 contains "$HOME_HTML" "$TRAP/\" rel=\"nofollow\"" || fail "no hidden trap link on the page"
 contains "$HOME_HTML" "api_key=$KEY -->" || fail "no fake key on the page"
-ROBOTS=$(as 198.51.100.204 "$URL/robots.txt")
+ROBOTS=$(as 198.51.100.204 "$URL/index.php/robots.txt")
 contains "$ROBOTS" "Disallow: $TRAP/" || { echo "$ROBOTS"; fail "robots.txt does not forbid the trap"; }
 wp option update permalink_structure '' >/dev/null
 wp rewrite flush >/dev/null
