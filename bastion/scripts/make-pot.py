@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "zenzeiten-bastion"
+# The version comes from the plugin header, so a release needs no edit here.
+VERSION = re.search(r"^ \* Version:\s*(\S+)", (ROOT / "zenzeiten-bastion.php").read_text(encoding="utf-8"), re.M).group(1)
 CALL = re.compile(
     r"(?:/\*\s*translators:(?P<note>.*?)\*/\s*)?"
     r"\b(?:__|_e|esc_html__|esc_html_e|esc_attr__|esc_attr_e)\(\s*'(?P<msg>(?:[^'\\]|\\.)*)'\s*,\s*'zenzeiten-bastion'",
@@ -44,7 +46,7 @@ def main():
         "# This file is distributed under the MIT license.",
         'msgid ""',
         'msgstr ""',
-        '"Project-Id-Version: ZenZeiTen Bastion 1.0.2\\n"',
+        f'"Project-Id-Version: ZenZeiTen Bastion {VERSION}\\n"',
         '"MIME-Version: 1.0\\n"',
         '"Content-Type: text/plain; charset=UTF-8\\n"',
         '"Content-Transfer-Encoding: 8bit\\n"',

@@ -7,6 +7,7 @@
 
 namespace ZenZeiTenBastion\Admin;
 
+use ZenZeiTenBastion\Agents;
 use ZenZeiTenBastion\Backup;
 use ZenZeiTenBastion\Blocklist;
 use ZenZeiTenBastion\Firewall;
@@ -34,7 +35,8 @@ final class Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( ZBST_FILE ), array( $this, 'action_links' ) );
 		add_action( 'admin_notices', array( $this, 'error_notice' ) );
-		foreach ( array( 'block', 'unblock', 'forget', 'backup_now', 'download', 'restore', 'delete_backup', 'upload', 'save_settings', 'clear_error' ) as $action ) {
+		add_action( 'admin_notices', array( $this, 'cloudflare_notice' ) );
+		foreach ( array( 'block', 'unblock', 'forget', 'backup_now', 'download', 'restore', 'delete_backup', 'upload', 'save_settings', 'clear_error', 'refresh_agents', 'regenerate_traps', 'dismiss_cloudflare' ) as $action ) {
 			add_action( 'admin_post_zbst_' . $action, array( $this, 'handle_' . $action ) );
 		}
 	}
@@ -266,6 +268,62 @@ final class Admin {
 	}
 
 	/**
+	 * Tell administrators once when Bastion blocked an address inside Cloudflare's network on a
+	 * site that does not say it is behind Cloudflare. If the site is, that address stands in for
+	 * every visitor, and the setting must be switched on.
+	 */
+	public function cloudflare_notice() {
+		$block = get_option( Guard::CLOUDFLARE_OPTION );
+		if ( ! is_array( $block ) || empty( $block['ip'] ) || ! current_user_can( Plugin::capability() ) ) {
+			return;
+		}
+		echo '<div class="notice notice-warning"><p><strong>'
+			/* translators: %s: IP address */
+			. esc_html( sprintf( __( 'ZenZeiTen Bastion blocked %s, an address in Cloudflare\'s network, for one hour.', 'zenzeiten-bastion' ), $block['ip'] ) ) . '</strong> '
+			. esc_html__( 'If your site is behind Cloudflare, that address is Cloudflare itself and the block may shut out real visitors. Open Bastion > Settings and look at "Your address as Bastion sees it". If it is not your own address, tick "This site is behind Cloudflare" and save. If your site does not use Cloudflare, the block caught a scanner and you can dismiss this message.', 'zenzeiten-bastion' )
+			. '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="zbst_dismiss_cloudflare" />';
+		wp_nonce_field( 'zbst_dismiss_cloudflare' );
+		echo '<p><a class="button button-primary" href="' . esc_url( admin_url( 'admin.php?page=zbst-settings' ) ) . '">' . esc_html__( 'Open settings', 'zenzeiten-bastion' ) . '</a> <button class="button">' . esc_html__( 'Dismiss', 'zenzeiten-bastion' ) . '</button></p></form></div>';
+	}
+
+	/**
+	 * Dismiss the Cloudflare notice.
+	 */
+	public function handle_dismiss_cloudflare() {
+		$this->guard( 'zbst_dismiss_cloudflare' );
+		// Kept, without an address, so the notice is not raised a second time.
+		update_option( Guard::CLOUDFLARE_OPTION, array( 'dismissed' => time() ), false );
+		$this->back( 'zbst-settings', 'success', __( 'Message dismissed.', 'zenzeiten-bastion' ) );
+	}
+
+	/**
+	 * Fetch the agents' address lists now.
+	 */
+	public function handle_refresh_agents() {
+		$this->guard( 'zbst_refresh_agents' );
+		$failed = array();
+		foreach ( Agents::refresh() as $row ) {
+			if ( ! $row['ok'] ) {
+				$failed[] = $row['id'];
+			}
+		}
+		if ( $failed ) {
+			/* translators: %s: comma-separated list names */
+			$this->back( 'zbst-settings', 'error', sprintf( __( 'These lists could not be refreshed, and keep their previous copy: %s. The attack log has the details.', 'zenzeiten-bastion' ), implode( ', ', $failed ) ) );
+		}
+		$this->back( 'zbst-settings', 'success', __( 'Agent lists refreshed.', 'zenzeiten-bastion' ) );
+	}
+
+	/**
+	 * Replace the trap path and the fake key.
+	 */
+	public function handle_regenerate_traps() {
+		$this->guard( 'zbst_regenerate_traps' );
+		Agents::regenerate_traps();
+		$this->back( 'zbst-settings', 'success', __( 'New trap path and fake key created. Clear your page cache so pages carry the new ones.', 'zenzeiten-bastion' ) );
+	}
+
+	/**
 	 * A POST or GET value as plain text.
 	 *
 	 * @param string $key Key.
@@ -488,6 +546,8 @@ final class Admin {
 		$s      = Settings::all();
 		$rules  = Firewall::labels();
 		$own_ip = Request::ip();
+		$agents = Agents::status();
+		$traps  = Agents::traps_on() ? Agents::traps() : null;
 		include __DIR__ . '/views/settings.php';
 	}
 

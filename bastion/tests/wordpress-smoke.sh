@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Smoke test in real WordPress with MySQL: firewall, automatic blocking, login lockout,
-# enumeration, the live endpoint, every admin screen, and a backup and restore round trip with
+# Smoke test in real WordPress with MySQL: firewall, automatic blocking, agent identity and traps,
+# login lockout, enumeration, the live endpoint, every admin screen, and a backup and restore round trip with
 # awkward data, through both WP-CLI and the admin screens.
 #
 # Needs php, curl and a MySQL server. Environment:
@@ -39,8 +39,22 @@ fail() { echo "FAIL: $*"; [ -f wp/wp-content/debug.log ] && cat wp/wp-content/de
 # grep reads a string, not a pipe: with pipefail, `curl | grep -q` fails when grep exits early.
 contains() { grep -q -- "$2" <<<"$1"; }
 status() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+# expect <code> <what failed> <curl arguments>: like status, and says which code came back.
+expect() {
+	local want=$1 label=$2 got
+	shift 2
+	got=$(status "$@")
+	if [ "$got" != "$want" ]; then
+		echo "--- start of response ---"; curl -s -i "$@" | head -c 1500; echo; echo "--- end ---"
+		fail "$label (HTTP $got, expected $want)"
+	fi
+}
 
-[ "$(wp eval 'echo wp_next_scheduled( "zbst_hourly" ) && wp_next_scheduled( "zbst_backup" ) ? "yes" : "no";')" = "yes" ] || fail "cron not scheduled on activation"
+[ "$(wp eval 'echo wp_next_scheduled( "zbst_hourly" ) && wp_next_scheduled( "zbst_backup" ) && wp_next_scheduled( "zbst_agents_refresh" ) ? "yes" : "no";')" = "yes" ] || fail "cron not scheduled on activation"
+# A site upgraded from 1.0.2 by "Replace current with uploaded" never runs activation: the agent
+# list refresh must be scheduled on the next page load.
+wp eval 'wp_clear_scheduled_hook( "zbst_agents_refresh" );'
+[ "$(wp eval 'echo wp_next_scheduled( "zbst_agents_refresh" ) ? "yes" : "no";')" = "yes" ] || fail "agent list refresh not scheduled after an upgrade"
 
 # The plugin is not on WordPress.org; WordPress must never offer to replace it.
 UPDATE=$(wp plugin list --name=zenzeiten-bastion --field=update)
@@ -118,6 +132,69 @@ contains "$ERR" 'The username or password is incorrect' || fail "login error mes
 [ "$(code_as 198.51.100.30 "$URL/?author=1")" = "302" ] || fail "author scan not redirected"
 [ "$(code_as 198.51.100.30 "$URL/?rest_route=/wp/v2/users")" = "401" ] || fail "REST user list visible to visitors"
 
+# --- Agent identity ------------------------------------------------------------------------------
+contains "$(wp bastion status)" 'Agent mode:         log' || fail "wp bastion status does not show the agent mode"
+# The real lists, through WordPress's own HTTP code. A vendor being down must not fail the build.
+wp bastion agents refresh || echo "note: some vendor lists could not be fetched from here"
+wp bastion agents status
+# From here on the lists are fixed test ranges, so the checks do not depend on the network:
+# 192.0.2.0/24 as Google, 198.51.100.0/24 as OpenAI, 2001:db8::/32 as Anthropic.
+wp eval '
+$ranges = array( "Google" => "192.0.2.0/24", "OpenAI" => "198.51.100.0/24", "Anthropic" => "2001:db8::/32" );
+$lists  = array();
+foreach ( ZenZeiTenBastion\Agents::registry() as $id => $agent ) {
+	if ( $agent["urls"] && isset( $ranges[ $agent["vendor"] ] ) ) {
+		$lists[ $id ] = array( "urls" => $agent["urls"], "fetched_at" => time(), "creation_time" => "", "count" => 1, "prefixes" => array( $ranges[ $agent["vendor"] ] ), "error" => "" );
+	}
+}
+update_option( "zbst_agent_lists", $lists, false );
+'
+GOOGLEBOT='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+GPTBOT='Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.3; +https://openai.com/gptbot'
+contains "$(wp bastion agents check 203.0.113.9 --ua="$GPTBOT")" 'Verdict:  spoofed' || fail "wp bastion agents check: spoofed"
+contains "$(wp bastion agents check 192.0.2.7 --ua="$GOOGLEBOT")" 'Verdict:  verified' || fail "wp bastion agents check: verified"
+
+# Log-only mode, as shipped: a spoofed crawler is recorded and still served.
+[ "$(code_as 203.0.113.9 "$URL/" -A "$GPTBOT")" = "200" ] || fail "Log-only mode refused a spoofed agent"
+SPOOFS=$(wp db query "SELECT COUNT(*) FROM wp_zbst_events WHERE type = 'agent_spoof' AND ip = '203.0.113.9' AND score = 5" --skip-column-names)
+[ "$SPOOFS" = "1" ] || fail "expected one agent_spoof event, got $SPOOFS"
+
+# Protect mode with the traps on. The site must still show its pages to everyone.
+wp eval '$s = get_option( "zbst_settings" ); $s["agent_mode"] = "protect"; $s["agent_traps"] = 1; update_option( "zbst_settings", $s );'
+front_ok "visitor, agents in Protect mode" -A 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0' -H 'X-Forwarded-For: 198.51.100.203'
+front_ok "phone on IPv6, agents in Protect mode" -A 'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36' -H 'X-Forwarded-For: 2001:db8:3c4d:15::1a2f'
+front_ok "administrator, agents in Protect mode" -b "$COOKIES"
+front_ok "real Googlebot" -A "$GOOGLEBOT" -H 'X-Forwarded-For: 192.0.2.7'
+expect 403 "Protect mode served a spoofed agent" -H 'X-Forwarded-For: 203.0.113.9' -A "$GPTBOT" "$URL/"
+expect 403 "a crawler opened wp-admin" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/wp-admin/"
+
+# A blocked address is refused everywhere, also when it is a real crawler and the address only
+# looks like robots.txt. (A plain read of the site's own robots.txt is spared; PHP's built-in
+# server answers that path itself, so that case is covered by the unit and browser tests.)
+wp bastion block 192.0.2.7 --minutes=5
+expect 403 "a blocked crawler was served a page" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/"
+expect 403 "a blocked crawler got in through a path ending in robots.txt" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/index.php/robots.txt"
+expect 403 "a blocked crawler reached the REST API" -H 'X-Forwarded-For: 192.0.2.7' -A "$GOOGLEBOT" "$URL/?rest_route=/wp/v2/posts"
+wp bastion unblock 192.0.2.7
+
+TRAP=$(wp eval 'echo ZenZeiTenBastion\Agents::traps()["path"];')
+KEY=$(wp eval 'echo ZenZeiTenBastion\Agents::traps()["key"];')
+contains "$(wp bastion agents traps)" "$TRAP" || fail "wp bastion agents traps"
+HOME_HTML=$(as 198.51.100.204 "$URL/")
+contains "$HOME_HTML" "$TRAP/\" rel=\"nofollow\"" || fail "no hidden trap link on the page"
+contains "$HOME_HTML" "api_key=$KEY -->" || fail "no fake key on the page"
+# The line Bastion adds to WordPress's robots.txt, through the same filter WordPress applies.
+ROBOTS=$(wp eval 'echo apply_filters( "robots_txt", "User-agent: *\nDisallow: /wp-admin/\n", true );')
+# The rule carries the folder WordPress believes it lives in (this test site's home is /wp).
+HOME_PATH=$(wp eval 'echo rtrim( (string) wp_parse_url( home_url( "/" ), PHP_URL_PATH ), "/" );')
+contains "$ROBOTS" "Disallow: $HOME_PATH$TRAP/" || { echo "$ROBOTS"; fail "robots.txt does not forbid the trap"; }
+expect 404 "a prefetch of the trap was not answered with 404" -H 'X-Forwarded-For: 203.0.113.40' -H 'Sec-Purpose: prefetch' "$URL$TRAP/"
+expect 403 "trap URL not refused" -H 'X-Forwarded-For: 203.0.113.40' "$URL$TRAP/"
+expect 403 "fake key not refused" -H 'X-Forwarded-For: 203.0.113.41' -H "Authorization: Bearer $KEY" "$URL/?rest_route=/wp/v2/posts"
+[ "$(status -b "$COOKIES" "$URL$TRAP/")" != "403" ] || fail "an administrator opening the trap was refused"
+TRAPS=$(wp db query "SELECT COUNT(*) FROM wp_zbst_events WHERE type = 'agent_trap' AND score = 10" --skip-column-names)
+[ "$TRAPS" = "2" ] || fail "expected two scored trap events, got $TRAPS"
+
 # --- Admin screens and the live endpoint ---------------------------------------------------------
 # The auth cookies come from WP-CLI, which is sturdier than posting the login form.
 COOKIES=$(wp eval 'echo AUTH_COOKIE . "=" . wp_generate_auth_cookie( 1, time() + 3600, "auth" ) . "; " . LOGGED_IN_COOKIE . "=" . wp_generate_auth_cookie( 1, time() + 3600, "logged_in" );')
@@ -134,7 +211,9 @@ DASH=$(admin_page zbst-dashboard 'zbst-feed')
 admin_page zbst-events 'sqli-union' >/dev/null
 admin_page "zbst-events&type=login_failed" 'zbst-wrap' >/dev/null
 admin_page zbst-blocks '198.51.100.7' >/dev/null
-admin_page zbst-settings 'zbst[firewall_mode]' >/dev/null
+admin_page "zbst-events&type=agent_spoof" 'openai-gptbot' >/dev/null
+SETTINGS=$(admin_page zbst-settings 'zbst[firewall_mode]')
+contains "$SETTINGS" 'zbst[agent_mode]' && contains "$SETTINGS" 'google-googlebot' && contains "$SETTINGS" 'zbst_refresh_agents' || fail "settings screen lacks the Agents section"
 BACKUPS=$(admin_page zbst-backups 'Back up now')
 
 # Read the nonce from the plugin's own settings; WordPress prints other nonces (heartbeat) too.
@@ -198,7 +277,7 @@ wp option update blogname 'HACKED AGAIN'
 
 # --- Deactivate, reactivate, uninstall keeps data by default -------------------------------------
 wp plugin deactivate zenzeiten-bastion
-[ "$(wp eval 'echo wp_next_scheduled( "zbst_hourly" ) ? "yes" : "no";')" = "no" ] || fail "cron left behind on deactivation"
+[ "$(wp eval 'echo wp_next_scheduled( "zbst_hourly" ) || wp_next_scheduled( "zbst_agents_refresh" ) ? "yes" : "no";')" = "no" ] || fail "cron left behind on deactivation"
 wp plugin activate zenzeiten-bastion
 [ "$(wp eval 'echo wp_next_scheduled( "zbst_hourly" ) ? "yes" : "no";')" = "yes" ] || fail "cron not rescheduled"
 

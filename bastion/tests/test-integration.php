@@ -179,11 +179,12 @@ function test_auto_block_can_be_switched_off() {
 	check( null === Blocklist::match( '198.51.100.60' ) );
 }
 
+// Older than both score windows: the short one (60 minutes) and the long one (24 hours).
 function test_old_events_do_not_count_toward_the_score() {
 	global $wpdb;
 	zbst_request( '198.51.100.70', array( 'id' => '1 UNION SELECT 1' ) );
 	zbst_run_guard();
-	$wpdb->query( "UPDATE wp_zbst_events SET created_at = '" . gmdate( 'Y-m-d H:i:s', time() - 2 * 3600 ) . "'" );
+	$wpdb->query( "UPDATE wp_zbst_events SET created_at = '" . gmdate( 'Y-m-d H:i:s', time() - 25 * 3600 ) . "'" );
 	zbst_request( '198.51.100.70', array( 'id' => '1 UNION SELECT 2' ) );
 	zbst_run_guard();
 	check( null === Blocklist::match( '198.51.100.70' ) );

@@ -16,6 +16,7 @@ final class Cron {
 
 	const HOURLY = 'zbst_hourly';
 	const BACKUP = 'zbst_backup';
+	const AGENTS = 'zbst_agents_refresh';
 
 	/**
 	 * Register handlers.
@@ -23,6 +24,7 @@ final class Cron {
 	public static function register() {
 		add_action( self::HOURLY, array( __CLASS__, 'hourly' ) );
 		add_action( self::BACKUP, array( __CLASS__, 'backup' ) );
+		add_action( self::AGENTS, array( 'ZenZeiTenBastion\\Agents', 'cron_refresh' ) );
 		add_action( Alerts::FLUSH_HOOK, array( 'ZenZeiTenBastion\\Alerts', 'flush' ) );
 	}
 
@@ -33,6 +35,11 @@ final class Cron {
 	public static function schedule() {
 		if ( ! wp_next_scheduled( self::HOURLY ) ) {
 			wp_schedule_event( time() + 300, 'hourly', self::HOURLY );
+		}
+		// The first run comes a minute after activation, or after an upgrade from a version
+		// without this job, so agent verdicts work within minutes.
+		if ( ! wp_next_scheduled( self::AGENTS ) ) {
+			wp_schedule_event( time() + 60, 'daily', self::AGENTS );
 		}
 		$want = (string) Settings::get( 'backup_schedule' );
 		$have = wp_get_schedule( self::BACKUP );
@@ -54,6 +61,7 @@ final class Cron {
 	public static function unschedule() {
 		wp_clear_scheduled_hook( self::HOURLY );
 		wp_clear_scheduled_hook( self::BACKUP );
+		wp_clear_scheduled_hook( self::AGENTS );
 		wp_clear_scheduled_hook( Alerts::FLUSH_HOOK );
 	}
 

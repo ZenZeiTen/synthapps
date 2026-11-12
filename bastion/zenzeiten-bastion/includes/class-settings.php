@@ -45,6 +45,12 @@ final class Settings {
 		'2c0f:f248::/32',
 	);
 
+	/**
+	 * Range of the long score window, in minutes: one hour to one week.
+	 */
+	const LONG_WINDOW_MIN = 60;
+	const LONG_WINDOW_MAX = 10080;
+
 	const PROXY_HEADERS = array( '', 'X-Forwarded-For', 'X-Real-IP', 'CF-Connecting-IP', 'True-Client-IP', 'X-Client-IP' );
 
 	/**
@@ -72,8 +78,13 @@ final class Settings {
 			'auto_block'            => 1,
 			'score_threshold'       => 20,
 			'score_window'          => 60,
+			'score_threshold_long'  => 20,
+			'score_window_long'     => 1440,
 			'not_found_limit'       => 40,
 			'rate_limit'            => 0,
+			'agent_mode'            => 'log',
+			'agent_traps'           => 0,
+			'agent_crawl_ceiling'   => 120,
 			'protect_admin_ips'     => 1,
 			'allowlist'             => '',
 			'proxy_header'          => '',
@@ -190,6 +201,7 @@ final class Settings {
 
 		$choices = array(
 			'firewall_mode'   => array( 'protect', 'log', 'off' ),
+			'agent_mode'      => array( 'protect', 'log', 'off' ),
 			'xmlrpc'          => array( 'no_auth', 'allow', 'off' ),
 			'backup_schedule' => array( 'daily', 'weekly', 'off' ),
 			'proxy_header'    => self::PROXY_HEADERS,
@@ -201,20 +213,30 @@ final class Settings {
 		}
 
 		$numbers = array(
-			'login_max_failures' => array( 1, 100 ),
-			'login_window'       => array( 1, 1440 ),
-			'login_lockout'      => array( 1, 43200 ),
-			'score_threshold'    => array( 5, 1000 ),
-			'score_window'       => array( 5, 1440 ),
-			'not_found_limit'    => array( 0, 1000 ),
-			'rate_limit'         => array( 0, 10000 ),
-			'backup_keep'        => array( 1, 60 ),
-			'log_retention_days' => array( 1, 365 ),
+			'login_max_failures'   => array( 1, 100 ),
+			'login_window'         => array( 1, 1440 ),
+			'login_lockout'        => array( 1, 43200 ),
+			'score_threshold'      => array( 5, 1000 ),
+			'score_window'         => array( 5, 1440 ),
+			'score_threshold_long' => array( 5, 1000 ),
+			'not_found_limit'      => array( 0, 1000 ),
+			'rate_limit'           => array( 0, 10000 ),
+			'agent_crawl_ceiling'  => array( 0, 10000 ),
+			'backup_keep'          => array( 1, 60 ),
+			'log_retention_days'   => array( 1, 365 ),
 		);
 		foreach ( $numbers as $key => $range ) {
 			if ( isset( $input[ $key ] ) && is_numeric( $input[ $key ] ) ) {
 				$out[ $key ] = max( $range[0], min( $range[1], (int) $input[ $key ] ) );
 			}
+		}
+
+		// The long window is off at 0. Otherwise it runs from one hour to one week, and never
+		// longer than the log is kept, or it would count events that are already deleted.
+		if ( isset( $input['score_window_long'] ) && is_numeric( $input['score_window_long'] ) ) {
+			$minutes                  = (int) $input['score_window_long'];
+			$longest                  = min( self::LONG_WINDOW_MAX, $out['log_retention_days'] * 1440 );
+			$out['score_window_long'] = $minutes <= 0 ? 0 : max( self::LONG_WINDOW_MIN, min( $longest, $minutes ) );
 		}
 
 		$flags = array(
@@ -223,6 +245,7 @@ final class Settings {
 			'auto_block',
 			'protect_admin_ips',
 			'trust_cloudflare',
+			'agent_traps',
 			'backup_exclude_logs',
 			'backup_before_updates',
 			'alerts_enabled',

@@ -55,6 +55,7 @@ final class Plugin {
 
 		Guard::register();
 		Hardening::register();
+		Agents::register();
 		Cron::register();
 
 		add_action( 'rest_api_init', array( $this, 'admin_rest' ) );
@@ -83,7 +84,12 @@ final class Plugin {
 	public static function settings_changed() {
 		Settings::flush();
 		Request::reset();
+		Agents::reset();
 		Cron::schedule();
+		// Create the trap path and fake key now, in the admin's request, not in a visitor's.
+		if ( Agents::traps_on() ) {
+			Agents::traps();
+		}
 	}
 
 	/**

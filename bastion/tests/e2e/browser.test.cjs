@@ -95,6 +95,45 @@ function hit( ip, pathAndQuery, headers = {} ) {
 		const href = await page.getAttribute( '.zbst-feed tr[data-id] .zbst-block-link', 'href' );
 		assert.ok( href.includes( 'ip=198.51.100.10' ), href );
 
+		// --- Agents in Protect mode ---
+		const googlebot = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+		const gptbot = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.3; +https://openai.com/gptbot';
+		const { traps } = await ( await fetch( `${ BASE }/state` ) ).json();
+
+		// A visitor on a phone and an IPv6 address still gets the page, and never meets the trap.
+		const phone = await browser.newContext( {
+			viewport: { width: 390, height: 844 },
+			isMobile: true,
+			hasTouch: true,
+			userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36',
+			extraHTTPHeaders: { 'X-Test-IP': '2001:db8:3c4d:15::1a2f' },
+		} );
+		const mobile = await phone.newPage();
+		const response = await mobile.goto( `${ BASE }/shop/` );
+		assert.strictEqual( response.status(), 200, 'phone on IPv6 gets the page' );
+		assert.strictEqual( await mobile.textContent( 'h1' ), 'Welcome' );
+		const trapLink = mobile.locator( `a[href$="${ traps.path }/"]` );
+		assert.strictEqual( await trapLink.count(), 1, 'the hidden link is in the page' );
+		assert.strictEqual( await trapLink.isVisible(), false, 'and people cannot see it' );
+		assert.ok( ( await mobile.content() ).includes( traps.key ), 'the fake key is in the page source' );
+		assert.ok( ! ( await mobile.innerText( 'body' ) ).includes( traps.key ), 'but not in the text people read' );
+		// The Tab key goes from the last real link out of the page, not to the trap.
+		await mobile.focus( '#last' );
+		await mobile.keyboard.press( 'Tab' );
+		assert.notStrictEqual( await mobile.evaluate( () => document.activeElement && document.activeElement.getAttribute( 'href' ) ), `${ BASE }${ traps.path }/` );
+		await phone.close();
+
+		// A real crawler passes; one that only claims the name is refused and shown in the feed.
+		assert.strictEqual( ( await hit( '192.0.2.7', '/shop/', { 'User-Agent': googlebot } ) ).status, 200 );
+		assert.strictEqual( ( await hit( '203.0.113.9', '/shop/', { 'User-Agent': gptbot } ) ).status, 403 );
+		await page.waitForSelector( '.zbst-feed tr[data-id] >> text=Spoofed agent', { timeout: 10000 } );
+		// A browser fetching the trap ahead of a click is not scored; a scraper opening it is.
+		assert.strictEqual( ( await hit( '203.0.113.20', `${ traps.path }/`, { 'Sec-Purpose': 'prefetch' } ) ).status, 404 );
+		assert.strictEqual( ( await hit( '203.0.113.20', '/shop/' ) ).status, 200 );
+		assert.strictEqual( ( await hit( '203.0.113.21', `${ traps.path }/` ) ).status, 403 );
+		await page.waitForSelector( '.zbst-feed tr[data-id] >> text=Trap hit', { timeout: 10000 } );
+		assert.strictEqual( ( await hit( '192.0.2.7', '/robots.txt', { 'User-Agent': googlebot } ) ).status, 200 );
+
 		// Reloading shows the history from the server-rendered data.
 		await page.reload();
 		await page.waitForSelector( '.zbst-feed tr[data-id] >> text=198.51.100.7' );

@@ -47,6 +47,10 @@ final class WP_Stub {
 	public static $early      = false;
 	/** How often the plugin asked WordPress for the current user (which settles it for the request). */
 	public static $current_user_lookups = 0;
+	/** Canned HTTP responses: URL => array( status code, body ), or a WP_Error. Unlisted URLs fail. */
+	public static $http       = array();
+	/** URLs the plugin fetched. */
+	public static $requests   = array();
 
 	public static function reset() {
 		self::$options    = array();
@@ -59,6 +63,8 @@ final class WP_Stub {
 		self::$is_404     = false;
 		self::$early      = false;
 		self::$current_user_lookups = 0;
+		self::$http       = array();
+		self::$requests   = array();
 	}
 }
 
@@ -490,6 +496,17 @@ function wp_cache_flush() { return true; }
 function size_format( $bytes, $decimals = 0 ) { return number_format( $bytes / 1024, $decimals ) . ' KB'; }
 function paginate_links( $args ) { return '<span class="page-numbers">' . (int) $args['current'] . '</span>'; }
 function wp_localize_script( ...$args ) {}
+// The tests never touch the network: wp_remote_get() answers from WP_Stub::$http.
+function wp_remote_get( $url, $args = array() ) {
+	WP_Stub::$requests[] = array( $url, $args );
+	if ( ! isset( WP_Stub::$http[ $url ] ) ) {
+		return new WP_Error( 'http_request_failed', 'no canned response' );
+	}
+	$canned = WP_Stub::$http[ $url ];
+	return $canned instanceof WP_Error ? $canned : array( 'response' => array( 'code' => $canned[0] ), 'body' => $canned[1] );
+}
+function wp_remote_retrieve_response_code( $response ) { return is_array( $response ) ? $response['response']['code'] : ''; }
+function wp_remote_retrieve_body( $response ) { return is_array( $response ) ? $response['body'] : ''; }
 function wp_enqueue_script( ...$args ) {}
 function wp_enqueue_style( ...$args ) {}
 
@@ -528,7 +545,10 @@ $GLOBALS['wp_version'] = '6.8';
 $_SERVER               = array( 'REMOTE_ADDR' => '127.0.0.1', 'REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/' );
 require dirname( __DIR__ ) . '/zenzeiten-bastion/zenzeiten-bastion.php';
 require dirname( __DIR__ ) . '/zenzeiten-bastion/includes/admin/class-admin.php';
+require __DIR__ . '/wp-cli-stub.php';
+require dirname( __DIR__ ) . '/zenzeiten-bastion/includes/class-cli.php';
 
+use ZenZeiTenBastion\Agents;
 use ZenZeiTenBastion\Blocklist;
 use ZenZeiTenBastion\Installer;
 use ZenZeiTenBastion\Request;
@@ -552,6 +572,7 @@ function zbst_test_reset( array $settings = array() ) {
 	Request::reset();
 	Blocklist::reset();
 	Blocklist::rebuild_index();
+	Agents::reset();
 	$_GET    = array();
 	$_POST   = array();
 	$_COOKIE = array();
@@ -597,6 +618,40 @@ function zbst_request( $ip, array $get = array(), array $server = array(), array
 		$server
 	);
 	Request::reset();
+}
+
+/**
+ * Store agent address lists fetched a number of days ago, built from documentation ranges, so
+ * tests never touch the network: 192.0.2.0/24 as Google, 198.51.100.0/24 as OpenAI and
+ * 2001:db8::/32 as Anthropic.
+ */
+function zbst_seed_agent_lists( $age_days = 0 ) {
+	$lists = array();
+	foreach ( Agents::registry() as $id => $agent ) {
+		$vendors = array( 'Google' => '192.0.2.0/24', 'OpenAI' => '198.51.100.0/24', 'Anthropic' => '2001:db8::/32' );
+		if ( ! $agent['urls'] || ! isset( $vendors[ $agent['vendor'] ] ) ) {
+			continue;
+		}
+		$lists[ $id ] = array(
+			'urls'          => $agent['urls'],
+			'fetched_at'    => time() - $age_days * DAY_IN_SECONDS,
+			'creation_time' => '2026-11-01T00:00:00.000000',
+			'count'         => 1,
+			'prefixes'      => array( $vendors[ $agent['vendor'] ] ),
+			'error'         => '',
+		);
+	}
+	update_option( Agents::LISTS_OPTION, $lists, false );
+	Agents::reset();
+}
+
+/**
+ * Change settings for the rest of a test.
+ */
+function zbst_set( array $settings ) {
+	update_option( Settings::OPTION, array_merge( Settings::all(), $settings ) );
+	Settings::flush();
+	Agents::reset();
 }
 
 /**

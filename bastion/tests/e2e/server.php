@@ -6,7 +6,7 @@
  *   ZBST_E2E_DB=/tmp/e2e.sqlite php -S 127.0.0.1:8766 tests/e2e/server.php
  *
  * A request's client address comes from the X-Test-IP header, so one test can play several
- * visitors.
+ * visitors. Agents run in Protect mode with the traps on.
  *
  * @package ZenZeiTenBastion
  */
@@ -27,6 +27,7 @@ set_error_handler(
 );
 
 use ZenZeiTenBastion\Admin\Admin;
+use ZenZeiTenBastion\Agents;
 use ZenZeiTenBastion\Blocklist;
 use ZenZeiTenBastion\Installer;
 use ZenZeiTenBastion\Request;
@@ -43,9 +44,15 @@ if ( file_exists( $state_file ) ) {
 WP_Stub::$uploads = dirname( $db_file ) . '/uploads';
 if ( $fresh ) {
 	Installer::install();
+	// Agents in Protect mode with the traps on, and address lists from documentation ranges
+	// (192.0.2.0/24 is Google, 198.51.100.0/24 OpenAI, 2001:db8::/32 Anthropic).
+	update_option( Settings::OPTION, array_merge( Settings::defaults(), array( 'agent_mode' => 'protect', 'agent_traps' => 1 ) ) );
+	zbst_seed_agent_lists();
+	Agents::traps();
 }
 Settings::flush();
 Blocklist::reset();
+Agents::reset();
 register_shutdown_function(
 	function () use ( $state_file ) {
 		file_put_contents( $state_file, serialize( array( WP_Stub::$options, WP_Stub::$transients ) ) );
@@ -75,6 +82,7 @@ if ( '/state' === $path ) {
 		array(
 			'blocks' => Blocklist::active(),
 			'events' => (int) $GLOBALS['wpdb']->get_var( 'SELECT COUNT(*) FROM wp_zbst_events' ),
+			'traps'  => Agents::traps(),
 		)
 	);
 	exit;
@@ -121,4 +129,8 @@ add_action(
 );
 ZenZeiTenBastion\Guard::early();
 header( 'Content-Type: text/html; charset=utf-8' );
-echo '<!doctype html><title>Shop</title><h1>Welcome</h1>';
+echo '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Shop</title>';
+Agents::head_comment();
+echo '</head><body><h1>Welcome</h1><p><a id="first" href="/shop/">Shop</a> <a id="last" href="/about/">About</a></p>';
+Agents::footer_link();
+echo '</body></html>';
