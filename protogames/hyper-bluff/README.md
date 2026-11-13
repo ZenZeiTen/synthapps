@@ -10,6 +10,7 @@ heads-up no-limit hold'em match per floor, and take the crown from Baron Onyx.
   grant more. Rivals from floor 2 up carry their own.
 - **Random bonus points**: a bonus mission every hand, star cards on the table that fill a
   star pot (100 to 1000 each), and fever hands that triple the points.
+- Five different rooms, one per floor, and a PACE option (relaxed, normal, fast).
 - Four player avatars, five rivals, an opening, a scene before the boss, an ending and
   credits. Keyboard, mouse and gamepad.
 

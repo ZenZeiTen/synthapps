@@ -26,7 +26,7 @@ BG_SCALE = 2
 SPR_SCALE = 8
 OUTLINE = (24, 10, 34)
 
-BACKGROUNDS = {"bg_table": 40, "bg_boss": 36, "bg_title": 44}       # name -> palette size
+BACKGROUNDS = {"bg_floor1": 44, "bg_floor2": 44, "bg_floor3": 44, "bg_floor4": 44, "bg_floor5": 40, "bg_title": 44}       # name -> palette size
 # name -> (frame_w, frame_h, frames, colours, palette per frame?, raw is one wide image?)
 SPRITES = {
     "chip_spin": (24, 24, 8, 10, False, False),
@@ -125,9 +125,9 @@ def sprite(name, fw, fh, frames, colours, per_frame, wide):
 
 
 def report(name, img):
-    for label, (x0, y0, x1, y1) in (("felt x60..580 y150..350", (60, 150, 580, 350)),
-                                    ("top-centre x250..390 y0..120", (250, 0, 390, 120)),
-                                    ("logo x120..520 y30..170", (120, 30, 520, 170))):
+    regions = [("logo x120..520 y30..170", (120, 30, 520, 170))] if name == "bg_title" else [
+        ("felt x60..580 y150..350", (60, 150, 580, 350)), ("top-centre x250..390 y0..120", (250, 0, 390, 120))]
+    for label, (x0, y0, x1, y1) in regions:
         lum = luminance(img[y0:y1, x0:x1].astype(np.float32))
         print(f"  {name:9s} {label:30s} mean {lum.mean():6.1f}  std {lum.std():5.1f}  max {lum.max():5.0f}")
 
@@ -138,6 +138,9 @@ def main():
     a = ap.parse_args()
     os.makedirs(DST, exist_ok=True)
     for name, colours in BACKGROUNDS.items():
+        if not os.path.exists(os.path.join(RAW, name + ".png")):
+            print(f"skip {name}: no raw render")
+            continue
         img = background(name, colours)
         n = len(np.unique(img.reshape(-1, 3), axis=0))
         print(f"{name}.png {img.shape[1]}x{img.shape[0]} colours={n}")

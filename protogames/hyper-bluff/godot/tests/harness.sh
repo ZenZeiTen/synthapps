@@ -51,6 +51,10 @@ run "fast pace from the options menu shortens the rival's pause" \
   "^screen=options .*pace=FAST.*;screen=play .*(street=1|phase=(advance|showdown|hand_over)|pot=([5-9][0-9]|[1-9][0-9][0-9]+)).*pace=FAST.*" \
   "$TO_PLAY,until:mine:900,tap:pause,wait:14,tap:down,tap:ok,wait:14,tap:down,tap:down,tap:left,dump,tap:cancel,wait:14,tap:cancel,wait:14,key:C,wait:40,dump"
 
+run "each floor has its own room" \
+  "^screen=play .*room=bg_floor1 .*;screen=play .*rival=goro .*room=bg_floor2 .*;screen=play .*rival=yuki .*room=bg_floor3 .*;screen=play .*rival=zeno .*room=bg_floor4 .*;screen=play .*rival=onyx .*room=bg_floor5 .*" \
+  "$TO_PLAY,dump,floor:1,dump,floor:2,dump,floor:3,dump,floor:4,dump"
+
 run "fold key gives up the blind" \
   "^screen=play .*phase=hand_over hand=1 .*stack=790/810 .*sfx=(fold|lose_hand).*" \
   "$TO_PLAY,until:mine:900,key:F,until:over:2500,dump"

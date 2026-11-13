@@ -14,7 +14,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 W = H = 96
-PAD = 6
+PAD = 12
 WP, HP = W + 2 * PAD, H + 2 * PAD
 SS = 6
 
@@ -40,8 +40,30 @@ def _lo(im):
     return np.asarray(im.reduce(SS)) >= 128
 
 
+_XF = None     # (cos, sin, pivot x, pivot y, dx, dy): rotate about the pivot, then move
+
+
+def set_xf(angle=0.0, pivot=(48.0, 60.0), dx=0.0, dy=0.0):
+    """Rotate (degrees, clockwise on screen) and move everything drawn until reset_xf()."""
+    global _XF
+    a = math.radians(angle)
+    _XF = (math.cos(a), math.sin(a), pivot[0], pivot[1], dx, dy)
+
+
+def reset_xf():
+    global _XF
+    _XF = None
+
+
+def xf(pts):
+    if _XF is None:
+        return [(float(x), float(y)) for x, y in pts]
+    c, s, px, py, dx, dy = _XF
+    return [(px + (x - px) * c - (y - py) * s + dx, py + (x - px) * s + (y - py) * c + dy) for x, y in pts]
+
+
 def _h(pts):
-    return [((x + PAD) * SS, (y + PAD) * SS) for x, y in pts]
+    return [((x + PAD) * SS, (y + PAD) * SS) for x, y in xf(pts)]
 
 
 def spline(pts, closed=True, n=10):
@@ -106,7 +128,7 @@ def m_line(pts):
     """1 px line drawn straight on the pixel grid."""
     im = Image.new("L", (WP, HP), 0)
     d = ImageDraw.Draw(im)
-    ip = [(int(math.floor(x)) + PAD, int(math.floor(y)) + PAD) for x, y in pts]
+    ip = [(int(math.floor(x)) + PAD, int(math.floor(y)) + PAD) for x, y in xf(pts)]
     if len(ip) == 1:
         d.point(ip, fill=255)
     else:
@@ -120,7 +142,7 @@ def m_curve(pts):
 
 def m_px(*xy):
     m = empty()
-    for x, y in xy:
+    for x, y in xf(xy):
         xi, yi = int(math.floor(x)) + PAD, int(math.floor(y)) + PAD
         if 0 <= xi < WP and 0 <= yi < HP:
             m[yi, xi] = True
