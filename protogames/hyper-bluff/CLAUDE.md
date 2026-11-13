@@ -52,4 +52,19 @@ Harness runs save under `user://harness/`, wiped at start.
 
 ## Player-reported bugs
 
-None yet. Log each: what the player saw, the cause, the fix, the check that guards it.
+Log each: what the player saw, the cause, the fix, the check that guards it.
+
+- **"Moves too quickly, animations feel clunky" (2026-11-13).** Cause: every step was a
+  fixed 24 to 45 tick timer and things popped into place; the checks only asked whether a
+  step happened, never how long it took or whether anything moved. Fix: PACE option
+  (default RELAXED), eased card slides and flips, chip arcs, counting numbers, sliding
+  result panel (DESIGN "Pace and motion"). Checks: "cards slide in from the deck",
+  "relaxed pace", "fast pace from the options menu". Rule: give every pause and move a row
+  in DESIGN with its length, and check the length.
+- **"Portraits are generic and forgettable" (2026-11-13).** Cause: nine front-view busts on
+  one face template. Fix: redrawn with larger heads, own head shapes, turned poses and one
+  loud signature element each. No automatic check can judge this; look at the contact
+  sheet and the silhouette sheet before handoff.
+- **"The poker room looks the same at every stage" (2026-11-13).** Cause: one table render
+  plus a relit copy for the boss. Fix: five rooms (`bg_floor1..5`) with their own felt and
+  UI accent. Check: "each floor has its own room".

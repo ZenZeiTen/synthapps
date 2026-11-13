@@ -2,11 +2,11 @@
 
 Run inside Blender 4.2 (headless):
 
-    blender -b --python tools/blender/build_scenes.py -- [--only table,boss,title,props]
+    blender -b --python tools/blender/build_scenes.py -- [--only floors,title,props]
                                                          [--samples N] [--no-render]
 
 Builds every scene from code (no imported models or textures), saves
-art/blender/table.blend (scenes Table, Boss, Title) and art/blender/props.blend
+art/blender/table.blend (scenes Floor1..Floor5, Title) and art/blender/props.blend
 (scenes ChipSpin, Chips, StarSpin, Trophy, CoinBurst) and renders raw frames
 into art/blender/render/.  tools/blender/pixelize.py turns those into the
 final pixel-art PNGs.
@@ -350,6 +350,12 @@ class View:
     def p(self, px, py, depth):
         return self.pos + (self.right * (px - W / 2) + self.up * (H / 2 - py) + self.fwd * self.f) * (depth / self.f)
 
+    def proj(self, world):
+        """World point -> (pixel x, pixel y, depth along the view axis)."""
+        d = Vector(world) - self.pos
+        depth = d.dot(self.fwd)
+        return W / 2 + d.dot(self.right) * self.f / depth, H / 2 - d.dot(self.up) * self.f / depth, depth
+
     def frame(self, px, py, depth, euler_deg=(0, 0, 0), scale=1.0):
         """Matrix placing a local object at a pixel/depth. Local +Z faces the camera at euler 0."""
         base = Matrix((self.right, self.up, -self.fwd)).transposed().to_4x4()
@@ -597,110 +603,694 @@ TABLE_Z = 0.78
 TABLE_VIEW = dict(pos=(0, -1.08, 1.14), pitch_deg=-17.3, vfov_deg=50.0)
 
 
-def build_table(scene_name, theme, samples):
-    th = THEMES[theme]
-    p = scene_name
-    sc = bpy.data.scenes.new(scene_name)
+WY = 4.6            # y of the back wall; the camera sees z 0.25..1.9 of it, x -4.5..4.5
+
+
+def cyl(mb, x, y, z0, z1, r, mat, segs=14, r1=None):
+    r1 = r if r1 is None else r1
+    mb.revolve([(0, z0), (r, z0), (r1, z1), (0, z1)], mat, segs, xf=T(x, y, 0))
+
+
+def face_xz(mb, x0, x1, z0, z1, y, mat):
+    mb.add([(x0, y, z0), (x1, y, z0), (x1, y, z1), (x0, y, z1)], [[0, 1, 2, 3]], mat)
+
+
+def bb_rect(mb, view, x0, y0, x1, y1, depth, mat):
+    bb_poly(mb, view, [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], depth, mat)
+
+
+def bb_line(mb, view, x0, y0, x1, y1, w, depth, mat):
+    dx, dy = x1 - x0, y1 - y0
+    L = math.hypot(dx, dy) or 1.0
+    nx, ny = -dy / L * w / 2, dx / L * w / 2
+    bb_poly(mb, view, [(x0 - nx, y0 - ny), (x0 + nx, y0 + ny), (x1 + nx, y1 + ny), (x1 - nx, y1 - ny)], depth, mat)
+
+
+def chair_outline(wb, wt, z0, zs, ztop, n=14):
+    pts = [(-wb / 2, z0), (wb / 2, z0), (wt / 2, zs)]
+    for i in range(1, n):
+        ang = PI * i / n
+        pts.append((wt / 2 * math.cos(ang), zs + (ztop - zs) * math.sin(ang)))
+    pts.append((-wt / 2, zs))
+    return pts
+
+
+CHAIR_Y = 1.62
+
+
+def chair_part(mb, outline, depth, mat, dy=0.0):
+    """Outline in world XZ, extruded towards the camera from y = CHAIR_Y - dy."""
+    mb.prism(outline, depth, mat, xf=T(0, CHAIR_Y - dy, 0) @ R("X", 90))
+
+
+def shell(mb, floor, wall, ceiling=True, back=None):
+    mb.box((-8, -3, -0.05), (8, WY + 0.6, 0.0), floor)
+    mb.box((-8.3, -3, 0), (-8, WY + 0.3, 3.6), wall)
+    mb.box((8, -3, 0), (8.3, WY + 0.3, 3.6), wall)
+    if ceiling:
+        mb.box((-8.3, -3, 3.6), (8.3, WY + 0.6, 3.7), wall)
+    if back:
+        mb.box((-8, WY, 0), (8, WY + 0.3, 3.6), back)
+
+
+class Kit:
+    """Per-floor material shortcuts with unique names."""
+
+    def __init__(self, p):
+        self.p = p
+
+    def P(self, name, color, rough=0.6, metal=0.0, emit=None, es=0.0, spec=0.5):
+        return mat_pbr(f"{self.p}_{name}", color, rough, metal, emit, es, spec)
+
+    def E(self, name, color, strength=1.0):
+        return mat_emit(f"{self.p}_{name}", color, strength)
+
+    def G(self, name, color, strength=0.2):
+        return mat_glow(f"{self.p}_{name}", color, strength)
+
+
+# ---- floor 1: Lobby Pit ---------------------------------------------------
+def room1(sc, p, th, view, rng, k):
+    mb = MB()
+    wall = k.P("wall", (0.16, 0.03, 0.04), 0.7)
+    wood = k.P("wood", (0.02, 0.008, 0.006), 0.6)
+    gold = k.P("gold", (0.9, 0.55, 0.12), 0.35, 0.5, emit=(0.9, 0.5, 0.1), es=0.12)
+    shell(mb, k.P("carpet", (0.10, 0.015, 0.03), 0.9), wall)
+    for x0, x1 in ((-8, -3.25), (3.25, 8)):
+        mb.box((x0, WY, 0), (x1, WY + 0.3, 3.6), wall)
+    mb.box((-1.3, WY - 0.06, 0), (1.3, WY + 0.3, 3.6), wood)
+    for sx in (-1, 1):
+        xa, xb = sorted((sx * 1.3, sx * 3.25))
+        mb.box((xa, WY, 0), (xb, WY + 0.3, 0.62), wall)
+        mb.box((xa, WY, 2.5), (xb, WY + 0.3, 3.6), wall)
+        mb.box((xa, WY - 0.05, 0.60), (xb, WY, 0.66), gold)
+        mb.box(((xa + xb) / 2 - 0.03, WY - 0.03, 0.62), ((xa + xb) / 2 + 0.03, WY, 2.5), gold)
+        mb.box((xa, WY - 0.03, 1.50), (xb, WY, 1.55), gold)
+        mb.box((sx * 1.3 - 0.04, WY - 0.08, 0), (sx * 1.3 + 0.04, WY - 0.04, 3.6), gold)
+        mb.box((sx * 3.25 - 0.04, WY - 0.05, 0), (sx * 3.25 + 0.04, WY, 3.6), gold)
+    mb.build(p + "_Room", sc)
+
+    # hanging lamps
+    mb = MB()
+    shade = k.P("shade", (0.55, 0.22, 0.03), 0.4, 0.3, emit=(1.0, 0.55, 0.1), es=0.9)
+    bulb = k.E("bulb", (1.0, 0.85, 0.45), 2.5)
+    cord = k.P("cord", (0.02, 0.01, 0.01))
+    for x, y, z in ((-2.25, 3.2, 1.47), (2.25, 3.2, 1.47), (-3.75, 3.9, 1.60), (3.75, 3.9, 1.60),
+                    (-1.3, 4.05, 1.66), (1.3, 4.05, 1.66)):
+        mb.box((x - 0.012, y - 0.012, z + 0.2), (x + 0.012, y + 0.012, 3.6), cord)
+        mb.revolve([(0.04, z + 0.24), (0.07, z + 0.2), (0.22, z)], shade, 20, xf=T(x, y, 0))
+        mb.revolve([(0, z - 0.07), (0.08, z - 0.03), (0.08, z + 0.03), (0, z + 0.06)], bulb, 12, xf=T(x, y, 0))
+    mb.build(p + "_Lamps", sc)
+
+    # rope barriers, slot machines, plant
+    mb = MB()
+    rope = k.P("rope", (0.5, 0.02, 0.05), 0.6)
+    for xa, xb in ((-3.35, -1.95), (1.95, 3.35)):
+        for x in (xa, xb):
+            cyl(mb, x, 3.45, 0, 1.02, 0.035, gold, 10)
+            cyl(mb, x, 3.45, 0, 0.04, 0.16, gold, 14)
+            mb.revolve([(0, 1.02), (0.065, 1.06), (0.065, 1.11), (0, 1.15)], gold, 12, xf=T(x, 3.45, 0))
+        path = [(xa + (xb - xa) * i / 14, 3.45, 0.98 - 0.22 * math.sin(PI * i / 14)) for i in range(15)]
+        mb.tube(path, 0.028, 0.028, rope, closed=False, up=(0, 1, 0), segs=8)
+    body = k.P("slot", (0.20, 0.02, 0.10), 0.4)
+    scr = k.E("slot_screen", (1.0, 0.75, 0.25), 1.0)
+    reel = k.E("slot_reel", (1.0, 0.97, 0.85), 1.2)
+    top = k.E("slot_top", (1.0, 0.15, 0.3), 1.6)
+    for x0 in (-4.42, -3.86):
+        mb.box((x0, 4.05, 0), (x0 + 0.5, 4.5, 1.62), body)
+        face_xz(mb, x0 + 0.05, x0 + 0.45, 1.06, 1.42, 4.04, scr)
+        for i in range(3):
+            face_xz(mb, x0 + 0.08 + i * 0.125, x0 + 0.17 + i * 0.125, 1.14, 1.34, 4.03, reel)
+        face_xz(mb, x0 + 0.05, x0 + 0.45, 0.80, 0.92, 4.04, top)
+        mb.revolve([(0.12, 1.62), (0.1, 1.72), (0, 1.76)], top, 12, xf=T(x0 + 0.25, 4.27, 0))
+    pot = k.P("pot", (0.45, 0.16, 0.06), 0.6)
+    leaf = k.P("leaf", (0.012, 0.10, 0.035), 0.6, emit=(0.0, 0.06, 0.02), es=1.0)
+    for px_, py_ in ((4.05, 4.2), (-1.62, 4.25)):
+        cyl(mb, px_, py_, 0, 0.72, 0.17, pot, 14, r1=0.25)
+        for i in range(11):
+            a = math.radians(rng.uniform(-62, 62))
+            L = rng.uniform(0.55, 1.0)
+            tip = (px_ + math.sin(a) * L, py_ - 0.05 + rng.uniform(-0.1, 0.1), 0.72 + math.cos(a) * L)
+            w = 0.085
+            mid = (px_ + math.sin(a) * L * 0.5, py_ - 0.05, 0.72 + math.cos(a) * L * 0.55)
+            mb.poly([(px_, py_ - 0.05, 0.72), (mid[0] - w * math.cos(a), mid[1], mid[2] + w * math.sin(a)), tip,
+                     (mid[0] + w * math.cos(a), mid[1], mid[2] - w * math.sin(a))], leaf)
+    mb.build(p + "_Props", sc)
+
+    # dealer's stool: small padded back on a post
+    lea = k.P("chair", (0.05, 0.02, 0.015), 0.45)
+    mb2 = MB()
+    mb2.prism(rrect(0.50, 0.36, 0.10), 0.10, lea, xf=T(0, CHAIR_Y, 1.16) @ R("X", 90))
+    mb2.prism(rrect(0.38, 0.24, 0.07), 0.02, k.P("chair_in", (0.10, 0.03, 0.02), 0.6), xf=T(0, CHAIR_Y - 0.10, 1.16) @ R("X", 90))
+    mb2.box((-0.035, CHAIR_Y - 0.04, 0.3), (0.035, CHAIR_Y + 0.02, 1.0), k.P("chair_post", (0.25, 0.14, 0.04), 0.3, 0.6))
+    mb2.build(p + "_Chair", sc)
+
+    # dusk city close by (low floor) and a setting sun
+    city = dict(THEMES["table"], win=[(1.0, 0.7, 0.25), (1.0, 0.9, 0.6), (1.0, 0.45, 0.2)], lit=0.45,
+                body_near=(0.035, 0.012, 0.05), body_far=(0.42, 0.13, 0.20), roof_tint=(0.6, 0.2, 0.2),
+                signs=[(1.0, 0.3, 0.2), (1.0, 0.8, 0.3)])
+    cz = view.pos.z
+    rows = [dict(y=28, x0=-60, x1=60, w=(7, 12), gap=(2, 9), top=(cz + 1, cz + 7), tower=0.2, tower_add=(1, 4), depth=0.0),
+            dict(y=60, x0=-110, x1=110, w=(9, 16), gap=(3, 12), top=(cz + 3, cz + 12), tower=0.2, tower_add=(2, 6), depth=0.45),
+            dict(y=130, x0=-230, x1=230, w=(12, 22), gap=(5, 20), top=(cz + 4, cz + 20), tower=0.2, tower_add=(3, 10), depth=1.0)]
+    mb = MB()
+    add_city(mb, rng, rows, -9.0, city, p)
+    mb.build(p + "_City", sc)
+    mb = MB()
+    bb_disc(mb, view, 468, 58, 6000, 40, k.G("sun_halo", (1.0, 0.45, 0.1), 0.35))
+    bb_disc(mb, view, 468, 58, 5900, 20, k.E("sun", (1.0, 0.80, 0.35), 1.0))
+    mb.build(p + "_Sky", sc)
+
+
+# ---- floor 2: Garage Deck -------------------------------------------------
+def room2(sc, p, th, view, rng, k):
+    mb = MB()
+    conc = k.P("concrete", (0.11, 0.10, 0.09), 0.9)
+    conc_d = k.P("concrete_dark", (0.010, 0.009, 0.009), 0.95, spec=0.1)
+    steel = k.P("steel", (0.25, 0.25, 0.27), 0.35, 0.8)
+    shell(mb, k.P("deck", (0.07, 0.065, 0.06), 0.8), conc, ceiling=False)
+    mb.box((-8.3, -3, 3.6), (8.3, WY + 0.9, 3.8), conc)
+    mb.box((-8, WY - 0.1, 1.74), (8, WY + 0.5, 3.6), conc)
+    mb.box((-8, WY, 0), (8, WY + 0.2, 0.86), conc)
+    mb.tube([(-8, WY + 0.1, 1.02), (8, WY + 0.1, 1.02)], 0.03, 0.03, steel, closed=False, up=(0, 1, 0), segs=8)
+    mb.box((-1.12, WY - 0.3, 0), (1.12, WY + 0.5, 2.0), conc_d)
+    for x in (-4.1, 4.1):
+        mb.box((x - 0.33, WY - 0.3, 0), (x + 0.33, WY + 0.5, 2.0), conc)
+        face_xz(mb, x - 0.33, x + 0.33, 0.55, 0.72, WY - 0.31, k.P("hazard", (0.8, 0.5, 0.03), 0.7))
+    lamp = k.E("sodium", (1.0, 0.55, 0.12), 3.0)
+    for x in (-2.6, 2.6):
+        mb.box((x - 0.5, 3.7, 1.69), (x + 0.5, 3.8, 1.73), lamp)
+    mb.build(p + "_Room", sc)
+
+    # parked motorcycle on a kerb (left)
+    mb = MB()
+    met = k.P("bike", (0.03, 0.03, 0.035), 0.3, 0.6)
+    tank = k.P("bike_tank", (0.35, 0.03, 0.012), 0.3)
+    chrome = k.P("chrome", (0.6, 0.6, 0.62), 0.2, 0.9)
+    bx, by, bz = -2.45, 3.55, 0.28
+    mb.box((-3.75, 3.1, 0), (-1.25, 4.0, bz), conc)
+    xf = T(bx, by + 0.11, bz) @ R("X", 90)
+    prof = [(-0.98, 0.50), (-0.62, 0.90), (-0.12, 0.80), (0.10, 0.98), (0.48, 0.98), (0.62, 0.80), (0.80, 1.16),
+            (0.90, 1.14), (0.78, 0.74), (0.97, 0.38), (0.87, 0.34), (0.60, 0.62), (0.32, 0.40), (-0.30, 0.38),
+            (-0.60, 0.48)]
+    mb.prism(prof, 0.22, met, xf=xf)
+    mb.prism([(0.02, 0.84), (0.14, 1.03), (0.50, 1.03), (0.64, 0.82), (0.40, 0.72), (0.10, 0.72)], 0.30, tank,
+             xf=T(bx, by + 0.15, bz) @ R("X", 90))
+    tyre = k.P("tyre", (0.012, 0.012, 0.014), 0.8)
+    for wx in (-0.76, 0.84):
+        wxf = T(bx + wx, by, bz + 0.34) @ R("X", 90)
+        mb.revolve([(0, -0.07), (0.34, -0.07), (0.34, 0.07), (0, 0.07)], tyre, 24, xf=wxf)
+        mb.revolve([(0, -0.08), (0.13, -0.08), (0.13, 0.08), (0, 0.08)], chrome, 16, xf=wxf)
+    mb.tube([(bx + 0.25, by - 0.14, bz + 0.40), (bx - 0.5, by - 0.14, bz + 0.40), (bx - 1.05, by - 0.14, bz + 0.52)],
+            0.045, 0.045, chrome, closed=False, up=(0, 1, 0), segs=8)
+    mb.tube([(bx + 0.84, by - 0.3, bz + 1.16), (bx + 0.84, by + 0.3, bz + 1.16)], 0.02, 0.02, chrome, closed=False,
+            up=(0, 0, 1), segs=6)
+    mb.box((bx + 0.82, by - 0.3, bz + 1.16), (bx + 0.84, by - 0.28, bz + 1.34), chrome)
+    cyl(mb, bx + 0.83, by - 0.29, bz + 1.34, bz + 1.36, 0.07, chrome, 10)
+    mb.revolve([(0, 0), (0.09, 0), (0.09, 0.1), (0, 0.1)], k.E("headlight", (1.0, 0.9, 0.6), 2.0), 12,
+               xf=T(bx + 0.93, by, bz + 1.0) @ R("Y", 90))
+    mb.build(p + "_Motorcycle", sc)
+
+    # oil drums and a cone (right)
+    mb = MB()
+    cyl(mb, 2.3, 3.6, 0, 0.9, 0.29, k.P("drum_a", (0.02, 0.05, 0.10), 0.6), 20)
+    cyl(mb, 2.98, 3.8, 0, 0.9, 0.29, k.P("drum_b", (0.30, 0.09, 0.03), 0.7), 20)
+    cyl(mb, 2.98, 3.8, 0.9, 1.8, 0.29, k.P("drum_a", (0.02, 0.05, 0.10), 0.6), 20)
+    cone = k.P("cone", (1.0, 0.28, 0.02), 0.5, emit=(1.0, 0.25, 0.02), es=0.25)
+    mb.revolve([(0.2, 0.9), (0.2, 0.93), (0.13, 0.93), (0.085, 1.2), (0.02, 1.58), (0, 1.58)], cone, 14, xf=T(2.3, 3.6, 0))
+    mb.revolve([(0.090, 1.18), (0.062, 1.36)], k.E("cone_band", (1.0, 0.95, 0.85), 0.8), 14, xf=T(2.3, 3.6, 0))
+    mb.build(p + "_Props", sc)
+
+    # biker's seat: chrome sissy bar with a pad
+    mb = MB()
+    path = [(-0.27, CHAIR_Y, 0.3), (-0.27, CHAIR_Y, 1.1)]
+    for i in range(13):
+        a = PI - PI * i / 12
+        path.append((0.27 * math.cos(a), CHAIR_Y, 1.1 + 0.27 * math.sin(a)))
+    path += [(0.27, CHAIR_Y, 1.1), (0.27, CHAIR_Y, 0.3)]
+    mb.tube(path, 0.03, 0.03, k.P("chair_bar", (0.10, 0.10, 0.11), 0.35, 0.8), closed=False, up=(0, 1, 0), segs=8)
+    mb.prism(rrect(0.40, 0.44, 0.12), 0.09, k.P("chair", (0.012, 0.008, 0.008), 0.6, spec=0.2), xf=T(0, CHAIR_Y - 0.02, 1.02) @ R("X", 90))
+    mb.build(p + "_Chair", sc)
+
+    # outside: far city, an elevated highway and blank neon signs
+    city = dict(THEMES["table"], win=[(1.0, 0.55, 0.12), (1.0, 0.8, 0.4), (1.0, 0.25, 0.1)], lit=0.2,
+                body_near=(0.012, 0.010, 0.014), body_far=(0.07, 0.03, 0.03), roof_tint=(0.1, 0.04, 0.03),
+                signs=[(1.0, 0.3, 0.1)])
+    cz = view.pos.z
+    rows = [dict(y=170, x0=-260, x1=260, w=(12, 22), gap=(4, 26), top=(cz - 40, cz - 8), tower=0.15, tower_add=(1, 5), depth=0.5),
+            dict(y=330, x0=-480, x1=480, w=(20, 40), gap=(8, 40), top=(cz - 20, cz + 6), tower=0.2, tower_add=(3, 12), depth=1.0)]
+    mb = MB()
+    add_city(mb, rng, rows, -160.0, city, p)
+    mb.build(p + "_City", sc)
+    mb = MB()
+    slab = k.E("road", (0.05, 0.035, 0.04), 1.0)
+    edge = k.E("road_edge", (0.16, 0.12, 0.10), 1.0)
+
+    def ry(x):
+        return 74 + (x / 640.0) * 16
+
+    bb_poly(mb, view, [(-10, ry(-10)), (650, ry(650)), (650, ry(650) + 11), (-10, ry(-10) + 11)], 90, slab)
+    bb_poly(mb, view, [(-10, ry(-10)), (650, ry(650)), (650, ry(650) + 1.5), (-10, ry(-10) + 1.5)], 89, edge)
+    dot = k.E("road_lamp", (1.0, 0.62, 0.15), 2.0)
+    halo = k.G("road_halo", (1.0, 0.45, 0.08), 0.22)
+    for x in range(20, 640, 110):
+        bb_rect(mb, view, x - 5, ry(x) + 6, x + 5, 170, 90, slab)
+    for x in range(-5, 650, 48):
+        bb_rect(mb, view, x - 0.6, ry(x) - 15, x + 0.6, ry(x), 89, slab)
+        bb_rect(mb, view, x - 0.6, ry(x) - 15.6, x + 5, ry(x) - 14.4, 89, slab)
+        bb_rect(mb, view, x + 2.5, ry(x) - 14.4, x + 6, ry(x) - 12.6, 88, dot)
+        bb_disc(mb, view, x + 4, ry(x) - 13, 87, 7, halo, 14)
+    car_w, car_r = k.E("car_w", (1.0, 0.95, 0.75), 1.5), k.E("car_r", (1.0, 0.1, 0.05), 1.5)
+    for i in range(16):
+        x = rng.uniform(0, 640)
+        bb_rect(mb, view, x, ry(x) - 3, x + rng.uniform(3, 7), ry(x) - 1.5, 88, car_w if i % 2 else car_r)
+    pole = k.E("pole", (0.02, 0.018, 0.022), 1.0)
+    mag, cy_, yel = k.E("sign_m", (1.0, 0.1, 0.55), 1.4), k.E("sign_c", (0.1, 0.9, 1.0), 1.4), k.E("sign_y", (1.0, 0.85, 0.15), 1.4)
+    inner = k.E("sign_in", (0.03, 0.02, 0.05), 1.0)
+    # arrow sign (left)
+    bb_rect(mb, view, 196, 40, 200, 160, 46, pole)
+    bb_disc(mb, view, 198, 30, 47, 30, k.G("glow_m", (1.0, 0.1, 0.5), 0.18), 20)
+    bb_poly(mb, view, [(188, 8), (208, 8), (208, 30), (218, 30), (198, 52), (178, 30), (188, 30)], 45, mag)
+    # ring + frame sign (right)
+    bb_rect(mb, view, 462, 50, 466, 160, 46, pole)
+    bb_disc(mb, view, 464, 26, 47, 30, k.G("glow_c", (0.1, 0.8, 1.0), 0.16), 20)
+    bb_disc(mb, view, 464, 24, 45, 17, cy_, 28)
+    bb_disc(mb, view, 464, 24, 44.5, 11, inner, 24)
+    bb_rect(mb, view, 440, 46, 488, 62, 45, yel)
+    bb_rect(mb, view, 443, 49, 485, 59, 44.5, inner)
+    # stacked squares sign (far right)
+    bb_rect(mb, view, 570, 20, 574, 160, 46, pole)
+    for i in range(4):
+        bb_rect(mb, view, 564, 6 + i * 13, 580, 16 + i * 13, 45, car_r if i % 2 == 0 else yel)
+    add_stars(mb, view, rng, 30, (0, 0, W, 45), 7000, [k.E("star", (0.9, 0.8, 0.7), 0.8)])
+    mb.build(p + "_Outside", sc)
+
+
+# ---- floor 3: Snow Garden -------------------------------------------------
+def snow_tree(mb, view, rng, x, y, ang, length, width, depth, bark, snow, level):
+    x2, y2 = x + math.cos(ang) * length, y - math.sin(ang) * length
+    nx, ny = math.sin(ang), math.cos(ang)
+    w2 = width * 0.68
+    bb_poly(mb, view, [(x - nx * width / 2, y - ny * width / 2), (x + nx * width / 2, y + ny * width / 2),
+                       (x2 + nx * w2 / 2, y2 + ny * w2 / 2), (x2 - nx * w2 / 2, y2 - ny * w2 / 2)], depth, bark)
+    if abs(math.cos(ang)) > 0.45 and width > 1.2:      # snow lies on the flatter boughs
+        bb_poly(mb, view, [(x, y - width / 2 - 1.2), (x2, y2 - w2 / 2 - 1.2), (x2, y2 - w2 / 2 + 0.3),
+                           (x, y - width / 2 + 0.3)], depth - 0.05, snow)
+    if level > 0:
+        for i in range(2 if level < 4 else 3):
+            snow_tree(mb, view, rng, x2, y2, ang + rng.uniform(-0.85, 0.85), length * rng.uniform(0.6, 0.78), w2,
+                      depth, bark, snow, level - 1)
+
+
+def room3(sc, p, th, view, rng, k):
+    mb = MB()
+    wood = k.P("wood", (0.02, 0.012, 0.012), 0.5)
+    lac = k.P("lacquer", (0.022, 0.012, 0.03), 0.25, spec=0.8)
+    shell(mb, k.P("tatami", (0.10, 0.10, 0.06), 0.9), k.P("wall", (0.05, 0.045, 0.07), 0.8))
+    mb.box((-8, WY, 0), (8, WY + 0.12, 0.30), wood)
+    mb.box((-8, WY, 1.83), (8, WY + 0.12, 3.6), wood)
+    mb.box((-1.12, WY - 0.05, 0), (1.12, WY + 0.12, 3.6), lac)
+    mb.box((-0.9, WY - 0.07, 0.5), (0.9, WY - 0.05, 1.7), k.P("lacquer_in", (0.03, 0.016, 0.045), 0.3))
+    for x in (-4.5, -3.3, 3.3, 4.5):
+        mb.box((x - 0.05, WY - 0.02, 0), (x + 0.05, WY + 0.1, 3.6), wood)
+    x = -4.5
+    while x < 4.51:
+        if abs(x) > 1.2:
+            mb.box((x - 0.014, WY, 0.3), (x + 0.014, WY + 0.04, 1.83), wood)
+        x += 0.44
+    for z in (0.66, 1.05, 1.44):
+        mb.box((-4.5, WY, z - 0.012), (-1.12, WY + 0.04, z + 0.012), wood)
+        mb.box((1.12, WY, z - 0.012), (4.5, WY + 0.04, z + 0.012), wood)
+    paper = k.E("paper", (0.36, 0.38, 0.52), 1.0)
+    for xa, xb in ((-8, -3.35), (3.35, 8)):
+        face_xz(mb, xa, xb, 0.3, 1.83, WY + 0.05, paper)
+    mb.build(p + "_Room", sc)
+
+    # paper floor lantern (right) and a vase on a stand (left)
+    mb = MB()
+    glow = k.E("andon", (1.0, 0.86, 0.6), 1.3)
+    mb.box((2.72, 3.72, 0.35), (3.08, 4.08, 1.28), glow)
+    for x_, y_ in ((2.70, 3.70), (3.06, 3.70), (2.70, 4.06), (3.06, 4.06)):
+        mb.box((x_, y_, 0), (x_ + 0.04, y_ + 0.04, 1.36), wood)
+    for z in (0.33, 0.80, 1.28):
+        mb.box((2.70, 3.70, z), (3.10, 4.10, z + 0.035), wood)
+    mb.box((-3.2, 3.6, 0), (-2.6, 4.1, 0.78), lac)
+    vase = k.P("vase", (0.55, 0.6, 0.75), 0.25, emit=(0.1, 0.12, 0.2), es=0.5)
+    mb.revolve([(0, 0.78), (0.09, 0.78), (0.15, 0.92), (0.13, 1.08), (0.05, 1.18), (0.07, 1.24), (0, 1.24)], vase, 16,
+               xf=T(-2.9, 3.85, 0))
+    twig = k.P("twig", (0.03, 0.015, 0.02), 0.6)
+    for (a, L) in ((-22, 0.48), (14, 0.36), (40, 0.30)):
+        r_ = math.radians(a)
+        mb.tube([(-2.9, 3.85, 1.22), (-2.9 + math.sin(r_) * L, 3.85, 1.22 + math.cos(r_) * L)], 0.012, 0.012, twig,
+                closed=False, up=(0, 1, 0), segs=5)
+        mb.revolve([(0, -0.03), (0.035, 0), (0, 0.03)], k.E("blossom", (1.0, 0.75, 0.85), 1.0), 8,
+                   xf=T(-2.9 + math.sin(r_) * L, 3.85, 1.22 + math.cos(r_) * L))
+    mb.build(p + "_Props", sc)
+
+    # low lacquer chair with an up-turned top rail
+    mb = MB()
+    cl = k.P("chair", (0.07, 0.008, 0.012), 0.22, spec=0.9)
+    mb.prism([(-0.31, 0.3), (0.31, 0.3), (0.31, 1.02), (-0.31, 1.02)], 0.06, k.P("chair_dark", (0.02, 0.008, 0.012), 0.3),
+             xf=T(0, CHAIR_Y, 0) @ R("X", 90))
+    mb.prism([(-0.43, 1.02), (0.43, 1.02), (0.50, 1.16), (0.40, 1.11), (-0.40, 1.11), (-0.50, 1.16)], 0.09, cl,
+             xf=T(0, CHAIR_Y + 0.01, 0) @ R("X", 90))
+    for x in (-0.2, 0.0, 0.2):
+        mb.box((x - 0.02, CHAIR_Y - 0.075, 0.4), (x + 0.02, CHAIR_Y - 0.06, 1.02), cl)
+    mb.build(p + "_Chair", sc)
+
+    # the garden, drawn in screen space behind the lattice
+    mb = MB()
+    d = 60
+    bb_poly(mb, view, [(-10, 64), (650, 64), (650, 170), (-10, 170)], d, k.E("snow_far", (0.33, 0.40, 0.72), 1.0))
+    pines = [(-10, 64)]
+    x = -10
+    while x < 650:
+        h = rng.uniform(5, 15)
+        pines += [(x + 4, 64 - h), (x + 8, 64 - h * 0.4)]
+        x += 8
+    pines.append((650, 64))
+    bb_poly(mb, view, pines, d - 1, k.E("pines", (0.04, 0.05, 0.16), 1.0))
+    for (x0, x1, top, base, col, dd) in ((-20, 300, 82, 175, (0.52, 0.60, 0.88), 30), (330, 680, 78, 175, (0.52, 0.60, 0.88), 30),
+                                         (120, 560, 100, 175, (0.74, 0.80, 0.97), 22)):
+        pts = [(x0, base)]
+        for i in range(25):
+            t = i / 24
+            pts.append((x0 + (x1 - x0) * t, base - (base - top) * math.sin(PI * t) ** 0.7))
+        pts.append((x1, base))
+        bb_poly(mb, view, pts, dd, k.E(f"snow_{x0}_{top}", col, 1.0))
+    bb_disc(mb, view, 492, 30, 6000, 46, k.G("moon_halo", (0.45, 0.5, 1.0), 0.25))
+    bb_disc(mb, view, 492, 30, 5900, 25, k.E("moon", (0.90, 0.94, 1.0), 1.0))
+    ms = k.E("moon_spot", (0.72, 0.78, 0.95), 1.0)
+    for dx, dy, r in ((-0.35, -0.25, 0.22), (0.3, 0.1, 0.16), (-0.1, 0.45, 0.13)):
+        bb_disc(mb, view, 492 + dx * 25, 30 + dy * 25, 5800, r * 25, ms, 16)
+    add_stars(mb, view, rng, 40, (0, 0, W, 50), 7000, [k.E("star", (0.8, 0.85, 1.0), 1.0)])
+    bark, snow = k.E("bark", (0.012, 0.012, 0.035), 1.0), k.E("snow_cap", (0.92, 0.95, 1.0), 1.0)
+    snow_tree(mb, view, rng, 132, 150, math.radians(84), 46, 7.0, 12, bark, snow, 5)
+    # stone lantern
+    st, st_l = k.E("stone", (0.045, 0.05, 0.10), 1.0), k.E("stone_lit", (0.14, 0.16, 0.30), 1.0)
+    lx = 562
+    bb_poly(mb, view, [(lx - 14, 140), (lx + 14, 140), (lx + 10, 130), (lx - 10, 130)], 10, st)
+    bb_rect(mb, view, lx - 5, 96, lx + 5, 130, 10, st)
+    bb_rect(mb, view, lx - 2, 96, lx + 5, 130, 9.95, st_l)
+    bb_rect(mb, view, lx - 13, 90, lx + 13, 96, 10, st)
+    bb_rect(mb, view, lx - 10, 72, lx + 10, 90, 10, st)
+    bb_rect(mb, view, lx - 5, 76, lx + 5, 87, 9.9, k.E("lantern_fire", (1.0, 0.72, 0.3), 1.3))
+    bb_disc(mb, view, lx, 81, 9.8, 15, k.G("lantern_glow", (1.0, 0.6, 0.2), 0.2), 16)
+    bb_poly(mb, view, [(lx - 22, 72), (lx + 22, 72), (lx + 8, 60), (lx - 8, 60)], 10, st)
+    bb_poly(mb, view, [(lx - 22, 71), (lx - 8, 59), (lx + 8, 59), (lx + 22, 71), (lx + 18, 68), (lx + 7, 62), (lx - 7, 62),
+                       (lx - 18, 68)], 9.9, snow)
+    bb_poly(mb, view, [(lx - 3, 60), (lx + 3, 60), (lx, 51)], 10, st)
+    flake = k.E("flake", (0.95, 0.97, 1.0), 1.0)
+    for i in range(170):
+        x, y = rng.uniform(0, W), rng.uniform(0, 150)
+        s = 0.5 if rng.random() < 0.7 else 1.0
+        bb_rect(mb, view, x - s, y - s, x + s, y + s, rng.uniform(6.5, 9), flake)
+    mb.build(p + "_Garden", sc)
+
+
+# ---- floor 4: Odds Laboratory ---------------------------------------------
+def room4(sc, p, th, view, rng, k):
+    mb = MB()
+    wall = k.P("wall", (0.022, 0.045, 0.05), 0.55, 0.3)
+    dark = k.P("cabinet", (0.010, 0.018, 0.02), 0.5, 0.3)
+    shell(mb, k.P("floor", (0.03, 0.05, 0.05), 0.3), wall, back=wall)
+    yb = WY - 0.01
+    for x in (-3.3, 1.25):                                  # wall panel seams
+        mb.box((x - 0.02, WY - 0.02, 0), (x + 0.02, WY, 3.6), dark)
+    mb.box((-1.12, WY - 0.3, 0), (1.12, WY, 2.4), dark)
+    slat = k.P("slat", (0.02, 0.035, 0.04), 0.5, 0.3)
+    for i in range(7):
+        mb.box((-0.8, WY - 0.31, 0.45 + i * 0.07), (0.8, WY - 0.30, 0.48 + i * 0.07), slat)
+    copper = k.P("copper", (0.45, 0.16, 0.05), 0.35, 0.8)
+    for z, r in ((1.84, 0.05), (1.73, 0.035)):
+        mb.tube([(-8, WY - 0.12, z), (8, WY - 0.12, z)], r, r, copper, closed=False, up=(0, 1, 0), segs=8)
+    for x in (-3.42, -1.28, 1.36, 3.52):
+        mb.tube([(x, WY - 0.12, 1.73), (x, WY - 0.12, 0)], 0.035, 0.035, copper, closed=False, up=(0, 1, 0), segs=8)
+        mb.box((x - 0.06, WY - 0.19, 1.2), (x + 0.06, WY - 0.05, 1.26), dark)
+    mb.build(p + "_Room", sc)
+
+    # porthole with stars and a ringed planet (left)
+    mb = MB()
+    cx, cz_, r = -2.35, 1.16, 0.60
+    ring = [(cx + r * math.cos(2 * PI * i / 40), yb - 0.03, cz_ + r * math.sin(2 * PI * i / 40)) for i in range(40)]
+    mb.poly([(x, yb - 0.005, z) for x, _, z in ring], k.E("space", (0.008, 0.012, 0.07), 1.0))
+    mb.tube(ring, 0.07, 0.07, k.P("porthole", (0.20, 0.30, 0.30), 0.3, 0.8), closed=True, up=(0, 1, 0), segs=8)
+    bolt = k.P("bolt", (0.5, 0.6, 0.55), 0.3, 0.8)
+    for i in range(10):
+        a = 2 * PI * i / 10
+        bx_, bz_ = cx + (r + 0.07) * math.cos(a), cz_ + (r + 0.07) * math.sin(a)
+        mb.box((bx_ - 0.025, yb - 0.12, bz_ - 0.025), (bx_ + 0.025, yb - 0.09, bz_ + 0.025), bolt)
+    star = k.E("pstar", (0.9, 1.0, 0.95), 1.0)
+    for i in range(46):
+        a, rr = rng.uniform(0, 2 * PI), r * 0.92 * math.sqrt(rng.random())
+        s = 0.008 if rng.random() < 0.8 else 0.016
+        face_xz(mb, cx + rr * math.cos(a) - s, cx + rr * math.cos(a) + s, cz_ + rr * math.sin(a) - s,
+                cz_ + rr * math.sin(a) + s, yb - 0.008, star)
+    px_, pz_ = cx + 0.14, cz_ + 0.05
+    mb.poly([(px_ + 0.17 * math.cos(2 * PI * i / 24), yb - 0.012, pz_ + 0.17 * math.sin(2 * PI * i / 24)) for i in range(24)],
+            k.E("planet", (0.25, 0.9, 0.55), 1.0))
+    mb.poly([(px_ + 0.17 * math.cos(2 * PI * i / 24) * 0.9 + 0.03, yb - 0.013, pz_ + 0.17 * math.sin(2 * PI * i / 24) * 0.9 - 0.03)
+             for i in range(24)], k.E("planet_dark", (0.05, 0.35, 0.3), 1.0))
+    ringp = [(px_ + 0.33 * math.cos(2 * PI * i / 32) * math.cos(0.35) - 0.07 * math.sin(2 * PI * i / 32) * math.sin(0.35),
+              yb - 0.016,
+              pz_ + 0.33 * math.cos(2 * PI * i / 32) * math.sin(0.35) + 0.07 * math.sin(2 * PI * i / 32) * math.cos(0.35))
+             for i in range(32)]
+    mb.tube(ringp, 0.012, 0.012, k.E("planet_ring", (1.0, 0.95, 0.5), 1.0), closed=True, up=(0, 1, 0), segs=4)
+    mb.build(p + "_Porthole", sc)
+
+    # rack of glowing tubes (far left)
+    mb = MB()
+    tubes = [k.E("tube_lime", (0.55, 1.0, 0.12), 1.6), k.E("tube_cyan", (0.1, 1.0, 0.75), 1.4), k.E("tube_yel", (0.95, 1.0, 0.2), 1.4)]
+    for z in (0.62, 1.24):
+        mb.box((-4.6, WY - 0.3, z - 0.05), (-3.5, WY, z), dark)
+        for i in range(5):
+            x = -4.45 + i * 0.21
+            h = 0.30 + 0.14 * ((i * 7 + int(z * 10)) % 3)
+            cyl(mb, x, WY - 0.16, z, z + h, 0.065, tubes[(i + int(z * 10)) % 3], 10)
+            cyl(mb, x, WY - 0.16, z + h, z + h + 0.05, 0.075, dark, 10)
+    mb.build(p + "_Tubes", sc)
+
+    # monitor wall with abstract graphs (right)
+    mb = MB()
+    scr = k.E("screen", (0.006, 0.05, 0.035), 1.0)
+    g1, g2, g3 = k.E("graph_lime", (0.6, 1.0, 0.15), 1.3), k.E("graph_cyan", (0.15, 1.0, 0.8), 1.2), k.E("graph_amber", (1.0, 0.75, 0.15), 1.2)
+    mb.box((1.42, WY - 0.12, 0.45), (3.4, WY, 1.70), dark)
+    ys = WY - 0.125
+    for col in range(3):
+        for row in range(2):
+            x0, z0 = 1.50 + col * 0.64, 0.60 + row * 0.56
+            x1, z1 = x0 + 0.56, z0 + 0.44
+            face_xz(mb, x0, x1, z0, z1, ys, scr)
+            kind = (col + row * 3) % 6
+            yg = ys - 0.004
+            if kind == 0:                                   # zig-zag line
+                pts = [(x0 + 0.04 + i * 0.06, z0 + 0.08 + rng.uniform(0, 0.28)) for i in range(9)]
+                for a, b_ in zip(pts, pts[1:]):
+                    mb.tube([(a[0], yg, a[1]), (b_[0], yg, b_[1])], 0.012, 0.012, g1, closed=False, up=(0, 1, 0), segs=4)
+            elif kind == 1:                                 # bars
+                for i in range(6):
+                    h = rng.uniform(0.06, 0.34)
+                    face_xz(mb, x0 + 0.05 + i * 0.08, x0 + 0.10 + i * 0.08, z0 + 0.05, z0 + 0.05 + h, yg, g2 if i % 2 else g1)
+            elif kind == 2:                                 # sine wave
+                pts = [(x0 + 0.03 + i * 0.025, z0 + 0.22 + 0.14 * math.sin(i * 0.55)) for i in range(21)]
+                mb.tube([(a, yg, b_) for a, b_ in pts], 0.011, 0.011, g2, closed=False, up=(0, 1, 0), segs=4)
+            elif kind == 3:                                 # radar rings
+                for rr, m in ((0.17, g1), (0.11, g2), (0.05, g3)):
+                    mb.tube([((x0 + x1) / 2 + rr * math.cos(2 * PI * i / 24), yg, (z0 + z1) / 2 + rr * math.sin(2 * PI * i / 24))
+                             for i in range(24)], 0.009, 0.009, m, closed=True, up=(0, 1, 0), segs=4)
+            elif kind == 4:                                 # scatter
+                for i in range(16):
+                    sx_, sz_ = x0 + rng.uniform(0.05, 0.5), z0 + rng.uniform(0.05, 0.38)
+                    face_xz(mb, sx_ - 0.014, sx_ + 0.014, sz_ - 0.014, sz_ + 0.014, yg, g3 if i % 3 == 0 else g1)
+            else:                                           # level meters
+                for i in range(5):
+                    face_xz(mb, x0 + 0.05, x0 + 0.05 + rng.uniform(0.1, 0.44), z0 + 0.05 + i * 0.075, z0 + 0.095 + i * 0.075, yg,
+                            g3 if i == 4 else g2)
+    mb.build(p + "_Monitors", sc)
+
+    # tesla coil (far right, in front of the wall)
+    mb = MB()
+    tx, ty = 3.95, 3.75
+    mb.box((tx - 0.3, ty - 0.3, 0), (tx + 0.3, ty + 0.3, 0.55), dark)
+    for i in range(4):
+        z = 0.60 + i * 0.07
+        mb.tube([(tx + 0.27 * math.cos(2 * PI * j / 24), ty + 0.27 * math.sin(2 * PI * j / 24), z) for j in range(24)],
+                0.028, 0.028, copper, closed=True, segs=6)
+    cyl(mb, tx, ty, 0.55, 1.32, 0.085, k.P("coil", (0.5, 0.22, 0.08), 0.4, 0.6), 14)
+    chrome = k.P("chrome", (0.5, 0.6, 0.58), 0.2, 0.9, emit=(0.3, 0.6, 0.2), es=0.3)
+    mb.tube([(tx + 0.19 * math.cos(2 * PI * j / 24), ty + 0.19 * math.sin(2 * PI * j / 24), 1.40) for j in range(24)],
+            0.085, 0.07, chrome, closed=True, segs=10)
+    mb.build(p + "_TeslaCoil", sc)
+    mb = MB()
+    cxp, cyp, dep = view.proj((tx, ty, 1.42))
+    arc, arc_g = k.E("arc", (0.85, 1.0, 0.6), 1.6), k.G("arc_glow", (0.4, 1.0, 0.15), 0.22)
+    bb_disc(mb, view, cxp, cyp, dep - 0.3, 34, arc_g, 20)
+    for a0 in (150, 115, 200, 80, 245):
+        x, y = cxp + math.cos(math.radians(a0)) * 14, cyp - math.sin(math.radians(a0)) * 9
+        a = math.radians(a0)
+        for s in range(5):
+            a += rng.uniform(-0.8, 0.8)
+            L = rng.uniform(6, 11)
+            x2, y2 = x + math.cos(a) * L, y - math.sin(a) * L
+            bb_line(mb, view, x, y, x2, y2, 1.3, dep - 0.35, arc)
+            x, y = x2, y2
+    mb.build(p + "_Arcs", sc)
+
+    # lab chair: narrow back, head-rest, on a spine
+    mb = MB()
+    cm = k.P("chair", (0.03, 0.045, 0.05), 0.4)
+    mb.prism(rrect(0.42, 0.44, 0.09), 0.08, cm, xf=T(0, CHAIR_Y, 1.02) @ R("X", 90))
+    mb.prism(rrect(0.30, 0.15, 0.06), 0.08, cm, xf=T(0, CHAIR_Y, 1.375) @ R("X", 90))
+    mb.box((-0.03, CHAIR_Y, 0.3), (0.03, CHAIR_Y + 0.04, 1.40), k.P("chair_spine", (0.15, 0.2, 0.2), 0.3, 0.8))
+    mb.build(p + "_Chair", sc)
+
+
+# ---- floor 5: Starlight Table (final boss) ----------------------------------
+def room5(sc, p, th, view, rng, k):
+    mb = MB()
+    dark = k.P("frame", (0.012, 0.002, 0.003), 0.5)
+    gold = k.P("gold", (1.0, 0.6, 0.1), 0.3, 0.7, emit=(1.0, 0.5, 0.05), es=0.2)
+    wall = k.P("wall", (0.05, 0.008, 0.012), 0.7)
+    shell(mb, k.P("floor", (0.03, 0.006, 0.008), 0.2, spec=0.7), wall)
+    for x0, x1 in ((-8.3, -4.6), (4.6, 8.3)):
+        mb.box((x0, WY, 0), (x1, WY + 0.3, 3.6), wall)
+    for x in (-3.0, -1.5, 0.0, 1.5, 3.0):
+        mb.box((x - 0.05, WY, 0), (x + 0.05, WY + 0.08, 3.6), dark)
+        mb.box((x - 0.02, WY - 0.02, 0), (x + 0.02, WY, 3.6), gold)
+    # pointed arches closing each window bay near the top of the view
+    for i in range(6):
+        xa = -4.5 + i * 1.5
+        mb.prism([(xa, 1.95), (xa, 1.5), (xa + 0.22, 1.70), (xa + 0.75, 1.86), (xa + 1.28, 1.70), (xa + 1.5, 1.5), (xa + 1.5, 1.95)],
+                 0.06, dark, xf=T(0, WY + 0.06, 0) @ R("X", 90))
+    mb.box((-4.6, WY, 0.0), (4.6, WY + 0.08, 0.12), dark)
+    mb.build(p + "_Room", sc)
+
+    # banners, gold pillars with braziers
+    mb = MB()
+    cloth = k.P("banner", (0.30, 0.01, 0.02), 0.8, emit=(0.3, 0.0, 0.01), es=0.25)
+    for sx in (-1, 1):
+        x = sx * 3.75
+        mb.poly([(x - 0.3, WY - 0.1, 3.6), (x + 0.3, WY - 0.1, 3.6), (x + 0.3, WY - 0.1, 0.75), (x, WY - 0.1, 0.5),
+                 (x - 0.3, WY - 0.1, 0.75)], cloth)
+        mb.poly([(x, WY - 0.11, 1.42), (x + 0.14, WY - 0.11, 1.2), (x, WY - 0.11, 0.98), (x - 0.14, WY - 0.11, 1.2)], gold)
+        px_ = sx * 2.3
+        cyl(mb, px_, 3.7, 0, 0.95, 0.09, gold, 12)
+        cyl(mb, px_, 3.7, 0, 0.08, 0.2, gold, 12)
+        mb.revolve([(0.09, 0.95), (0.26, 1.08), (0.24, 1.12), (0, 1.1)], gold, 16, xf=T(px_, 3.7, 0))
+        fx, fy, dep = view.proj((px_, 3.7, 1.12))
+        fl = MB()
+        bb_disc(fl, view, fx, fy - 10, dep - 0.2, 26, k.G("fire_glow", (1.0, 0.3, 0.05), 0.25), 18)
+        bb_poly(fl, view, [(fx - 9, fy), (fx + 9, fy), (fx + 11, fy - 9), (fx + 5, fy - 15), (fx + 6, fy - 26), (fx, fy - 20),
+                           (fx - 3, fy - 31), (fx - 7, fy - 17), (fx - 11, fy - 10)], dep - 0.25, k.E("fire", (1.0, 0.35, 0.05), 1.4))
+        bb_poly(fl, view, [(fx - 5, fy), (fx + 5, fy), (fx + 5, fy - 8), (fx + 1, fy - 17), (fx - 4, fy - 9)], dep - 0.3,
+                k.E("fire_core", (1.0, 0.85, 0.35), 1.6))
+        fl.build(f"{p}_Flame{sx}", sc)
+    mb.build(p + "_Props", sc)
+
+    # throne: tall, three-spiked crown, gold studs
+    mb = MB()
+    cm = k.P("chair", (0.03, 0.004, 0.006), 0.4)
+    out = [(-0.38, 0.25), (0.38, 0.25), (0.43, 1.22), (0.43, 1.40), (0.33, 1.30), (0.20, 1.34), (0.0, 1.485), (-0.20, 1.34),
+           (-0.33, 1.30), (-0.43, 1.40), (-0.43, 1.22)]
+    mb.prism(out, 0.14, cm, xf=T(0, CHAIR_Y, 0) @ R("X", 90))
+    mb.prism(chair_outline(0.5, 0.6, 0.6, 1.08, 1.26), 0.02, k.P("chair_in", (0.09, 0.006, 0.01), 0.6),
+             xf=T(0, CHAIR_Y - 0.14, 0) @ R("X", 90))
+    stud = k.P("stud", (0.8, 0.45, 0.06), 0.3, 0.7, emit=(0.8, 0.4, 0.05), es=0.35)
+    for x, z in ((-0.43, 1.40), (0.43, 1.40), (0, 1.485)):
+        mb.revolve([(0, -0.03), (0.03, 0), (0, 0.03)], stud, 8, xf=T(x, CHAIR_Y - 0.07, z - 0.01))
+    mb.build(p + "_Chair", sc)
+
+    # city far below, storm sky
+    city = dict(THEMES["boss"], lit=0.30)
+    cz = view.pos.z
+    rows = [dict(y=230, x0=-330, x1=330, w=(12, 24), gap=(2, 12), top=(cz - 55, cz - 26), tower=0.15, tower_add=(0, 4), depth=0.3),
+            dict(y=420, x0=-620, x1=620, w=(18, 36), gap=(3, 20), top=(cz - 75, cz - 38), tower=0.15, tower_add=(0, 6), depth=0.7),
+            dict(y=800, x0=-1200, x1=1200, w=(30, 60), gap=(5, 35), top=(cz - 110, cz - 60), tower=0.12, tower_add=(0, 12), depth=1.0)]
+    mb = MB()
+    add_city(mb, rng, rows, -300.0, city, p)
+    mb.build(p + "_City", sc)
+    mb = MB()
+    mx, my, mr = 150, 34, 33
+    bb_disc(mb, view, mx, my, 6000, mr * 1.8, k.G("moon_halo", (0.9, 0.1, 0.02), 0.10))
+    bb_disc(mb, view, mx, my, 5900, mr, k.E("moon", (0.95, 0.07, 0.04), 1.0))
+    ms = k.E("moon_spot", (0.55, 0.02, 0.02), 1.0)
+    for dx, dy, r in ((-0.35, -0.25, 0.22), (0.3, 0.1, 0.16), (-0.1, 0.45, 0.13), (0.4, -0.4, 0.1)):
+        bb_disc(mb, view, mx + dx * mr, my + dy * mr, 5800, r * mr, ms, 16)
+    bolt_m = k.E("bolt", (1.0, 0.93, 0.65), 1.4)
+    base = [(150, -4), (160, -4), (146, 16), (156, 17), (138, 38), (147, 38), (133, 58), (139, 34), (131, 33), (146, 13), (137, 12)]
+    for ox, sc_, flip in ((330, 1.25, 1), (290, 0.8, -1), (-70, 0.7, 1)):
+        pts = [(ox + 146 + (x - 146) * sc_ * flip, y * sc_) for x, y in base]
+        bb_poly(mb, view, pts if flip > 0 else pts[::-1], 900, bolt_m)
+        bb_disc(mb, view, ox + 146, 24 * sc_, 950, 46 * sc_, k.G("bolt_glow", (1.0, 0.35, 0.1), 0.16))
+    add_stars(mb, view, rng, 30, (0, 0, W, 40), 7000, [k.E("star", (1.0, 0.7, 0.5), 0.9)])
+    mb.build(p + "_Sky", sc)
+
+
+FLOORS = {
+    1: dict(name="Lobby Pit", room=room1, felt=(0.006, 0.115, 0.04), rail=(0.20, 0.05, 0.02), rail_rough=0.38,
+            trim=(1.0, 0.68, 0.18), body=(0.02, 0.01, 0.008),
+            spot=(1.0, 0.86, 0.62), spot_e=320.0, rim_l=(1.0, 0.55, 0.15), rim_r=(1.0, 0.3, 0.45), rim_e=200.0,
+            wash=(1.0, 0.6, 0.25), wash_e=45.0,
+            sky=[(0.0, (1.0, 0.50, 0.12)), (0.35, (0.85, 0.22, 0.32)), (1.0, (0.22, 0.09, 0.42))], sky_light=0.12, clouds=None),
+    2: dict(name="Garage Deck", room=room2, felt=(0.115, 0.022, 0.012), rail=(0.085, 0.04, 0.02), rail_rough=0.75,
+            trim=(0.45, 0.45, 0.48), body=(0.02, 0.02, 0.02),
+            spot=(1.0, 0.62, 0.25), spot_e=320.0, rim_l=(1.0, 0.45, 0.08), rim_r=(0.25, 0.45, 1.0), rim_e=200.0,
+            wash=(1.0, 0.5, 0.1), wash_e=70.0,
+            sky=[(0.0, (0.42, 0.15, 0.03)), (0.3, (0.10, 0.04, 0.05)), (1.0, (0.012, 0.012, 0.04))], sky_light=0.15, clouds=None),
+    3: dict(name="Snow Garden", room=room3, felt=(0.010, 0.035, 0.24), rail=(0.012, 0.012, 0.02), rail_rough=0.2,
+            trim=(0.8, 0.85, 0.95), body=(0.01, 0.01, 0.015),
+            spot=(0.85, 0.9, 1.0), spot_e=320.0, rim_l=(0.35, 0.3, 1.0), rim_r=(0.9, 0.95, 1.0), rim_e=180.0,
+            wash=(0.6, 0.65, 1.0), wash_e=35.0,
+            sky=[(0.0, (0.16, 0.16, 0.50)), (0.4, (0.06, 0.06, 0.28)), (1.0, (0.015, 0.015, 0.10))], sky_light=0.15, clouds=None),
+    4: dict(name="Odds Laboratory", room=room4, felt=(0.006, 0.105, 0.10), rail=(0.03, 0.04, 0.045), rail_rough=0.3,
+            trim=(0.6, 1.0, 0.2), body=(0.01, 0.015, 0.015),
+            spot=(0.85, 1.0, 0.75), spot_e=300.0, rim_l=(0.45, 1.0, 0.1), rim_r=(0.1, 1.0, 0.7), rim_e=200.0,
+            wash=(0.4, 1.0, 0.3), wash_e=45.0,
+            sky=[(0.0, (0.0, 0.02, 0.02)), (1.0, (0.0, 0.01, 0.01))], sky_light=0.0, clouds=None),
+    5: dict(name="Starlight Table", room=room5, felt=(0.050, 0.004, 0.008), rail=(0.02, 0.006, 0.008), rail_rough=0.3,
+            trim=(1.0, 0.66, 0.1), body=(0.012, 0.002, 0.003),
+            spot=(1.0, 0.68, 0.28), spot_e=330.0, rim_l=(1.0, 0.04, 0.02), rim_r=(1.0, 0.5, 0.05), rim_e=230.0,
+            wash=(1.0, 0.25, 0.05), wash_e=30.0,
+            sky=[(0.0, (0.60, 0.07, 0.02)), (0.3, (0.16, 0.008, 0.02)), (1.0, (0.02, 0.0, 0.008))], sky_light=0.08,
+            clouds=dict(scale=(1.0, 1.0, 9.0), noise=3.2, lo=0.50, hi=0.56, color=(0.012, 0.0, 0.006), loc=(3.1, 0.4, 0.0))),
+}
+
+
+def build_floor(n, samples):
+    th = FLOORS[n]
+    p = f"Floor{n}"
+    sc = bpy.data.scenes.new(p)
     setup_render(sc, W * BG_SCALE, H * BG_SCALE, samples, False, True)
     view = View(**TABLE_VIEW)
     view.camera(sc, p + "_Camera")
-    rng = random.Random(1995)
+    rng = random.Random(1990 + n)
+    k = Kit(p)
 
-    # --- table -----------------------------------------------------------
     a, b = 1.70, 1.00
     mb = MB()
-    mb.poly(ellipse(a + 0.02, b + 0.02, TABLE_Z), mat_pbr(p + "_felt", th["felt"], rough=0.95, spec=0.1))
+    mb.poly(ellipse(a + 0.02, b + 0.02, TABLE_Z), k.P("felt", th["felt"], 0.95, spec=0.1))
     mb.build(p + "_Felt", sc)
     mb = MB()
-    mb.tube(ellipse(a, b, TABLE_Z + 0.03), 0.115, 0.075, mat_pbr(p + "_rail", th["rail"], rough=0.38, spec=0.6), segs=14)
+    mb.tube(ellipse(a, b, TABLE_Z + 0.03), 0.115, 0.075, k.P("rail", th["rail"], th["rail_rough"], spec=0.6), segs=14)
     mb.build(p + "_Rail", sc)
     mb = MB()
     mb.tube(ellipse(a - 0.125, b - 0.125, TABLE_Z + 0.008), 0.012, 0.01,
-            mat_pbr(p + "_trim", th["trim"], rough=0.3, metal=0.6, emit=th["trim"], emit_strength=0.25), segs=6)
+            k.P("trim", th["trim"], 0.3, 0.6, emit=th["trim"], es=0.25), segs=6)
     mb.build(p + "_RailTrim", sc)
     mb = MB()
-    dark = mat_pbr(p + "_frame", th["frame"], rough=0.6)
-    mb.prism([(x, y) for x, y, _ in ellipse(a + 0.05, b + 0.05, 0, 64)], TABLE_Z - 0.05, dark)
+    mb.prism([(x, y) for x, y, _ in ellipse(a + 0.05, b + 0.05, 0, 64)], TABLE_Z - 0.05, k.P("table_body", th["body"]))
     mb.build(p + "_TableBody", sc)
 
-    # --- the rival's empty high-backed chair ------------------------------
-    mb = MB()
-    cm = mat_pbr(p + "_chair", th["chair"], rough=0.45, spec=0.5)
-    cin = mat_pbr(p + "_chair_inset", th["chair_in"], rough=0.6, spec=0.3)
-
-    def chair_outline(wb, wt, z0, zs, ztop, n=14):
-        pts = [(-wb / 2, z0), (wb / 2, z0), (wt / 2, zs)]
-        for i in range(1, n):
-            ang = PI * i / n
-            pts.append((wt / 2 * math.cos(ang), zs + (ztop - zs) * math.sin(ang)))
-        pts.append((-wt / 2, zs))
-        return pts
-
-    cxf = T(0, 1.62, 0) @ R("X", 90)                # local XY -> world XZ, depth towards the camera
-    mb.prism(chair_outline(0.74, 0.86, 0.25, 1.28, 1.455), 0.14, cm, xf=cxf)
-    mb.prism(chair_outline(0.56, 0.68, 0.60, 1.20, 1.36), 0.02, cin, xf=T(0, 1.62 - 0.14, 0) @ R("X", 90))
-    mb.build(p + "_Chair", sc)
-
-    # --- room: window wall, mullions, floor, neon ---------------------------
-    wy = 4.6
-    mb = MB()
-    wall = mat_pbr(p + "_wall", th["wall"], rough=0.7)
-    floor = mat_pbr(p + "_floor", th["floor"], rough=0.22, spec=0.6)
-    mb.box((-8, -3, -0.05), (8, wy + 0.4, 0.0), floor)
-    mb.box((-8, wy, 0), (-3.5, wy + 0.3, 3.6), wall)
-    mb.box((3.5, wy, 0), (8, wy + 0.3, 3.6), wall)
-    mb.box((-8.3, -3, 0), (-8, wy, 3.6), wall)
-    mb.box((8, -3, 0), (8.3, wy, 3.6), wall)
-    mb.box((-8, -3, 3.6), (8, wy + 0.4, 3.7), wall)
-    for x in (-1.75, 0.0, 1.75):
-        mb.box((x - 0.04, wy, 0), (x + 0.04, wy + 0.08, 3.6), dark)
-    mb.box((-3.5, wy, 1.74), (3.5, wy + 0.08, 1.80), dark)
-    mb.box((-3.5, wy, 0.0), (3.5, wy + 0.08, 0.10), dark)
-    mb.build(p + "_Room", sc)
-    mb = MB()
-    mb.box((-3.62, wy - 0.06, 0), (-3.54, wy, 3.6), mat_emit(p + "_neon_l", th["neon_l"], th["neon_e"]))
-    mb.box((3.54, wy - 0.06, 0), (3.62, wy, 3.6), mat_emit(p + "_neon_r", th["neon_r"], th["neon_e"]))
-    mb.build(p + "_Neon", sc)
-
-    # --- city + sky ----------------------------------------------------------
-    cz = view.pos.z
-    rows = [
-        dict(y=75, x0=-125, x1=125, w=(9, 16), gap=(1.5, 7), top=(cz - 30, cz + 2), tower=0.22, tower_add=(1, 6), depth=0.0),
-        dict(y=140, x0=-215, x1=215, w=(11, 20), gap=(2, 11), top=(cz - 16, cz + 4), tower=0.2, tower_add=(1, 7), depth=0.33),
-        dict(y=240, x0=-350, x1=350, w=(15, 27), gap=(4, 18), top=(cz - 8, cz + 7), tower=0.2, tower_add=(2, 11), depth=0.66),
-        dict(y=400, x0=-580, x1=580, w=(22, 42), gap=(6, 30), top=(cz - 2, cz + 10), tower=0.2, tower_add=(3, 14), depth=1.0),
-    ]
-    mb = MB()
-    add_city(mb, rng, rows, -160.0, th, p)
-    mb.build(p + "_City", sc)
-
-    mb = MB()
-    mx, my = th["moon_px"]
-    mr = th["moon_r"]
-    bb_disc(mb, view, mx, my, 6000, mr * 1.9, mat_glow(p + "_moon_halo", th["moon_halo"], 0.22))
-    bb_disc(mb, view, mx, my, 5900, mr, mat_emit(p + "_moon", th["moon"], 1.0))
-    ms = mat_emit(p + "_moon_spot", th["moon_spot"], 1.0)
-    for dx, dy, r in ((-0.35, -0.25, 0.22), (0.3, 0.1, 0.16), (-0.1, 0.45, 0.13)):
-        bb_disc(mb, view, mx + dx * mr, my + dy * mr, 5800, r * mr, ms, 16)
-    add_stars(mb, view, rng, 90, (0, 0, W, 58), 7000, [mat_emit(f"{p}_star{i}", c, 1.0) for i, c in enumerate(th["stars"])])
-    if th["beam"]:
-        bm_ = mat_glow(p + "_beam", th["beam"], 0.16)
-        for x0, x1 in ((118, 40), (118, 190), (428, 470)):
-            bb_poly(mb, view, [(x0 - 1.5, 64), (x0 + 1.5, 64), (x1 + 13, -6), (x1 - 13, -6)], 520, bm_)
-    if th["bolt"]:
-        bolt = [(x + 345, y) for x, y in [(150, -4), (160, -4), (146, 16), (156, 17), (138, 38), (147, 38), (133, 58),
-                                          (139, 34), (131, 33), (146, 13), (137, 12)]]
-        bb_poly(mb, view, bolt, 900, mat_emit(p + "_bolt", th["bolt"], 1.3))
-        bb_disc(mb, view, 491, 22, 950, 44, mat_glow(p + "_bolt_glow", (1.0, 0.35, 0.1), 0.16))
-    mb.build(p + "_Sky", sc)
+    th["room"](sc, p, th, view, rng, k)
 
     sc.world = make_world(p + "_World", th["sky"], -0.01, 0.15, th["sky_light"], th["clouds"])
-
-    # --- lights ----------------------------------------------------------------
     add_light(sc, p + "_Spot", "SPOT", (0, -0.15, 3.3), (0, -0.05, TABLE_Z), th["spot_e"], th["spot"],
               spot_size=math.radians(36), spot_blend=1.0, shadow_soft_size=0.35)
     add_light(sc, p + "_RimL", "AREA", (-3.0, 2.9, 2.3), (-0.2, 1.1, 0.9), th["rim_e"], th["rim_l"], size=1.6)
     add_light(sc, p + "_RimR", "AREA", (3.0, 2.9, 2.3), (0.2, 1.1, 0.9), th["rim_e"], th["rim_r"], size=1.6)
+    for sx in (-1, 1):
+        add_light(sc, f"{p}_Wash{sx}", "POINT", (sx * 2.7, 3.3, 1.95), (sx * 2.7, 4.6, 1.0), th["wash_e"], th["wash"],
+                  shadow_soft_size=0.3)
     return sc
 
 
@@ -1043,7 +1633,7 @@ def build_props(samples):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", default="table,boss,title,props")
+    ap.add_argument("--only", default="floors,title,props")
     ap.add_argument("--samples", type=int, default=64, help="background samples (denoised)")
     ap.add_argument("--sprite-samples", type=int, default=32)
     ap.add_argument("--no-render", action="store_true")
@@ -1051,14 +1641,16 @@ def main():
     only = set(a.only.split(","))
     os.makedirs(OUT, exist_ok=True)
 
-    if only & {"table", "boss", "title"}:
+    if "floors" in only:
+        only |= {f"floor{n}" for n in FLOORS}
+    bgs = [f"floor{n}" for n in FLOORS] + ["title"]
+    if only & set(bgs):
         fresh_file()
-        scs = {"table": build_table("Table", "table", a.samples),
-               "boss": build_table("Boss", "boss", a.samples),
-               "title": build_title(a.samples)}
+        scs = {f"floor{n}": build_floor(n, a.samples) for n in FLOORS}
+        scs["title"] = build_title(a.samples)
         save_blend("table.blend")
         if not a.no_render:
-            for k in ("table", "boss", "title"):
+            for k in bgs:
                 if k in only:
                     render(scs[k], f"bg_{k}.png")
 

@@ -61,9 +61,47 @@ on the tick of the press). Screen changes ignore presses for 12 ticks and story 
 | Ending (3 pages) | after the boss | beating the boss |
 | Credits, score table, title | after the ending | beating the boss; credits end by themselves |
 
+## Pace and motion
+
+Changed after the first player report ("moves too quickly, animations feel clunky").
+Guidance used: interface motion reads best at about 100 to 400 ms with an ease-out curve,
+and 500 ms or more starts to drag (Nielsen Norman Group, "Executing UX Animations";
+Microsoft "Timing and easing"; Febucci, "Easing functions"). So every move is short and
+eased, and the slowness the player asked for comes from the pauses between moves.
+
+| Thing | Motion (60 ticks = 1 s) | Pause after it at RELAXED / NORMAL / FAST |
+|---|---|---|
+| Card dealt | 18-tick eased slide from the deck with a small arc, then a 14-tick flip | cards 12 to 16 ticks apart |
+| Chips | 20-tick eased arc from seat to bet spot, bet spot to pot, pot to winner | |
+| Rival's turn | thinking dots beside the portrait | 105 / 70 / 42 ticks |
+| After your action | | 60 / 40 / 24 |
+| New street | board cards slide and flip one by one | 90 / 60 / 36 plus the deal |
+| Showdown | rival cards flip one after the other | 120 / 80 / 48, then 75 / 50 / 30 |
+| Result panel | 16-tick slide in from the left | waits for a press |
+| Cut-in | band opens, eyes slide in, band closes: 100 ticks | game holds meanwhile |
+| Pot and chip counts | count towards the new value | |
+| Story text | 1 character a tick (was 2) | |
+
+PACE is in the options menu and defaults to RELAXED. A confirm press during a pause
+shortens it to 12 ticks, so nobody has to wait if they do not want to.
+
+## Rooms and colour
+
+Each floor has its own Blender-built room and felt, and the table panels take an accent
+colour that matches it. Felt colours follow the traditional poker set (green, burgundy,
+blue, teal, black), kept mid-dark and low-contrast so cards stay the brightest thing on
+screen; warm accents (gold, orange, crimson) mark what needs a decision.
+
+| Floor | Rival | Room | Felt | Accent |
+|---|---|---|---|---|
+| 1 | Pochi | Lobby Pit, dusk | emerald | gold |
+| 2 | Goro | Garage Deck, sodium lights | burgundy (reads rust) | orange |
+| 3 | Yuki | Snow Garden, moonlit | royal blue | ice |
+| 4 | Zeno | Odds Laboratory | teal | lime |
+| 5 | Onyx | Starlight Table, storm | dark crimson | crimson |
+
 ## Known limits
 
-- Portraits are front-view busts painted by script; the review notes call the art
-  serviceable, with Jiro's hair and the boss mask the weakest shapes.
+- Portraits are painted by script, not by hand; see `tools/art/README_portraits.md`.
 - Nobody has listened to the music; it is checked by numbers only (length, level, loop seam).
 - Summer Engine has no Linux build, so the project was run in Godot 4.7.2 and 4.4.1 only.
