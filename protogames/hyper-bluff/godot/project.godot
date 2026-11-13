@@ -1,0 +1,38 @@
+; Engine configuration file.
+; Hyper Bluff!! Starlight Showdown. All content original.
+; Opens in Godot 4.4 or newer and in Summer Engine (a Godot 4 compatible editor).
+
+config_version=5
+
+[application]
+
+config/name="Hyper Bluff!! Starlight Showdown"
+config/description="An original 90s-anime-style heads-up poker battle with an aura meter, spirit powers and bonus stars."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0.03, 0.02, 0.08, 1)
+config/use_custom_user_dir=true
+config/custom_user_dir_name="HyperBluff"
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="viewport"
+window/stretch/aspect="keep"
+window/stretch/scale_mode="integer"
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+2d/snap/snap_2d_transforms_to_pixel=true
+environment/defaults/default_clear_color=Color(0.03, 0.02, 0.08, 1)

@@ -19,6 +19,10 @@ Each game lives in its own folder with its own README, docs, pipeline and tests:
   save-anywhere and gamepad rebinding. Read `thornlash/CLAUDE.md` first. It holds the
   commands, the harness, the Aseprite-source art pipeline, and the renderer traps it hit
   (mirrored sprites, aliased images).
+- `hyper-bluff/`: a Godot 4 anime-style heads-up poker game (opens in Godot 4.4+ and Summer
+  Engine) with a live win-chance meter, powers and random bonuses. Read
+  `hyper-bluff/CLAUDE.md` first. Art sources are Aseprite files checked against the real
+  Aseprite CLI; backdrops are rendered in Blender.
 
 Rules shared by every project here:
 

@@ -1,0 +1,55 @@
+# Hyper Bluff!!: project notes for future sessions
+
+An original anime-style heads-up poker game: Godot 4 project in `godot/` (features tag 4.4
+so older editors and Summer Engine open it), 640x360, GDScript only.
+
+## Commands
+
+```bash
+. tests/env.sh            # GODOT, GODOT_OLD, ASEPRITE paths (edit OPT for your machine)
+bash tests/run_all.sh     # everything; must end with "ALL OK"
+$GODOT --headless --path godot --script res://tests/run_tests.gd   # "TESTS 40/40 passed"
+bash godot/tests/harness.sh $GODOT                                 # "HARNESS 0 failure(s)"
+python3 tests/verify_audio.py                                      # "AUDIO ok"
+python3 tools/art/ase_crosscheck.py $ASEPRITE                      # "ASECHECK ok: 11 files"
+$GODOT --headless --path godot --script res://tests/stats.gd       # bot playouts per rival
+$GODOT --headless --path godot --export-release "Windows Desktop" ../dist/HyperBluff/HyperBluff.exe
+bash godot/tests/harness.sh $GODOT --main-pack "$PWD/dist/HyperBluff/HyperBluff.exe"
+```
+
+Screenshots need a display: `xvfb-run -a $GODOT --path godot --audio-driver Dummy
+--rendering-driver opengl3 -- --script=...,shot:/abs/x.png`.
+
+Harness commands: `wait:n`, `tap:action`, `key:K`, `pad:button-index`, `click:region`,
+`wheel:up|down`, `until:mine|over|<screen>:max`, `dump`, `fit`, `shot:path`, and the
+set-up shortcuts `seed:n`, `rig:win|lose`, `floor:n`, `give:a+b`, `score:n`, `fever`.
+Harness runs save under `user://harness/`, wiped at start.
+
+## Architecture
+
+- `scripts/core/` is pure rules on one Dictionary `s`: `cards.gd` (evaluator, win chance,
+  LCG), `game.gd` (hold'em, powers, missions, stars, fever, scoring), `ai.gd`, `data.gd`.
+  Phases: pre, bet, advance, showdown, hand_over, match_over, run_won.
+- `scripts/main.gd` drives the rules, input, saves and the harness; `view/render.gd`
+  draws; `view/audio.gd` plays.
+- Art: `tools/art/sheets.py` (cards, icons, fonts), `portraits.py` + `export_portraits.py`.
+  `paint`/`portraits.py` overwrite the `.aseprite` sources; after a hand edit run only the
+  export step. `tools/blender/` and `tools/audio/` regenerate the rest.
+
+## Lessons (2026-11-13)
+
+- **A test that hits a script error must fail.** The first run printed 38/40 while
+  `game.gd` did not even compile, because an aborted test never set a failure. Tests now
+  return true and anything else is a failure.
+- **`wrap` is a built-in**; a helper with that name fails to parse. It is `wrap_text`.
+- **Python blending is not Aseprite blending.** PIL's alpha composite differed by 1 per
+  channel from Aseprite on semi-transparent pixels; `asefile.flatten` now uses Aseprite's
+  integer maths and the cross-check passes pixel-exact both ways.
+- **Aseprite CLI builds headless** with `-DLAF_BACKEND=none` (no Skia); it needs the X11
+  dev headers and a system libjpeg. Never commit the binary or its source.
+- **Pot not cleared after payout** let chips appear from nowhere in bot playouts; the
+  chip-conservation test caught it.
+
+## Player-reported bugs
+
+None yet. Log each: what the player saw, the cause, the fix, the check that guards it.
