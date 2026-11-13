@@ -22,6 +22,13 @@ const PADS := {
 const TIERS := [[0.0, "SHAKY"], [0.4, "EVEN"], [0.55, "SOLID"], [0.7, "STRONG"], [0.85, "MONSTER"]]
 const METER_SAMPLES := 480
 const SCREEN_LOCK := 12
+const PACE := [1.5, 1.0, 0.6]
+const PACE_NAME := ["RELAXED", "NORMAL", "FAST"]
+const DEAL_TICKS := 18        # a card's slide from the deck
+const FLIP_TICKS := 14        # turning it face up
+const SEAT := [Vector2(70, 300), Vector2(440, 30)]
+const BET_SPOT := [Vector2(186, 186), Vector2(186, 106)]
+const POT_SPOT := Vector2(450, 142)
 
 @onready var view: Node2D = $View
 @onready var audio: Node = $Audio
@@ -33,7 +40,7 @@ var cursor := 0
 var hot: Array = []           # clickable regions: {"id", "rect"}
 var hover := ""
 var s: Dictionary = {}        # the run (see core/game.gd)
-var opts := {"music": 7, "sfx": 8, "full": false}
+var opts := {"music": 7, "sfx": 8, "full": false, "pace": 0}
 var scores: Array = []
 var save_dir := "user://"
 var harness := false
@@ -59,9 +66,15 @@ var expr_t := 0
 var cutin := {}
 var pops: Array = []
 var reveal := false
-var deal_t := 0
 var shake := 0
 var burst_t := 0
+var card_t := {}              # "p0" "r1" "b3" -> tick the card leaves the deck
+var fliers: Array = []        # chips in flight: from, to, t, dur, delay, frame
+var pot_show := 0.0
+var stack_show := [800.0, 800.0]
+var result_t := 0
+var bubble_age := 0
+var last_bets := 0
 var meter := {"key": "", "score": 0, "n": 0, "box": {"k": 1}}
 var meter_show := 0.0
 var rig := ""
@@ -182,6 +195,7 @@ func menu_items() -> Array:
 			return ["RESUME", "OPTIONS", "QUIT TO TITLE"]
 		"options":
 			return ["MUSIC  " + str(opts["music"]), "SOUND  " + str(opts["sfx"]),
+				"PACE  " + PACE_NAME[opts["pace"]],
 				"FULL SCREEN  " + ("ON" if opts["full"] else "OFF"), "BACK"]
 		"matchend":
 			if not s.is_empty() and s["winner"] == 1:
@@ -215,9 +229,21 @@ func begin_versus() -> void:
 	start_story(Data.CAST[s["rival"]]["intro"], s["rival"], "play")
 	screen = "versus"
 
+## A pause of n ticks at normal pace, stretched or shortened by the PACE option.
+func pw(n: int) -> int:
+	return int(n * PACE[opts["pace"]])
+
+func fly(from: Vector2, to: Vector2, frame: int, delay: int = 0) -> void:
+	fliers.append({"from": from, "to": to, "t": 0, "dur": 20, "delay": delay, "frame": frame})
+
 func begin_play() -> void:
 	goto("play")
-	wait = 30
+	wait = pw(40)
+	card_t = {}
+	fliers = []
+	pot_show = 0.0
+	stack_show = [float(s["stack"][0]), float(s["stack"][1])]
+	last_bets = 0
 	msg = ""
 	bubble = ""
 	reveal = false
@@ -361,7 +387,7 @@ func press(a: String) -> void:
 				if page_t < 15:
 					return
 				var full: int = pages[page].length()
-				if page_t * 2 < full:
+				if page_t < full:
 					page_t = full
 				else:
 					page += 1
@@ -401,6 +427,8 @@ func _press_menu(a: String, items: Array) -> void:
 		elif cursor == 1:
 			opts["sfx"] = clampi(opts["sfx"] + d, 0, 10)
 		elif cursor == 2:
+			opts["pace"] = posmod(opts["pace"] + d, 3)
+		elif cursor == 3:
 			opts["full"] = not opts["full"]
 		_apply_opts()
 		_write("options.sav", opts)
@@ -450,10 +478,13 @@ func _press_menu(a: String, items: Array) -> void:
 				goto("title")
 		"options":
 			if cursor == 2:
+				opts["pace"] = posmod(opts["pace"] + 1, 3)
+				_write("options.sav", opts)
+			elif cursor == 3:
 				opts["full"] = not opts["full"]
 				_apply_opts()
 				_write("options.sav", opts)
-			elif cursor == 3:
+			elif cursor == 4:
 				goto(pause_from)
 		"matchend":
 			if cursor == 0:
@@ -496,8 +527,8 @@ func _press_play(a: String) -> void:
 				next_hand()
 		return
 	if not my_turn():
-		if a == "ok" and wait > 4:
-			wait = 4
+		if a == "ok" and wait > 12:
+			wait = 12
 		return
 	var ro := raise_opts()
 	match a:
@@ -546,7 +577,7 @@ func _commit() -> void:
 	raise_i = 0
 	btn = 1
 	drain()
-	wait = 24
+	wait = pw(40)
 
 # ---- play flow ----------------------------------------------------------------
 
@@ -558,32 +589,37 @@ func next_hand() -> void:
 		s["runout"] = Cards.cards("Ks Qd 9c 4h 3s")
 		rig = ""
 	reveal = false
-	deal_t = 30
+	result_t = 0
+	card_t = {"p0": tick + 6, "r0": tick + 18, "p1": tick + 30, "r1": tick + 42}
 	msg = ""
 	raise_i = 0
 	btn = 1
 	drain()
-	wait = 40
+	last_bets = 0
+	fly(SEAT[0], BET_SPOT[0], 2, 50)
+	fly(SEAT[1], BET_SPOT[1], 1, 56)
+	wait = pw(60) + 50
 
 func say(who_rival_key: String) -> void:
 	var lines: Array = Data.CAST[s["rival"]][who_rival_key]
 	bubble = lines[tick % lines.size()]
-	bubble_t = 150
+	bubble_t = pw(200)
+	bubble_age = 0
 
 func pop(text: String, x: float, y: float, col: Color) -> void:
-	pops.append({"text": text, "x": x, "y": y, "t": 80, "col": col})
+	pops.append({"text": text, "x": x, "y": y, "t": 110, "col": col})
 
 func set_expr(p: String, r: String) -> void:
 	pexpr = p
 	rexpr = r
-	expr_t = 140
+	expr_t = pw(180)
 
 func drain() -> void:
 	var rname: String = Data.CAST[s["rival"]]["name"]
 	for e in s["events"]:
 		match e["t"]:
 			"hand":
-				audio.play("card_deal")
+				pass
 			"fever":
 				audio.play("fever")
 				audio.music("fever")
@@ -601,25 +637,32 @@ func drain() -> void:
 						msg = name + (" check." if who == 0 else " checks.")
 					"call":
 						audio.play("chip_bet")
+						fly(SEAT[who], BET_SPOT[who], 2 - who)
 						msg = name + (" call." if who == 0 else " calls.")
 					"bet", "raise":
 						audio.play("chip_bet")
+						fly(SEAT[who], BET_SPOT[who], 2 - who)
+						fly(SEAT[who], BET_SPOT[who], 3, 5)
 						msg = "%s %s to %d." % [name, ("raise" if who == 0 else "raises"), e["amt"]]
 					"allin":
 						audio.play("allin")
+						for k in 5:
+							fly(SEAT[who], BET_SPOT[who], k, k * 4)
 						msg = name + (" are ALL IN!" if who == 0 else " is ALL IN!")
 						shake = 14
-						cutin = {"who": who, "text": "ALL IN!!", "t": 70}
+						cutin = {"who": who, "text": "ALL IN!!", "t": 100, "len": 100}
 						if who == 1:
 							say("allin")
 			"power":
 				audio.play("powerup")
 				var who2: int = e["who"]
-				cutin = {"who": who2, "text": Data.POWERS[e["id"]]["name"] + "!!", "t": 80}
+				cutin = {"who": who2, "text": Data.POWERS[e["id"]]["name"] + "!!", "t": 100, "len": 100}
 				msg = ("You use " if who2 == 0 else rname + " uses ") + Data.POWERS[e["id"]]["name"] + ": " \
 					+ Data.POWERS[e["id"]]["desc"]
 			"street":
-				audio.play("card_flip")
+				var first: int = 0 if e["n"] == 1 else e["n"] + 1
+				for i in range(first, s["board"].size()):
+					card_t["b%d" % i] = tick + 8 + (i - first) * 16
 			"star":
 				audio.play("star")
 				pop("STAR +%d" % e["value"], 208 + e["idx"] * 46, 116, Color(1, 0.9, 0.3))
@@ -628,6 +671,10 @@ func drain() -> void:
 			"settle":
 				reveal = s["result"]["showdown"]
 				var w: int = e["winner"]
+				result_t = 0
+				if w >= 0:
+					for k in 6:
+						fly(POT_SPOT, SEAT[w], k % 5, 20 + k * 5)
 				if w == 0:
 					audio.play("chip_win")
 					burst_t = 36
@@ -649,8 +696,33 @@ func drain() -> void:
 	s["events"] = []
 
 func _tick_play() -> void:
-	if deal_t > 0:
-		deal_t -= 1
+	for key in card_t:
+		if card_t[key] == tick:
+			audio.play("card_deal")
+		elif card_t[key] + DEAL_TICKS == tick and (key.begins_with("b") or key.begins_with("p")):
+			audio.play("card_flip")
+	for f in fliers:
+		if f["delay"] > 0:
+			f["delay"] -= 1
+		else:
+			f["t"] += 1
+	fliers = fliers.filter(func(f): return f["t"] < f["dur"])
+	var bets_now: int = s["bet"][0] + s["bet"][1]
+	if last_bets > 0 and bets_now == 0 and s["phase"] in ["advance", "showdown"]:
+		fly(BET_SPOT[0], POT_SPOT, 2)
+		fly(BET_SPOT[1], POT_SPOT, 1)
+		audio.play("chip_bet")
+	last_bets = bets_now
+	var pot_target := float(Game.pot(s))
+	if s["phase"] in ["hand_over", "match_over"]:
+		pot_target = 0.0
+		if wait == 0:
+			result_t += 1
+	pot_show = move_toward(pot_show, pot_target, maxf(1.0, absf(pot_target - pot_show) * 0.12))
+	for i in 2:
+		var target := float(s["stack"][i])
+		stack_show[i] = move_toward(stack_show[i], target, maxf(1.0, absf(target - stack_show[i]) * 0.12))
+	bubble_age += 1
 	if bubble_t > 0:
 		bubble_t -= 1
 	if expr_t > 0:
@@ -668,7 +740,7 @@ func _tick_play() -> void:
 	pops = pops.filter(func(p): return p["t"] > 0)
 	_tick_meter()
 	if not cutin.is_empty():
-		if cutin["t"] == 70 or cutin["t"] == 80:
+		if cutin["t"] == cutin["len"]:
 			audio.play("cutin")
 		cutin["t"] -= 1
 		if cutin["t"] <= 0:
@@ -688,23 +760,24 @@ func _tick_play() -> void:
 				else:
 					Game.act(s, 1, d["a"], d["amt"])
 				drain()
-				wait = 45
-			elif msg == "" or not msg.begins_with("You"):
-				if msg == "":
-					msg = "Your move."
+				wait = pw(70)
+			elif msg == "":
+				msg = "Your move."
 		"advance":
 			Game.advance(s)
 			drain()
-			wait = 40
+			wait = pw(60) + (70 if s["street"] == 1 else 38)
 		"showdown":
 			if s["folded"] < 0 and not reveal:
 				reveal = true
+				card_t["r0"] = tick - DEAL_TICKS
+				card_t["r1"] = tick - DEAL_TICKS + 10
 				audio.play("card_flip")
-				wait = 45
+				wait = pw(80)
 				return
 			Game.settle(s)
 			drain()
-			wait = 30
+			wait = pw(50)
 
 func meter_value() -> float:
 	return float(meter["score"]) / float(maxi(1, 2 * meter["n"]))
@@ -733,7 +806,7 @@ func _tick_meter() -> void:
 		meter["n"] += r[1]
 		if tick % 4 == 0 and screen == "play":
 			audio.play("meter_tick")
-	meter_show = lerpf(meter_show, meter_value(), 0.15)
+	meter_show = lerpf(meter_show, meter_value(), 0.07)
 
 # ---- main loop ----------------------------------------------------------------
 
@@ -752,7 +825,7 @@ func _tick() -> void:
 	match screen:
 		"story", "versus":
 			page_t += 1
-			if page < pages.size() and page_t * 2 <= pages[page].length() and page_t % 3 == 0:
+			if page < pages.size() and page_t <= pages[page].length() and page_t % 4 == 0:
 				audio.play("type")
 		"play":
 			_tick_play()
@@ -772,6 +845,11 @@ func dump() -> String:
 			s["rival"], s["phase"], s["hand_no"], s.get("street", 0), s.get("to_act", 0), Game.pot(s),
 			s["stack"][0], s["stack"][1], s["score"], s["powers"][0].size(), s["powers"][1].size(), btn]
 		out += " meter=%d fever=%d winner=%d" % [int(round(meter_value() * 100)), int(s["fever"]), s["winner"]]
+	var moving := 0
+	for key in card_t:
+		if tick - card_t[key] < DEAL_TICKS + FLIP_TICKS:
+			moving += 1
+	out += " moving=%d fliers=%d pace=%s room=%s" % [moving, fliers.size(), PACE_NAME[opts["pace"]], view.room_name()]
 	out += " music=%s sfx=%s save=%d scores=%d opts=%d/%d" % [audio.current, audio.last_sfx, int(has_save()),
 		scores.size(), opts["music"], opts["sfx"]]
 	return out
