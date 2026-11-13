@@ -1,7 +1,10 @@
 # Portraits
 
-Nine original characters, 96x96 busts, five expressions each
-(neutral, happy, shock, defeat, fierce).
+Nine original characters, 96x96 close-up busts, five expressions each
+(neutral, happy, shock, defeat, fierce). Each character has its own painter in
+`portraits.py` (own head shape, eyes, pose and per-expression changes); the head and
+hair fill the cell and may run off its top and sides. Rin and Yuki are painted facing
+left and mirrored at the end, so their coordinates in the code are flipped.
 
 | file | role |
 |---|---|
@@ -24,9 +27,10 @@ when you want the procedural version back.
 1. Open `art/portraits/<id>.aseprite` in Aseprite. Each file has
    - frames 0..4 tagged `neutral`, `happy`, `shock`, `defeat`, `fierce` (200 ms each);
    - layers, bottom to top: `hair_back`, `body`, `face`, `hair`, `fx`
-     (`fx` holds eyebrows, glasses, sweat drops, shock marks);
+     (`hair` also holds hats, hoods, visors and ornaments; `fx` holds eyebrows, goggles,
+     Yuki's fan, Mako's gum, sweat drops and shock marks);
    - a hidden guide layer `eyeband`: a 96x24 magenta box over the eyes;
-   - the character's palette (21-24 colours). Stay inside it and keep edges hard:
+   - the character's palette (18-24 colours). Stay inside it and keep edges hard:
      no soft brushes, no partial alpha. The exporter refuses semi-transparent pixels.
 2. Save (keep RGB colour mode, keep the five tags).
 3. Run `python3 tools/art/export_portraits.py` only. Do not run `portraits.py`.
