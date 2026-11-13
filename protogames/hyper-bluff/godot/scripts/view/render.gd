@@ -11,6 +11,9 @@ const GOLD := Color("f8c438")
 const PINK := Color("ff5fb4")
 const CYAN := Color("5fe8ff")
 const WHITE := Color.WHITE
+const DECK := Vector2(586, 130)
+## One accent colour per floor, matched to that room's felt.
+const ACCENT := [Color("ffd866"), Color("ff9a3c"), Color("9fd8ff"), Color("9dff6a"), Color("ff5a6e")]
 const CAST_ORDER := ["rin", "mako", "jiro", "aya", "pochi", "goro", "yuki", "zeno", "onyx"]
 
 var m: Node
@@ -20,6 +23,7 @@ var eye_y := {}
 func _ready() -> void:
 	m = get_parent()
 	for n in ["font", "font_big", "font_ital", "cards", "icons", "portraits", "bg_table", "bg_boss",
+			"bg_floor1", "bg_floor2", "bg_floor3", "bg_floor4", "bg_floor5",
 			"bg_title", "chip_spin", "chips", "star_spin", "trophy", "coin_burst"]:
 		var p := "res://assets/art/%s.png" % n
 		if ResourceLoader.exists(p):
@@ -86,6 +90,53 @@ func wrap_text(t: String, chars: int) -> Array:
 	if cur != "":
 		lines.append(cur)
 	return lines
+
+static func ease_out(x: float) -> float:
+	x = clampf(x, 0.0, 1.0)
+	return 1.0 - pow(1.0 - x, 3.0)
+
+## The room of the current floor; older builds only had one table and one boss room.
+func room_name() -> String:
+	var floor_no: int = m.s["match"] + 1 if not m.s.is_empty() else 1
+	var name := "bg_floor%d" % floor_no
+	if not tex.has(name):
+		name = "bg_boss" if floor_no == 5 else "bg_table"
+	return name
+
+func room() -> void:
+	var name := room_name()
+	if tex.has(name):
+		draw_texture(tex[name], Vector2.ZERO)
+	else:
+		draw_rect(Rect2(0, 0, 640, 360), Color("0c3a2c"))
+
+func accent() -> Color:
+	return ACCENT[clampi(m.s["match"], 0, 4)] if not m.s.is_empty() else CYAN
+
+## A card that slides in from the deck face down and then turns over. `key` names its
+## entry in m.card_t; a card with no entry is simply drawn in place.
+func dealt(key: String, c: int, x: float, y: float, up: bool) -> void:
+	if not m.card_t.has(key):
+		card(c, x, y, up)
+		return
+	var t: int = m.tick - m.card_t[key]
+	if t < 0:
+		return
+	if t < m.DEAL_TICKS:
+		var k: float = ease_out(float(t) / m.DEAL_TICKS)
+		var p: Vector2 = DECK.lerp(Vector2(x, y), k)
+		card(c, round(p.x), round(p.y - sin(k * PI) * 10.0), false)
+		return
+	var f: float = float(t - m.DEAL_TICKS) / m.FLIP_TICKS
+	if not up or f >= 1.0:
+		card(c, x, y, up)
+		return
+	var sx: float = maxf(absf(1.0 - 2.0 * f), 0.05)
+	draw_set_transform(Vector2(x + 20.0 * (1.0 - sx), y - sin(f * PI) * 3.0) + _shake, 0.0, Vector2(sx, 1.0))
+	card(c, 0, 0, f >= 0.5)
+	draw_set_transform(_shake, 0.0, Vector2.ONE)
+
+var _shake := Vector2.ZERO
 
 func card(c: int, x: float, y: float, up: bool = true, tint: Color = WHITE) -> void:
 	if not tex.has("cards"):
@@ -212,9 +263,7 @@ func _story() -> void:
 	if who == "":
 		_backdrop()
 	else:
-		var boss: bool = who == "onyx"
-		if tex.has("bg_boss" if boss else "bg_table"):
-			draw_texture(tex["bg_boss" if boss else "bg_table"], Vector2.ZERO)
+		room()
 		draw_rect(Rect2(0, 0, 640, 360), Color(0, 0, 0, 0.45))
 		speed_lines(Rect2(0, 40, 640, 150), Color(1, 1, 1, 0.1), m.tick / 5)
 		shadow("FLOOR %d" % (m.s["match"] + 1), 0, 20, CYAN, "b", 640, 1)
@@ -227,7 +276,7 @@ func _story() -> void:
 	panel(Rect2(60, 214, 520, 100))
 	if m.page < m.pages.size():
 		var full: String = m.pages[m.page]
-		var shown := full.substr(0, m.page_t * 2)
+		var shown := full.substr(0, m.page_t)
 		var lines := wrap_text(full, 80)
 		var left := shown.length()
 		for i in lines.size():
@@ -250,8 +299,7 @@ func _story() -> void:
 func _matchend() -> void:
 	var s: Dictionary = m.s
 	var won: bool = s["winner"] == 0
-	if tex.has("bg_boss" if s["rival"] == "onyx" else "bg_table"):
-		draw_texture(tex["bg_boss" if s["rival"] == "onyx" else "bg_table"], Vector2.ZERO)
+	room()
 	draw_rect(Rect2(0, 0, 640, 360), Color(0, 0, 0, 0.55))
 	shadow("FLOOR CLEARED!!" if won else "BUSTED...", 0, 30, GOLD if won else PINK, "i", 640, 1)
 	portrait(s["avatar"], "happy" if won else "defeat", 150, 70)
@@ -307,15 +355,13 @@ func _play() -> void:
 	var s: Dictionary = m.s
 	if s.is_empty():
 		return
-	var boss: bool = s["rival"] == "onyx"
+	var acc := accent()
 	var off := Vector2.ZERO
 	if m.shake > 0:
 		off = Vector2((m.tick * 7) % 5 - 2, (m.tick * 13) % 5 - 2)
+	_shake = off
 	draw_set_transform(off, 0.0, Vector2.ONE)
-	if tex.has("bg_boss" if boss else "bg_table"):
-		draw_texture(tex["bg_boss" if boss else "bg_table"], Vector2.ZERO)
-	else:
-		draw_rect(Rect2(0, 0, 640, 360), Color("0c3a2c"))
+	room()
 	if s["fever"]:
 		var hue := fmod(m.tick * 0.02, 1.0)
 		for i in 3:
@@ -329,11 +375,19 @@ func _play() -> void:
 		txt("BONUS " + mission["text"], 10, 7, GOLD, "s", 250)
 	if s["fever"]:
 		shadow("FEVER x3", 10, 22, Color.from_hsv(fmod(m.tick * 0.03, 1.0), 0.6, 1.0), "b")
-	portrait(s["rival"], m.rexpr, 272, 14)
+	var rbob := 0.0
+	if m.bubble_t > 0:
+		rbob = round(sin(m.tick * 0.25))
+	if m.rexpr == "shock" and m.expr_t > m.pw(180) - 24:
+		rbob = (m.tick % 4) - 1.5
+	portrait(s["rival"], m.rexpr, 272 + (rbob if m.rexpr == "shock" else 0.0), 14 + (0.0 if m.rexpr == "shock" else rbob))
 	var rc: Dictionary = Data.CAST[s["rival"]]
-	panel(Rect2(376, 12, 150, 30))
+	panel(Rect2(376, 12, 150, 30), PANEL, acc)
 	txt(rc["name"], 380, 16, GOLD, "s", 142)
-	txt("CHIPS %d" % s["stack"][1], 380, 28, WHITE, "s", 90)
+	txt("CHIPS %d" % int(round(m.stack_show[1])), 380, 28, WHITE, "s", 90)
+	if s["phase"] == "bet" and s["to_act"] == 1 and m.cutin.is_empty():
+		panel(Rect2(236, 56, 30, 14), Color(1, 1, 1, 0.95), INK)
+		txt(".".repeat(1 + (m.tick / 18) % 3), 242, 58, INK)
 	for i in s["powers"][1].size():
 		draw_rect(Rect2(480 + i * 10, 29, 7, 7), PINK)
 	panel(Rect2(532, 20, 104, 44))
@@ -346,26 +400,29 @@ func _play() -> void:
 	txt("MENU", 604, 7, WHITE, "s", 32, 1)
 	if m.bubble_t > 0 and m.bubble != "":
 		var bl := wrap_text(m.bubble, 38)
-		panel(Rect2(22, 40, 240, 8 + bl.size() * 11), Color(1, 1, 1, 0.95), INK)
+		var by: float = 40.0 - (1.0 - ease_out(m.bubble_age / 12.0)) * 10.0
+		panel(Rect2(22, by, 240, 8 + bl.size() * 11), Color(1, 1, 1, 0.95), INK)
 		for i in bl.size():
-			txt(bl[i], 28, 45 + i * 11, INK, "s", 230)
+			txt(bl[i], 28, by + 5 + i * 11, INK, "s", 230)
 
 	# rival hole cards
 	var seen: Array = s["fx"]["peek"][0]
 	for i in 2:
-		if s["hole"][1].size() < 2 or m.deal_t > 10 + i * 6:
+		if s["hole"][1].size() < 2:
 			continue
 		var up: bool = m.reveal or seen.has(i)
-		card(s["hole"][1][i], 380 + i * 44, 46, up)
+		dealt("r%d" % i, s["hole"][1][i], 380 + i * 44, 46, up)
 		if up and not m.reveal:
 			txt("SEEN", 380 + i * 44, 104, CYAN, "s", 40, 1)
 
 	# board
 	for i in 5:
 		draw_rect(Rect2(208 + i * 46, 128, 40, 56), Color(0, 0, 0, 0.18))
+	for k in 3:
+		card(0, DECK.x - k, DECK.y - k, false)
 	for i in s["board"].size():
-		card(s["board"][i], 208 + i * 46, 128)
-		if s["stars"].has(i):
+		dealt("b%d" % i, s["board"][i], 208 + i * 46, 128, true)
+		if s["stars"].has(i) and m.tick - m.card_t.get("b%d" % i, -999) > m.DEAL_TICKS + m.FLIP_TICKS:
 			strip("star_spin", (m.tick / 6) % 8, 24, 208 + i * 46 + 22, 120)
 			if not tex.has("star_spin"):
 				icon("star", 208 + i * 46 + 16, 116)
@@ -374,10 +431,9 @@ func _play() -> void:
 		var i2: int = s["board"].size()
 		card(kb[i2], 208 + i2 * 46, 128, true, Color(1, 1, 1, 0.55))
 		txt("SIGHT", 208 + i2 * 46, 186, CYAN, "s", 40, 1)
-	panel(Rect2(444, 128, 88, 56))
-	txt("POT", 448, 132, CYAN)
-	var pot_now: int = s["result"]["pot"] if s["phase"] in ["hand_over", "match_over"] and s["result"].has("pot") else Game.pot(s)
-	txt(str(pot_now), 476, 142, GOLD, "b", 52, 2)
+	panel(Rect2(444, 128, 88, 56), PANEL, acc)
+	txt("POT", 448, 132, acc)
+	txt(str(int(round(m.pot_show))), 476, 142, GOLD, "b", 52, 2)
 	strip("chip_spin", (m.tick / 5) % 8, 24, 448, 139)
 	txt("STARS +%d" % s["star_pot"], 448, 164, GOLD if s["star_pot"] > 0 else Color(1, 1, 1, 0.4), "s", 80)
 	if s["bet"][1] > 0:
@@ -394,11 +450,9 @@ func _play() -> void:
 	# player side
 	portrait(s["avatar"], m.pexpr, 10, 196)
 	txt(Data.CAST[s["avatar"]]["name"], 8, 298, WHITE, "s", 100, 1)
-	txt("CHIPS %d" % s["stack"][0], 8, 309, GOLD, "s", 100, 1)
+	txt("CHIPS %d" % int(round(m.stack_show[0])), 8, 309, GOLD, "s", 100, 1)
 	for i in s["hole"][0].size():
-		if m.deal_t > i * 6:
-			continue
-		card(s["hole"][0][i], 276 + i * 46, 206)
+		dealt("p%d" % i, s["hole"][0][i], 276 + i * 46, 206, true)
 	_meter(376, 204)
 	for i in 3:
 		var x := 532 + i * 35
@@ -424,18 +478,27 @@ func _play() -> void:
 
 	shadow(m.msg, 112, 304, WHITE, "s", 450, 1)
 	_buttons()
+	for f in m.fliers:
+		if f["delay"] > 0:
+			continue
+		var k: float = ease_out(float(f["t"]) / f["dur"])
+		var p2: Vector2 = f["from"].lerp(f["to"], k)
+		strip("chips", f["frame"], 20, round(p2.x), round(p2.y - sin(k * PI) * 14.0))
 	for p in m.pops:
-		shadow(p["text"], p["x"], p["y"], p["col"], "b")
+		var rise: float = ease_out(float(110 - p["t"]) / 30.0)
+		shadow(p["text"], p["x"], p["y"] + (1.0 - rise) * 8.0, p["col"], "b")
 	if s["phase"] in ["hand_over", "match_over"] and m.wait == 0:
+		draw_set_transform(off + Vector2(-280.0 * (1.0 - ease_out(m.result_t / 16.0)), 0), 0.0, Vector2.ONE)
 		_result()
+		draw_set_transform(off, 0.0, Vector2.ONE)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if not m.cutin.is_empty():
 		_cutin()
 
 func _meter(x: float, y: float) -> void:
 	var s: Dictionary = m.s
-	panel(Rect2(x, y, 150, 54))
-	txt("AURA METER", x + 4, y + 4, CYAN)
+	panel(Rect2(x, y, 150, 54), PANEL, accent())
+	txt("AURA METER", x + 4, y + 4, accent())
 	if s["hole"][0].is_empty():
 		return
 	var v: float = clampf(m.meter_show, 0.0, 1.0)
@@ -477,7 +540,10 @@ func _buttons() -> void:
 		var fill := Color(0.5, 0.1, 0.4, 0.95) if on else PANEL
 		if not live:
 			fill = Color(0.1, 0.1, 0.14, 0.7)
-		panel(rects[i], fill, GOLD if on else (CYAN if live else Color(0.4, 0.4, 0.5)))
+		var r: Rect2 = rects[i]
+		if on:
+			r = r.grow(1.0 + round(sin(m.tick * 0.15)))
+		panel(r, fill, GOLD if on else (accent() if live else Color(0.4, 0.4, 0.5)))
 		txt(labels[i], rects[i].position.x, 328, WHITE if live else Color(0.6, 0.6, 0.65), "s", int(rects[i].size.x), 1)
 		txt(["F", "C", "R"][i], rects[i].position.x, 340, CYAN if live else Color(0.4, 0.4, 0.5), "s", int(rects[i].size.x), 1)
 	for i in 2:
@@ -526,8 +592,12 @@ func _cutin() -> void:
 	var who: int = c["who"]
 	var id: String = m.s["avatar"] if who == 0 else m.s["rival"]
 	var t: int = c["t"]
-	var slide := clampf(float(80 - t) / 8.0, 0.0, 1.0)
+	var slide: float = ease_out(float(c["len"] - t) / 14.0) * ease_out(float(t) / 10.0)
 	var col := Color(0.1, 0.25, 0.7, 0.92) if who == 0 else Color(0.6, 0.08, 0.2, 0.92)
+	var h: float = 100.0 * ease_out(float(c["len"] - t) / 8.0) * ease_out(float(t) / 8.0)
+	if h < 96.0:
+		draw_rect(Rect2(0, 160 - h / 2, 640, h), col)
+		return
 	draw_rect(Rect2(0, 110, 640, 100), col)
 	draw_rect(Rect2(0, 108, 640, 2), GOLD)
 	draw_rect(Rect2(0, 210, 640, 2), GOLD)
