@@ -325,6 +325,11 @@ private:
     // render
     std::vector<DrawCmd> draw_;
     std::vector<std::string> fit_fail_;
+    // Every unscaled text and menu button drawn this frame (screen space), for the overlap check.
+    std::vector<std::pair<RectF, std::string>> texts_;
+    std::vector<std::pair<RectF, std::string>> btn_rects_;
+    void Veil(float alpha);
+    void CheckOverlaps();
     Xf xf_;
     Vec2 shake_off_;
     std::array<Vec2, kTexCount> tex_size_{};

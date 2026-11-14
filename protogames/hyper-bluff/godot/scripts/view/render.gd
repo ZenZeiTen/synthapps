@@ -15,6 +15,12 @@ const DECK := Vector2(586, 130)
 const RESULT_X := 372.0
 ## One accent colour per floor, matched to that room's felt.
 const ACCENT := [Color("ffd866"), Color("ff9a3c"), Color("9fd8ff"), Color("9dff6a"), Color("ff5a6e")]
+## Every text and menu button drawn this frame, for the overlap check in `fit`.
+## `_track` is off while drawing scaled (logo, flipping cards).
+var _texts := []
+var _btn_rects := []
+var _track := true
+
 ## Last big header drawn (story episode label or match-end banner), for the harness.
 var head_text := ""
 var CAST_ORDER := ["rin", "mako", "jiro", "aya", "pochi", "goro", "yuki", "zeno", "onyx"]
@@ -63,6 +69,8 @@ func txt(t: String, x: float, y: float, col: Color = WHITE, f: String = "s", box
 			x += box - w
 	x = floorf(x)
 	y = floorf(y)
+	if _track and t.strip_edges() != "":
+		_texts.append([Rect2(x, y, w, 8 if f == "s" else 16), t])
 	for i in t.length():
 		var c := t.unicode_at(i) - 32
 		if c <= 0 or c > 94:
@@ -77,7 +85,37 @@ func shadow(t: String, x: float, y: float, col: Color, f: String = "s", box: int
 	txt(t, x, y, col, f, box, align)
 	m.fit_fail.resize(before)
 
+## Darken everything drawn so far. Text under a strong veil no longer counts as visible.
+func veil(alpha: float) -> void:
+	draw_rect(Rect2(0, 0, 640, 360), Color(0, 0, 0, alpha))
+	if alpha >= 0.8:
+		_texts.clear()
+		_btn_rects.clear()
+
+## Report text drawn over other text, and text crossing a button it is not the label of.
+func check_overlaps() -> void:
+	for i in _texts.size():
+		var a: Rect2 = _texts[i][0]
+		for j in range(i + 1, _texts.size()):
+			var b: Rect2 = _texts[j][0]
+			if _texts[i][1] != _texts[j][1] and a.grow(-1).intersects(b.grow(-1)):
+				m.fit_fail.append("%s|overlap: %s / %s" % [m.screen, _texts[i][1], _texts[j][1]])
+		for btn in _btn_rects:
+			if btn[1] != _texts[i][1] and a.grow(-1).intersects(btn[0]):
+				m.fit_fail.append("%s|over button %s: %s" % [m.screen, btn[1], _texts[i][1]])
+
 func panel(r: Rect2, fill: Color = PANEL, border: Color = CYAN) -> void:
+	# An opaque panel hides text drawn under it; text only partly hidden is cut in half.
+	if fill.a >= 0.9 and _track:
+		var keep := []
+		for e in _texts:
+			var tr: Rect2 = e[0]
+			if r.encloses(tr):
+				continue
+			if r.grow(-1).intersects(tr.grow(-1)):
+				m.fit_fail.append("%s|cut off under a panel: %s" % [m.screen, e[1]])
+			keep.append(e)
+		_texts = keep
 	draw_rect(r, fill)
 	draw_rect(r, border, false, 1.0)
 
@@ -155,9 +193,11 @@ func dealt(key: String, c: int, x: float, y: float, up: bool) -> void:
 		card(c, x, y, up)
 		return
 	var sx: float = maxf(absf(1.0 - 2.0 * f), 0.05)
+	_track = false
 	draw_set_transform(Vector2(x + 20.0 * (1.0 - sx), y - sin(f * PI) * 3.0) + _shake, 0.0, Vector2(sx, 1.0))
 	card(c, 0, 0, f >= 0.5)
 	draw_set_transform(_shake, 0.0, Vector2.ONE)
+	_track = true
 
 var _shake := Vector2.ZERO
 
@@ -193,6 +233,7 @@ func menu(items: Array) -> void:
 		var r: Rect2 = m.menu_rect(i)
 		var on: bool = i == m.cursor
 		panel(r, Color(0.5, 0.1, 0.4, 0.95) if on else PANEL, GOLD if on else CYAN)
+		_btn_rects.append([r, items[i]])
 		txt(items[i], r.position.x, r.position.y + (r.size.y - 9) / 2, GOLD if on else WHITE, "s", int(r.size.x), 1)
 
 func speed_lines(r: Rect2, col: Color, seed_value: int) -> void:
@@ -207,6 +248,13 @@ func speed_lines(r: Rect2, col: Color, seed_value: int) -> void:
 
 func _draw() -> void:
 	m.fit_fail = []
+	_texts.clear()
+	_btn_rects.clear()
+	_track = true
+	_draw_screen()
+	check_overlaps()
+
+func _draw_screen() -> void:
 	match m.screen:
 		"title":
 			_title()
@@ -220,14 +268,16 @@ func _draw() -> void:
 			_play()
 		"pause":
 			_play()
-			draw_rect(Rect2(0, 0, 640, 360), Color(0, 0, 0, 0.6))
+			veil(0.85)
+			panel(Rect2(200, 78, 240, 140), Color(0.05, 0.04, 0.14, 0.96), GOLD)
 			shadow("PAUSED", 0, 90, GOLD, "i", 640, 1)
 			menu(m.menu_items())
 		"options":
 			_backdrop()
 			shadow("OPTIONS", 0, 80, GOLD, "i", 640, 1)
 			menu(m.menu_items())
-			txt("LEFT / RIGHT CHANGES A VALUE", 0, 250, CYAN, "s", 640, 1)
+			var last: Rect2 = m.menu_rect(m.menu_items().size() - 1)
+			txt("LEFT / RIGHT CHANGES A VALUE", 0, last.end.y + 12, CYAN, "s", 640, 1)
 		"matchend":
 			_matchend()
 		"scores":
@@ -244,6 +294,7 @@ func _backdrop() -> void:
 
 func _logo(y: float) -> void:
 	var t := "HYPER BLUFF!!"
+	_track = false
 	draw_set_transform(Vector2(0, y), 0.0, Vector2(3, 3))
 	var x := (640.0 / 3.0 - t.length() * 12) / 2
 	var bob := sin(m.tick * 0.08) * 1.0
@@ -251,6 +302,7 @@ func _logo(y: float) -> void:
 	txt(t, x + 0.7, 0.7 + bob, PINK, "i")
 	txt(t, x, bob, GOLD, "i")
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	_track = true
 	shadow("STARLIGHT SHOWDOWN", 0, y + 62, CYAN, "b", 640, 1)
 
 func _title() -> void:
@@ -261,7 +313,8 @@ func _title() -> void:
 	speed_lines(Rect2(0, 20, 640, 150), Color(1, 1, 1, 0.12), m.tick / 4)
 	_logo(60)
 	menu(m.menu_items())
-	txt("ARROWS + Z / ENTER, OR THE MOUSE", 0, 346, Color(1, 1, 1, 0.7), "s", 640, 1)
+	draw_rect(Rect2(0, 340, 640, 20), Color(0.03, 0.02, 0.1, 0.85))
+	txt("ARROWS + Z / ENTER, OR THE MOUSE", 0, 346, Color(1, 1, 1, 0.85), "s", 640, 1)
 
 func _avatar() -> void:
 	_backdrop()

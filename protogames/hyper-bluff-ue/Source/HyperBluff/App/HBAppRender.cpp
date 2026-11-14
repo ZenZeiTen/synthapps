@@ -63,6 +63,12 @@ bool ToVirtual(const Layout& l, float px, float py, Vec2& out) {
 }
 
 namespace {
+bool Overlaps(const RectF& a, const RectF& b) {
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+bool Encloses(const RectF& outer, const RectF& in) {
+    return in.x >= outer.x && in.y >= outer.y && in.x + in.w <= outer.x + outer.w && in.y + in.h <= outer.y + outer.h;
+}
 
 const Color kInk = Hex(0x18142c);
 const Color kPanel = Color{0.07f, 0.06f, 0.16f, 0.88f};
@@ -214,6 +220,9 @@ void App::Txt(const std::string& t, float x, float y, Color col, char f, int box
             }
         }
     }
+    if (xf_.sx == 1.0f && xf_.sy == 1.0f && t.find_first_not_of(' ') != std::string::npos) {
+        texts_.push_back({RectF{xf_.ox + x, xf_.oy + y, static_cast<float>(w), f == 's' ? 8.0f : 16.0f}, t});
+    }
     for (size_t i = 0; i < t.size(); ++i) {
         const int c = static_cast<int>(static_cast<unsigned char>(t[i])) - 32;
         if (c <= 0 || c > 94) continue;
@@ -266,6 +275,18 @@ int App::WrapBox(const std::string& t, RectF box, float line_h, Color col, int a
 }
 
 void App::Panel(RectF r, Color fill, Color border) {
+    // An opaque panel hides text drawn under it; text only partly hidden is cut in half.
+    if (fill.a >= 0.9f && xf_.sx == 1.0f && xf_.sy == 1.0f) {
+        const RectF sr{xf_.ox + r.x, xf_.oy + r.y, r.w, r.h};
+        std::vector<std::pair<RectF, std::string>> keep;
+        for (const auto& e : texts_) {
+            if (Encloses(sr, e.first)) continue;
+            if (Overlaps(sr.Grow(-1), e.first.Grow(-1)))
+                fit_fail_.push_back(std::string(ScreenName(screen_)) + "|cut off under a panel: " + e.second);
+            keep.push_back(e);
+        }
+        texts_.swap(keep);
+    }
     Rect(r, fill);
     Outline(r, border);
 }
@@ -341,6 +362,7 @@ void App::Menu(const std::vector<std::string>& items) {
         const RectF r = MenuRect(static_cast<int>(i));
         const bool on = static_cast<int>(i) == cursor_;
         Panel(r, on ? Rgba(0.5f, 0.1f, 0.4f, 0.95f) : kPanel, on ? kGold : kCyan);
+        btn_rects_.push_back({RectF{xf_.ox + r.x, xf_.oy + r.y, r.w, r.h}, items[i]});
         Txt(items[i], r.x, r.y + (r.h - 9) / 2, on ? kGold : kWhite, 's', static_cast<int>(r.w), 1);
     }
 }
@@ -357,9 +379,35 @@ void App::SpeedLines(RectF r, Color col, int seed_value) {
 
 // ---- screens ---------------------------------------------------------------------------------
 
+// Darken everything drawn so far. Text under a strong veil no longer counts as visible.
+void App::Veil(float alpha) {
+    Rect(RectF{0, 0, 640, 360}, Rgba(0, 0, 0, alpha));
+    if (alpha >= 0.8f) {
+        texts_.clear();
+        btn_rects_.clear();
+    }
+}
+
+// Report text drawn over other text, and text crossing a button it is not the label of.
+void App::CheckOverlaps() {
+    for (size_t i = 0; i < texts_.size(); ++i) {
+        const RectF a = texts_[i].first.Grow(-1);
+        for (size_t j = i + 1; j < texts_.size(); ++j) {
+            if (texts_[i].second != texts_[j].second && Overlaps(a, texts_[j].first.Grow(-1)))
+                fit_fail_.push_back(std::string(ScreenName(screen_)) + "|overlap: " + texts_[i].second + " / " + texts_[j].second);
+        }
+        for (const auto& b : btn_rects_) {
+            if (b.second != texts_[i].second && Overlaps(a, b.first))
+                fit_fail_.push_back(std::string(ScreenName(screen_)) + "|over button " + b.second + ": " + texts_[i].second);
+        }
+    }
+}
+
 const std::vector<DrawCmd>& App::Render() {
     draw_.clear();
     fit_fail_.clear();
+    texts_.clear();
+    btn_rects_.clear();
     xf_ = Xf();
     shake_off_ = Vec2{0, 0};
     switch (screen_) {
@@ -370,7 +418,8 @@ const std::vector<DrawCmd>& App::Render() {
         case Screen::Play: DrawPlay(); break;
         case Screen::Pause:
             DrawPlay();
-            Rect(RectF{0, 0, 640, 360}, Rgba(0, 0, 0, 0.6f));
+            Veil(0.85f);
+            Panel(RectF{200, 78, 240, 140}, Rgba(0.05f, 0.04f, 0.14f, 0.96f), kGold);
             Shadow("PAUSED", 0, 90, kGold, 'i', 640, 1);
             Menu(MenuItems());
             break;
@@ -378,12 +427,16 @@ const std::vector<DrawCmd>& App::Render() {
             Backdrop();
             Shadow("OPTIONS", 0, 80, kGold, 'i', 640, 1);
             Menu(MenuItems());
-            Txt("LEFT / RIGHT CHANGES A VALUE", 0, 250, kCyan, 's', 640, 1);
+            {
+                const RectF last = MenuRect(static_cast<int>(MenuItems().size()) - 1);
+                Txt("LEFT / RIGHT CHANGES A VALUE", 0, last.y + last.h + 12, kCyan, 's', 640, 1);
+            }
             break;
         case Screen::MatchEnd: DrawMatchEnd(); break;
         case Screen::Scores: DrawScores(); break;
         case Screen::Credits: DrawCredits(); break;
     }
+    CheckOverlaps();
     return draw_;
 }
 
@@ -424,7 +477,8 @@ void App::DrawTitle() {
     SpeedLines(RectF{0, 20, 640, 150}, Rgba(1, 1, 1, 0.12f), tick_ / 4);
     Logo(60);
     Menu(MenuItems());
-    Txt("ARROWS + Z / ENTER, OR THE MOUSE", 0, 346, Rgba(1, 1, 1, 0.7f), 's', 640, 1);
+    Rect(RectF{0, 340, 640, 20}, Rgba(0.03f, 0.02f, 0.1f, 0.85f));
+    Txt("ARROWS + Z / ENTER, OR THE MOUSE", 0, 346, Rgba(1, 1, 1, 0.85f), 's', 640, 1);
 }
 
 void App::DrawAvatar() {
