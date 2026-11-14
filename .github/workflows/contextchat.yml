@@ -93,10 +93,35 @@ jobs:
           path: ${{ runner.temp }}/screens
           if-no-files-found: ignore
       - run: npm run build
+      - name: Check the zip unpacks to a contextchat folder
+        run: |
+          unzip -tq dist/contextchat-*.zip
+          unzip -l dist/contextchat-*.zip | grep -q ' contextchat/contextchat.php$'
       - uses: actions/upload-artifact@v4
         with:
           name: contextchat-plugin
           path: contextchat/dist/*.zip
+
+  windows-build:
+    name: Build on Windows
+    # `npm run build` must work in PowerShell too, not only in CI's Linux.
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: contextchat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      - run: npm run build
+      - name: Check the zip unpacks to a contextchat folder
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem dist/contextchat-*.zip | Select-Object -First 1
+          Expand-Archive $zip.FullName -DestinationPath "$env:RUNNER_TEMP/unpacked"
+          if (-not (Test-Path "$env:RUNNER_TEMP/unpacked/contextchat/contextchat.php")) { throw "contextchat/contextchat.php is missing from $($zip.Name)" }
+          Write-Output "$($zip.Name) unpacks correctly"
 
   release:
     name: Publish release
@@ -104,7 +129,7 @@ jobs:
     if: >-
       startsWith(github.ref, 'refs/tags/contextchat-v') ||
       (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
-    needs: [lint, test]
+    needs: [lint, test, windows-build]
     runs-on: ubuntu-latest
     permissions:
       contents: write

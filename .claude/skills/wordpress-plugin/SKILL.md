@@ -90,6 +90,8 @@ Running a downloaded WordPress in this environment is refused by its safety chec
 - Release notes must give upgrade steps a non-developer can follow: upload the zip, choose **Replace current with uploaded**, and note what happens to their data. Also tell them to clear any page cache and then check the site in a private window.
 - After a pull request merges, GitHub deletes its branch. Start follow-up work from `main` on the same branch name and push it as a new branch: `git fetch --prune` first, or the push fails with "stale info".
 - Merge and publish only after CI is green on the final commit, and only with the user's go-ahead for this specific release.
+- Build the zip with a plain Node script, not bash and `zip`, so the user can also build it on Windows. Example: `contextchat/scripts/build-zip.mjs`, checked in CI by a `windows-latest` job.
+- End every task that changes a plugin with something the user can install: send the built zip as a file in the chat, and once a release is published, the direct link `https://github.com/<owner>/<repo>/releases/download/<tag>/<zip>`. Check that the release exists before giving the link. Never commit the zip.
 
 ## 6. Diagnosing a user's report
 
