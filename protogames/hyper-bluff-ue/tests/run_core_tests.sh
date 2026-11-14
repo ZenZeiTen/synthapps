@@ -123,9 +123,10 @@ runs="$(cat "$GDOUT"/runs_*.txt | grep -c '^RUN ')"
 steps="$(cat "$GDOUT"/runs_*.txt | grep -vc '^\(RUN\|init\|END\) ')"
 hands="$(cat "$GDOUT"/runs_*.txt | grep -c '^\(pre\|hand_over\) ')"
 evals="$(( (EVALS / JOBS) * JOBS ))"
-expect_runs="$(( SEEDS * 5 ))"
+ladder="$(grep -c . <<< "$(grep '^RIVALS ' "$GDOUT/data.txt" | cut -d' ' -f2 | tr ',' '\n')")"
+expect_runs="$(( SEEDS * ladder ))"
 if [ "$runs" -ne "$expect_runs" ] || [ "$steps" -lt 1000 ]; then
   echo "PARITY FAILED: expected $expect_runs runs, found $runs with $steps steps"
   exit 1
 fi
-echo "PARITY ok: $SEEDS seeds, $steps steps ($runs runs, $hands hands, all five rivals, ${compilers[*]}); eval ok: $evals hands + 60000 short sets; data ok"
+echo "PARITY ok: $SEEDS seeds, $steps steps ($runs runs, $hands hands, all $ladder rivals, ${compilers[*]}); eval ok: $evals hands + 60000 short sets; data ok"

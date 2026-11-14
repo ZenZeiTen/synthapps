@@ -266,7 +266,13 @@ void DumpData() {
             for (const auto& l : lists) {
                 for (const std::string& line : *l.second) Line(std::string("LINE ") + c.id + " " + l.first + " " + line);
             }
+            Line(std::string("LADDER ") + c.id + " " + (c.mini ? "1" : "0") + " " + S(c.stack) + " " + S(c.room) + " " +
+                 c.episode);
+            for (const std::string& line : c.lore) Line(std::string("LORE ") + c.id + " " + line);
         }
+    }
+    for (size_t i = 0; i < data::kRivals.size(); ++i) {
+        Line("EPISODE " + S(static_cast<int>(i)) + " " + data::EpisodeLabel(static_cast<int>(i)));
     }
     for (Power p : data::PowerIds(false)) {
         const PowerInfo& i = data::PowerInfoOf(p);
@@ -314,7 +320,7 @@ int main(int argc, char** argv) {
     if (mode == "runs") {
         for (int seed = 1; seed <= seeds; ++seed) {
             if ((seed - 1) % shards != shard) continue;
-            for (int start = 0; start < 5; ++start) Play(seed, start);
+            for (int start = 0; start < static_cast<int>(data::kRivals.size()); ++start) Play(seed, start);
         }
     } else if (mode == "eval") {
         Evals(shard, evals / shards);

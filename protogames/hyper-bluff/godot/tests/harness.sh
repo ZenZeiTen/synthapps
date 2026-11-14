@@ -21,15 +21,15 @@ run() {   # run <name> <regex over the DUMP lines joined by ;> <script>
 }
 # shared script pieces: every step is a real key press
 SKIP="wait:16,tap:ok,tap:ok"                                  # finish typing a page, then next page
-TO_PLAY="until:title:60,tap:ok,until:avatar:60,tap:ok,until:story:60,$SKIP,$SKIP,$SKIP,until:versus:60,$SKIP,$SKIP,until:play:60"
+TO_PLAY="until:title:60,tap:ok,until:avatar:60,tap:ok,until:story:60,$SKIP,$SKIP,$SKIP,$SKIP,$SKIP,until:versus:60,$SKIP,$SKIP,$SKIP,$SKIP,until:play:60"
 
 run "title to first hand with the keyboard" \
-  "^screen=title .*music=title .*;screen=avatar .*;screen=story .*page=0/3 .*save=1 .*;screen=versus .*rival=pochi .*music=match .*;screen=play .*phase=bet hand=1 .*to_act=0 pot=30 stack=790/780 .*" \
-  "until:title:60,dump,tap:ok,until:avatar:60,dump,tap:ok,until:story:60,dump,$SKIP,$SKIP,$SKIP,until:versus:60,dump,$SKIP,$SKIP,until:play:60,until:mine:900,dump"
+  "^screen=title .*music=title .*;screen=avatar .*;screen=story .*page=0/5 .*save=1 .*;screen=versus .*rival=pochi .*music=match .*;screen=play .*phase=bet hand=1 .*to_act=0 pot=30 stack=790/780 .*" \
+  "until:title:60,dump,tap:ok,until:avatar:60,dump,tap:ok,until:story:60,dump,$SKIP,$SKIP,$SKIP,$SKIP,$SKIP,until:versus:60,dump,$SKIP,$SKIP,$SKIP,$SKIP,until:play:60,until:mine:900,dump"
 
 run "the same path with mouse clicks only" \
   "^screen=avatar cur=0 .*;screen=avatar cur=2 .*;screen=story .*;screen=play .*phase=bet hand=1 .*;screen=play .*(street=1|to_act=1|phase=(advance|showdown|hand_over)).*" \
-  "until:title:60,click:menu:0,until:avatar:60,dump,click:avatar:2,wait:2,dump,click:avatar:2,until:story:60,dump,wait:16,click:next,click:next,wait:16,click:next,click:next,wait:16,click:next,click:next,until:versus:60,wait:16,click:next,click:next,wait:16,click:next,click:next,until:play:60,until:mine:900,dump,click:btn:1,wait:3,dump"
+  "until:title:60,click:menu:0,until:avatar:60,dump,click:avatar:2,wait:2,dump,click:avatar:2,until:story:60,dump,wait:16,click:next,click:next,wait:16,click:next,click:next,wait:16,click:next,click:next,wait:16,click:next,click:next,wait:16,click:next,click:next,until:versus:60,wait:16,click:next,click:next,wait:16,click:next,click:next,wait:16,click:next,click:next,wait:16,click:next,click:next,until:play:60,until:mine:900,dump,click:btn:1,wait:3,dump"
 
 run "a held confirm does not carry into the next screen" \
   "^screen=avatar cur=0 .*" \
@@ -52,8 +52,8 @@ run "fast pace from the options menu shortens the rival's pause" \
   "$TO_PLAY,until:mine:900,tap:pause,wait:14,tap:down,tap:ok,wait:14,tap:down,tap:down,tap:left,dump,tap:cancel,wait:14,tap:cancel,wait:14,key:C,wait:40,dump"
 
 run "each floor has its own room" \
-  "^screen=play .*room=bg_floor1 .*;screen=play .*rival=goro .*room=bg_floor2 .*;screen=play .*rival=yuki .*room=bg_floor3 .*;screen=play .*rival=zeno .*room=bg_floor4 .*;screen=play .*rival=onyx .*room=bg_floor5 .*" \
-  "$TO_PLAY,dump,floor:1,dump,floor:2,dump,floor:3,dump,floor:4,dump"
+  "^screen=play .*rival=pochi .*room=bg_floor1 .*;screen=play .*rival=tetsu .*room=bg_floor1 .*;screen=play .*rival=goro .*room=bg_floor2 .*;screen=play .*rival=yuki .*room=bg_floor3 .*;screen=play .*rival=zeno .*room=bg_floor4 .*;screen=play .*rival=onyx .*room=bg_floor5 .*" \
+  "$TO_PLAY,dump,floor:1,dump,floor:2,dump,floor:4,dump,floor:6,dump,floor:8,dump"
 
 run "fold key gives up the blind" \
   "^screen=play .*phase=hand_over hand=1 .*stack=790/810 .*sfx=(fold|lose_hand).*" \
@@ -89,10 +89,10 @@ run "options from the pause menu and back to the table" \
 
 run "quit to title keeps the run; continue resumes the same floor" \
   "^screen=title .*save=1 .*;screen=versus .*rival=pochi .*;screen=play .*hand=1 .*" \
-  "$TO_PLAY,until:mine:900,tap:pause,wait:14,tap:up,tap:ok,until:title:60,dump,tap:down,tap:ok,until:versus:60,dump,$SKIP,$SKIP,until:play:60,until:mine:900,dump"
+  "$TO_PLAY,until:mine:900,tap:pause,wait:14,tap:up,tap:ok,until:title:60,dump,tap:down,tap:ok,until:versus:60,dump,$SKIP,$SKIP,$SKIP,$SKIP,until:play:60,until:mine:900,dump"
 
 run "winning a floor: result, rival's last word, next rival" \
-  "^screen=play .*phase=match_over .*stack=1600/0 .*score=[1-9][0-9]+ .*winner=0.*;screen=matchend .*music=victory.*;screen=versus .*page=0/1 .*;screen=versus .*rival=goro .*powers=[0-9]/1 .*" \
+  "^screen=play .*phase=match_over .*stack=1600/0 .*score=[1-9][0-9]+ .*winner=0.*;screen=matchend .*music=victory.*;screen=versus .*page=0/1 .*;screen=versus .*rival=tetsu .*powers=[0-9]/1 .*" \
   "$TO_PLAY,rig:win,until:over:2500,dump,tap:ok,until:matchend:60,dump,tap:ok,until:versus:60,dump,$SKIP,until:versus:60,dump"
 
 run "losing a floor: continue halves the score, same rival" \
@@ -103,21 +103,25 @@ run "giving up records the score and returns to the title" \
   "^screen=scores .*save=0 scores=1 .*;screen=title .*" \
   "$TO_PLAY,rig:lose,until:over:2500,tap:ok,until:matchend:60,tap:down,tap:ok,until:scores:60,dump,tap:ok,until:title:60,dump"
 
+run "mini-boss between floors: interlude header, short stacks, warden down" \
+  "^screen=versus .*page=0/3 .*rival=tetsu .*head=INTERLUDE:_THE_STAIRWELL.*;screen=play .*rival=tetsu .*stack=500/500 .*;screen=matchend .*rival=tetsu .*stack=1000/0 .*head=WARDEN_DOWN!!.*" \
+  "$TO_PLAY,rig:win,until:over:2500,tap:ok,until:matchend:60,tap:ok,until:versus:60,$SKIP,until:versus:60,wait:200,dump,$SKIP,$SKIP,$SKIP,until:play:60,dump,rig:win,until:over:2500,tap:ok,until:matchend:60,wait:5,dump"
+
 run "boss floor gets its own scene and music" \
-  "^screen=story .*page=0/3 .*rival=onyx .*;screen=versus .*rival=onyx .*music=boss.*" \
-  "$TO_PLAY,floor:3,rig:win,until:over:2500,tap:ok,until:matchend:60,tap:ok,until:versus:60,$SKIP,until:story:60,dump,$SKIP,$SKIP,$SKIP,until:versus:60,dump"
+  "^screen=story .*page=0/4 .*rival=onyx .*;screen=versus .*rival=onyx .*music=boss.*" \
+  "$TO_PLAY,floor:7,rig:win,until:over:2500,tap:ok,until:matchend:60,tap:ok,until:versus:60,$SKIP,until:story:60,dump,$SKIP,$SKIP,$SKIP,$SKIP,until:versus:60,dump"
 
 run "beating the boss: ending, credits, score table, title again" \
-  "^screen=story .*page=0/3 .*phase=run_won .*music=ending.*save=0.*;screen=credits .*;screen=scores .*scores=1 .*;screen=title .*music=title.*;screen=avatar .*" \
-  "$TO_PLAY,floor:4,rig:win,until:over:2500,tap:ok,until:matchend:60,tap:ok,until:versus:60,$SKIP,until:story:60,dump,$SKIP,$SKIP,$SKIP,until:credits:60,dump,tap:ok,until:scores:60,dump,tap:ok,until:title:60,dump,tap:ok,until:avatar:60,dump"
+  "^screen=story .*page=0/5 .*phase=run_won .*music=ending.*save=0.*;screen=credits .*;screen=scores .*scores=1 .*;screen=title .*music=title.*;screen=avatar .*" \
+  "$TO_PLAY,floor:8,rig:win,until:over:2500,tap:ok,until:matchend:60,tap:ok,until:versus:60,$SKIP,until:story:60,dump,$SKIP,$SKIP,$SKIP,$SKIP,$SKIP,until:credits:60,dump,tap:ok,until:scores:60,dump,tap:ok,until:title:60,dump,tap:ok,until:avatar:60,dump"
 
 run "credits also end by themselves" \
   "^screen=scores .*scores=1 .*" \
-  "$TO_PLAY,floor:4,rig:win,until:over:2500,tap:ok,until:matchend:60,tap:ok,until:versus:60,$SKIP,until:story:60,$SKIP,$SKIP,$SKIP,until:credits:60,until:scores:2400,dump"
+  "$TO_PLAY,floor:8,rig:win,until:over:2500,tap:ok,until:matchend:60,tap:ok,until:versus:60,$SKIP,until:story:60,$SKIP,$SKIP,$SKIP,$SKIP,$SKIP,until:credits:60,until:scores:2400,dump"
 
 run "text stays inside its boxes on every screen" \
   "^fit=0 ;fit=0 ;fit=0 ;fit=0 ;fit=0 ;fit=0 ;fit=0 ;fit=0 ;fit=0 ;fit=0 ;\$" \
-  "until:title:60,fit,tap:ok,until:avatar:60,tap:left,fit,tap:ok,until:story:60,wait:200,fit,$SKIP,$SKIP,$SKIP,until:versus:60,wait:200,fit,$SKIP,$SKIP,until:play:60,until:mine:900,give:glare+sight+over,score:9999999,fit,floor:3,rig:win,fever,until:over:2500,fit,tap:ok,until:matchend:60,fit,tap:ok,until:versus:60,wait:200,fit,$SKIP,until:story:60,wait:200,fit,tap:pause,wait:2,$SKIP,$SKIP,$SKIP,until:versus:60,wait:200,fit"
+  "until:title:60,fit,tap:ok,until:avatar:60,tap:left,fit,tap:ok,until:story:60,wait:200,fit,$SKIP,$SKIP,$SKIP,$SKIP,$SKIP,until:versus:60,wait:200,fit,$SKIP,$SKIP,$SKIP,$SKIP,until:play:60,until:mine:900,give:glare+sight+over,score:9999999,fit,floor:7,rig:win,fever,until:over:2500,fit,tap:ok,until:matchend:60,fit,tap:ok,until:versus:60,wait:200,fit,$SKIP,until:story:60,wait:200,fit,tap:pause,wait:2,$SKIP,$SKIP,$SKIP,$SKIP,until:versus:60,wait:200,fit"
 
 run "text fits on the lost-floor, options, pause and score screens" \
   "^fit=0 ;fit=0 ;fit=0 ;fit=0 ;fit=0 ;\$" \

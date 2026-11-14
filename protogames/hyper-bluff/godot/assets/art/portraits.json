@@ -9,7 +9,11 @@
   "goro",
   "yuki",
   "zeno",
-  "onyx"
+  "onyx",
+  "tetsu",
+  "suzu",
+  "kagero",
+  "q7"
  ],
  "expr": [
   "neutral",
@@ -27,7 +31,11 @@
   "goro": "\"Thunder\" Goro Daimon",
   "yuki": "Lady Shirayuki",
   "zeno": "Professor Zeno Quark",
-  "onyx": "Baron Onyx"
+  "onyx": "Baron Onyx",
+  "tetsu": "Tetsu Kanabo",
+  "suzu": "Suzu Hayate",
+  "kagero": "Kagero",
+  "q7": "Unit Q-7"
  },
  "eye_y": {
   "rin": 39,
@@ -38,6 +46,10 @@
   "goro": 43,
   "yuki": 44,
   "zeno": 48,
-  "onyx": 41
+  "onyx": 41,
+  "tetsu": 39,
+  "suzu": 40,
+  "kagero": 37,
+  "q7": 31
  }
 }

@@ -8,10 +8,10 @@ so older editors and Summer Engine open it), 640x360, GDScript only.
 ```bash
 . tests/env.sh            # GODOT, GODOT_OLD, ASEPRITE paths (edit OPT for your machine)
 bash tests/run_all.sh     # everything; must end with "ALL OK"
-$GODOT --headless --path godot --script res://tests/run_tests.gd   # "TESTS 40/40 passed"
+$GODOT --headless --path godot --script res://tests/run_tests.gd   # "TESTS 42/42 passed"
 bash godot/tests/harness.sh $GODOT                                 # "HARNESS 0 failure(s)"
 python3 tests/verify_audio.py                                      # "AUDIO ok"
-python3 tools/art/ase_crosscheck.py $ASEPRITE                      # "ASECHECK ok: 11 files"
+python3 tools/art/ase_crosscheck.py $ASEPRITE                      # "ASECHECK ok: 15 files"
 $GODOT --headless --path godot --script res://tests/stats.gd       # bot playouts per rival
 $GODOT --headless --path godot --export-release "Windows Desktop" ../dist/HyperBluff/HyperBluff.exe
 bash godot/tests/harness.sh $GODOT --main-pack "$PWD/dist/HyperBluff/HyperBluff.exe"
@@ -68,3 +68,13 @@ Log each: what the player saw, the cause, the fix, the check that guards it.
 - **"The poker room looks the same at every stage" (2026-11-13).** Cause: one table render
   plus a relit copy for the boss. Fix: five rooms (`bg_floor1..5`) with their own felt and
   UI accent. Check: "each floor has its own room".
+- **"Text overflows the text boxes" (2026-11-14).** Cause: the hand result panel was drawn
+  over the player's portrait and the bet buttons; the rival's last word could spill out of a
+  fixed 56 px panel; story pages had no height limit; the `fit` check measured width only.
+  Fix: result panel moved right, match-end panel grows with its text, long story pages split
+  into more pages, and a `para` helper reports vertical overflow to `fit`. Checks: "text
+  stays inside its boxes on every screen" (now with height), `t_story_pages_fit`.
+- **Ladder change (2026-11-14):** the player asked for more lore and mini-bosses between
+  floors. Nine matches now; harness paths that skip story pages count them per rival
+  (pages: opening 5, floor rivals 4, wardens 3, boss scene 4, ending 5). A changed page
+  count shows up as an `until` timeout, not a wrong answer.

@@ -40,7 +40,8 @@ static func new_run(seed_value: int, avatar: String) -> Dictionary:
 
 static func start_match(s: Dictionary) -> void:
 	s["rival"] = Data.RIVALS[s["match"]]
-	s["stack"] = [START_STACK, START_STACK]
+	var start: int = Data.CAST[s["rival"]].get("stack", START_STACK)
+	s["stack"] = [start, start]
 	s["hand_no"] = 0
 	s["button"] = 1
 	s["powers"][1] = Data.CAST[s["rival"]]["powers"].duplicate()

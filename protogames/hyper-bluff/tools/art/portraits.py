@@ -45,6 +45,10 @@ CAST = [
     ("yuki", "Lady Shirayuki"),
     ("zeno", "Professor Zeno Quark"),
     ("onyx", "Baron Onyx"),
+    ("tetsu", "Tetsu Kanabo"),
+    ("suzu", "Suzu Hayate"),
+    ("kagero", "Kagero"),
+    ("q7", "Unit Q-7"),
 ]
 LAYERS = ["hair_back", "body", "face", "hair", "fx"]
 WHITE = "#ffffff"
@@ -1620,9 +1624,541 @@ def build_onyx(e):
     return A.finish(flip=False)
 
 
-BUILDERS = {"rin": build_rin, "mako": build_mako, "jiro": build_jiro, "aya": build_aya, "pochi": build_pochi, "goro": build_goro,
-            "yuki": build_yuki, "zeno": build_zeno, "onyx": build_onyx}
 
+
+
+
+# --------------------------------------------------------------------------- mini-bosses
+# Simpler shapes and fewer colours than the main cast, one loud signature each.
+
+# ---- 10. Tetsu: shaved head with a short topknot, tiny round shades, earpiece cord (charcoal / gold)
+
+def build_tetsu(e):
+    P = dict(FX, ink="#16141c", line="#7c4430",
+             skin="#e2ae86", skin_sh="#b47a58", skin_dk="#6c4840",
+             hair="#26222c", suit="#3a3a46", suit_sh="#1e1e26",
+             shirt="#f4f2ec", gold="#f2c440", gold_sh="#a87418", lens="#0e0e16",
+             mouth="#5c1c20", vein="#cc3c3c")
+    P["brow"] = P["hair"]
+    A = Art(P)
+    rot = {"neutral": 0, "happy": -4, "shock": 0, "defeat": 7, "fierce": 0}[e]
+    off = {"neutral": (0, 2), "happy": (0, 1), "shock": (0, -1), "defeat": (0, 7), "fierce": (0, 3)}[e]
+
+    suit = K.m_poly([(-4, 100), (0, 88), (16, 82), (32, 80), (64, 80), (80, 82), (96, 88), (100, 100)])
+    A.body.fill(suit, P["suit"])
+    A.body.fill(rim(suit, 3, 0) | (suit & (XX > 70) & (YY > 92)), P["suit_sh"])
+    neck = K.m_poly([(27, 62), (69, 62), (71, 84), (25, 84)])
+    A.body.fill(neck, P["skin"])
+    A.body.fill(neck & (YY > 74), P["skin_sh"])
+    A.body.fill(rim(neck, 3, 0), P["skin_sh"])
+    vee = K.m_poly([(34, 81), (62, 81), (48, 100)])
+    A.body.fill(vee, P["shirt"])
+    tie = K.m_poly([(45.5, 84), (50.5, 84), (52, 100), (44, 100)])
+    A.body.fill(tie, P["lens"])
+    A.body.fill(K.m_rect(43, 91, 53, 93), P["gold"])
+    for pts in ([(34, 81), (44, 100)], [(62, 81), (52, 100)]):
+        A.body.fill(K.m_line(pts), P["suit_sh"])
+
+    K.set_xf(rot, (48, 84), *off)
+    head = K.m_blob([(48, 15), (62, 17), (71, 27), (74, 41), (73.5, 55), (70, 67), (63, 76.5), (54, 81), (42, 81), (33, 76.5),
+                     (26, 67), (22.5, 55), (22, 41), (25, 27), (34, 17)], 6)
+    ears = K.m_ellipse(21.4, 53, 4, 6.4) | K.m_ellipse(74.6, 53, 4, 6.4)
+    A.face.fill(ears, P["skin"])
+    A.face.fill(K.m_line([(21, 50), (19.6, 53), (21, 56)]) | K.m_line([(75, 50), (76.4, 53), (75, 56)]), P["skin_sh"])
+    skin_fill(A, head)
+    A.face.fill(head & ~shift(head, 0, -3) & (YY > 70), P["skin_sh"])
+    if e == "fierce":
+        dramatic(A, head & K.m_poly([(0, 0), (96, 0), (96, 60), (0, 60)]))
+    shine = K.m_ellipse(37, 25, 6, 2.6)
+    A.face.fill(shine & head, P["shirt"])
+    A.face.fill(K.m_curve([(48, 56), (45.4, 63), (48, 64.6), (51.6, 63.4)]), P["line"])
+    A.face.fill(K.m_px((48, 78), (48, 79)), P["skin_sh"])
+
+    # mouth: a frown that never quite leaves
+    if e == "neutral":
+        A.face.fill(K.m_stroke([(41, 72.4), (44.5, 70.6), (48, 70.2), (51.5, 70.6), (55, 72.4)], 1.7, True), P["line"])
+    elif e == "happy":
+        A.face.fill(K.m_stroke([(41.5, 71), (47, 71.4), (52, 70.4), (55.5, 68)], 1.7, True), P["line"])
+    elif e == "shock":
+        mouth(A, [(45, 70), (51, 70), (52.6, 74), (50.6, 78), (45.4, 78), (43.4, 74)])
+    elif e == "defeat":
+        A.face.fill(K.m_stroke([(40.5, 73), (43.5, 71), (46.5, 73), (49.5, 71), (52.5, 73), (55.5, 71)], 1.5), P["line"])
+    else:
+        g = mouth(A, [(38.5, 68), (57.5, 68), (57, 75), (39, 75)], teeth_top=[(0, 0), (96, 0), (96, 100), (0, 100)], smooth=False)
+        A.face.fill(g & K.m_line([(36, 71), (60, 71)]), P["line"])
+        for tx in (42, 46, 50, 54):
+            A.face.fill(g & K.m_line([(tx, 66), (tx, 77)]), P["line"])
+        A.face.fill(K.m_line([(34, 66), (36, 72)]) | K.m_line([(62, 66), (60, 72)]), P["skin_dk"])
+
+    # topknot
+    if e == "defeat":
+        tail = K.m_blob([(46, 15), (52, 11), (60, 12), (65, 17), (58, 16), (51, 16)], 5)
+    else:
+        h = {"happy": 2, "fierce": 4, "shock": 5}.get(e, 0)
+        tail = K.m_blob([(45, 14), (44.5, 8 - h * 0.5), (47, 1 - h), (49.5, -1 - h), (52, 3 - h), (51.6, 9 - h * 0.5), (51.4, 14)], 5)
+    knot = K.m_ellipse(48, 14, 5, 3.4)
+    A.hair.fill(tail | knot, P["hair"])
+    A.hair.fill(rim(tail | knot, 2, 0), P["suit"])
+    A.hair.outline(P["ink"])
+    band = K.m_rect(44.5, 11.5, 51.5, 14)
+    A.hair.fill(grow(band), P["ink"])
+    A.hair.fill(band, P["gold"])
+
+    # earpiece and its coiled cord
+    cord = K.m_curve([(75.5, 56), (78, 60), (75, 63), (78, 66), (75, 69), (78, 72), (75, 75), (77, 80), (74, 86)])
+    pmask(A.fx, cord, P["ink"], P["shirt"])
+    bud = K.m_ellipse(75, 54, 1.8, 2)
+    pmask(A.fx, bud, P["ink"], P["lens"])
+
+    # tiny round shades
+    gy = 58.5 if e == "shock" else 51
+    if e == "shock":            # they slid down the nose: tiny eyes above
+        for ex in (39, 57):
+            ey_ = K.m_ellipse(ex, 48, 2.8, 2.4)
+            A.face.fill(grow(ey_), P["ink"])
+            A.face.fill(ey_, WHITE)
+            A.face.fill(K.m_px((ex, 48)), P["ink"])
+            A.feat |= grow(ey_)
+    for i, gx in enumerate((39, 57)):
+        ring = K.m_ellipse(gx, gy, 6, 6)
+        lens = K.m_ellipse(gx, gy, 4.6, 4.6)
+        A.fx.fill(grow(ring), P["ink"])
+        A.fx.fill(ring, P["gold"])
+        A.fx.fill(rim(ring, 2, 2) & ~lens, P["gold_sh"])
+        A.fx.fill(lens, P["lens"])
+        A.feat |= ring
+        if e == "fierce":
+            tl = 1.6 if i == 0 else -1.6
+            sl = K.m_poly([(gx - 4.6, gy - 1.6 - tl), (gx + 4.6, gy - 1.6 + tl), (gx + 4.6, gy + 1.4 + tl), (gx - 4.6, gy + 1.4 - tl)])
+            A.fx.fill(sl & lens, P["gold"])
+            A.fx.fill(K.m_px((gx - 1, gy - 1), (gx, gy - 1)), WHITE)
+        elif e == "defeat" and i == 1:
+            for pts in ([(gx - 4, gy - 3), (gx, gy), (gx - 1, gy + 4)], [(gx, gy), (gx + 4, gy - 2)], [(gx, gy), (gx + 3, gy + 3)]):
+                A.fx.fill(K.m_line(pts) & lens, WHITE)
+        else:
+            A.fx.fill(K.m_px((gx - 2, gy - 2), (gx - 1, gy - 2), (gx - 2, gy - 1)), WHITE)
+    br = K.m_stroke([(44.6, gy - 1), (51.4, gy - 1)], 1.3)
+    arms = K.m_stroke([(33, gy - 1), (22.5, gy - 3)], 1.3) | K.m_stroke([(63, gy - 1), (73.5, gy - 3)], 1.3)
+    A.fx.fill(br | arms, P["gold"])
+
+    bt = 3.6
+    if e == "neutral":
+        brow(A, [(45, 45.6), (39.5, 43.6), (32, 43)], bt)
+        brow(A, [(51, 45.6), (56.5, 43.6), (64, 43)], bt)
+    elif e == "happy":
+        brow(A, [(45, 44.4), (39.5, 43.2), (32, 43.6)], bt)
+        brow(A, [(51, 44.4), (56.5, 43.2), (64, 43.6)], bt)
+        pmask(A.fx, star(64, 44, 4.4, 1.3, rot=0) | star(64, 44, 2.6, 1.0, rot=45), P["ink"], WHITE)
+    elif e == "shock":
+        brow(A, [(44, 41.6), (39, 39.4), (33, 40.6)], 3.0)
+        brow(A, [(52, 41.6), (57, 39.4), (63, 40.6)], 3.0)
+    elif e == "defeat":
+        brow(A, [(45, 42.4), (39.5, 43.4), (32.5, 46)], bt)
+        brow(A, [(51, 42.4), (56.5, 43.4), (63.5, 46)], bt)
+    else:
+        brow(A, [(46, 48), (39.5, 44.6), (31, 41.4)], 4.2)
+        brow(A, [(50, 48), (56.5, 44.6), (65, 41.4)], 4.2)
+        v = K.m_stroke([(58, 24), (62, 27.5), (66, 24)], 1.6) | K.m_stroke([(58, 35), (62, 31.5), (66, 35)], 1.6) | \
+            K.m_stroke([(56.5, 26), (59.5, 29.5), (56.5, 33)], 1.6) | K.m_stroke([(67.5, 26), (64.5, 29.5), (67.5, 33)], 1.6)
+        pmask(A.fx, v, P["ink"], P["vein"])
+    if e == "shock":
+        K.reset_xf()
+        shock_lines(A, 14, 28)
+        sweat(A, 84, 40)
+    elif e == "defeat":
+        K.reset_xf()
+        sweat(A, 14, 46)
+        gloom(A, 66, 14)
+    return A.finish(flip=False, outline=("hair_back", "body", "face"))
+
+
+# ---- 11. Suzu: backwards cap, welding goggles, grease smudge, giant wrench over the shoulder (pink / orange / denim)
+
+def build_suzu(e):
+    P = dict(FX, ink="#2a1424", line="#a8484c",
+             skin="#ffd9be", skin_sh="#eaa086", skin_dk="#9c6878",
+             hair="#ff6cae", hair_sh="#c83a80", hair_hl="#ffc0dc",
+             denim="#3c64b4", denim_sh="#243c7c", lens="#bff0ff",
+             orange="#ff8c28", steel="#b4bccc", steel_sh="#6c7488", mouth="#741c34")
+    P.update(ew=WHITE, iris=P["denim"], iris_lt=P["lens"], iris_dk=P["denim_sh"], brow=P["hair_sh"])
+    A = Art(P)
+    rot = {"neutral": -6, "happy": 6, "shock": 0, "defeat": 10, "fierce": -9}[e]
+    off = {"neutral": (0, 2), "happy": (0, 1), "shock": (0, -1), "defeat": (0, 6), "fierce": (0, 3)}[e]
+
+    # shoulders: denim vest over an orange tee
+    for pts in ([(4, 100), (12, 88), (30, 84), (40, 92), (42, 100)], [(56, 100), (58, 92), (68, 84), (84, 88), (92, 100)]):
+        c = K.m_poly(pts)
+        A.body.fill(c, P["denim"])
+        A.body.fill(rim(c, 3, 2), P["denim_sh"])
+    tee = K.m_poly([(38, 84), (60, 84), (60, 100), (40, 100)])
+    A.body.fill(tee, P["orange"])
+    A.body.fill(K.m_poly([(40, 80), (58, 80), (58, 90), (40, 90)]), P["skin_sh"])
+    A.body.fill(K.m_curve([(40, 86), (49, 91), (58, 86)]), P["line"])
+    # the wrench rests on her right shoulder, behind the head
+    wa = {"defeat": ((32, 114), (100, 74)), "fierce": ((62, 112), (88, 10)), "shock": ((20, 100), (82, 28))}.get(e, ((22, 104), (82, 34)))
+    (x0, y0), (x1, y1) = wa
+    hd = K.m_ellipse(x1, y1, 10, 10)
+    ang = math.atan2(y1 - y0, x1 - x0)
+    slot = K.m_stroke([(x1 + 2 * math.cos(ang), y1 + 2 * math.sin(ang)), (x1 + 13 * math.cos(ang), y1 + 13 * math.sin(ang))], 7)
+    wr = (K.m_stroke([(x0, y0), (x1, y1)], 7) | hd) & ~slot
+    A.body.fill(grow(wr), P["ink"])
+    A.body.fill(wr, P["steel"])
+    A.body.fill(rim(wr, 2, 2), P["steel_sh"])
+    A.body.fill(K.m_line([(x0 + 3 * math.sin(ang) * -1 + 0, y0 + 0), (x1 - 6 * math.cos(ang), y1 - 6 * math.sin(ang))]) & wr & ~rim(wr, 2, 2), WHITE)
+
+    K.set_xf(rot, (48, 84), *off)
+    back = K.m_poly([(20, 32), (12, 24), (21, 22), (17, 12), (28, 15), (31, 5), (40, 12), (48, 4), (55, 12), (65, 7), (66, 17), (77, 15),
+                     (73, 26), (82, 31), (75, 38), (80, 50), (73, 52), (74, 64), (66, 56), (60, 42), (32, 42), (28, 62), (20, 66), (22, 55),
+                     (13, 54), (19, 45), (11, 38)])
+    A.hb.fill(back, P["hair"])
+    A.hb.fill(rim(back, 3, 2), P["hair_sh"])
+    A.hb.fill(tips(back, 3) & ~rim(back, 3, 2), P["hair_hl"])
+
+    head = K.m_blob([(46, 22), (60, 24), (69, 32), (72, 44), (72, 55), (69, 64), (62, 73), (55, 79), (48, 81), (40, 78), (32, 71),
+                     (27, 61), (25.5, 48), (27, 34), (34, 26)], 6)
+    A.face.fill(K.m_ellipse(26, 55, 3.6, 6), P["skin"])
+    A.face.fill(K.m_line([(25.6, 52), (24.4, 55), (25.6, 58)]), P["skin_sh"])
+    fringe = K.m_poly([(28, 29), (71, 29), (73, 42), (67, 36), (63, 45), (58, 35), (53, 44), (48, 35), (43, 43), (39, 35), (34, 42), (27, 38)])
+    skin_fill(A, head, shift(fringe, 0, 2))
+    if e == "fierce":
+        dramatic(A, head & K.m_poly([(0, 0), (96, 0), (96, 60), (0, 60)]))
+    # grease smudge (bigger when she loses)
+    sm = K.m_poly([(29.5, 63), (37.5, 60.5), (39, 63.5), (31, 66)])
+    if e == "defeat":
+        sm |= K.m_poly([(40, 66), (47, 64.5), (47.5, 67), (41, 68.4)])
+    A.face.fill(sm & head, P["steel_sh"])
+    A.face.fill(K.m_line([(62.5, 59), (64, 62), (62, 62.6)]), P["line"])
+    if e in ("neutral", "happy"):
+        for bx in (33, 64):
+            A.face.fill(K.m_ellipse(bx, 67, 3.6, 1.4) & head & ~sm, P["skin_sh"])
+
+    lf = dict(lash=2, flick=2)
+    if e == "neutral":
+        eye(A, 37, 52, 12.5, 12, "cat", s=-1, iris=(0.15, 0.05, 0.6, 0.92), **lf)
+        eye(A, 59, 52, 9.5, 11.5, "cat", s=1, iris=(-0.2, 0.05, 0.6, 0.92), **lf)
+        mouth(A, [(44, 68.5), (53, 70.4), (62, 66.6), (60, 73.4), (53, 76), (46.5, 73.4)], teeth_top=[(40, 60), (66, 60), (66, 70.6), (40, 71.6)],
+              fangs=([(56, 69.6), (59, 69), (57.8, 72.6)],))
+    elif e == "happy":
+        eye(A, 37, 52, 12.5, 12, "cat", s=-1, lid=0.1, iris=(0.15, 0.05, 0.6, 0.92), **lf)
+        arc_eye(A, [(55, 54), (59, 50), (63.5, 53.5)], 2.0)
+        mouth(A, [(42, 66.5), (53, 69), (64, 65), (61, 74), (53, 78.5), (45, 74)], teeth_top=[(38, 60), (68, 60), (68, 69.4), (38, 70.6)])
+        pmask(A.fx, star(77, 60, 4.6, 1.6), P["ink"], P["orange"])
+    elif e == "shock":
+        eye(A, 37, 51, 13, 14, "round", s=-1, iris=(0.0, 0.0, 0.34, 0.34), lash=1, lower=False, hl=((-0.4, -0.4, 0.8),))
+        eye(A, 59, 51, 10, 13, "round", s=1, iris=(0.0, 0.0, 0.34, 0.34), lash=1, lower=False, hl=((-0.4, -0.4, 0.8),))
+        mouth(A, [(49, 69), (56, 69), (57.6, 73.6), (55, 78), (50, 78), (47.6, 73.6)])
+    elif e == "defeat":
+        arc_eye(A, [(31, 52), (37, 55), (43.5, 52.5)], 2.0)
+        arc_eye(A, [(55, 52.5), (59, 55), (63.5, 52.5)], 2.0)
+        tear_stream(A, 35, 56, 3.4, 9)
+        A.face.fill(K.m_stroke([(45, 71), (48.5, 69.6), (52, 71.6), (55.5, 69.6), (59, 71)], 1.5), P["line"])
+    else:
+        mouth(A, [(41, 65.5), (53, 68.4), (65, 63.5), (63, 72), (53, 76.4), (44, 73)], teeth_top=[(0, 0), (96, 0), (96, 100), (0, 100)])
+        A.face.fill(K.m_stroke([(42, 70), (53, 72.4), (63.6, 68)], 1.0, True), P["line"])
+        A.face.fill(K.m_poly([(57, 72), (60, 71.4), (58.6, 75.4)]), P["ink"])
+
+    # hair in front, backwards cap
+    A.hair.fill(fringe, P["hair"])
+    A.hair.fill(rim(fringe, 2, 0) | (fringe & ~shift(fringe, 0, -3)), P["hair_sh"])
+    capd = 0 if e != "shock" else -5
+    cap = K.m_blob([(25, 31), (27, 19), (37, 11 + capd), (50, 8 + capd), (62, 10 + capd), (71, 19), (73, 31), (48, 28)], 6)
+    bill = K.m_poly([(28, 22), (13, 19), (2, 24), (5, 30), (18, 30.5), (28, 30)])
+    A.hair.fill(bill, P["denim_sh"])
+    A.hair.fill(bill & ~shift(bill, 0, -2), P["denim"])
+    A.hair.fill(cap, P["denim"])
+    A.hair.fill(rim(cap, 3, 2), P["denim_sh"])
+    A.hair.fill(cap & ~shift(cap, 0, -2) & (YY > 24), P["denim_sh"])
+    arch = K.m_poly([(42.5, 30), (43.5, 24), (48, 22), (52.5, 24), (53.5, 30)])
+    A.hair.fill(arch, P["hair"])
+    A.hair.fill(arch & (YY > 26.5), P["hair_hl"])
+    A.hair.fill(K.m_rect(41, 29, 55, 31), P["orange"])
+    A.hair.fill(K.m_ellipse(49, 9 + capd, 2.2, 1.6), P["orange"])
+    A.hair.outline(P["ink"])
+
+    # welding goggles
+    if e == "fierce":
+        lens_at = ((37, 52, 7.0), (59, 52, 6.0))
+        strap = [(24, 50), (73, 50)]
+    elif e == "shock":
+        lens_at = ((37, 52, 7.4), (58, 37, 6.0))
+        strap = [(24, 48), (40, 50), (60, 36), (73, 34)]
+    else:
+        lens_at = ((39, 31, 6.4), (58, 31, 5.4))
+        strap = [(24, 33), (73, 32)]
+    sm_ = K.m_stroke(strap, 3.4, len(strap) > 2)
+    A.fx.fill(grow(sm_) & (cap | head | fringe | grow(head)), P["ink"])
+    A.fx.fill(sm_ & (cap | head | fringe | grow(head)), P["orange"])
+    for i, (lx, ly, r) in enumerate(lens_at):
+        ring = K.m_ellipse(lx, ly, r, r)
+        ln = K.m_ellipse(lx, ly, r - 1.8, r - 1.8)
+        A.fx.fill(grow(ring), P["ink"])
+        A.fx.fill(ring, P["steel"])
+        A.fx.fill(rim(ring, 2, 2) & ~ln, P["steel_sh"])
+        if e == "fierce":
+            A.fx.fill(ln, P["orange"])
+            A.fx.fill(K.m_poly([(lx - r + 2, ly + 0.5), (lx - 0.5, ly - r + 2), (lx + 1.5, ly - r + 2.5), (lx - r + 2.5, ly + 2.5)]) & ln, WHITE)
+            A.feat |= ring
+        elif e == "shock" and i == 0:
+            A.fx.fill(ln, P["lens"])
+            A.fx.fill(ln & K.m_ellipse(lx, ly, 2.2, 2.2), P["ink"])
+            A.fx.fill(K.m_px((lx - 3, ly - 3), (lx - 2, ly - 3)), WHITE)
+            A.feat |= ring
+        else:
+            A.fx.fill(ln, P["denim_sh"])
+            A.fx.fill(K.m_poly([(lx - r + 2, ly), (lx - 1, ly - r + 2), (lx + 0.5, ly - r + 2.5), (lx - r + 2.5, ly + 1.5)]) & ln, P["lens"])
+
+    bt = 2.0
+    if e == "neutral":
+        brow(A, [(43, 44.6), (37, 42.6), (31, 44)], bt)
+        brow(A, [(55, 44), (59.5, 42.4), (64, 43.6)], bt)
+    elif e == "happy":
+        brow(A, [(43, 44), (37, 41.6), (31, 43.6)], bt)
+        brow(A, [(55, 44.4), (59.5, 42.6), (64, 44.4)], bt)
+    elif e == "shock":
+        brow(A, [(43, 41.6), (37, 39.6), (31, 41.6)], bt)
+        K.reset_xf()
+        shock_lines(A, 82, 52, flip=True)
+        sweat(A, 14, 46)
+    elif e == "defeat":
+        brow(A, [(43, 44), (37, 45.4), (31, 48)], bt)
+        brow(A, [(55, 44.6), (59.5, 45.6), (64, 48)], bt)
+        K.reset_xf()
+        gloom(A, 30, 4)
+        sweat(A, 78, 40, 0.9)
+    else:
+        brow(A, [(45, 45.4), (38, 42.6), (30, 41.6)], 2.6)
+        brow(A, [(53, 45.4), (59.5, 43), (66, 41.6)], 2.6)
+        K.reset_xf()
+        for pts in ([(4, 40), (9, 44), (5, 46), (11, 51)], [(8, 64), (3, 66)], [(4, 30), (1, 26)]):
+            pmask(A.fx, K.m_stroke(pts, 1.5), P["ink"], P["orange"])
+    return A.finish(flip=False, outline=("hair_back", "body", "face"))
+
+
+# ---- 12. Kagero: smooth white oval mask with two eye slits and a painted snowflake, square hood (indigo / white)
+
+def build_kagero(e):
+    P = dict(FX, ink="#141634", hood="#2e2e70", hood_sh="#1a1a46", hood_in="#0a0a20",
+             mask="#f6f8ff", mask_sh="#b8c0dc", frost="#a4dcff", blue="#3a64d8",
+             hair="#b0b0c2", hair_sh="#6c6c84")
+    P["sweat"] = P["frost"]
+    A = Art(P)
+    rot = {"neutral": 5, "happy": -9, "shock": 0, "defeat": -15, "fierce": 0}[e]
+    off = {"neutral": (0, 0), "happy": (0, 0), "shock": (0, -3), "defeat": (-2, 6), "fierce": (0, 1)}[e]
+
+    robe = K.m_poly([(2, 100), (10, 88), (30, 82), (66, 82), (86, 88), (94, 100)])
+    A.body.fill(robe, P["hood"])
+    A.body.fill(rim(robe, 3, 0), P["hood_sh"])
+    tie = K.m_stroke([(30, 86), (48, 94), (66, 86)], 2.2, True)
+    A.body.fill(tie, P["mask"])
+    A.body.fill(K.m_ellipse(48, 94, 2.6, 2.6), P["blue"])
+
+    K.set_xf(rot, (48, 86), *off)
+    hood = K.m_blob([(22, 9), (48, 7), (74, 9), (84, 16), (85, 40), (87, 70), (92, 100), (4, 100), (9, 70), (11, 40), (12, 16)], 4)
+    hood |= K.m_poly([(10, 20), (6, -2), (24, 10)]) | K.m_poly([(86, 20), (90, -2), (72, 10)])     # peaked corners
+    tailm = K.m_poly([(80, 44), (94, 52), (100, 74), (96, 96), (88, 100), (88, 74), (82, 60)])
+    A.hb.fill(hood | tailm, P["hood"])
+    A.hb.fill(rim(hood, 4, 0) | (tailm & ~shift(tailm, 3, 0)), P["hood_sh"])
+    A.hb.fill(K.m_line([(22, 8), (14, 40), (10, 96)]) | K.m_line([(74, 8), (82, 40), (86, 96)]), P["hood_sh"], only=P["hood"])
+    opening = K.m_blob([(48, 15), (64, 17), (72.5, 29), (73, 54), (68, 73), (48, 82), (28, 73), (23, 54), (23.5, 29), (32, 17)], 6)
+    A.hb.fill(opening, P["hood_in"])
+    # snowflake charm hanging from the left corner on a cord
+    sw = {"happy": 6, "shock": 1, "defeat": 5}.get(e, 0)
+    cord_ = K.m_line([(9, 10), (5 + sw, 30)])
+    A.hb.fill(cord_, P["mask"])
+    ch = K.m_ellipse(5 + sw, 34, 5.4, 5.4)
+    A.hb.fill(grow(ch), P["ink"])
+    A.hb.fill(ch, P["mask"])
+    for i in range(3):
+        a = math.radians(90 + i * 60)
+        A.hb.fill(K.m_line([(5 + sw - 3.6 * math.cos(a), 34 - 3.6 * math.sin(a)), (5 + sw + 3.6 * math.cos(a), 34 + 3.6 * math.sin(a))]), P["blue"])
+
+    mask = K.m_ellipse(48, 50, 19, 24)
+    A.face.fill(mask, P["mask"])
+    A.face.fill(rim(mask, 3, 1), P["mask_sh"])
+    A.face.fill(mask & shift(~opening, 0, 3), P["mask_sh"])
+    if e == "fierce":           # the hood's shadow falls across the mask
+        A.face.fill(mask & (shift(~opening, 0, 7) | shift(~opening, 4, 5)), P["mask_sh"])
+    # painted snowflake
+    fx_, fy_ = 39, 63
+    sf = K.empty()
+    for i in range(3):
+        a = math.radians(90 + i * 60)
+        sf |= K.m_line([(fx_ - 4 * math.cos(a), fy_ - 4 * math.sin(a)), (fx_ + 4 * math.cos(a), fy_ + 4 * math.sin(a))])
+    A.face.fill(sf, P["blue"])
+    A.face.fill(K.m_px((fx_, fy_ - 4), (fx_ - 1, fy_ - 3), (fx_ + 1, fy_ - 3)), P["blue"])
+    # eye slits
+    sl = []
+    for cx_ in (40, 56):
+        s_ = K.m_poly([(cx_ - 6, 48.6), (cx_ - 3, 46.6), (cx_ + 3, 46.6), (cx_ + 6, 48.6), (cx_ + 3, 50.2), (cx_ - 3, 50.2)])
+        A.face.fill(s_, P["ink"])
+        A.feat |= s_
+        sl.append((cx_, s_))
+    for cx_, s_ in sl:
+        if e == "neutral":
+            A.face.fill(K.m_rect(cx_ - 1, 47.6, cx_ + 1, 49.6), P["frost"])
+        elif e == "happy":
+            A.face.fill(K.m_line([(cx_ - 3, 49.6), (cx_ - 1, 47.6), (cx_ + 1, 47.6), (cx_ + 3, 49.6)]) & s_, P["frost"])
+        elif e == "shock":
+            A.face.fill(s_ & K.m_rect(cx_ - 4, 47, cx_ + 4, 50), P["frost"])
+            A.face.fill(K.m_rect(cx_ - 1, 47.6, cx_ + 1, 49.6), WHITE)
+        elif e == "defeat":
+            A.face.fill(K.m_rect(cx_ - 1, 49, cx_ + 1, 50.2), P["hair_sh"])
+        else:
+            A.face.fill(s_ & K.m_rect(cx_ - 4, 47, cx_ + 4, 50), WHITE)
+            A.face.fill(K.m_rect(cx_ - 1, 47.6, cx_ + 1, 49.6), P["blue"])
+
+    # one long lock of grey hair over the mask
+    lock = K.m_stroke([(34, 18), (30, 30), (31, 44), (29, 58), (30.5, 70)], 4.6, True) | K.m_poly([(28, 68), (33, 68), (29, 86)])
+    A.hair.fill(lock, P["hair"])
+    A.hair.fill(rim(lock, 1, 0), P["hair_sh"])
+    A.hair.outline(P["ink"])
+
+    def frost_star(x, y, r):
+        pmask(A.fx, star(x, y, r, r * 0.3, rot=0) | star(x, y, r * 0.7, r * 0.25, rot=45), P["ink"], P["frost"])
+    if e == "happy":
+        frost_star(76, 30, 4)
+        frost_star(18, 44, 3)
+        frost_star(82, 54, 2.6)
+    elif e == "shock":
+        K.reset_xf()
+        shock_lines(A, 84, 26, flip=True)
+        sweat(A, 12, 40)
+    elif e == "defeat":
+        drip = K.m_rect(55, 51, 57.4, 58) | K.m_ellipse(56.2, 58.6, 1.8, 2.2)
+        pmask(A.fx, drip, P["ink"], P["frost"])
+        K.reset_xf()
+        gloom(A, 64, 2)
+    elif e == "fierce":
+        for cx_ in (40, 56):
+            s = 1 if cx_ > 48 else -1
+            sp = K.m_poly([(cx_ + s * 6, 47.4), (cx_ + s * 13, 42), (cx_ + s * 8, 48.6)]) | K.m_poly([(cx_ + s * 6, 49.6), (cx_ + s * 12, 54), (cx_ + s * 5, 50.6)])
+            pmask(A.fx, sp, P["ink"], P["frost"])
+            A.feat |= sp
+        K.reset_xf()
+        for x, y, r in ((10, 30, 4.4), (86, 24, 3.6), (88, 62, 3)):
+            frost_star(x, y, r)
+    return A.finish(flip=False, outline=("hair_back", "body"))
+
+
+# ---- 13. Unit Q-7: CRT head with a pixel face, antenna bulb, bolt cheeks (teal / cream / red bulb)
+
+def build_q7(e):
+    P = dict(FX, ink="#10242a", cream="#f2e8cc", cream_sh="#b8a888", teal="#22a6a0", teal_sh="#106866",
+             scr="#0c3a3c", scr_ln="#145052", pix="#7cfcd8", red="#f02c3c", red_lt="#ffa090", red_dk="#6c1420")
+    A = Art(P)
+    dx, dy = {"neutral": (0, 0), "happy": (0, -2), "shock": (0, -4), "defeat": (0, 6), "fierce": (0, 1)}[e]
+
+    plate = K.m_poly([(8, 100), (14, 88), (34, 84), (62, 84), (82, 88), (88, 100)])
+    A.body.fill(plate, P["teal"])
+    A.body.fill(rim(plate, 3, 0), P["teal_sh"])
+    A.body.fill(K.m_px((20, 92), (76, 92), (28, 89), (68, 89)), P["cream"])
+    neck = K.m_rect(40, 74, 56, 88)
+    A.body.fill(neck, P["teal_sh"])
+    for y in (78, 82):
+        A.body.fill(K.m_line([(40, y), (55, y)]), P["teal"])
+
+    K.set_xf(0, (48, 48), dx, dy)
+    # antenna (behind the casing)
+    if e == "defeat":
+        ant, bulb, bcol = [(52, 20), (55, 11), (63, 11), (67, 15)], (68, 17), P["red_dk"]
+    else:
+        ant, bulb, bcol = [(52, 20), (54, 11), (57, 4)], (58, 2.5), P["red"]
+    am = K.m_stroke(ant, 1.8, True)
+    A.hb.fill(grow(am), P["ink"])
+    A.hb.fill(am, P["teal_sh"])
+    bm = K.m_ellipse(bulb[0], bulb[1], 4, 4)
+    A.hb.fill(grow(bm), P["ink"])
+    A.hb.fill(bm, bcol)
+    if e != "defeat":
+        A.hb.fill(K.m_ellipse(bulb[0] - 1.2, bulb[1] - 1.2, 1.4, 1.4), P["red_lt"])
+    # casing
+    case = K.m_blob([(22, 20), (48, 17), (74, 20), (80, 30), (81, 48), (79, 68), (72, 76), (48, 78), (24, 76), (17, 68), (15, 48), (16, 30)], 6)
+    A.face.fill(case, P["cream"])
+    A.face.fill(rim(case, 3, 2), P["cream_sh"])
+    A.face.fill(case & ~shift(case, 0, 2) & (XX < 60), WHITE)
+    for x in (66, 70, 74):
+        A.face.fill(K.m_line([(x, 70), (x + 2, 70)]), P["cream_sh"])
+    scr = K.m_blob([(28, 28), (48, 26.5), (68, 28), (71, 36), (71.5, 50), (70, 62), (66, 67), (48, 68), (30, 67), (26, 62),
+                    (24.5, 50), (25, 36)], 6)
+    bg, fg = (P["red_dk"], P["red_lt"]) if e == "fierce" else (P["scr"], P["pix"])
+    A.face.fill(grow(scr), P["ink"])
+    A.face.fill(scr, bg)
+    if e != "fierce":
+        A.face.fill(scr & ((np.floor(YY) - dy) % 3 == 0), P["scr_ln"])
+    A.face.fill(K.m_poly([(28.5, 31), (35, 29.4), (29.6, 37)]) & scr, WHITE)
+
+    def cells(lst, col=None):
+        m = K.empty()
+        for cx, cy in lst:
+            m |= K.m_rect(48 + 2 * cx, 47 + 2 * cy, 50 + 2 * cx, 49 + 2 * cy)
+        A.face.fill(m & scr, col or fg)
+        return m
+
+    def mir(lst):
+        return [(-1 - x, y) for x, y in lst]
+    if e == "neutral":
+        eyeL = [(x, y) for x in (-7, -6) for y in (-4, -3, -2)]
+        A.feat |= cells(eyeL + mir(eyeL))
+        cells([(x, 4) for x in range(-4, 4)])
+    elif e == "happy":
+        eyeL = [(-9, -2), (-8, -3), (-7, -4), (-6, -4), (-5, -3), (-4, -2)]
+        A.feat |= cells(eyeL + mir(eyeL))
+        cells([(-6, 2), (-5, 3), (-4, 4), (-3, 4), (-2, 4), (-1, 4), (0, 4), (1, 4), (2, 4), (3, 4), (4, 3), (5, 2)])
+    elif e == "shock":
+        ring = [(-8, -5), (-7, -5), (-6, -5), (-9, -4), (-5, -4), (-9, -3), (-5, -3), (-9, -2), (-5, -2), (-8, -1), (-7, -1), (-6, -1), (-7, -3)]
+        A.feat |= cells(ring + mir(ring))
+        cells([(-1, 2), (0, 2), (-2, 3), (1, 3), (-2, 4), (1, 4), (-1, 5), (0, 5)])
+    elif e == "defeat":
+        eyeL = [(-9, -3), (-8, -3), (-7, -3), (-6, -3), (-5, -3)]
+        A.feat |= cells(eyeL + mir(eyeL))
+        cells([(-7, -2), (-7, -1), (-7, 1), (6, -2), (6, 0), (6, 1)], P["scr_ln"] if False else fg)
+        cells([(-4, 5), (-3, 4), (-2, 5), (-1, 4), (0, 5), (1, 4), (2, 5), (3, 4)])
+        for i, (y0, x0) in enumerate(((-8, -10), (-7, 2), (7, -9))):     # static
+            cells([(x, y0) for x in range(x0, x0 + 7) if (x * 3 + i) % 4], P["scr_ln"])
+    else:
+        eyeL = [(-9, -5), (-8, -5), (-8, -4), (-7, -4), (-6, -4), (-6, -3), (-5, -3), (-4, -3), (-4, -2)]
+        eyeL += [(x, y + 1) for x, y in eyeL if x > -9]
+        A.feat |= cells(eyeL + mir(eyeL))
+        cells([(x, 3 if (x % 2) else 4) for x in range(-7, 7)] + [(x, 5) for x in range(-6, 6)])
+
+    # bolt cheeks
+    for bx in (14.5, 81.5):
+        hexm = K.m_poly([(bx + 4.6 * math.cos(math.radians(30 + 60 * i)), 50 + 4.6 * math.sin(math.radians(30 + 60 * i))) for i in range(6)])
+        A.face.fill(grow(hexm), P["ink"])
+        A.face.fill(hexm, P["cream_sh"])
+        A.face.fill(K.m_line([(bx - 2, 50), (bx + 2, 50)]), P["ink"])
+        A.face.fill(K.m_px((bx - 2, 48)), WHITE)
+
+    K.reset_xf()
+    if e == "happy":
+        pmask(A.fx, star(80, 18, 4.6, 1.6), P["ink"], P["pix"])
+        pmask(A.fx, star(12, 30, 3.4, 1.2), P["ink"], P["pix"])
+    elif e == "shock":
+        rays = K.empty()
+        for a in (200, 250, 290, 340):
+            t = math.radians(a)
+            rays |= K.m_stroke([(58 + 6.5 * math.cos(t), -1.5 + 6.5 * math.sin(t)), (58 + 10 * math.cos(t), -1.5 + 10 * math.sin(t))], 1.5)
+        pmask(A.fx, rays, P["ink"], WHITE)
+        shock_lines(A, 12, 26)
+        sweat(A, 86, 34)
+    elif e == "defeat":
+        sweat(A, 12, 40, 0.9)
+        gloom(A, 24, 4, lens=(8, 11, 7, 10))
+    elif e == "fierce":
+        rays = K.empty()
+        for a in (180, 220, 260, 300, 340, 20):
+            t = math.radians(a)
+            rays |= K.m_stroke([(58 + 6 * math.cos(t), 3.5 + 6 * math.sin(t)), (58 + 10 * math.cos(t), 3.5 + 10 * math.sin(t))], 1.6)
+        pmask(A.fx, rays, P["ink"], P["red_lt"])
+        for px_, py_ in ((8, 40), (88, 40)):
+            puff = K.m_ellipse(px_, py_, 4, 3.4) | K.m_ellipse(px_ + (4 if px_ < 48 else -4), py_ - 4, 3, 2.6)
+            pmask(A.fx, puff, P["ink"], P["cream"])
+    return A.finish(flip=False, outline=("hair_back", "body"))
+
+
+BUILDERS = {"rin": build_rin, "mako": build_mako, "jiro": build_jiro, "aya": build_aya, "pochi": build_pochi, "goro": build_goro,
+            "yuki": build_yuki, "zeno": build_zeno, "onyx": build_onyx,
+            "tetsu": build_tetsu, "suzu": build_suzu, "kagero": build_kagero, "q7": build_q7}
 
 
 # --------------------------------------------------------------------------- output

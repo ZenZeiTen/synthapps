@@ -33,7 +33,7 @@ func _initialize() -> void:
 			for seed_value in range(1, seeds + 1):
 				if (seed_value - 1) % shards != shard:
 					continue
-				for start in 5:
+				for start in Data.RIVALS.size():
 					play(seed_value, start)
 		"eval":
 			evals(shard, int(OS.get_environment("PARITY_EVALS")) / shards)
@@ -233,6 +233,12 @@ func dump_data() -> void:
 			for k in ["intro", "win", "lose", "allin", "beaten", "gloat"]:
 				for line in c[k]:
 					f.store_line("LINE %s %s %s" % [id, k, line])
+			f.store_line("LADDER %s %s %d %d %s" % [id, b01(c.get("mini", false)), c.get("stack", Game.START_STACK),
+				c["room"], c["episode"]])
+			for line in c["lore"]:
+				f.store_line("LORE %s %s" % [id, line])
+	for i in Data.RIVALS.size():
+		f.store_line("EPISODE %d %s" % [i, Data.episode_label(i)])
 	for id in Data.POWER_IDS:
 		f.store_line("POWER %s|%s|%s" % [id, Data.POWERS[id]["name"], Data.POWERS[id]["desc"]])
 	for m in Data.MISSIONS:

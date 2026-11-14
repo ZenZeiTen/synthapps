@@ -55,10 +55,23 @@ on the tick of the press). Screen changes ignore presses for 12 ticks and story 
 
 | Beat | Where | Check |
 |---|---|---|
-| Opening (3 pages) | after choosing a player | title to first hand |
-| Rival intro, last word | before and after each floor | winning a floor |
-| Scene before the boss (3 pages) | before floor 5 | boss floor gets its own scene |
-| Ending (3 pages) | after the boss | beating the boss |
+| Opening (5 pages: the Crown legend, the Baron, the wardens) | after choosing a player | title to first hand |
+| Episode card, rival lore and intro | before each of the five floors ("EPISODE n: ROOM") | title to first hand |
+| Interlude: mini-boss lore and intro | between floors ("INTERLUDE: PLACE") | mini-boss between floors |
+| Rival's last word | after each match | winning a floor |
+| Scene before the boss (4 pages: the Baron's past) | before floor 5 | boss floor gets its own scene |
+| Ending (5 pages: the cracked mask, the Crown) | after the boss | beating the boss |
+
+The ladder is nine matches: five floors, each followed by a mini-boss ("warden") except
+the last. Wardens (Tetsu, Suzu, Kagero, Q-7) are lesser rivals: 500-chip stacks instead
+of 800, one power, simpler play, and they share the room of the floor before them. Their
+match end reads "WARDEN DOWN!!". The score table shows "STAGE n OF 9".
+
+Text boxes: story pages are 80 characters by 5 lines; a longer page is split into more
+pages, never cut off. The match-end panel grows with the rival's last word; the hand result
+panel sits on the right, over the meter and powers, so the hole cards, the player's portrait
+and the bet buttons stay visible. Any paragraph that runs past its box is reported to the
+`fit` harness check.
 | Credits, score table, title | after the ending | beating the boss; credits end by themselves |
 
 ## Pace and motion

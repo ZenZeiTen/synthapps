@@ -12,9 +12,12 @@ const PINK := Color("ff5fb4")
 const CYAN := Color("5fe8ff")
 const WHITE := Color.WHITE
 const DECK := Vector2(586, 130)
+const RESULT_X := 372.0
 ## One accent colour per floor, matched to that room's felt.
 const ACCENT := [Color("ffd866"), Color("ff9a3c"), Color("9fd8ff"), Color("9dff6a"), Color("ff5a6e")]
-const CAST_ORDER := ["rin", "mako", "jiro", "aya", "pochi", "goro", "yuki", "zeno", "onyx"]
+## Last big header drawn (story episode label or match-end banner), for the harness.
+var head_text := ""
+var CAST_ORDER := ["rin", "mako", "jiro", "aya", "pochi", "goro", "yuki", "zeno", "onyx"]
 
 var m: Node
 var tex := {}
@@ -33,6 +36,8 @@ func _ready() -> void:
 		var j = JSON.parse_string(f.get_as_text())
 		if j is Dictionary and j.has("eye_y"):
 			eye_y = j["eye_y"]
+		if j is Dictionary and j.has("order"):
+			CAST_ORDER = j["order"]
 
 # ---- primitives ---------------------------------------------------------------
 
@@ -97,7 +102,7 @@ static func ease_out(x: float) -> float:
 
 ## The room of the current floor; older builds only had one table and one boss room.
 func room_name() -> String:
-	var floor_no: int = m.s["match"] + 1 if not m.s.is_empty() else 1
+	var floor_no: int = room_index()
 	var name := "bg_floor%d" % floor_no
 	if not tex.has(name):
 		name = "bg_boss" if floor_no == 5 else "bg_table"
@@ -110,8 +115,26 @@ func room() -> void:
 	else:
 		draw_rect(Rect2(0, 0, 640, 360), Color("0c3a2c"))
 
+## Rooms are numbered 1..5; a mini-boss plays in the room of the floor before it.
+func room_index() -> int:
+	if m.s.is_empty():
+		return 1
+	return int(Data.CAST[m.s["rival"]].get("room", 1))
+
 func accent() -> Color:
-	return ACCENT[clampi(m.s["match"], 0, 4)] if not m.s.is_empty() else CYAN
+	return ACCENT[room_index() - 1] if not m.s.is_empty() else CYAN
+
+## Wrap `t` into rect r (6 px characters, `lh` px lines). A paragraph that runs past the
+## bottom of its box is reported to the `fit` check. Returns the y below the last line.
+func para(t: String, r: Rect2, col: Color, lh: int = 11, align: int = 1) -> float:
+	var lines := wrap_text(t, int(r.size.x) / 6)
+	if lines.size() * lh > int(r.size.y) + 2:
+		m.fit_fail.append("%s|box too short for: %s" % [m.screen, t])
+	var y := r.position.y
+	for line in lines:
+		txt(line, r.position.x, y, col, "s", int(r.size.x), align)
+		y += lh
+	return y
 
 ## A card that slides in from the deck face down and then turns over. `key` names its
 ## entry in m.card_t; a card with no entry is simply drawn in place.
@@ -266,7 +289,8 @@ func _story() -> void:
 		room()
 		draw_rect(Rect2(0, 0, 640, 360), Color(0, 0, 0, 0.45))
 		speed_lines(Rect2(0, 40, 640, 150), Color(1, 1, 1, 0.1), m.tick / 5)
-		shadow("FLOOR %d" % (m.s["match"] + 1), 0, 20, CYAN, "b", 640, 1)
+		head_text = Data.episode_label(m.s["match"])
+		shadow(head_text, 0, 20, CYAN, "b", 640, 1)
 		portrait(m.s["avatar"], "fierce", 150, 70)
 		shadow("VS", 0, 108, PINK, "i", 640, 1)
 		portrait(who, m.rexpr if m.page_after == "next" else "neutral", 394, 70)
@@ -291,7 +315,7 @@ func _story() -> void:
 			m.fit_fail.resize(before)
 			if line.length() * 6 > 488:
 				m.fit_fail.append("story|" + line)
-		if lines.size() > 5:
+		if lines.size() > m.PAGE_LINES:
 			m.fit_fail.append("story lines|" + full)
 	if (m.tick / 20) % 2 == 0:
 		txt("Z / CLICK", 510, 300, GOLD)
@@ -301,12 +325,17 @@ func _matchend() -> void:
 	var won: bool = s["winner"] == 0
 	room()
 	draw_rect(Rect2(0, 0, 640, 360), Color(0, 0, 0, 0.55))
-	shadow("FLOOR CLEARED!!" if won else "BUSTED...", 0, 30, GOLD if won else PINK, "i", 640, 1)
+	var mini: bool = Data.CAST[s["rival"]].get("mini", false)
+	var head := ("WARDEN DOWN!!" if mini else "FLOOR CLEARED!!") if won else "BUSTED..."
+	head_text = head
+	shadow(head, 0, 30, GOLD if won else PINK, "i", 640, 1)
 	portrait(s["avatar"], "happy" if won else "defeat", 150, 70)
 	portrait(s["rival"], "defeat" if won else "happy", 394, 70)
 	if won and tex.has("trophy"):
 		draw_texture(tex["trophy"], Vector2(288, 86))
-	panel(Rect2(170, 184, 300, 56))
+	var gloat: String = Data.CAST[s["rival"]]["gloat"][0]
+	var body_lines := 1 if won else wrap_text(gloat, 46).size()
+	panel(Rect2(170, 184, 300, 34 + body_lines * 11))
 	txt("SCORE", 186, 192, CYAN)
 	txt(str(s["score"]), 170, 190, GOLD, "b", 288, 2)
 	if won:
@@ -314,9 +343,7 @@ func _matchend() -> void:
 		if (m.tick / 20) % 2 == 0:
 			txt("Z / CLICK TO GO ON", 0, 260, GOLD, "s", 640, 1)
 	else:
-		var lines := wrap_text(Data.CAST[s["rival"]]["gloat"][0], 46)
-		for i in lines.size():
-			txt(lines[i], 170, 212 + i * 11, WHITE, "s", 300, 1)
+		para(gloat, Rect2(173, 212, 294, body_lines * 11), WHITE)
 		menu(m.menu_items())
 
 func _scores() -> void:
@@ -331,7 +358,7 @@ func _scores() -> void:
 		var col := GOLD if i == m.last_rank else WHITE
 		txt("%d." % (i + 1), 154, y + 4, col, "b")
 		txt(Data.CAST[e["avatar"]]["name"], 190, y, col, "s", 170)
-		txt("CHAMPION" if e["clear"] else "FLOOR %d" % e["floor"], 190, y + 12, CYAN, "s", 170)
+		txt("CHAMPION" if e["clear"] else "STAGE %d OF %d" % [e["floor"], Data.RIVALS.size()], 190, y + 12, CYAN, "s", 170)
 		txt(str(e["score"]), 360, y + 4, col, "b", 128, 2)
 	if (m.tick / 20) % 2 == 0:
 		txt("Z / CLICK TO RETURN", 0, 310, GOLD, "s", 640, 1)
@@ -402,8 +429,7 @@ func _play() -> void:
 		var bl := wrap_text(m.bubble, 38)
 		var by: float = 40.0 - (1.0 - ease_out(m.bubble_age / 12.0)) * 10.0
 		panel(Rect2(22, by, 240, 8 + bl.size() * 11), Color(1, 1, 1, 0.95), INK)
-		for i in bl.size():
-			txt(bl[i], 28, by + 5 + i * 11, INK, "s", 230)
+		para(m.bubble, Rect2(28, by + 5, 228, bl.size() * 11), INK, 11, 0)
 
 	# rival hole cards
 	var seen: Array = s["fx"]["peek"][0]
@@ -488,7 +514,7 @@ func _play() -> void:
 		var rise: float = ease_out(float(110 - p["t"]) / 30.0)
 		shadow(p["text"], p["x"], p["y"] + (1.0 - rise) * 8.0, p["col"], "b")
 	if s["phase"] in ["hand_over", "match_over"] and m.wait == 0:
-		draw_set_transform(off + Vector2(-280.0 * (1.0 - ease_out(m.result_t / 16.0)), 0), 0.0, Vector2.ONE)
+		draw_set_transform(off + Vector2(280.0 * (1.0 - ease_out(m.result_t / 16.0)), 0), 0.0, Vector2.ONE)
 		_result()
 		draw_set_transform(off, 0.0, Vector2.ONE)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -555,37 +581,45 @@ func _result() -> void:
 	var s: Dictionary = m.s
 	var res: Dictionary = s["result"]
 	var w: int = res["winner"]
-	panel(Rect2(4, 190, 266, 166), Color(0.05, 0.04, 0.14, 0.96), GOLD)
+	# Right-hand panel over the meter and powers: the cards and the buttons stay visible.
+	var R := Rect2(RESULT_X, 116, 264, 202)
+	panel(R, Color(0.05, 0.04, 0.14, 0.96), GOLD)
+	var x0 := R.position.x + 8
+	var tw := int(R.size.x) - 16
 	var head := "SPLIT POT"
 	if w == 0:
 		head = "YOU WIN!!"
 	elif w == 1:
 		head = "RIVAL WINS"
-	shadow(head, 4, 196, GOLD if w == 0 else (PINK if w == 1 else WHITE), "i", 262, 1)
-	var y := 218
+	shadow(head, R.position.x, R.position.y + 6, GOLD if w == 0 else (PINK if w == 1 else WHITE), "i", int(R.size.x), 1)
+	var y := R.position.y + 28
 	if res["showdown"]:
-		txt("YOU: " + Cards.name_of(res["vals"][0]), 12, y, WHITE, "s", 250)
-		txt("RIVAL: " + Cards.name_of(res["vals"][1]), 12, y + 11, WHITE, "s", 250)
+		txt("YOU: " + Cards.name_of(res["vals"][0]), x0, y, WHITE, "s", tw)
+		txt("RIVAL: " + Cards.name_of(res["vals"][1]), x0, y + 11, WHITE, "s", tw)
 		y += 24
 	else:
-		txt("NO SHOWDOWN", 12, y, WHITE, "s", 250)
+		txt("NO SHOWDOWN", x0, y, WHITE, "s", tw)
 		y += 13
 	for line in res["lines"]:
-		txt(line[0], 12, y, CYAN, "s", 180)
-		txt("+%d" % line[1], 12, y, GOLD, "s", 250, 2)
+		txt(line[0], x0, y, CYAN, "s", tw - 60)
+		txt("+%d" % line[1], x0, y, GOLD, "s", tw, 2)
 		y += 11
 	if res["points"] > 0:
-		draw_line(Vector2(12, y + 1), Vector2(262, y + 1), GOLD)
-		txt("POINTS", 12, y + 4, WHITE, "s", 100)
-		txt("+%d" % res["points"], 12, y + 4, GOLD, "s", 250, 2)
+		draw_line(Vector2(x0, y + 1), Vector2(x0 + tw, y + 1), GOLD)
+		txt("POINTS", x0, y + 4, WHITE, "s", 100)
+		txt("+%d" % res["points"], x0, y + 4, GOLD, "s", tw, 2)
 		y += 15
 	if res["guarded"]:
-		txt("IRON GUARD SAVED HALF THE BET", 12, y, CYAN, "s", 250)
+		txt("IRON GUARD SAVED HALF THE BET", x0, y, CYAN, "s", tw)
 		y += 11
 	if res["power"] != "":
-		txt("NEW POWER: " + Data.POWERS[res["power"]]["name"], 12, y, PINK, "s", 250)
+		txt("NEW POWER: " + Data.POWERS[res["power"]]["name"], x0, y, PINK, "s", tw)
+		y += 11
+	var prompt_y := R.position.y + R.size.y - 14
+	if y > prompt_y - 2:
+		m.fit_fail.append("result|%d lines run into the prompt" % res["lines"].size())
 	if (m.tick / 20) % 2 == 0:
-		txt("Z / CLICK: " + ("RESULT" if s["phase"] == "match_over" else "NEXT HAND"), 4, 344, GOLD, "s", 262, 1)
+		txt("Z / CLICK: " + ("RESULT" if s["phase"] == "match_over" else "NEXT HAND"), R.position.x, prompt_y, GOLD, "s", int(R.size.x), 1)
 
 func _cutin() -> void:
 	var c: Dictionary = m.cutin

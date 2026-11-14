@@ -302,7 +302,7 @@ func t_bots_conserve_chips_and_finish() -> bool:
 					else:
 						Game.continue_run(s)
 			if s["phase"] != "run_won":
-				ok(chips(s) == 1600, "chips drifted at seed %d hand %d: %d" % [seed_value, hands, chips(s)])
+				ok(chips(s) == 2 * Data.CAST[s["rival"]].get("stack", Game.START_STACK), "chips drifted at seed %d hand %d: %d" % [seed_value, hands, chips(s)])
 				ok(s["stack"][0] >= 0 and s["stack"][1] >= 0, "negative stack")
 				ok(s["powers"][0].size() <= Game.MAX_POWERS, "too many powers")
 		eq(s["phase"], "run_won", "seed %d never finished" % seed_value)
@@ -603,13 +603,15 @@ func t_match_ladder_and_continue() -> bool:
 	eq(s["score"], 500, "continue halves the score")
 	eq(s["rival"], "pochi", "same rival again")
 	eq(s["stack"], [800, 800], "fresh stacks")
-	for i in 5:
+	for i in Data.RIVALS.size():
 		eq(s["rival"], Data.RIVALS[i], "ladder order")
+		var want: int = 500 if i % 2 == 1 else 800
+		eq(s["stack"], [want, want], "stack for " + s["rival"])
 		eq(s["powers"][1], Data.CAST[s["rival"]]["powers"], "rival powers set")
 		s["phase"] = "match_over"
 		s["winner"] = 0
 		Game.next_match(s)
-	eq(s["phase"], "run_won", "five wins end the run")
+	eq(s["phase"], "run_won", "nine wins end the run")
 	return true
 
 func t_match_bonus_scales() -> bool:
@@ -636,6 +638,43 @@ func t_rivals_play_differently() -> bool:
 			if s["bet"][1] > 20:
 				raised[rival] += 1
 	ok(raised["goro"] > raised["pochi"] * 2, "the biker opens far more than the rookie: " + str(raised))
+	return true
+
+func t_ladder_story() -> bool:
+	eq(Data.RIVALS.size(), 9, "five floors and four mini-bosses")
+	for i in Data.RIVALS.size():
+		var c: Dictionary = Data.CAST[Data.RIVALS[i]]
+		eq(c.get("mini", false), i % 2 == 1, "mini-bosses sit between floors")
+		ok(c.has("lore") and c["lore"].size() > 0, "lore for " + Data.RIVALS[i])
+		ok(c["room"] >= 1 and c["room"] <= 5, "room for " + Data.RIVALS[i])
+		ok(Data.episode_label(i).length() <= 32, "episode label fits: " + Data.episode_label(i))
+	eq(Data.episode_label(0), "EPISODE 1: THE LOBBY PIT", "first episode")
+	eq(Data.episode_label(1), "INTERLUDE: THE STAIRWELL", "first interlude")
+	eq(Data.episode_label(8), "EPISODE 5: THE STARLIGHT TABLE", "final episode")
+	return true
+
+## Every story page, after the game splits long ones, fits the 5-line box; every rival
+## line fits the speech bubble and the match-end panel.
+func t_story_pages_fit() -> bool:
+	var M = load("res://scripts/main.gd")
+	var all := [Data.STORY_OPEN, Data.STORY_BOSS, Data.STORY_END]
+	for id in Data.RIVALS:
+		var c: Dictionary = Data.CAST[id]
+		all.append(c.get("lore", []) + c["intro"])
+		all.append(c["beaten"])
+		for line in c["gloat"]:
+			ok(M.wrap_lines(line, 46).size() <= 4, "gloat too long for the panel: " + line)
+		for k in ["win", "lose", "allin"]:
+			for line in c[k]:
+				ok(M.wrap_lines(line, 38).size() <= 3, "bubble too long: " + line)
+	for list in all:
+		for page in M.split_pages(list):
+			var lines: Array = M.wrap_lines(page, M.PAGE_CHARS)
+			ok(lines.size() <= M.PAGE_LINES, "page runs past its box: " + page)
+			for line in lines:
+				ok(line.length() <= M.PAGE_CHARS, "line too wide: " + line)
+	var long_text := "word ".repeat(200).strip_edges()
+	ok(M.split_pages([long_text]).size() > 1, "a long page is split, not cut off")
 	return true
 
 func t_text_lengths() -> bool:

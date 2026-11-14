@@ -157,6 +157,7 @@ func drop_save() -> void:
 
 func record_score(cleared: bool) -> void:
 	var entry := {"score": s["score"], "avatar": s["avatar"], "floor": s["match"] + 1, "clear": cleared}
+	entry["floor"] = mini(entry["floor"], Data.RIVALS.size())
 	scores.append(entry)
 	scores.sort_custom(func(a, b): return a["score"] > b["score"])
 	last_rank = scores.find(entry)
@@ -210,8 +211,38 @@ func menu_rect(i: int) -> Rect2:
 			return Rect2(200, 250 + i * 24, 240, 20)
 	return Rect2(220, 130 + i * 26, 200, 20)
 
+## Story text box: 80 characters a line, 5 lines a page. Longer pages are split so no
+## page can run past the bottom of its box.
+const PAGE_CHARS := 80
+const PAGE_LINES := 5
+
+static func split_pages(list: Array) -> Array:
+	var out := []
+	for text in list:
+		var lines: Array = wrap_lines(text, PAGE_CHARS)
+		var i := 0
+		while i < lines.size():
+			out.append(" ".join(lines.slice(i, i + PAGE_LINES)))
+			i += PAGE_LINES
+	return out
+
+static func wrap_lines(t: String, chars: int) -> Array:
+	var lines := []
+	var cur := ""
+	for word in t.split(" "):
+		if cur == "":
+			cur = word
+		elif cur.length() + 1 + word.length() <= chars:
+			cur += " " + word
+		else:
+			lines.append(cur)
+			cur = word
+	if cur != "":
+		lines.append(cur)
+	return lines
+
 func start_story(list: Array, who: String, after: String) -> void:
-	pages = list
+	pages = split_pages(list)
 	page = 0
 	page_t = 0
 	speaker = who
@@ -226,7 +257,8 @@ func new_game(avatar: String) -> void:
 
 func begin_versus() -> void:
 	audio.music("boss" if s["rival"] == "onyx" else "match")
-	start_story(Data.CAST[s["rival"]]["intro"], s["rival"], "play")
+	var c: Dictionary = Data.CAST[s["rival"]]
+	start_story(c.get("lore", []) + c["intro"], s["rival"], "play")
 	screen = "versus"
 
 ## A pause of n ticks at normal pace, stretched or shortened by the PACE option.
@@ -849,7 +881,8 @@ func dump() -> String:
 	for key in card_t:
 		if tick - card_t[key] < DEAL_TICKS + FLIP_TICKS:
 			moving += 1
-	out += " moving=%d fliers=%d pace=%s room=%s" % [moving, fliers.size(), PACE_NAME[opts["pace"]], view.room_name()]
+	out += " moving=%d fliers=%d pace=%s room=%s head=%s" % [moving, fliers.size(), PACE_NAME[opts["pace"]],
+		view.room_name(), view.head_text.replace(" ", "_")]
 	out += " music=%s sfx=%s save=%d scores=%d opts=%d/%d" % [audio.current, audio.last_sfx, int(has_save()),
 		scores.size(), opts["music"], opts["sfx"]]
 	return out
@@ -922,7 +955,8 @@ func _run_script() -> void:
 				seed_next = int(p[1])
 			"rig":
 				rig = p[1]
-				s["stack"] = [1595, 5] if p[1] == "win" else [5, 1595]
+				var total: int = s["stack"][0] + s["stack"][1] + Game.pot(s)
+				s["stack"] = [total - 5, 5] if p[1] == "win" else [5, total - 5]
 			"floor":
 				s["match"] = int(p[1])
 				Game.start_match(s)
