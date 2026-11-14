@@ -78,3 +78,11 @@ Log each: what the player saw, the cause, the fix, the check that guards it.
   floors. Nine matches now; harness paths that skip story pages count them per rival
   (pages: opening 5, floor rivals 4, wardens 3, boss scene 4, ending 5). A changed page
   count shows up as an `until` timeout, not a wrong answer.
+- **"Overflowing/overlapped text on the settings panel" (2026-11-14).** Cause: the options
+  hint was drawn on top of the BACK button; the pause menu sat on the table at 60% dim, over
+  the bet labels and pot; the title hint ran over a card in the art. The `fit` check only
+  measured text against its own box, so text on top of other text or a button passed. Fix:
+  hint placed below the last menu button, pause menu on its own panel over an 85% veil, a
+  dark strip under the title hint. `fit` now also reports text over text, text over a button
+  it does not label, and text cut in half by an opaque panel (render.gd `check_overlaps`,
+  mirrored in the Unreal app). It failed on the old layout first ("over button BACK").
