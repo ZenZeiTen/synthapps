@@ -1,0 +1,16 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "Hyper Bluff!! Starlight Showdown: Director's Cut. Original 90s-anime heads-up poker.",
+	"Modules": [
+		{
+			"Name": "HyperBluff",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{ "Name": "ModelingToolsEditorMode", "Enabled": false, "TargetAllowList": [ "Editor" ] }
+	]
+}
