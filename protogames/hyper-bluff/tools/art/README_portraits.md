@@ -1,6 +1,6 @@
 # Portraits
 
-Nine original characters, 96x96 close-up busts, five expressions each
+Thirteen original characters (nine main, four mini-bosses), 96x96 close-up busts, five expressions each
 (neutral, happy, shock, defeat, fierce). Each character has its own painter in
 `portraits.py` (own head shape, eyes, pose and per-expression changes); the head and
 hair fill the cell and may run off its top and sides. Rin and Yuki are painted facing
@@ -30,7 +30,7 @@ when you want the procedural version back.
      (`hair` also holds hats, hoods, visors and ornaments; `fx` holds eyebrows, goggles,
      Yuki's fan, Mako's gum, sweat drops and shock marks);
    - a hidden guide layer `eyeband`: a 96x24 magenta box over the eyes;
-   - the character's palette (18-24 colours). Stay inside it and keep edges hard:
+   - the character's palette (12-24 colours). Stay inside it and keep edges hard:
      no soft brushes, no partial alpha. The exporter refuses semi-transparent pixels.
 2. Save (keep RGB colour mode, keep the five tags).
 3. Run `python3 tools/art/export_portraits.py` only. Do not run `portraits.py`.
@@ -40,8 +40,9 @@ you see in Aseprite (visible layers, layer and cel opacity) is what ships.
 
 ## Sheet layout
 
-`portraits.png` is 480x864: 5 columns x 9 rows of 96x96 cells.
-Rows: rin, mako, jiro, aya, pochi, goro, yuki, zeno, onyx.
+`portraits.png` is 480x1248: 5 columns x 13 rows of 96x96 cells.
+Rows: rin, mako, jiro, aya, pochi, goro, yuki, zeno, onyx, then the mini-bosses
+tetsu, suzu, kagero, q7 (simpler shapes, 12-18 colours).
 Columns: neutral, happy, shock, defeat, fierce.
 
 `portraits.json`: `cell`, `order`, `expr`, `names`, `eye_y`.

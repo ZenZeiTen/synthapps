@@ -35,7 +35,7 @@ PIPS = {
     2: ["....#....", "...###...", "..#####..", ".#######.", "#########", ".#######.", "..#####..", "...###...", "....#...."],
     3: ["...###...", "..#####..", "..#####..", ".#.###.#.", "####.####", "#########", ".##.#.##.", "....#....", "...###..."],
 }
-ICONS = ["hawk", "swap", "guard", "over", "sight", "glare", "empty", "star", "dealer"]
+ICONS = ["hawk", "swap", "guard", "over", "sight", "glare", "empty", "star", "dealer", "retake"]
 
 
 def glyph(img, ch, x, y, col, scale=1):
@@ -171,6 +171,17 @@ def icon(name):
             pts.append((16 + rad * math.cos(a), 16 + rad * math.sin(a)))
         d.polygon(pts, fill=GOLD, outline=INK)
         d.polygon([(16, 8), (18, 14), (16, 16), (12, 14)], fill=(255, 250, 200, 255))
+    elif name == "retake":
+        # Director's Cut: a clapperboard, arm snapping shut (original drawing).
+        img, d = tile((200, 40, 60, 255))
+        d.rectangle([5, 14, 26, 27], fill=INK, outline=W)
+        d.line([8, 19, 23, 19], fill=(200, 196, 220, 255))
+        d.line([8, 23, 18, 23], fill=(200, 196, 220, 255))
+        d.polygon([(5, 12), (25, 5), (27, 10), (7, 16)], fill=INK, outline=W)
+        for k in range(3):
+            x0 = 9 + k * 6
+            d.polygon([(x0, 11), (x0 + 3, 10), (x0 + 5, 13), (x0 + 2, 14)], fill=W)
+        d.ellipse([4, 12, 8, 16], fill=GOLD, outline=INK)
     else:
         img = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
         d = ImageDraw.Draw(img)
