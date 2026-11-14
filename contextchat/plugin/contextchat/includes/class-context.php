@@ -21,10 +21,9 @@ class ContextChat_Context {
 	 * @return array
 	 */
 	public static function env() {
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only compared, never output.
-		$id   = (int) get_queried_object_id();
-		$env  = array(
-			'path'             => strtolower( rawurldecode( (string) $uri ) ),
+		$id  = (int) get_queried_object_id();
+		$env = array(
+			'path'             => self::request_path(),
 			'id'               => $id,
 			'slug'             => '',
 			'post_type'        => '',
@@ -59,6 +58,16 @@ class ContextChat_Context {
 		}
 
 		return $env;
+	}
+
+	/**
+	 * The requested address (path and query), decoded and in lower case, for "contains" checks.
+	 *
+	 * @return string
+	 */
+	public static function request_path() {
+		$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only compared, never output.
+		return strtolower( rawurldecode( (string) $uri ) );
 	}
 
 	/**
@@ -264,9 +273,42 @@ class ContextChat_Context {
 		/**
 		 * Filter the agents offered on this page.
 		 *
-		 * @param array $agents Agents.
+		 * @param array $agents Agents: id, name, role, phone (international digits), avatar, always.
 		 */
-		return (array) apply_filters( 'contextchat_agents', $agents );
+		return self::usable_agents( apply_filters( 'contextchat_agents', $agents ) );
+	}
+
+	/**
+	 * Keep only agents that can be chatted with, each with every key the templates read. Agents
+	 * come back from a filter, so they may be incomplete.
+	 *
+	 * @param mixed $agents Filtered agents.
+	 * @return array
+	 */
+	private static function usable_agents( $agents ) {
+		$usable = array();
+		foreach ( is_array( $agents ) ? $agents : array() as $agent ) {
+			if ( ! is_array( $agent ) ) {
+				continue;
+			}
+			$agent = array_merge(
+				array(
+					'id'       => '',
+					'name'     => '',
+					'role'     => '',
+					'phone'    => '',
+					'avatar'   => '',
+					'always'   => false,
+					'disabled' => false,
+				),
+				$agent
+			);
+			$agent['phone'] = preg_replace( '/\D+/', '', (string) $agent['phone'] );
+			if ( '' !== (string) $agent['id'] && '' !== $agent['phone'] ) {
+				$usable[] = $agent;
+			}
+		}
+		return $usable;
 	}
 
 	/**

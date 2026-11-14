@@ -20,11 +20,15 @@ class ContextChat_Template {
 	/** Longest message we put in a link. WhatsApp accepts more, but long URLs break on some phones. */
 	const MAX_LENGTH = 1500;
 
+	/** Stands in for a placeholder that had no value, until close_gaps() has cleaned up around it. */
+	const GAP = "\x00";
+
 	/**
 	 * Fill `{placeholder}` and `{placeholder|fallback}` tokens, then tidy what is left.
 	 *
-	 * Unknown or empty placeholders become their fallback, or nothing. The tidy step removes the
-	 * traces an empty value leaves behind, such as `()`, `""` and a space before a comma.
+	 * Unknown or empty placeholders become their fallback, or nothing. Where a placeholder left
+	 * nothing, the traces around it go too: `()`, `""` and a comma or space that now leads
+	 * nowhere. Text the author wrote and the values themselves are never rewritten.
 	 *
 	 * @param string $template Message template.
 	 * @param array  $vars     Placeholder values keyed by name.
@@ -35,30 +39,51 @@ class ContextChat_Template {
 			'/\{([a-z0-9_]+)(?:\|([^{}]*))?\}/i',
 			static function ( $m ) use ( $vars ) {
 				$key   = strtolower( $m[1] );
-				$value = isset( $vars[ $key ] ) ? trim( (string) $vars[ $key ] ) : '';
+				$value = isset( $vars[ $key ] ) ? trim( str_replace( self::GAP, '', (string) $vars[ $key ] ) ) : '';
 				if ( '' === $value && isset( $m[2] ) ) {
 					$value = trim( $m[2] );
 				}
-				return $value;
+				return '' === $value ? self::GAP : $value;
 			},
-			(string) $template
+			str_replace( self::GAP, '', (string) $template )
 		);
 
-		return self::tidy( $text );
+		return self::tidy( self::close_gaps( $text ) );
 	}
 
 	/**
-	 * Remove the leftovers of empty placeholders and normalise whitespace. Newlines are kept.
+	 * Remove the marks of empty placeholders, and the punctuation that only made sense with them.
 	 *
-	 * @param string $text Rendered text.
+	 * @param string $text Text with GAP where a placeholder was empty.
+	 * @return string
+	 */
+	private static function close_gaps( $text ) {
+		// Brackets and quotes with nothing left inside, innermost first: ("{a}") disappears whole.
+		$pairs = '/\(\s*(?:\x00\s*)+\)|\[\s*(?:\x00\s*)+\]|“\s*(?:\x00\s*)+”|‘\s*(?:\x00\s*)+’|«\s*(?:\x00\s*)+»|"\x00(?:[ \t]*\x00)*"/u';
+		do {
+			$text = preg_replace( $pairs, self::GAP, $text, -1, $count );
+		} while ( $count );
+
+		// "a, {b}." becomes "a.": the comma before an empty value that is followed by punctuation.
+		$text = preg_replace( '/[,;:][ \t]*(?:\x00[ \t]*)+(?=[,;:.!?])/', self::GAP, $text );
+		// "{a}, b" becomes "b": the comma after an empty value.
+		$text = preg_replace( '/(?:\x00[ \t]*)+[,;:][ \t]*/', self::GAP, $text );
+		// "about {a}." becomes "about.": the space before an empty value that is followed by punctuation.
+		$text = preg_replace( '/[ \t]*(?:\x00[ \t]*)+(?=[,;:.!?])/', '', $text );
+
+		return str_replace( self::GAP, '', $text );
+	}
+
+	/**
+	 * Normalise whitespace and cap the length. Newlines are kept; words and punctuation are not
+	 * touched, so this is safe for text a visitor typed.
+	 *
+	 * @param string $text Text.
 	 * @return string
 	 */
 	public static function tidy( $text ) {
 		$text = str_replace( array( "\r\n", "\r" ), "\n", (string) $text );
-		$text = preg_replace( '/\(\s*\)|\[\s*\]|"\s*"|“\s*”/u', '', $text );
 		$text = preg_replace( '/[ \t]+/', ' ', $text );
-		$text = preg_replace( '/ +([,.!?;:])/', '$1', $text );
-		$text = preg_replace( '/([,;:])(?=[,;:.!?])/', '', $text );
 		$text = preg_replace( '/^ +| +$/m', '', $text );
 		$text = preg_replace( '/\n{3,}/', "\n\n", $text );
 		$text = trim( $text );
@@ -124,29 +149,30 @@ class ContextChat_Template {
 	}
 
 	/**
-	 * Placeholders a site owner can use, with an example value for the settings preview.
+	 * Placeholders a site owner can use, with an example value for the settings preview. Their
+	 * names for people are in ContextChat_Admin::placeholder_labels(), where they can be translated.
 	 *
-	 * @return array<string, array{label: string, sample: string, scope: string}>
+	 * @return array<string, array{sample: string, scope: string}>
 	 */
 	public static function placeholders() {
 		return array(
-			'page_title'    => array( 'label' => 'Page title', 'sample' => 'Sworn Translation for Visa', 'scope' => 'page' ),
-			'page_url'      => array( 'label' => 'Page address', 'sample' => 'https://example.com/visa-translation/', 'scope' => 'page' ),
-			'site_name'     => array( 'label' => 'Site name', 'sample' => 'Example Co', 'scope' => 'page' ),
-			'post_type'     => array( 'label' => 'Content type', 'sample' => 'Page', 'scope' => 'page' ),
-			'category'      => array( 'label' => 'Category', 'sample' => 'Legal documents', 'scope' => 'page' ),
-			'search_query'  => array( 'label' => 'Search terms', 'sample' => 'birth certificate', 'scope' => 'page' ),
-			'product_name'  => array( 'label' => 'Product name', 'sample' => 'Certified Translation – 1 page', 'scope' => 'product' ),
-			'product_price' => array( 'label' => 'Product price', 'sample' => 'Rp150.000', 'scope' => 'product' ),
-			'product_sku'   => array( 'label' => 'Product SKU', 'sample' => 'TR-001', 'scope' => 'product' ),
-			'product_stock' => array( 'label' => 'Stock status', 'sample' => 'In stock', 'scope' => 'product' ),
-			'agent_name'    => array( 'label' => 'Agent name', 'sample' => 'Rina', 'scope' => 'visit' ),
-			'utm_source'    => array( 'label' => 'Campaign source', 'sample' => 'instagram', 'scope' => 'visit' ),
-			'utm_medium'    => array( 'label' => 'Campaign medium', 'sample' => 'social', 'scope' => 'visit' ),
-			'utm_campaign'  => array( 'label' => 'Campaign name', 'sample' => 'visa-season', 'scope' => 'visit' ),
-			'referrer'      => array( 'label' => 'Referring site', 'sample' => 'google.com', 'scope' => 'visit' ),
-			'date'          => array( 'label' => 'Visitor date', 'sample' => '28/10/2026', 'scope' => 'visit' ),
-			'time'          => array( 'label' => 'Visitor time', 'sample' => '14:05', 'scope' => 'visit' ),
+			'page_title'    => array( 'sample' => 'Sworn Translation for Visa', 'scope' => 'page' ),
+			'page_url'      => array( 'sample' => 'https://example.com/visa-translation/', 'scope' => 'page' ),
+			'site_name'     => array( 'sample' => 'Example Co', 'scope' => 'page' ),
+			'post_type'     => array( 'sample' => 'Page', 'scope' => 'page' ),
+			'category'      => array( 'sample' => 'Legal documents', 'scope' => 'page' ),
+			'search_query'  => array( 'sample' => 'birth certificate', 'scope' => 'page' ),
+			'product_name'  => array( 'sample' => 'Certified Translation – 1 page', 'scope' => 'product' ),
+			'product_price' => array( 'sample' => 'Rp150.000', 'scope' => 'product' ),
+			'product_sku'   => array( 'sample' => 'TR-001', 'scope' => 'product' ),
+			'product_stock' => array( 'sample' => 'In stock', 'scope' => 'product' ),
+			'agent_name'    => array( 'sample' => 'Rina', 'scope' => 'visit' ),
+			'utm_source'    => array( 'sample' => 'instagram', 'scope' => 'visit' ),
+			'utm_medium'    => array( 'sample' => 'social', 'scope' => 'visit' ),
+			'utm_campaign'  => array( 'sample' => 'visa-season', 'scope' => 'visit' ),
+			'referrer'      => array( 'sample' => 'google.com', 'scope' => 'visit' ),
+			'date'          => array( 'sample' => '28/10/2026', 'scope' => 'visit' ),
+			'time'          => array( 'sample' => '14:05', 'scope' => 'visit' ),
 		);
 	}
 

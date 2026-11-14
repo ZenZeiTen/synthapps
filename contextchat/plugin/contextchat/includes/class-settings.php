@@ -17,8 +17,14 @@ class ContextChat_Settings {
 
 	const OPTION = 'contextchat_settings';
 
-	/** Rule types and what they compare against. */
+	/** Rule types, in the order the settings screen lists them. */
 	const RULE_TYPES = array( 'url_contains', 'page', 'post_type', 'category', 'product_category', 'product', 'front_page', 'search' );
+
+	/** Rule types that compare against a value the site owner types. The others need none. */
+	const RULE_TYPES_WITH_VALUE = array( 'url_contains', 'page', 'post_type', 'category', 'product_category' );
+
+	const MAX_AGENTS = 20;
+	const MAX_RULES  = 50;
 
 	/** Cached settings for this request. @var array|null */
 	private static $cache = null;
@@ -118,6 +124,16 @@ class ContextChat_Settings {
 	}
 
 	/**
+	 * What to call an agent on admin screens: the name, or the number when there is no name.
+	 *
+	 * @param array $agent Agent.
+	 * @return string
+	 */
+	public static function agent_label( array $agent ) {
+		return '' !== $agent['name'] ? $agent['name'] : '+' . $agent['phone'];
+	}
+
+	/**
 	 * Clean a submitted settings array. Safe to run on already-clean data.
 	 *
 	 * @param mixed $input Raw input.
@@ -142,7 +158,7 @@ class ContextChat_Settings {
 				$out['agents'][] = $clean;
 			}
 		}
-		$out['agents'] = array_slice( $out['agents'], 0, 20 );
+		$out['agents'] = array_slice( $out['agents'], 0, self::MAX_AGENTS );
 		$agent_ids     = wp_list_pluck( $out['agents'], 'id' );
 
 		$out['default_message'] = self::message( $input, 'default_message', $d['default_message'] );
@@ -154,7 +170,7 @@ class ContextChat_Settings {
 				$out['rules'][] = $clean;
 			}
 		}
-		$out['rules'] = array_slice( $out['rules'], 0, 50 );
+		$out['rules'] = array_slice( $out['rules'], 0, self::MAX_RULES );
 
 		$out['composer']      = self::bool( $input, 'composer' );
 		$out['position']      = self::choice( $input, 'position', array( 'right', 'left' ), $d['position'] );
@@ -249,7 +265,7 @@ class ContextChat_Settings {
 		$message = self::message( $rule, 'message', '' );
 		$agents  = array_values( array_intersect( array_map( 'sanitize_key', (array) self::val( $rule, 'agents', array() ) ), $agent_ids ) );
 
-		$needs_value = in_array( $type, array( 'url_contains', 'page', 'post_type', 'category', 'product_category' ), true );
+		$needs_value = in_array( $type, self::RULE_TYPES_WITH_VALUE, true );
 		if ( '' === $type || ( $needs_value && '' === $value ) || ( '' === $message && ! $agents ) ) {
 			return null;
 		}
