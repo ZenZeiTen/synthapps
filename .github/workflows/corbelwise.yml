@@ -110,9 +110,11 @@ jobs:
           node-version: "22.x"
           cache: npm
           cache-dependency-path: corbelwise/package-lock.json
-      - name: Install MySQL client and test tools
+      # The runner image already has the MySQL client. Installing it again with apt upgrades the
+      # preinstalled MySQL server too, and that upgrade fails on the runner (dpkg exit 100).
+      - name: MySQL client and test tools
         run: |
-          sudo apt-get update && sudo apt-get install -y mysql-client
+          command -v mysql || { sudo apt-get update && sudo apt-get install -y --no-upgrade mysql-client; }
           cd corbelwise && npm ci && npx playwright install --with-deps chromium
       - run: bash corbelwise/tests/wordpress-smoke.sh
         env:
