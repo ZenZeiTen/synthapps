@@ -25,7 +25,9 @@ Small enums are used internally (`Phase`, `Action`, `Shown`, `Power`, `MissionId
 `...FromName` helpers) give the exact strings the Godot UI and saves use ("hand_over",
 "glare", "allin", ...). Differences in shape, not in rules:
 
-- `rival` is the ladder index (0..4) into `data::kRivals`, not the name.
+- `rival` is the ladder index (0..8) into `data::kRivals`, not the name. The ladder is five
+  floors with a warden (`CastEntry::mini`, own `stack`) between each; `room`, `episode`,
+  `lore` and `data::EpisodeLabel` mirror data.gd's fields and `episode_label`.
 - `stars` is a vector of (index, value) pairs in insertion order (a Godot dictionary keeps
   insertion order; nothing reads it out of order).
 - An empty Godot `mission` / `result` dictionary is `MissionId::None` / `Result::set == false`.
@@ -65,15 +67,15 @@ after every step, so these details matter:
 
 ```bash
 bash hyper-bluff-ue/tests/run_core_tests.sh
-# [g] CORE TESTS 48/48 passed
-# [clang] CORE TESTS 48/48 passed
+# [g] CORE TESTS 49/49 passed
+# [clang] CORE TESTS 49/49 passed
 # PARITY ok: 200 seeds, <steps> steps (...)
 ```
 
-- `tests/core/test_core.cpp`: the 40 Godot rules tests (`godot/tests/run_tests.gd`) with the
+- `tests/core/test_core.cpp`: the Godot rules tests (`godot/tests/run_tests.gd`; `t_story_pages_fit` is in `tests/app`) with the
   same names and assertions, plus 8 `t_dc_*` tests for Director's Cut. `ONLY=name` filters.
 - `tests/parity/dump.gd` + `tests/parity/parity_dump.cpp`: twin dumpers. For 200 seeds x
-  5 starting rivals they play bot runs (seat 0 on `Ai.DEFAULT`; a capped run stops at its third
+  9 starting matches (the whole ladder) they play bot runs (seat 0 on `Ai.DEFAULT`; a capped run stops at its third
   match end so lost matches are continued; seeds divisible by 25 also play a whole run to
   `run_won`) and write one line per step: phase, street, to_act, stacks, bets, totals, board,
   stars, star pot, fever, mission, score, powers, fx, the three RNG states and the step's events;

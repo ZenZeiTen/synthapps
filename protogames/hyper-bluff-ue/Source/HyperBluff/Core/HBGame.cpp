@@ -207,7 +207,9 @@ State NewRun(int64_t seed, const std::string& avatar, bool director_cut) {
 
 void StartMatch(State& s) {
     s.rival = s.match;
-    s.stack = {{kStartStack, kStartStack}};
+    // data.gd: CAST[rival].get("stack", START_STACK); wardens start smaller.
+    const int start = data::Rival(s.rival).stack;
+    s.stack = {{start, start}};
     s.hand_no = 0;
     s.button = 1;
     RivalPowers(s);

@@ -365,7 +365,7 @@ bool t_bots_conserve_chips_and_finish() {
             guard += 1;
             bot_step(s, &hands);
             if (s.phase != Phase::RunWon) {
-                ok(chips(s) == 1600, "chips drifted at seed " + Str(seed_value) + " hand " + Str(hands) +
+                ok(chips(s) == 2 * data::Rival(s.rival).stack, "chips drifted at seed " + Str(seed_value) + " hand " + Str(hands) +
                                          ": " + Str(chips(s)));
                 ok(s.stack[0] >= 0 && s.stack[1] >= 0, "negative stack");
                 ok(static_cast<int>(s.powers[0].size()) <= G::kMaxPowers, "too many powers");
@@ -704,14 +704,31 @@ bool t_match_ladder_and_continue() {
     eq(s.score, int64_t(500), "continue halves the score");
     eq(std::string(data::kRivals[static_cast<size_t>(s.rival)]), std::string("pochi"), "same rival again");
     eq(s.stack, A2(800, 800), "fresh stacks");
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < static_cast<int>(data::kRivals.size()); ++i) {
         eq(s.rival, i, "ladder order");
+        const int want = i % 2 == 1 ? 500 : 800;
+        eq(s.stack, A2(want, want), std::string("stack for ") + data::kRivals[static_cast<size_t>(i)]);
         eq(s.powers[1], data::Rival(s.rival).powers, "rival powers set");
         s.phase = Phase::MatchOver;
         s.winner = 0;
         G::NextMatch(s);
     }
-    eq(s.phase, Phase::RunWon, "five wins end the run");
+    eq(s.phase, Phase::RunWon, "nine wins end the run");
+    return true;
+}
+
+bool t_ladder_story() {
+    eq(static_cast<int>(data::kRivals.size()), 9, "five floors and four mini-bosses");
+    for (int i = 0; i < static_cast<int>(data::kRivals.size()); ++i) {
+        const CastEntry& c = data::Rival(i);
+        eq(c.mini, i % 2 == 1, "mini-bosses sit between floors");
+        ok(!c.lore.empty(), std::string("lore for ") + c.id);
+        ok(c.room >= 1 && c.room <= 5, std::string("room for ") + c.id);
+        ok(data::EpisodeLabel(i).size() <= 32, "episode label fits: " + data::EpisodeLabel(i));
+    }
+    eq(data::EpisodeLabel(0), std::string("EPISODE 1: THE LOBBY PIT"), "first episode");
+    eq(data::EpisodeLabel(1), std::string("INTERLUDE: THE STAIRWELL"), "first interlude");
+    eq(data::EpisodeLabel(8), std::string("EPISODE 5: THE STARLIGHT TABLE"), "final episode");
     return true;
 }
 
@@ -827,14 +844,14 @@ bool t_dc_retake_text_and_pool() {
     ok(with > 20, "retake is granted with Director's Cut: " + Str(with));
     // The boss starts with it only under Director's Cut.
     State on = G::NewRun(1, "rin", true);
-    on.match = 4;
+    on.match = static_cast<int>(data::kRivals.size()) - 1;  // the boss, last on the ladder
     G::StartMatch(on);
     eq(on.powers[1], std::vector<Power>({Power::Swap, Power::Glare, Power::Guard, Power::Hawk, Power::Retake}),
        "onyx gets retake");
     State off = G::NewRun(1, "rin", false);
-    off.match = 4;
+    off.match = static_cast<int>(data::kRivals.size()) - 1;
     G::StartMatch(off);
-    eq(off.powers[1], data::Rival(4).powers, "classic onyx unchanged");
+    eq(off.powers[1], data::Rival(off.match).powers, "classic onyx unchanged");
     State goro = G::NewRun(1, "rin", true);
     goro.match = 1;
     G::StartMatch(goro);
@@ -1031,7 +1048,7 @@ bool t_dc_bots_conserve_chips() {
             bot_step(s, &hands);
             for (const Event& e : s.events) retakes += (e.t == EventType::Power && e.power == Power::Retake) ? 1 : 0;
             if (s.phase == Phase::RunWon) break;
-            ok(chips(s) == 1600, "chips drifted at seed " + Str(seed_value) + ": " + Str(chips(s)));
+            ok(chips(s) == 2 * data::Rival(s.rival).stack, "chips drifted at seed " + Str(seed_value) + ": " + Str(chips(s)));
             ok(s.stack[0] >= 0 && s.stack[1] >= 0, "negative stack");
             int sum = 0;
             for (const auto& kv : s.stars) sum += kv.second;
@@ -1107,6 +1124,7 @@ int main() {
         {"t_fever_comes_and_goes", t_fever_comes_and_goes},
         {"t_match_ladder_and_continue", t_match_ladder_and_continue},
         {"t_match_bonus_scales", t_match_bonus_scales},
+        {"t_ladder_story", t_ladder_story},
         {"t_rivals_play_differently", t_rivals_play_differently},
         {"t_text_lengths", t_text_lengths},
         {"t_dc_retake_text_and_pool", t_dc_retake_text_and_pool},

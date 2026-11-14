@@ -38,6 +38,14 @@ struct CastEntry {
     Profile profile;         // rivals only
     std::vector<Power> powers;
     std::vector<std::string> intro, win, lose, allin, beaten, gloat;
+    // Ladder (rivals only). mini: a warden between two main floors, with its own start stack.
+    // room: 1..5, the floor image the match is played in. episode: the place name for the
+    // versus card. lore: story pages shown before the rival's intro.
+    bool mini = false;
+    int stack = 800;
+    int room = 1;
+    const char* episode = "";
+    std::vector<std::string> lore;
 };
 
 struct PowerInfo {
@@ -56,7 +64,8 @@ struct MissionInfo {
 namespace data {
 
 extern const std::array<const char*, 4> kAvatars;
-extern const std::array<const char*, 5> kRivals;
+constexpr size_t kLadder = 9;  // matches in a run: five floors and four wardens between them
+extern const std::array<const char*, kLadder> kRivals;
 extern const std::array<const char*, 5> kExpr;
 extern const std::array<const char*, 4> kSuitName;
 
@@ -75,6 +84,10 @@ const std::vector<PowerInfo>& Powers();
 const PowerInfo& PowerInfoOf(Power p);
 
 const std::vector<MissionInfo>& Missions();
+
+// Header of a match on the versus screen: "EPISODE 2: THE GARAGE DECK" for a main floor,
+// "INTERLUDE: THE STAIRWELL" for a warden (data.gd episode_label).
+std::string EpisodeLabel(int match);
 
 const std::vector<std::string>& StoryOpen();
 const std::vector<std::string>& StoryBoss();
