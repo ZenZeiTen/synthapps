@@ -4,7 +4,7 @@ Tags: whatsapp, chat, click to chat, woocommerce, contact
 Requires at least: 6.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,19 @@ Other filters: `contextchat_message`, `contextchat_agents`, `contextchat_should_
 All attributes are optional. Without `agent` the button follows your context rules; without `message` it uses the rule or default message.
 
 == Changelog ==
+
+= 1.1.0 =
+* Fix: analytics count days in your site time zone. They were counted in UTC, so on a site in Jakarta chats started before 07:00 appeared under the previous day.
+* Fix: messages are sent as written. Text a visitor types, such as ":)" or "Is that possible ?", is no longer changed, and neither is the wording of your templates. Clean-up now happens only where a placeholder was empty.
+* Fix: empty placeholders leave less behind: a comma after an empty value and nested brackets or quotes around it are removed too.
+* Fix: with "Appear after (seconds)" set, the button also appears for visitors whose browser does not run the script.
+* Fix: "Hide the floating button" while offline looks at the agents offered on that page, not at all agents.
+* Fix: saving the settings with an empty required field on another tab now opens that tab instead of doing nothing.
+* Fix: no PHP warnings when a filter shows the button on a page without agents; agents added through the `contextchat_agents` filter are checked and completed.
+* Fix: on a network (multisite), deleting the plugin removes its data from every site, and the daily clean-up of old clicks is scheduled on every site.
+* New: a "Remove photo" button for agents, and keyboard navigation for the settings tabs.
+* New: placeholder tooltips are translatable and translated into Indonesian.
+* New: `contextchat_client_ip` filter for sites behind a proxy or CDN.
 
 = 1.0.2 =
 * Maintenance release built from the current code. It behaves the same as 1.0.1: no new features and no fixes. Sites already on 1.0.1 do not need to update.

@@ -10,7 +10,7 @@ So the first message you receive reads *"Hi Budi! I need a sworn translation for
 
 ## What it does
 
-- **Context in every message.** Templates with placeholders: `{page_title}`, `{page_url}`, `{product_name}`, `{product_price}`, `{product_sku}`, `{utm_source}`, `{referrer}`, `{agent_name}` and more. Empty values disappear cleanly, and `{name|fallback}` supplies a default.
+- **Context in every message.** Templates with placeholders: `{page_title}`, `{page_url}`, `{product_name}`, `{product_price}`, `{product_sku}`, `{utm_source}`, `{referrer}`, `{agent_name}` and more. Empty values disappear cleanly, together with the brackets, quotes or comma around them, and `{name|fallback}` supplies a default. Everything else is sent exactly as written.
 - **Context rules.** Different message and agents by address, page, content type, post or product category, any product page, the home page or search results. First match wins. A page can also set its own message in the editor.
 - **Agents.** Up to 20, each with photo, role and an "always available" switch.
 - **Opening hours.** Weekly schedule in the site time zone, shifts past midnight, offline note, optional "(sent outside business hours)" line, or hide the button while closed.
@@ -31,7 +31,7 @@ So the first message you receive reads *"Hi Budi! I need a sworn translation for
 npm run build
 ```
 
-This writes `dist/contextchat-1.0.2.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
+This writes `dist/contextchat-1.1.0.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
 
 Requirements: WordPress 6.2 or newer, PHP 7.4 or newer. WooCommerce is optional.
 
@@ -44,7 +44,7 @@ ContextChat is not on WordPress.org, so it opts out of WordPress.org updates (`U
 
 The run tests everything, builds the zip, and publishes the release `contextchat-v<version>` with `RELEASE_NOTES.md` as its description, creating the tag on the tested commit. The run's summary links to the release.
 
-Pushing a tag yourself works too (`git tag contextchat-v1.0.2 && git push origin contextchat-v1.0.2`); the workflow refuses a tag that does not match the `Version:` line. If a release with that tag already exists, even as a draft, the zip is added to it and a draft is published.
+Pushing a tag yourself works too (`git tag contextchat-v1.1.0 && git push origin contextchat-v1.1.0`); the workflow refuses a tag that does not match the `Version:` line. If a release with that tag already exists, even as a draft, the zip is added to it and a draft is published.
 
 ## For developers
 
@@ -56,6 +56,7 @@ Filters:
 | `contextchat_message` | Change the message template for a button. |
 | `contextchat_agents` | Change which agents are offered on a page. |
 | `contextchat_should_display` | Show or hide the floating button. |
+| `contextchat_client_ip` | The visitor address used to rate limit click counting. Needed only behind a proxy or CDN that does not pass the visitor's address on as `REMOTE_ADDR`; without it all visitors share one limit of 20 clicks a minute. |
 
 In the browser, `document` receives a `contextchat:click` event with `{ agent, source, rule, path, post, device }` for every chat started.
 
@@ -65,8 +66,9 @@ How it fits together:
 - `includes/class-context.php` – what the visitor is looking at, which rule applies, which agents to offer.
 - `includes/class-frontend.php` – floating button, panel, shortcode and block. Buttons are links built on the server; the script then adds what only the browser knows.
 - `assets/js/contextchat.js` – the same template rules as the PHP, plus opening hours, the panel and click tracking.
-- `includes/class-analytics.php` – click table, the public `POST /wp-json/contextchat/v1/click` endpoint (validated and rate limited), reports.
+- `includes/class-analytics.php` – click table, the public `POST /wp-json/contextchat/v1/click` endpoint (validated and rate limited), reports. Clicks are stored in UTC and reported by day in the site time zone.
 - `includes/class-admin.php`, `class-settings.php` – settings screen and strict sanitising of every saved value.
+- `includes/class-admin-analytics.php` – the analytics screen and CSV export.
 
 ## Translations
 
@@ -76,7 +78,7 @@ How it fits together:
 npm run i18n
 ```
 
-This refreshes the template and rebuilds the `.mo` file (PHP strings) and the `.json` file (block editor strings) for every language. To add a language, copy `contextchat.pot` to `contextchat-<locale>.po`, translate it, and run the same command.
+This refreshes the template, brings every `.po` file in line with it (new strings are added empty and listed as "to translate", removed ones are dropped, translations are kept), and rebuilds the `.mo` file (PHP strings) and the `.json` file (block editor strings) for every language. To add a language, copy `contextchat.pot` to `contextchat-<locale>.po`, translate it, and run the same command.
 
 ## Tests
 
@@ -87,9 +89,10 @@ npm run test:e2e   # browser tests against a real WordPress site
 
 The PHP and JavaScript template engines are checked against the same cases in `tests/fixtures/templates.json`, so the link built on the server and the one built in the browser always say the same thing.
 
-The browser tests build a throwaway WordPress 6.5 site on SQLite (from the `@wp-playground/wordpress-builds` npm package, so neither MySQL nor wordpress.org is needed), start PHP's built-in server, and drive Chromium through: rule routing, the Indonesian translation, editing the message, campaign tags, hidden pages, the product button, phones, opening hours, direct mode, saving settings through the admin form, the analytics screen, endpoint validation and rate limiting, a cached WordPress.org update offer for the `contextchat` folder (which must show as `none` in `wp plugin list`), and finally a clean uninstall. Any PHP notice from the plugin fails the run. The update-offer check needs WP-CLI: set `WP_CLI` (for example `WP_CLI="php wp-cli.phar"`) or have `wp` on your PATH; without it the check is skipped. CI always runs it.
+The browser tests build a throwaway WordPress 6.5 site on SQLite (from the `@wp-playground/wordpress-builds` npm package, so neither MySQL nor wordpress.org is needed), start PHP's built-in server, and drive Chromium through: rule routing, the Indonesian translation, editing the message, campaign tags, hidden pages, the product button, phones, opening hours, a delayed button with and without JavaScript, direct mode, saving settings through the admin form, the settings tabs and repeaters, the analytics screen and its time zone handling, endpoint validation and rate limiting, a cached WordPress.org update offer for the `contextchat` folder (which must show as `none` in `wp plugin list`), and finally a clean uninstall. Any PHP notice from the plugin fails the run. The update-offer check needs WP-CLI: set `WP_CLI` (for example `WP_CLI="php wp-cli.phar"`) or have `wp` on your PATH; without it the check is skipped. CI always runs it.
 
 Limits of the test setup, stated plainly:
 
 - WooCommerce itself is not installed; `tests/e2e/fake-woocommerce.php` provides the few functions the plugin calls. Test against a real WooCommerce store before relying on the product button.
 - The npm WordPress build leaves out many core admin scripts and styles, so drag-to-reorder (jQuery UI), the media-library avatar picker and the block in the editor are not exercised by the tests.
+- The test site uses SQLite through WordPress's SQLite integration, not MySQL or MariaDB, and is a single site, not a network (multisite).
