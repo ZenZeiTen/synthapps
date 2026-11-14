@@ -91,8 +91,10 @@ jobs:
           extensions: mysqli
           tools: none
           coverage: none
-      - name: Install MySQL client
-        run: sudo apt-get update && sudo apt-get install -y mysql-client
+      # The runner image already has the MySQL client. Installing it again with apt upgrades the
+      # preinstalled MySQL server too, and that upgrade fails on the runner (dpkg exit 100).
+      - name: MySQL client
+        run: command -v mysql || { sudo apt-get update && sudo apt-get install -y --no-upgrade mysql-client; }
       - run: bash visitor-sentinel/tests/wordpress-smoke.sh
         env:
           WORK: ${{ runner.temp }}/wp-smoke
