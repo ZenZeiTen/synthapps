@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { detectLang, setLang, t, type Lang } from './i18n';
 import * as store from './lib/db';
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS, type Entry, type Metric, type Profile, type Settings } from './lib/types';
 
@@ -21,6 +22,8 @@ interface AppState {
   entries: Entry[];
   profile: Profile;
   settings: Settings;
+  /** The language in use: the saved choice, or the device language. */
+  lang: Lang;
   route: Route;
   trendMetric: Metric;
   logRequest: LogRequest | null;
@@ -53,12 +56,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [trendMetric, setTrendMetric] = useState<Metric>('bp');
   const [logRequest, setLogRequest] = useState<LogRequest | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [lang, setLangState] = useState<Lang>(() => {
+    const l = detectLang();
+    setLang(l);
+    return l;
+  });
 
   useEffect(() => {
     Promise.all([store.allEntries(), store.loadProfile(), store.loadSettings()]).then(([e, p, s]) => {
       setEntries(e);
       setProfile(p);
       setSettings(s);
+      const l = s.language ?? detectLang();
+      setLang(l);
+      setLangState(l);
       setReady(true);
       if (new URLSearchParams(window.location.search).get('log') === '1') setLogRequest({});
     });
@@ -99,7 +110,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const gone = entries.find((e) => e.id === id);
       await store.deleteEntry(id);
       setEntries((list) => list.filter((e) => e.id !== id));
-      if (gone) notify('Reading deleted', { label: 'Undo', run: () => void saveEntry(gone) });
+      if (gone) notify(t().log.deleted, { label: t().nav.undo, run: () => void saveEntry(gone) });
     },
     [entries, notify, saveEntry]
   );
@@ -122,6 +133,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateSettings = useCallback(
     async (s: Partial<Settings>) => {
       const next = { ...settings, ...s };
+      if (s.language) {
+        // Switch the text first so the re-render that follows is in the new language.
+        setLang(s.language);
+        setLangState(s.language);
+      }
       await store.saveSettings(next);
       setSettings(next);
     },
@@ -134,6 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       entries,
       profile,
       settings,
+      lang,
       route,
       trendMetric,
       logRequest,
@@ -149,7 +166,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateSettings,
       notify
     }),
-    [ready, entries, profile, settings, route, trendMetric, logRequest, toast, go, saveEntry, removeEntry, addEntries, clearAll, updateProfile, updateSettings, notify]
+    [ready, entries, profile, settings, lang, route, trendMetric, logRequest, toast, go, saveEntry, removeEntry, addEntries, clearAll, updateProfile, updateSettings, notify]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -1519,3 +1519,15 @@ p {
   flex-wrap: wrap;
   gap: 10px;
 }
+
+/* Language switch: compact EN / ID in the header and rail. */
+.lang-toggle.is-compact button {
+  padding: 5px 10px;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+
+.rail .lang-toggle {
+  align-self: flex-start;
+  margin: 14px 0 0 6px;
+}

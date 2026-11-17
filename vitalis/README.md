@@ -16,6 +16,7 @@ It runs as an installable web app (PWA) that works offline, and as an Android ap
 | **Journal** | Every reading grouped by day, filter by measurement, search notes and tags, edit or delete with undo. |
 | **Insights** | Findings for the chosen period (averages graded, rising or falling trends, morning versus evening blood pressure, differences between arms, variability, wide pulse pressure, lows and very high glucose, an estimated HbA1c, uric acid against the gout target). Questions for your doctor that follow from the readings, plus your own. Tests worth asking about, which doctor to see, and when to get urgent care. |
 | **Report** | An A4 PDF with patient details, a summary table, vector charts, findings, the chosen questions with space for answers, tests and doctors, and a table of every reading. Download, share (phones and Android) or export CSV. |
+| **Languages** | English and Bahasa Indonesia, switched with the EN / ID toggle in the header (also on the welcome screen, in Settings and next to the report options). Everything follows the choice: screens, grading text, insights, questions, the PDF report and CSV headers. Indonesian uses Indonesian dates and a decimal comma (6,4 mg/dL). On first launch the app picks Indonesian if the device is set to it. |
 | **Settings** | Profile (age, sex, diagnosed conditions, medications, doctor), personal targets set by a clinician, units, light or dark theme, JSON backup and restore, sample data, delete all. |
 
 ## Medical basis
@@ -29,6 +30,14 @@ The thresholds live in [`src/lib/ranges.ts`](src/lib/ranges.ts) and are covered 
 - **Estimated HbA1c**: the ADAG formula (eAG = 28.7 × A1C − 46.7), shown only with 14+ readings over 14+ days and labelled as a rough estimate.
 
 Laboratories, age, pregnancy and medical history change what is right for a person. A clinician's targets entered in Settings replace the general ones.
+
+## Languages
+
+Text lives in two dictionaries, [`src/i18n/en.ts`](src/i18n/en.ts) and [`src/i18n/id.ts`](src/i18n/id.ts). English is the source; the Indonesian file must have the same shape, so a missing translation fails the type-check, and [`tests/i18n.test.ts`](tests/i18n.test.ts) also checks that no English is left in place and that every string prints in the PDF fonts.
+
+Choices survive a language switch: tags are stored by fixed keys and shown translated, and the questions you untick for the report are remembered by ID. Notes and your own questions stay as you wrote them.
+
+To add a language, copy `id.ts`, translate it, and add it to `LANGS` in [`src/i18n/index.ts`](src/i18n/index.ts).
 
 ## Privacy
 
@@ -44,7 +53,7 @@ Requires Node.js 22.
 cd vitalis
 npm install
 npm run dev        # development server at http://localhost:5173
-npm test           # unit tests for ranges, statistics, insights and backup
+npm test           # unit tests for ranges, statistics, insights, backup and translations
 npm run build      # type-check and build the PWA into dist/
 npm run preview    # serve the production build
 ```
@@ -74,6 +83,7 @@ The GitHub Actions workflow [`.github/workflows/vitalis.yml`](../.github/workflo
 
 | Path | Purpose |
 |---|---|
+| `src/i18n/` | English and Indonesian text, the current language, number formatting |
 | `src/lib/ranges.ts` | Reference bands and grading for each measurement |
 | `src/lib/stats.ts` | Series, averages, regression trend, moving average, streaks |
 | `src/lib/insights.ts` | Findings, questions, lab tests, specialists, emergency signs |
@@ -87,4 +97,4 @@ The GitHub Actions workflow [`.github/workflows/vitalis.yml`](../.github/workflo
 
 - Readings are typed in; there is no Bluetooth or Health Connect import yet.
 - Data lives on one device. Move it with backup and restore.
-- The interface is in English.
+- English and Indonesian only. Medical wording in Indonesian follows common clinical usage but has not yet been reviewed by an Indonesian clinician.

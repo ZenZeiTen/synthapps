@@ -1,3 +1,4 @@
+import { num } from '../i18n';
 import type { GlucoseUnit, Metric, Settings, UricUnit } from './types';
 
 /** mg/dL per mmol/L for glucose (molar mass 180.16 g/mol). */
@@ -49,6 +50,5 @@ export function decimalsFor(metric: Metric, settings: Pick<Settings, 'glucoseUni
 }
 
 export function formatValue(metric: Metric, canonical: number, settings: Pick<Settings, 'glucoseUnit' | 'uricUnit'>): string {
-  const v = toDisplay(metric, canonical, settings);
-  return v.toFixed(decimalsFor(metric, settings));
+  return num(toDisplay(metric, canonical, settings), decimalsFor(metric, settings));
 }

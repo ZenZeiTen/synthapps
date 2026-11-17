@@ -1,4 +1,5 @@
-import { GLUCOSE_CONTEXT_LABEL } from './ranges';
+import { t } from '../i18n';
+import { entryContext, entryTags, metricName } from './format';
 import type { Entry, Metric, Profile, Settings } from './types';
 import { formatValue, unitFor } from './units';
 
@@ -44,11 +45,11 @@ export function parseBackup(text: string): { entries: Entry[]; profile?: Profile
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('This file is not a Vitalis backup: it is not valid JSON.');
+    throw new Error(t().backup.notJson);
   }
   const b = data as Partial<Backup>;
   if (!b || b.app !== 'vitalis' || !Array.isArray(b.entries)) {
-    throw new Error('This file is not a Vitalis backup. Choose a file exported from Settings > Back up data.');
+    throw new Error(t().backup.notBackup);
   }
   const entries: Entry[] = [];
   let skipped = 0;
@@ -65,27 +66,20 @@ function csvCell(s: string): string {
 }
 
 export function makeCsv(entries: Entry[], settings: Settings): string {
-  const rows = [['Date', 'Time', 'Measurement', 'Value', 'Unit', 'Pulse (bpm)', 'Context', 'Tags', 'Notes']];
-  const name: Record<Metric, string> = { bp: 'Blood pressure', hr: 'Heart rate', glucose: 'Blood glucose', uric: 'Uric acid' };
+  const rows: string[][] = [t().backup.csvHeader];
   for (const e of [...entries].sort((a, b) => a.takenAt.localeCompare(b.takenAt))) {
     const value = e.metric === 'bp' ? `${e.systolic}/${e.diastolic}` : formatValue(e.metric, e.value ?? 0, settings);
-    const context =
-      e.metric === 'glucose'
-        ? GLUCOSE_CONTEXT_LABEL[e.glucoseContext ?? 'random']
-        : e.metric === 'hr'
-          ? (e.hrContext ?? 'resting')
-          : e.metric === 'bp'
-            ? [e.position, e.arm && `${e.arm} arm`].filter(Boolean).join(', ')
-            : '';
+    // The pulse has its own column, so leave it out of the context text.
+    const context = entryContext({ ...e, pulse: undefined });
     rows.push([
       e.takenAt.slice(0, 10),
       e.takenAt.slice(11, 16),
-      name[e.metric],
+      metricName(e.metric),
       value,
       unitFor(e.metric, settings),
       e.metric === 'bp' && e.pulse ? String(e.pulse) : '',
       context,
-      e.tags.join('; '),
+      entryTags(e),
       e.notes
     ]);
   }
