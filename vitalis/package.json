@@ -1,7 +1,7 @@
 {
   "name": "vitalis",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Vitalis: a private, offline health tracker for blood pressure, heart rate, blood glucose and uric acid, with trends, insights and a PDF report for your doctor.",
   "type": "module",
   "scripts": {

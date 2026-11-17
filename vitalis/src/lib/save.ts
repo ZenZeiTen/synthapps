@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { Capacitor } from '@capacitor/core';
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -19,7 +20,7 @@ export async function saveFile(name: string, blob: Blob): Promise<'shared' | 'do
     const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')]);
     const data = await blobToBase64(blob);
     const written = await Filesystem.writeFile({ path: name, data, directory: Directory.Cache });
-    await Share.share({ title: name, url: written.uri, dialogTitle: 'Save or send' });
+    await Share.share({ title: name, url: written.uri, dialogTitle: t().common.saveOrSend });
     return 'shared';
   }
   const url = URL.createObjectURL(blob);

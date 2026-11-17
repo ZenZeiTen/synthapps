@@ -1,57 +1,51 @@
-import { GLUCOSE_CONTEXT_LABEL } from './ranges';
+import { locale, signedNum, t } from '../i18n';
 import { DAY, timeOf } from './stats';
-import type { Entry, HrContext, Metric, Settings } from './types';
+import type { Entry, GlucoseContext, HrContext, Level, Metric, Settings } from './types';
 import { formatValue, unitFor } from './units';
 
-export const METRIC_NAME: Record<Metric, string> = {
-  bp: 'Blood pressure',
-  hr: 'Heart rate',
-  glucose: 'Blood glucose',
-  uric: 'Uric acid'
-};
+export const metricName = (m: Metric): string => t().common.metric[m];
+export const levelLabel = (l: Level): string => t().common.level[l];
+export const glucoseContextLabel = (c: GlucoseContext): string => t().common.glucoseContext[c];
+export const hrContextLabel = (c: HrContext): string => t().common.hrContext[c];
+/** Tags are stored by their English key; unknown tags (from older data) show as stored. */
+export const tagLabel = (tag: string): string => t().common.tags[tag] ?? tag;
 
-export const METRIC_SHORT: Record<Metric, string> = {
-  bp: 'Pressure',
-  hr: 'Heart rate',
-  glucose: 'Glucose',
-  uric: 'Uric acid'
-};
-
-export const HR_CONTEXT_LABEL: Record<HrContext, string> = {
-  resting: 'Resting',
-  'after-waking': 'After waking',
-  active: 'During activity',
-  'after-exercise': 'After exercise'
-};
-
-const LOCALE = 'en-GB';
-
-export function fmtTime(t: number): string {
-  return new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+export function fmtTime(ms: number): string {
+  return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
-export function fmtDate(t: number, withYear = false): string {
-  return new Date(t).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) });
+export function fmtDate(ms: number, withYear = false): string {
+  return new Date(ms).toLocaleDateString(locale(), { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) });
 }
 
-export function fmtDayHeading(t: number, now = Date.now()): string {
-  const d = new Date(t);
+/** 0 for today, 1 for yesterday, and so on, by calendar day. */
+function daysAgo(ms: number, now: number): number {
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
-  const start = new Date(d);
+  const start = new Date(ms);
   start.setHours(0, 0, 0, 0);
-  const diff = Math.round((today.getTime() - start.getTime()) / DAY);
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Yesterday';
-  return d.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', ...(d.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}) });
+  return Math.round((today.getTime() - start.getTime()) / DAY);
 }
 
-/** "Today 07:15", "Yesterday 21:02", "12 Nov 08:00". */
+export function fmtDayHeading(ms: number, now = Date.now()): string {
+  const diff = daysAgo(ms, now);
+  if (diff === 0) return t().common.today;
+  if (diff === 1) return t().common.yesterday;
+  const d = new Date(ms);
+  return d.toLocaleDateString(locale(), {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    ...(d.getFullYear() !== new Date(now).getFullYear() ? { year: 'numeric' } : {})
+  });
+}
+
+/** "Today, 07:15", "Yesterday, 21:02", "12 Nov, 08:00". */
 export function fmtWhen(takenAt: string, now = Date.now()): string {
-  const t = timeOf(takenAt);
-  const day = fmtDayHeading(t, now);
-  const label = day === 'Today' || day === 'Yesterday' ? day : fmtDate(t, new Date(t).getFullYear() !== new Date(now).getFullYear());
-  return `${label}, ${fmtTime(t)}`;
+  const ms = timeOf(takenAt);
+  const diff = daysAgo(ms, now);
+  const label = diff === 0 || diff === 1 ? fmtDayHeading(ms, now) : fmtDate(ms, new Date(ms).getFullYear() !== new Date(now).getFullYear());
+  return `${label}, ${fmtTime(ms)}`;
 }
 
 export function entryValue(e: Entry, settings: Settings): string {
@@ -64,19 +58,20 @@ export function entryUnit(e: Entry, settings: Settings): string {
 }
 
 export function entryContext(e: Entry): string {
+  const c = t().common;
   const parts: string[] = [];
   if (e.metric === 'bp') {
-    if (e.pulse) parts.push(`pulse ${e.pulse}`);
-    if (e.position) parts.push(e.position);
-    if (e.arm) parts.push(`${e.arm} arm`);
+    if (e.pulse) parts.push(c.pulseValue(String(e.pulse)));
+    if (e.position) parts.push(c.positionLower[e.position]);
+    if (e.arm) parts.push(c.armLower[e.arm]);
   }
-  if (e.metric === 'glucose') parts.push(GLUCOSE_CONTEXT_LABEL[e.glucoseContext ?? 'random']);
-  if (e.metric === 'hr') parts.push(HR_CONTEXT_LABEL[e.hrContext ?? 'resting']);
+  if (e.metric === 'glucose') parts.push(glucoseContextLabel(e.glucoseContext ?? 'random'));
+  if (e.metric === 'hr') parts.push(hrContextLabel(e.hrContext ?? 'resting'));
   return parts.join(', ');
 }
 
-export function signed(n: number, digits = 0): string {
-  const v = n.toFixed(digits);
-  if (Number(v) === 0) return (0).toFixed(digits);
-  return n > 0 ? `+${v}` : v;
+export function entryTags(e: Entry): string {
+  return e.tags.map(tagLabel).join(', ');
 }
+
+export const signed = signedNum;

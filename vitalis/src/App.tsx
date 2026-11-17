@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BookOpen, FileText, Home, Lightbulb, LineChart, Plus, Settings as Gear } from 'lucide-react';
+import { LanguageToggle } from './components/LanguageToggle';
 import { LogSheet } from './components/LogSheet';
+import { t } from './i18n';
 import { Logo } from './components/Visuals';
 import { registerServiceWorker } from './pwa';
 import { Insights } from './screens/Insights';
@@ -12,26 +14,17 @@ import { Trends } from './screens/Trends';
 import { Welcome } from './screens/Welcome';
 import { useApp, type Route } from './state';
 
-const NAV: { route: Route; label: string; Icon: typeof Home }[] = [
-  { route: 'today', label: 'Today', Icon: Home },
-  { route: 'trends', label: 'Trends', Icon: LineChart },
-  { route: 'journal', label: 'Journal', Icon: BookOpen },
-  { route: 'insights', label: 'Insights', Icon: Lightbulb },
-  { route: 'report', label: 'Report', Icon: FileText },
-  { route: 'settings', label: 'Settings', Icon: Gear }
+const NAV: { route: Route; Icon: typeof Home }[] = [
+  { route: 'today', Icon: Home },
+  { route: 'trends', Icon: LineChart },
+  { route: 'journal', Icon: BookOpen },
+  { route: 'insights', Icon: Lightbulb },
+  { route: 'report', Icon: FileText },
+  { route: 'settings', Icon: Gear }
 ];
 
-const TITLES: Record<Route, string> = {
-  today: 'Today',
-  trends: 'Trends',
-  journal: 'Journal',
-  insights: 'Insights',
-  report: 'Report',
-  settings: 'Settings'
-};
-
 export function App() {
-  const { ready, settings, route, go, openLog, logRequest, toast, notify } = useApp();
+  const { ready, settings, lang, route, go, openLog, logRequest, toast, notify } = useApp();
   const [update, setUpdate] = useState<(() => void) | null>(null);
 
   useEffect(() => {
@@ -39,14 +32,15 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (update) notify('A new version of Vitalis is ready', { label: 'Reload', run: update });
+    if (update) notify(t().nav.updateReady, { label: t().nav.reload, run: update });
   }, [update, notify]);
 
   useEffect(() => {
-    document.title = route === 'today' ? 'Vitalis' : `${TITLES[route]} - Vitalis`;
-  }, [route]);
+    document.title = route === 'today' ? 'Vitalis' : `${t().nav[route]} - Vitalis`;
+  }, [route, lang]);
 
   if (!ready) return null;
+  const N = t().nav;
   if (!settings.acknowledged) return <Welcome />;
 
   const screen = {
@@ -69,30 +63,32 @@ export function App() {
 
   return (
     <div className="shell">
-      <nav className="rail" aria-label="Main">
+      <nav className="rail" aria-label={t().common.mainNav}>
         <a className="wordmark" {...link('today')} aria-current={undefined}>
           <Logo /> Vitalis
         </a>
-        {NAV.map(({ route: r, label, Icon }) => (
+        {NAV.map(({ route: r, Icon }) => (
           <a key={r} className="rail-link" {...link(r)}>
-            <Icon size={19} /> {label}
+            <Icon size={19} /> {N[r]}
           </a>
         ))}
         <button className="btn btn-primary" onClick={() => openLog()}>
-          <Plus size={18} /> Log a reading
+          <Plus size={18} /> {N.logReading}
         </button>
-        <p className="rail-foot">Stored on this device only. Not medical advice.</p>
+        <LanguageToggle />
+        <p className="rail-foot">{N.railFoot}</p>
       </nav>
 
       <div>
         <header className="topbar">
           <a className="wordmark" {...link('today')} aria-current={undefined}>
-            <Logo size={26} /> {route === 'today' ? 'Vitalis' : TITLES[route]}
+            <Logo size={26} /> {route === 'today' ? 'Vitalis' : N[route]}
           </a>
-          <a className="icon-btn" {...link('report')} aria-label="Report for your doctor">
+          <LanguageToggle />
+          <a className="icon-btn" {...link('report')} aria-label={N.reportAria}>
             <FileText size={20} />
           </a>
-          <a className="icon-btn" {...link('settings')} aria-label="Settings">
+          <a className="icon-btn" {...link('settings')} aria-label={N.settings}>
             <Gear size={20} />
           </a>
         </header>
@@ -102,18 +98,18 @@ export function App() {
         </main>
       </div>
 
-      <nav className="tabbar" aria-label="Main">
-        {NAV.slice(0, 2).map(({ route: r, label, Icon }) => (
+      <nav className="tabbar" aria-label={t().common.mainNav}>
+        {NAV.slice(0, 2).map(({ route: r, Icon }) => (
           <a key={r} className="tab" {...link(r)}>
-            <Icon size={22} /> {label}
+            <Icon size={22} /> {N[r]}
           </a>
         ))}
-        <button className="tab-log" onClick={() => openLog()} aria-label="Log a reading">
+        <button className="tab-log" onClick={() => openLog()} aria-label={N.logReading}>
           <Plus size={28} />
         </button>
-        {NAV.slice(2, 4).map(({ route: r, label, Icon }) => (
+        {NAV.slice(2, 4).map(({ route: r, Icon }) => (
           <a key={r} className="tab" {...link(r)}>
-            <Icon size={22} /> {label}
+            <Icon size={22} /> {N[r]}
           </a>
         ))}
       </nav>

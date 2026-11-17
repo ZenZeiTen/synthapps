@@ -62,6 +62,8 @@ export interface Profile {
 }
 
 export interface Settings {
+  /** Unset until the person picks one; the device language decides until then. */
+  language?: 'en' | 'id';
   glucoseUnit: GlucoseUnit;
   uricUnit: UricUnit;
   theme: 'system' | 'light' | 'dark';
@@ -69,7 +71,7 @@ export interface Settings {
   acknowledged: boolean;
   /** Questions the person wrote themselves, for the next appointment. */
   customQuestions: string[];
-  /** Suggested questions the person chose to leave out of the report. */
+  /** IDs of suggested questions the person chose to leave out of the report. */
   excludedQuestions: string[];
 }
 

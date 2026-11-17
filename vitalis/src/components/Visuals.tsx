@@ -1,9 +1,10 @@
 import type { Band } from '../lib/ranges';
 import type { Level } from '../lib/types';
-import { LEVEL_LABEL } from '../lib/ranges';
+import { t } from '../i18n';
+import { levelLabel } from '../lib/format';
 
 export function Status({ level, label }: { level: Level; label?: string }) {
-  return <span className={`status lv-${level}`}>{label ?? LEVEL_LABEL[level]}</span>;
+  return <span className={`status lv-${level}`}>{label ?? levelLabel(level)}</span>;
 }
 
 export function Logo({ size = 28 }: { size?: number }) {
@@ -50,7 +51,7 @@ export function RangeRuler({
     ticks.push({ at: b.from, label: b.edge ?? b.from });
   }
   return (
-    <div className="ruler" role="img" aria-label={`${label ? `${label}: ` : ''}${value !== undefined && current ? `${format(value)}, ${current.label}` : 'no reading'}`}>
+    <div className="ruler" role="img" aria-label={`${label ? `${label}: ` : ''}${value !== undefined && current ? `${format(value)}, ${current.label}` : t().common.noReading}`}>
       {label && <span className="ruler-label">{label}</span>}
       <div className="ruler-track">
         {visible.map((b, i) => {
@@ -94,14 +95,14 @@ export function Distribution({ counts }: { counts: Partial<Record<Level, number>
   if (!total) return null;
   return (
     <div>
-      <div className="distribution" role="img" aria-label={order.filter((l) => counts[l]).map((l) => `${LEVEL_LABEL[l]} ${Math.round(((counts[l] ?? 0) / total) * 100)}%`).join(', ')}>
+      <div className="distribution" role="img" aria-label={order.filter((l) => counts[l]).map((l) => `${levelLabel(l)} ${Math.round(((counts[l] ?? 0) / total) * 100)}%`).join(', ')}>
         {order.map((l) => (counts[l] ? <div key={l} className={`lv-${l}`} style={{ flex: counts[l] }} /> : null))}
       </div>
       <div className="dist-legend">
         {order.map((l) =>
           counts[l] ? (
             <span key={l} className={`lv-${l}`}>
-              {LEVEL_LABEL[l]} {Math.round(((counts[l] ?? 0) / total) * 100)}%
+              {levelLabel(l)} {Math.round(((counts[l] ?? 0) / total) * 100)}%
             </span>
           ) : null
         )}

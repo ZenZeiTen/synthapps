@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { newId } from './db';
 import { DAY, nowLocalISO } from './stats';
 import type { Entry, GlucoseContext } from './types';
@@ -75,7 +76,7 @@ export function sampleEntries(now = Date.now()): Entry[] {
         value: Math.round(n(150 - improve * 10, 22)),
         glucoseContext: 'after-meal',
         enteredUnit: 'mg/dL',
-        notes: r() < 0.4 ? 'Nasi goreng for lunch' : ''
+        notes: r() < 0.4 ? t().common.sampleLunch : ''
       }));
     }
 
@@ -86,7 +87,7 @@ export function sampleEntries(now = Date.now()): Entry[] {
 
     // Uric acid roughly every two weeks.
     if (d % 14 === 3) {
-      out.push(make(at(8, 15), { metric: 'uric', value: Number(n(8.1 - improve * 1.6, 0.5).toFixed(1)), enteredUnit: 'mg/dL', notes: d > 40 ? 'Before cutting down on red meat' : '' }));
+      out.push(make(at(8, 15), { metric: 'uric', value: Number(n(8.1 - improve * 1.6, 0.5).toFixed(1)), enteredUnit: 'mg/dL', notes: d > 40 ? t().common.sampleRedMeat : '' }));
     }
   }
   return out;

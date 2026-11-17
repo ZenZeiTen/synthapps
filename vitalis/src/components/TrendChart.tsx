@@ -1,8 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Band } from '../lib/ranges';
-import { LEVEL_LABEL } from '../lib/ranges';
+import { t } from '../i18n';
 import { DAY, type Point } from '../lib/stats';
-import { fmtDate, fmtTime } from '../lib/format';
+import { fmtDate, fmtTime, levelLabel } from '../lib/format';
 
 export interface ChartSeries {
   id: string;
@@ -136,7 +136,7 @@ export function TrendChart({ series, bands = [], lines = [], from, to, unit, hei
       className="chart-wrap"
       tabIndex={0}
       role="group"
-      aria-label={`Chart of ${series.map((s) => s.label).join(' and ')}, ${all.length} readings. Use the arrow keys to step through readings${onPick ? ' and Enter to open one' : ''}.`}
+      aria-label={t().trends.chartAria(series.map((s) => s.label).join(t().trends.chartAnd), all.length, !!onPick)}
       onPointerMove={(e) => setHover(pickAt(e.clientX))}
       onPointerDown={(e) => setHover(pickAt(e.clientX))}
       onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}
@@ -201,7 +201,7 @@ export function TrendChart({ series, bands = [], lines = [], from, to, unit, hei
         )}
         {!all.length && (
           <text x={pad.l + w / 2} y={pad.t + h / 2} textAnchor="middle" fontSize="14" fill="var(--muted)">
-            No readings in this period
+            {t().trends.chartEmpty}
           </text>
         )}
       </svg>
@@ -216,7 +216,7 @@ export function TrendChart({ series, bands = [], lines = [], from, to, unit, hei
               {series.length > 1 ? s.label : unit}
             </div>
           ))}
-          <div className="tip-when" style={{ marginTop: 2, marginBottom: 0 }}>{LEVEL_LABEL[hovered.items[0].p.level]}</div>
+          <div className="tip-when" style={{ marginTop: 2, marginBottom: 0 }}>{levelLabel(hovered.items[0].p.level)}</div>
         </div>
       )}
     </div>

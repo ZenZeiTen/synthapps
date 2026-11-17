@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Status } from '../components/Visuals';
-import { entryContext, entryUnit, entryValue, fmtDate, fmtDayHeading, fmtTime, METRIC_NAME } from '../lib/format';
+import { t } from '../i18n';
+import { entryContext, entryTags, entryUnit, entryValue, fmtDate, fmtDayHeading, fmtTime, metricName } from '../lib/format';
 import { gradeEntry } from '../lib/ranges';
 import { timeOf } from '../lib/stats';
 import { METRICS, type Entry, type Metric } from '../lib/types';
@@ -10,19 +11,19 @@ import { useApp } from '../state';
 export function EntryRow({ entry, showDate = false }: { entry: Entry; showDate?: boolean }) {
   const { profile, settings, openLog } = useApp();
   const g = gradeEntry(entry, profile);
-  const t = timeOf(entry.takenAt);
-  const sub = [entryContext(entry), entry.tags.join(', '), entry.notes].filter(Boolean).join(' — ');
+  const ms = timeOf(entry.takenAt);
+  const sub = [entryContext(entry), entryTags(entry), entry.notes].filter(Boolean).join(' — ');
   return (
-    <button className={`row m-${entry.metric}`} onClick={() => openLog({ entry })} aria-label={`${METRIC_NAME[entry.metric]} ${entryValue(entry, settings)} ${entryUnit(entry, settings)}, ${g.label}. Edit`}>
+    <button className={`row m-${entry.metric}`} onClick={() => openLog({ entry })} aria-label={t().journal.editAria(metricName(entry.metric), entryValue(entry, settings), entryUnit(entry, settings), g.label)}>
       <span className="row-time">
         {showDate ? (
           <>
-            {fmtDate(t)}
+            {fmtDate(ms)}
             <br />
-            <span style={{ fontWeight: 500 }}>{fmtTime(t)}</span>
+            <span style={{ fontWeight: 500 }}>{fmtTime(ms)}</span>
           </>
         ) : (
-          fmtTime(t)
+          fmtTime(ms)
         )}
       </span>
       <span className="row-main">
@@ -30,7 +31,7 @@ export function EntryRow({ entry, showDate = false }: { entry: Entry; showDate?:
           <span className="metric-dot" style={{ background: 'var(--m)' }} aria-hidden="true" />
           <strong>{entryValue(entry, settings)}</strong>
           <span className="unit">{entryUnit(entry, settings)}</span>
-          <span className="hint">{METRIC_NAME[entry.metric]}</span>
+          <span className="hint">{metricName(entry.metric)}</span>
         </span>
         {sub && <span className="row-sub" style={{ display: 'block' }}>{sub}</span>}
       </span>
@@ -44,10 +45,11 @@ export function Journal() {
   const [filter, setFilter] = useState<Metric | 'all'>('all');
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(120);
+  const J = t().journal;
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return entries.filter((e) => (filter === 'all' || e.metric === filter) && (!q || `${e.notes} ${e.tags.join(' ')}`.toLowerCase().includes(q)));
+    return entries.filter((e) => (filter === 'all' || e.metric === filter) && (!q || `${e.notes} ${e.tags.join(' ')} ${entryTags(e)}`.toLowerCase().includes(q)));
   }, [entries, filter, query]);
 
   const groups = useMemo(() => {
@@ -65,36 +67,36 @@ export function Journal() {
     <>
       <div className="page-head">
         <div>
-          <h1>Journal</h1>
-          <p>Every reading, newest first. Choose one to edit or delete it.</p>
+          <h1>{J.title}</h1>
+          <p>{J.intro}</p>
         </div>
       </div>
 
       <div className="trend-controls">
-        <div className="segmented" role="group" aria-label="Show">
-          <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>All</button>
+        <div className="segmented" role="group" aria-label={J.show}>
+          <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>{J.all}</button>
           {METRICS.map((m) => (
             <button key={m} aria-pressed={filter === m} onClick={() => setFilter(m)}>
-              {METRIC_NAME[m]}
+              {metricName(m)}
             </button>
           ))}
         </div>
         <label style={{ position: 'relative', flex: '1 1 220px', maxWidth: 320 }}>
-          <span className="sr-only">Search notes and tags</span>
+          <span className="sr-only">{J.search}</span>
           <Search size={16} style={{ position: 'absolute', left: 12, top: 14, color: 'var(--muted)' }} aria-hidden="true" />
-          <input className="input" style={{ paddingLeft: 36, borderRadius: 999 }} placeholder="Search notes and tags" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input className="input" style={{ paddingLeft: 36, borderRadius: 999 }} placeholder={J.search} value={query} onChange={(e) => setQuery(e.target.value)} />
         </label>
       </div>
 
       {!entries.length ? (
         <div className="panel empty">
-          <h2>Your journal is empty</h2>
-          <p>Readings you log appear here with their date, time, context and notes.</p>
-          <button className="btn btn-primary" onClick={() => openLog()}>Log a reading</button>
+          <h2>{J.emptyTitle}</h2>
+          <p>{J.emptyBody}</p>
+          <button className="btn btn-primary" onClick={() => openLog()}>{t().nav.logReading}</button>
         </div>
       ) : !shown.length ? (
         <div className="panel empty">
-          <p>No readings match. Try another filter or search.</p>
+          <p>{J.noMatch}</p>
         </div>
       ) : (
         <>
@@ -111,7 +113,7 @@ export function Journal() {
           ))}
           {shown.length > limit && (
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
-              <button className="btn" onClick={() => setLimit((l) => l + 200)}>Show older readings</button>
+              <button className="btn" onClick={() => setLimit((l) => l + 200)}>{J.older}</button>
             </div>
           )}
         </>

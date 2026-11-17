@@ -3,9 +3,10 @@
  * stay sharp when printed or zoomed.
  */
 import { jsPDF } from 'jspdf';
-import { entryContext, entryValue, fmtDate, fmtTime, METRIC_NAME, signed } from './format';
-import { EMERGENCY_SIGNS, type Analysis } from './insights';
-import { glucoseBands, gradeEntry, hrBands, LEVEL_LABEL, uricBands, type Band } from './ranges';
+import { num, t } from '../i18n';
+import { entryContext, entryTags, entryValue, fmtDate, fmtTime, levelLabel, metricName, signed } from './format';
+import { emergencySigns, type Analysis } from './insights';
+import { glucoseBands, gradeEntry, hrBands, uricBands, type Band } from './ranges';
 import { DAY, movingAverage, seriesFor, timeOf, type Point, type Summary } from './stats';
 import type { Entry, Level, Metric, Profile, Settings } from './types';
 import { decimalsFor, toDisplay, unitFor } from './units';
@@ -55,7 +56,8 @@ const CW = W - 2 * M;
 
 export function buildReport(entries: Entry[], analysis: Analysis, profile: Profile, settings: Settings, opts: ReportOptions): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
-  doc.setProperties({ title: 'Health measurements report', subject: 'Blood pressure, heart rate, blood glucose and uric acid', creator: 'Vitalis' });
+  const P = t().pdf;
+  doc.setProperties({ title: P.title, subject: P.subject, creator: 'Vitalis' });
   let y = M;
 
   const color = (c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
@@ -119,23 +121,22 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
   text('Vitalis', M + 12, 20.3);
 
   font('times', 'normal', 24);
-  text('Health measurements report', M, 35);
+  text(P.title, M, 35);
   font('helvetica', 'normal', 9.5);
   color(MUTED);
-  const periodText = `${fmtDate(analysis.from, true)} to ${fmtDate(analysis.to, true)}`;
-  text(`Readings from ${periodText}. Generated ${fmtDate(Date.now(), true)}, ${fmtTime(Date.now())}.`, M, 42);
+  text(P.readingsFrom(fmtDate(analysis.from, true), fmtDate(analysis.to, true), `${fmtDate(Date.now(), true)}, ${fmtTime(Date.now())}`), M, 42);
   y = 60;
 
   // Patient details in two columns.
   const age = profile.birthYear ? new Date().getFullYear() - profile.birthYear : undefined;
-  const conditions = [profile.hasHypertension && 'High blood pressure', profile.hasDiabetes && 'Diabetes', profile.hasGout && 'Gout'].filter(Boolean).join(', ');
+  const conditions = [profile.hasHypertension && P.conditionNames.hypertension, profile.hasDiabetes && P.conditionNames.diabetes, profile.hasGout && P.conditionNames.gout].filter(Boolean).join(', ');
   const details: [string, string][] = [
-    ['Name', profile.name || 'Not given'],
-    ['Age', age ? `${age} (born ${profile.birthYear})` : 'Not given'],
-    ['Sex', profile.sex === 'unspecified' ? 'Not given' : profile.sex === 'male' ? 'Male' : 'Female'],
-    ['Known conditions', conditions || 'None recorded'],
-    ['Medications', profile.medications || 'None recorded'],
-    ['Doctor', profile.doctorName || 'Not given']
+    [P.name, profile.name || P.notGiven],
+    [P.age, age && profile.birthYear ? P.ageValue(age, profile.birthYear) : P.notGiven],
+    [P.sex, P.sexValue[profile.sex]],
+    [P.conditions, conditions || P.noneRecorded],
+    [P.medications, profile.medications || P.noneRecorded],
+    [P.doctor, profile.doctorName || P.notGiven]
   ];
   const colW = CW / 2 - 4;
   for (let i = 0; i < details.length; i += 2) {
@@ -156,26 +157,26 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
   y += 2;
 
   const targets: string[] = [];
-  const t = profile.targets;
-  if (t.bpSystolicMax || t.bpDiastolicMax) targets.push(`Blood pressure below ${t.bpSystolicMax ?? '-'}/${t.bpDiastolicMax ?? '-'} mmHg`);
-  if (t.glucoseFastingMin || t.glucoseFastingMax) targets.push(`Fasting glucose ${t.glucoseFastingMin ?? 80}-${t.glucoseFastingMax ?? 130} mg/dL`);
-  if (t.glucoseAfterMealMax) targets.push(`After-meal glucose below ${t.glucoseAfterMealMax} mg/dL`);
-  if (t.uricMax) targets.push(`Uric acid below ${t.uricMax} mg/dL`);
-  if (targets.length) paragraph(`Personal targets set by a clinician: ${targets.join('; ')}.`, 9, INK2);
+  const tg = profile.targets;
+  if (tg.bpSystolicMax || tg.bpDiastolicMax) targets.push(P.tBp(String(tg.bpSystolicMax ?? '-'), String(tg.bpDiastolicMax ?? '-')));
+  if (tg.glucoseFastingMin || tg.glucoseFastingMax) targets.push(P.tFasting(tg.glucoseFastingMin ?? 80, tg.glucoseFastingMax ?? 130));
+  if (tg.glucoseAfterMealMax) targets.push(P.tAfter(tg.glucoseAfterMealMax));
+  if (tg.uricMax) targets.push(P.tUric(tg.uricMax));
+  if (targets.length) paragraph(P.targets(targets.join('; ')), 9, INK2);
 
   /* ---------------- Summary ---------------- */
   const metrics = analysis.present;
   if (opts.summary) {
-    heading('Summary', `${entries.length} readings`);
-    if (!metrics.length) paragraph('No readings in this period.');
+    heading(P.summary, P.readingsCount(entries.length));
+    if (!metrics.length) paragraph(P.none);
     const cols = [
-      { h: 'Measurement', w: 33 },
-      { h: 'Readings', w: 16, right: true },
-      { h: 'Average', w: 22, right: true },
-      { h: 'Lowest-highest', w: 31, right: true },
-      { h: 'In range', w: 16, right: true },
-      { h: 'Trend / month', w: 22, right: true },
-      { h: 'Latest', w: CW - 140 }
+      { h: P.cols[0], w: 32 },
+      { h: P.cols[1], w: 15, right: true },
+      { h: P.cols[2], w: 20, right: true },
+      { h: P.cols[3], w: 29, right: true },
+      { h: P.cols[4], w: 21, right: true },
+      { h: P.cols[5], w: 21, right: true },
+      { h: P.cols[6], w: CW - 138 }
     ];
     if (metrics.length) {
       font('helvetica', 'bold', 7.8);
@@ -199,21 +200,21 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
     for (const m of metrics) {
       const { s, d } = rowFor(m);
       const dec = decimalsFor(m, settings);
-      const f = (v: number) => toDisplay(m, v, settings).toFixed(dec);
+      const f = (v: number) => num(toDisplay(m, v, settings), dec);
       const unit = unitFor(m, settings);
       const latestEntry = entries.find((e) => e.id === s.latest?.entryId);
       // Heart rate can come from a blood pressure reading's pulse, so grade the point itself.
       const g = m === 'hr' && s.latest
-        ? { level: s.latest.level, label: LEVEL_LABEL[s.latest.level] }
+        ? { level: s.latest.level, label: levelLabel(s.latest.level) }
         : latestEntry ? gradeEntry(latestEntry, profile) : undefined;
       const latestText = m === 'hr' && s.latest ? `${Math.round(s.latest.v)} bpm` : latestEntry ? entryValue(latestEntry, settings) : '';
       const cells = [
-        `${METRIC_NAME[m]}\n${unit}`,
+        `${metricName(m)}\n${unit}`,
         String(s.count),
         m === 'bp' ? `${Math.round(s.mean)}/${Math.round(d?.mean ?? 0)}` : f(s.mean),
         m === 'bp' ? `${s.min}-${s.max} / ${d?.min}-${d?.max}` : `${f(s.min)}-${f(s.max)}`,
         Number.isNaN(s.inRange) ? '-' : `${Math.round(s.inRange * 100)}%`,
-        s.trend30 === null ? 'Too few' : signed(m === 'bp' || m === 'hr' ? s.trend30 : toDisplay(m, s.trend30, settings), m === 'bp' || m === 'hr' ? 0 : dec),
+        s.trend30 === null ? P.tooFew : signed(m === 'bp' || m === 'hr' ? s.trend30 : toDisplay(m, s.trend30, settings), m === 'bp' || m === 'hr' ? 0 : dec),
         latestText ? `${latestText}, ${g?.label ?? ''}` : '-'
       ];
       ensure(12);
@@ -249,14 +250,16 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
       font('helvetica', 'italic', 8);
       color(MUTED);
       ensure(5);
-      text('Blood pressure trend is systolic. Heart rate includes the pulse recorded with blood pressure readings.', M, y);
-      y += 4;
+      for (const l of lines(P.summaryNote, CW)) {
+        text(l, M, y);
+        y += 3.6;
+      }
     }
   }
 
   /* ---------------- Charts ---------------- */
   if (opts.charts && metrics.length) {
-    heading('Trends', 'Dots are readings, coloured by category; the line is the 7-day average');
+    heading(P.trends, P.trendsNote);
     for (const m of metrics) {
       drawChart(doc, m, entries, analysis.from, analysis.to, profile, settings, () => y, (v) => (y = v), ensure);
     }
@@ -264,7 +267,7 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
 
   /* ---------------- Findings ---------------- */
   if (opts.insights) {
-    heading('Findings');
+    heading(P.findings);
     for (const i of analysis.insights) {
       font('helvetica', 'bold', 10);
       const tl = lines(i.title, CW - 8);
@@ -292,9 +295,9 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
   }
 
   /* ---------------- Questions ---------------- */
-  const chosenQuestions = [...settings.customQuestions, ...analysis.questions.map((q) => q.text).filter((q) => !settings.excludedQuestions.includes(q))];
+  const chosenQuestions = [...settings.customQuestions, ...analysis.questions.filter((q) => !settings.excludedQuestions.includes(q.id)).map((q) => q.text)];
   if (opts.questions && chosenQuestions.length) {
-    heading('Questions to discuss', 'Space for the answers');
+    heading(P.questions, P.questionsNote);
     chosenQuestions.forEach((q, n) => {
       font('helvetica', 'normal', 9.8);
       const ql = lines(q, CW - 9);
@@ -320,7 +323,7 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
   /* ---------------- Tests and doctors ---------------- */
   if (opts.tests && metrics.length) {
     const labs = analysis.labs;
-    heading('Tests to ask about', 'Bold = raised by these readings');
+    heading(P.tests, P.testsNote);
     for (const l of labs) {
       font('helvetica', l.suggested ? 'bold' : 'normal', 9.5);
       const nl = lines(l.name, 62);
@@ -336,7 +339,7 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
       wl.forEach((s, j) => text(s, M + 68, y + j * lh(8.8)));
       y += need;
     }
-    heading('Who to see');
+    heading(P.whoToSee);
     for (const s of analysis.specialists) {
       font('helvetica', 'normal', 8.8);
       const wl = lines(s.when, CW - 68);
@@ -344,7 +347,7 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
       ensure(need);
       font('helvetica', s.suggested ? 'bold' : 'normal', 9.5);
       color(s.suggested ? INK : INK2);
-      lines(s.who + (s.suggested ? ' (suggested)' : ''), 62).forEach((l, j) => text(l, M, y + j * lh(9.5)));
+      lines(s.who + (s.suggested ? P.suggested : ''), 62).forEach((l, j) => text(l, M, y + j * lh(9.5)));
       font('helvetica', 'normal', 8.8);
       color(INK2);
       wl.forEach((l, j) => text(l, M + 68, y + j * lh(8.8)));
@@ -354,9 +357,9 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
     y += 3;
     font('helvetica', 'bold', 9.5);
     color(LEVEL_RGB.urgent);
-    text('Get urgent care for:', M, y);
+    text(P.urgent, M, y);
     y += lh(9.5) + 0.5;
-    for (const s of EMERGENCY_SIGNS) {
+    for (const s of emergencySigns()) {
       font('helvetica', 'normal', 8.8);
       const sl = lines(s, CW - 5);
       ensure(sl.length * lh(8.8));
@@ -372,15 +375,15 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
   /* ---------------- Log ---------------- */
   if (opts.log && entries.length) {
     newPage();
-    heading('All readings', `${entries.length} in this period, oldest first`);
+    heading(P.allReadings, P.allReadingsNote(entries.length));
     const cols = [
-      { h: 'Date', w: 22 },
-      { h: 'Time', w: 12 },
-      { h: 'Measurement', w: 28 },
-      { h: 'Value', w: 20, right: true },
-      { h: 'Unit', w: 15 },
-      { h: 'Category', w: 30 },
-      { h: 'Context, tags and notes', w: CW - 127 }
+      { h: P.logCols[0], w: 22 },
+      { h: P.logCols[1], w: 12 },
+      { h: P.logCols[2], w: 28 },
+      { h: P.logCols[3], w: 20, right: true },
+      { h: P.logCols[4], w: 15 },
+      { h: P.logCols[5], w: 30 },
+      { h: P.logCols[6], w: CW - 127 }
     ];
     const head = () => {
       font('helvetica', 'bold', 7.8);
@@ -400,7 +403,7 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
     const sorted = [...entries].sort((a, b) => a.takenAt.localeCompare(b.takenAt));
     sorted.forEach((e, idx) => {
       const g = gradeEntry(e, profile);
-      const extra = [entryContext(e), e.tags.join(', '), e.notes].filter(Boolean).join('. ');
+      const extra = [entryContext(e), entryTags(e), e.notes].filter(Boolean).join('. ');
       font('helvetica', 'normal', 8);
       const el = lines(extra || '-', cols[6].w).slice(0, 4);
       const need = Math.max(1, el.length) * lh(8) + 1.6;
@@ -413,7 +416,7 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
         doc.rect(M - 1.5, y - 3.4, CW + 3, need + 0.4, 'F');
       }
       const tt = timeOf(e.takenAt);
-      const cells = [fmtDate(tt, true), fmtTime(tt), METRIC_NAME[e.metric], entryValue(e, settings), unitFor(e.metric, settings)];
+      const cells = [fmtDate(tt, true), fmtTime(tt), metricName(e.metric), entryValue(e, settings), unitFor(e.metric, settings)];
       let x = M;
       cells.forEach((c, i) => {
         font('helvetica', i === 3 ? 'bold' : 'normal', 8.4);
@@ -443,8 +446,8 @@ export function buildReport(entries: Entry[], analysis: Analysis, profile: Profi
     doc.line(M, H - 12, W - M, H - 12);
     font('helvetica', 'normal', 7.4);
     color(MUTED);
-    text('Recorded at home by the patient with Vitalis. Compared with general adult reference ranges; not a diagnosis.', M, H - 8);
-    text(`Page ${p} of ${pages}`, W - M, H - 8, { align: 'right' });
+    text(P.footer, M, H - 8);
+    text(P.page(p, pages), W - M, H - 8, { align: 'right' });
   }
   return doc;
 }
@@ -486,12 +489,12 @@ function drawChart(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...INK);
-  doc.text(pdfText(`${METRIC_NAME[m]} (${unit})`), M, y);
+  doc.text(pdfText(`${metricName(m)} (${unit})`), M, y);
   if (m === 'bp') {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.8);
     doc.setTextColor(...MUTED);
-    doc.text(pdfText(`Upper line systolic, lower line diastolic. Dashed: ${refs[0]}/${refs[1]} mmHg`), W - M, y, { align: 'right' });
+    doc.text(pdfText(t().pdf.bpChartNote(refs[0], refs[1])), W - M, y, { align: 'right' });
   }
   y += 3;
 
@@ -536,7 +539,7 @@ function drawChart(
     doc.setLineWidth(0.15);
     doc.line(px, Y(v), px + pw, Y(v));
     doc.setTextColor(...MUTED);
-    doc.text(v.toFixed(step < 1 ? 1 : dec), px - 2, Y(v) + 1, { align: 'right' });
+    doc.text(num(v, step < 1 ? 1 : dec), px - 2, Y(v) + 1, { align: 'right' });
   }
   // Date labels
   const spanDays = (tTo - tFrom) / DAY;
@@ -578,7 +581,7 @@ function drawChart(
   if (!all.length) {
     doc.setTextColor(...MUTED);
     doc.setFontSize(9);
-    doc.text('No readings in this period', px + pw / 2, top + chartH / 2, { align: 'center' });
+    doc.text(pdfText(t().pdf.noReadingsChart), px + pw / 2, top + chartH / 2, { align: 'center' });
   }
   y = bottom + 11;
   setY(y);
@@ -587,7 +590,6 @@ function drawChart(
 export function reportFileName(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `Vitalis-report-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.pdf`;
+  return `${t().pdf.fileName}-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.pdf`;
 }
 
-export { LEVEL_LABEL };
