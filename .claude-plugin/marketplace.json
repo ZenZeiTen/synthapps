@@ -49,7 +49,7 @@
     {
       "name": "nsx-backdrop",
       "source": "./nsx-backdrop/plugins/nsx-backdrop",
-      "description": "Theme picker mod: /nsx-backdrop <name> puts a scene (night, tide, dawn, paper) behind the conversation in the Desktop and mobile apps with matching Code tab colors; /nsx-plain clears it. The last pick comes back each session.",
+      "description": "Backdrop picker mod for the Desktop and mobile apps: a sky that follows the clock, a per-project look, a sumi-e ink wash and a pixel-noir skyline, each with matching Code tab colors. /nsx-backdrop <name> sets one; /nsx-plain clears it.",
       "version": "0.1.0",
       "category": "productivity",
       "keywords": ["mod", "theme", "backdrop", "desktop", "appearance"]

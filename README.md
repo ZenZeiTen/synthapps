@@ -36,5 +36,5 @@ This repository is also a Claude Code plugin marketplace:
 | `gamedev-forge` | A game director skill and 12 specialist skills, plus optional connectors (`gamedev-forge-connectors`). |
 | `reality-js` | A skill for writing, checking, rendering and speeding up reality.js scenes. |
 | `playcanvas-design` | A skill plus zero-dependency scripts that render PlayCanvas scenes frame-exactly and turn them into video, sprite sheets and GLB assets. |
-| `nsx-backdrop` | A theme picker mod: `/nsx-backdrop <name>` puts a night, tide, dawn or paper scene behind the conversation in the Desktop and mobile apps, with matching Code tab colors; `/nsx-plain` clears it. |
+| `nsx-backdrop` | A backdrop picker mod for the Desktop and mobile apps: a sky that follows the clock, a per-project look, a sumi-e ink wash and a pixel-noir skyline, each with matching Code tab colors. `/nsx-backdrop <name>` sets one; `/nsx-plain` clears it. |
 | `gamepilot` | A skill for setting up, running and troubleshooting gamepilot: install, automatic game detection, settings files, goals and free play, costs, safety and known errors. |

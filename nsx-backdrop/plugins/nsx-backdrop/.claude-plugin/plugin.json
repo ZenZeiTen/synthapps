@@ -2,5 +2,13 @@
   "name": "nsx-backdrop",
   "version": "0.1.0",
   "license": "MIT",
-  "description": "Theme picker: /nsx-backdrop <name> puts a scene behind the conversation with matching Code tab colors; /nsx-plain takes it off."
+  "description": "Backdrop picker: /nsx-backdrop <name> sets a sky that follows the clock, a per-project look, a sumi-e ink wash or a pixel-noir skyline, with matching Code tab colors; /nsx-plain clears it.",
+  "userConfig": {
+    "timeZone": {
+      "type": "string",
+      "title": "Time zone",
+      "description": "IANA time zone for the sky that follows the clock, such as Asia/Jakarta. Empty: the TZ environment variable, else UTC.",
+      "default": ""
+    }
+  }
 }
