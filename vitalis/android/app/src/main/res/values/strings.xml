@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vitalis</string>
+    <string name="title_activity_main">Vitalis</string>
+    <string name="package_name">id.zenzeiten.vitalis</string>
+    <string name="custom_url_scheme">id.zenzeiten.vitalis</string>
+</resources>
