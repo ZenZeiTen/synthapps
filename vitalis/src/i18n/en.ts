@@ -13,7 +13,13 @@ export const en = {
     htmlLang: 'en',
     locale: 'en-GB',
     languageName: 'English',
-    short: 'EN'
+    short: 'EN',
+    /** Shown by the browser and the phone when the app is installed. */
+    installName: 'Vitalis Health Tracker',
+    installDescription:
+      'Record blood pressure, heart rate, blood glucose and uric acid. See trends, get plain-language insights and share a PDF report with your doctor.',
+    shortcutLog: 'Log a reading',
+    shortcutLogShort: 'Log'
   },
 
   common: {

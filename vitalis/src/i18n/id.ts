@@ -12,7 +12,12 @@ export const id: Dict = {
     htmlLang: 'id',
     locale: 'id-ID',
     languageName: 'Bahasa Indonesia',
-    short: 'ID'
+    short: 'ID',
+    installName: 'Vitalis Pencatat Kesehatan',
+    installDescription:
+      'Catat tekanan darah, denyut jantung, gula darah, dan asam urat. Lihat tren, dapatkan penjelasan yang mudah dipahami, dan bagikan laporan PDF kepada dokter Anda.',
+    shortcutLog: 'Catat pengukuran',
+    shortcutLogShort: 'Catat'
   },
 
   common: {

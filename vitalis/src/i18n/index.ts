@@ -13,9 +13,20 @@ export const LANGS: Lang[] = ['en', 'id'];
 const DICTS: Record<Lang, Dict> = { en, id };
 let current: Lang = 'en';
 
+/** Manifest file per language, written by the build (see vite.config.ts). */
+const MANIFEST: Record<Lang, string> = { en: './manifest.webmanifest', id: './manifest-id.webmanifest' };
+
 export function setLang(l: Lang): void {
   current = l;
-  if (typeof document !== 'undefined') document.documentElement.lang = DICTS[l].meta.htmlLang;
+  if (typeof document === 'undefined') return;
+  const d = DICTS[l];
+  document.documentElement.lang = d.meta.htmlLang;
+  // Install name and description: point the browser at this language's
+  // manifest, so "Install app" and the home-screen name use it.
+  const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+  if (link && link.getAttribute('href') !== MANIFEST[l]) link.setAttribute('href', MANIFEST[l]);
+  document.querySelector('meta[name="description"]')?.setAttribute('content', d.meta.installDescription);
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', 'Vitalis');
 }
 
 export function getLang(): Lang {

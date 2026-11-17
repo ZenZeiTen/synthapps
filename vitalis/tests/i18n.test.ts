@@ -72,7 +72,7 @@ describe('dictionaries', () => {
     const same = new Set(['Normal', 'Diabetes', 'HbA1c', 'EN', 'ID', 'Vitalis', 'en', 'Gout']);
     const em = new Map(leaves(en));
     const leftovers = leaves(id)
-      .filter(([p, v]) => typeof v === 'string' && v === em.get(p) && !same.has(v as string) && !p.startsWith('meta.') && !p.startsWith('common.tags'))
+      .filter(([p, v]) => typeof v === 'string' && v === em.get(p) && !same.has(v as string) && !['meta.htmlLang', 'meta.locale', 'meta.languageName', 'meta.short'].includes(p) && !p.startsWith('common.tags'))
       .map(([p]) => p);
     expect(leftovers).toEqual([]);
   });
