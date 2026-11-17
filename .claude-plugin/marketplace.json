@@ -45,6 +45,14 @@
       "version": "0.1.0",
       "category": "productivity",
       "keywords": ["games", "game-automation", "virtual-gamepad", "steam", "emulator", "retroarch", "computer-use"]
+    },
+    {
+      "name": "nsx-backdrop",
+      "source": "./nsx-backdrop/plugins/nsx-backdrop",
+      "description": "Backdrop picker mod for the Desktop and mobile apps: a sky that follows the clock, a per-project look, a sumi-e ink wash and a pixel-noir skyline, each with matching Code tab colors. /nsx-backdrop <name> sets one; /nsx-plain clears it.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": ["mod", "theme", "backdrop", "desktop", "appearance"]
     }
   ]
 }
