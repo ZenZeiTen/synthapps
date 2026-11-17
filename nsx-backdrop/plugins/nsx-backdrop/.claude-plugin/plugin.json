@@ -1,0 +1,6 @@
+{
+  "name": "nsx-backdrop",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Theme picker: /nsx-backdrop <name> puts a scene behind the conversation with matching Code tab colors; /nsx-plain takes it off."
+}

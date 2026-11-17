@@ -45,6 +45,14 @@
       "version": "0.1.0",
       "category": "productivity",
       "keywords": ["games", "game-automation", "virtual-gamepad", "steam", "emulator", "retroarch", "computer-use"]
+    },
+    {
+      "name": "nsx-backdrop",
+      "source": "./nsx-backdrop/plugins/nsx-backdrop",
+      "description": "Theme picker mod: /nsx-backdrop <name> puts a scene (night, tide, dawn, paper) behind the conversation in the Desktop and mobile apps with matching Code tab colors; /nsx-plain clears it. The last pick comes back each session.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "keywords": ["mod", "theme", "backdrop", "desktop", "appearance"]
     }
   ]
 }
