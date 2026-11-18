@@ -259,7 +259,14 @@ export function createAssistant(deps: AssistantDeps): Assistant {
         streamText: true,
         maxTurns: 16,
         ...(opts.signal ? { signal: opts.signal } : {}),
-        callTool: (name, input) => tools.call(name, input, { principal: deps.principal(), ...(opts.signal ? { signal: opts.signal } : {}) }),
+        callTool: async (name, input) => {
+          const result = await tools.call(name, input, { principal: deps.principal(), ...(opts.signal ? { signal: opts.signal } : {}) });
+          // Git history and diffs can hold secrets that were committed and later removed; mask them before
+          // they reach the model. File reads are not masked, so a file read and written back stays intact.
+          if (!name.startsWith("git.")) return result;
+          const { data: _data, ...rest } = result;
+          return { ...rest, content: scrub(result.content, redact), ...(result.error ? { error: scrub(result.error, redact) } : {}) };
+        },
         onEvent: (ev) => {
           if (ev.type === "delta" && ev.text) emit({ type: "delta", text: ev.text });
           else if (ev.type === "text" && ev.text !== undefined) {
