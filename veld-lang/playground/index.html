@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veld Playground</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Mono',monospace;background:#080b10;color:#d4dce8;height:100vh;display:flex;flex-direction:column;}
+.topbar{display:flex;align-items:center;gap:12px;padding:0 16px;background:#0c1018;border-bottom:1px solid #1e2738;height:44px;flex-shrink:0;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;color:#fff;}
+.logo span{color:#3d8eff;}
+.logo-sub{font-size:10px;font-weight:500;color:#4a5568;letter-spacing:1.2px;text-transform:uppercase;border-left:1px solid #252f45;padding-left:12px;}
+.badge{font-size:10px;padding:2px 8px;border-radius:3px;background:#1a2235;color:#3d8eff;border:1px solid #1e3060;margin-left:auto;}
+.workspace{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
+.editor-pane{display:flex;flex-direction:column;border-right:1px solid #1e2738;}
+.pane-header{display:flex;align-items:center;gap:8px;padding:6px 14px;background:#111620;border-bottom:1px solid #1e2738;font-size:11px;color:#8899b0;}
+.pane-header span{flex:1;}
+.run-btn{display:flex;align-items:center;gap:5px;padding:4px 12px;border-radius:5px;background:linear-gradient(135deg,#1e5ef8,#4c3cf7);border:none;color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:opacity .15s;}
+.run-btn:hover{opacity:.85;}
+.editor-region{flex:1;display:flex;overflow:hidden;position:relative;cursor:text;background:#111620;}
+.line-nums{padding:14px 0;width:44px;text-align:right;font-size:12.5px;line-height:1.75;color:#4a5568;background:#0c1018;border-right:1px solid #1e2738;flex-shrink:0;user-select:none;overflow:hidden;}
+.line-num{padding-right:10px;}
+.line-num.cur{color:#3d8eff;}
+textarea#ed{position:absolute;inset:0;left:44px;padding:14px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.75;background:transparent;color:transparent;caret-color:#3d8eff;border:none;resize:none;outline:none;z-index:2;white-space:pre;overflow:auto;tab-size:2;}
+.hl{position:absolute;inset:0;left:44px;padding:14px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.75;pointer-events:none;white-space:pre;overflow:hidden;z-index:1;color:#d4dce8;}
+.output-pane{display:flex;flex-direction:column;}
+.out-tabs{display:flex;background:#0c1018;border-bottom:1px solid #1e2738;}
+.otab{padding:6px 16px;font-size:11px;color:#4a5568;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.otab.active{color:#d4dce8;border-bottom-color:#3d8eff;}
+.out-body{flex:1;overflow-y:auto;}
+#out{padding:12px 14px;font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-word;}
+#errs{padding:8px 12px;display:none;flex-direction:column;gap:4px;}
+.err-item{display:flex;gap:10px;align-items:flex-start;padding:6px 10px;border-radius:4px;font-size:11.5px;}
+.err-item.error{background:rgba(255,71,87,.07);border-left:2px solid #ff4757;}
+.err-item.warning{background:rgba(245,166,35,.07);border-left:2px solid #f5a623;}
+.err-tag{font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;text-transform:uppercase;}
+.err-tag.E{background:rgba(255,71,87,.2);color:#ff4757;}
+.err-tag.W{background:rgba(245,166,35,.2);color:#f5a623;}
+.err-msg{flex:1;}
+.statusbar{display:flex;align-items:center;gap:10px;padding:3px 14px;background:#0c1018;border-top:1px solid #1e2738;font-size:11px;color:#4a5568;}
+.s-ok{color:#2eca8b;}.s-err{color:#ff4757;}.s-run{color:#3d8eff;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#252f45;border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">Veld<span>.</span></div>
+  <div class="logo-sub">Playground</div>
+  <div class="badge">v1.4</div>
+</div>
+<div class="workspace">
+  <div class="editor-pane">
+    <div class="pane-header">
+      <span>main.vd</span>
+      <button class="run-btn" id="run-btn">▶ Run <kbd style="opacity:.6;font-size:9px">Ctrl+↵</kbd></button>
+    </div>
+    <div class="editor-region" onclick="ed.focus()">
+      <div class="line-nums" id="lns"></div>
+      <div class="hl" id="hl" aria-hidden="true"></div>
+      <textarea id="ed" spellcheck="false" autocomplete="off" autocorrect="off"
+        oninput="onInput()" onscroll="syncScroll()" onkeydown="onKey(event)"
+        onclick="updateCursor()" onkeyup="updateCursor()"
+      ></textarea>
+    </div>
+  </div>
+  <div class="output-pane">
+    <div class="out-tabs">
+      <div class="otab active" id="tab-out" onclick="switchTab('out')">Output</div>
+      <div class="otab" id="tab-err" onclick="switchTab('err')">Problems <span id="ebadge" style="font-size:9px;padding:1px 5px;border-radius:2px;background:rgba(46,202,139,.15);color:#2eca8b;margin-left:4px">0</span></div>
+    </div>
+    <div class="out-body">
+      <div id="out"></div>
+      <div id="errs"></div>
+    </div>
+  </div>
+</div>
+<div class="statusbar">
+  <span id="status" class="s-ok">● Ready</span>
+  <span style="margin-left:auto" id="cursor">Ln 1, Col 1</span>
+</div>
+
+<!-- Engine -->
+<script src="veld-engine.js"></script>
+<!-- Highlighter -->
+<script src="veld-highlight.js"></script>
+
+<script>
+const ed=document.getElementById('ed');
+const hlEl=document.getElementById('hl');
+const lnsEl=document.getElementById('lns');
+const outEl=document.getElementById('out');
+const errsEl=document.getElementById('errs');
+const statusEl=document.getElementById('status');
+const cursorEl=document.getElementById('cursor');
+const ebadge=document.getElementById('ebadge');
+
+// ── editor ──────────────────────────────────────────────
+function onInput(){
+  hlEl.innerHTML = VeldHighlight.highlight(ed.value) + '\n';
+  updateLineNums();
+  updateCursor();
+  debounceLint();
+}
+
+function syncScroll(){
+  hlEl.scrollTop = ed.scrollTop;
+  hlEl.scrollLeft = ed.scrollLeft;
+  lnsEl.scrollTop = ed.scrollTop;
+}
+
+function curLine(){ return ed.value.substring(0,ed.selectionStart).split('\n').length; }
+
+function updateLineNums(){
+  const lines = ed.value.split('\n');
+  const cur = curLine();
+  lnsEl.innerHTML = lines.map((_,i)=>`<div class="line-num${i+1===cur?' cur':''}">${i+1}</div>`).join('');
+}
+
+function updateCursor(){
+  const text = ed.value.substring(0,ed.selectionStart);
+  const lines = text.split('\n');
+  cursorEl.textContent = `Ln ${lines.length}, Col ${lines[lines.length-1].length+1}`;
+  updateLineNums();
+}
+
+function onKey(e){
+  if(e.key==='Tab'){
+    e.preventDefault();
+    const s=ed.selectionStart,en=ed.selectionEnd;
+    ed.value=ed.value.substring(0,s)+'  '+ed.value.substring(en);
+    ed.selectionStart=ed.selectionEnd=s+2;
+    onInput(); return;
+  }
+  if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();runCode();return;}
+  if(e.key==='Enter'){
+    const s=ed.selectionStart,before=ed.value.substring(0,s);
+    const lines=before.split('\n'),curL=lines[lines.length-1];
+    const indent=curL.match(/^(\s*)/)[1];
+    const extra=curL.trimEnd().endsWith('{')?'  ':'';
+    if(indent.length>0||extra.length>0){
+      e.preventDefault();
+      const after=ed.value.substring(ed.selectionEnd);
+      ed.value=before+'\n'+indent+extra+after;
+      ed.selectionStart=ed.selectionEnd=s+1+indent.length+extra.length;
+      onInput();
+    }
+  }
+}
+
+// ── lint ─────────────────────────────────────────────────
+let lintTimer=null;
+function debounceLint(){clearTimeout(lintTimer);lintTimer=setTimeout(doLint,500);}
+function doLint(){
+  const src=ed.value;
+  if(!src.trim()){showErrors([]);return;}
+  const issues=lint(src);
+  try{const t=tokenize(src);new Parser(t).parseProgram();}
+  catch(e){issues.unshift({type:'error',line:e.line||null,msg:e.message});}
+  showErrors(issues);
+}
+function showErrors(issues){
+  const count=issues.length;
+  ebadge.textContent=count;
+  ebadge.style.background=issues.some(i=>i.type==='error')?'rgba(255,71,87,.2)':'rgba(46,202,139,.15)';
+  ebadge.style.color=issues.some(i=>i.type==='error')?'#ff4757':'#2eca8b';
+  if(!count){errsEl.innerHTML='<div style="padding:12px;font-size:12px;color:#2eca8b">✓ No issues</div>';statusEl.textContent='● Ready';statusEl.className='s-ok';return;}
+  const hasErr=issues.some(i=>i.type==='error');
+  statusEl.textContent=hasErr?'● Errors':'● Warnings';
+  statusEl.className=hasErr?'s-err':'';
+  errsEl.innerHTML=issues.map(is=>`
+    <div class="err-item ${is.type}">
+      <span class="err-tag ${is.type==='error'?'E':'W'}">${is.type[0].toUpperCase()}</span>
+      <span style="color:#4a5568;min-width:60px">${is.line?`Ln ${is.line}`:''}</span>
+      <span class="err-msg">${VeldHighlight.escHtml(is.msg)}${is.hint?`<span style="color:#4a5568;font-style:italic;font-size:11px"> — ${VeldHighlight.escHtml(is.hint)}</span>`:''}</span>
+    </div>`).join('');
+}
+
+// ── output ───────────────────────────────────────────────
+let activeTab='out';
+function switchTab(tab){
+  activeTab=tab;
+  document.getElementById('tab-out').classList.toggle('active',tab==='out');
+  document.getElementById('tab-err').classList.toggle('active',tab==='err');
+  outEl.style.display=tab==='out'?'block':'none';
+  errsEl.style.display=tab==='err'?'flex':'none';
+}
+
+function appendOut(text,color){
+  const d=document.createElement('div');
+  d.style.cssText='white-space:pre-wrap;word-break:break-word;';
+  if(color)d.style.color=color;
+  d.textContent=text;
+  outEl.appendChild(d);
+  outEl.scrollTop=outEl.scrollHeight;
+}
+
+// ── run ──────────────────────────────────────────────────
+document.getElementById('run-btn').addEventListener('click', runCode);
+
+function runCode(){
+  const src=ed.value.trim();
+  if(!src){appendOut('(empty)','#4a5568');return;}
+  switchTab('out');
+  statusEl.textContent='● Running…';statusEl.className='s-run';
+  const sep=document.createElement('div');
+  sep.style.cssText='border-top:1px solid #1e2738;margin:6px 0;';
+  outEl.appendChild(sep);
+  appendOut(`▶ ${new Date().toLocaleTimeString()}`, '#334155');
+  const t0=performance.now();
+  const lines=[];
+  try{
+    const toks=tokenize(src);
+    const ast=new Parser(toks).parseProgram();
+    const warns=typeCheck(ast);
+    warns.forEach(w=>appendOut(`⚠ ${w.msg}${w.line?' (line '+w.line+')':''}`, '#f5a623'));
+    const interp=new Interpreter(t=>lines.push(t), {}, {
+      scheduleFrame: requestAnimationFrame,
+      onLoopStart: (stop) => { window.__veldStop = stop; },
+      onLoopStop: () => { delete window.__veldStop; },
+    });
+    interp.run(ast);
+    const joined=lines.join('');
+    const parts=joined.split('\n');
+    const display=(parts[parts.length-1]==='')?parts.slice(0,-1):parts;
+    if(display.length&&display.some(l=>l!==''))display.forEach(l=>appendOut(l,'#2eca8b'));
+    else appendOut('(no output)','#4a5568');
+    statusEl.textContent='● Ready';statusEl.className='s-ok';
+    showErrors(warns);
+  }catch(e){
+    const loc=e.line?` (line ${e.line})`:'';
+    appendOut(`✕ Error${loc}: ${e.message||e}`, '#ff4757');
+    if(e.hint)appendOut(`  💡 ${e.hint}`, '#f5a623');
+    statusEl.textContent='● Error';statusEl.className='s-err';
+    showErrors([{type:'error',line:e.line,msg:e.message,hint:e.hint}]);
+  }
+}
+
+// ── init ─────────────────────────────────────────────────
+ed.value = `# Veld Language Playground\n# Ctrl+Enter to run\n\nlet msg: Str = "Hello from Veld!"\nprintln(msg)\n\nfn fib(n: Int) -> Int {\n  if n <= 1 { return n }\n  return fib(n - 1) + fib(n - 2)\n}\n\nfor i in 0..10 {\n  println("fib(" + to_str(i) + ") = " + to_str(fib(i)))\n}\n`;
+onInput();
+appendOut('Veld Playground v1.4 — Ctrl+Enter to run', '#334155');
+</script>
+</body>
+</html>

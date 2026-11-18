@@ -1,0 +1,6 @@
+let name: Str = "World"
+println("Hello, " + name + "!")
+
+let age: Int = 21
+const pi: Float = 3.14159
+println("Age: " + to_str(age) + ", Pi ≈ " + to_str(pi))

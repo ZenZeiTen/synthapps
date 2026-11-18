@@ -1,0 +1,14 @@
+module Stats {
+  fn sum(items: List) -> Int {
+    let t = 0
+    for v in items { t += v }
+    return t
+  }
+  fn mean(items: List) -> Int {
+    return sum(items) // len(items)
+  }
+}
+
+let data = [4, 7, 2, 9, 1, 5, 8]
+println("sum  = " + to_str(Stats.sum(data)))
+println("mean = " + to_str(Stats.mean(data)))

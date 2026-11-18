@@ -1,0 +1,14 @@
+struct Vec { x: Int, y: Int }
+impl Vec {
+  fn __add__(self, other: Any) -> Any {
+    return Vec(self.x + other.x, self.y + other.y)
+  }
+  fn __str__(self) -> Str {
+    return "(" + to_str(self.x) + ", " + to_str(self.y) + ")"
+  }
+}
+let a = Vec(1, 2)
+let b = Vec(3, 4)
+println("a = " + to_str(a))
+println("b = " + to_str(b))
+println("a + b = " + to_str(a + b))

@@ -1,0 +1,12 @@
+# Tail-call optimization — 1 million iterations, no stack overflow
+fn count_down(n: Int) -> Str {
+  if n <= 0 { return "done" }
+  return count_down(n - 1)
+}
+println(count_down(1000000))
+
+fn sum_to(n: Int, acc: Int) -> Int {
+  if n <= 0 { return acc }
+  return sum_to(n - 1, acc + n)
+}
+println("Sum 1..10000 = " + to_str(sum_to(10000, 0)))
