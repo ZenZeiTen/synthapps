@@ -536,7 +536,7 @@ export function App() {
       <div className="stage stage-back" style={stageStyle} aria-hidden="true">
         <CoreHalo mood={mood} lifted={approvals.length > 0} />
       </div>
-      <Scene mood={mood} orbits={!fieldOpen} />
+      <Scene mood={mood} orbits={!fieldOpen} activeAgents={running.length} onEvent={onEvent} />
 
       {fieldOpen ? (
         <div className="field-layer">

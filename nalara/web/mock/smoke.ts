@@ -170,6 +170,30 @@ async function main() {
     });
     await page.screenshot({ path: join(SHOTS, "core.png") });
 
+    await check("the neurons around the core react to live kernel events: tool calls spark, agents ripple, file changes light constellations", async () => {
+      const read = () => page.evaluate(() => {
+        const c = document.querySelector<HTMLCanvasElement>("canvas.scene");
+        return { pulses: Number(c?.dataset.pulses ?? 0), kinds: c?.dataset.pulseKinds ?? "" };
+      });
+      const end = Date.now() + 15000;
+      let got = await read();
+      while (Date.now() < end && !["spark", "ripple", "star"].every((k) => got.kinds.includes(`${k}:`))) {
+        await page.waitForTimeout(300);
+        got = await read();
+      }
+      for (const k of ["spark", "ripple", "star"]) assert(got.kinds.includes(`${k}:`), `no "${k}" pulse yet: ${got.kinds || "none"}`);
+      // A replayed history burst on connect must not fire: only the live ticks (one every 1.5 s) do.
+      assert(got.pulses < 30, `too many pulses (${got.pulses}): history replay is firing`);
+      // The canvas changes between frames while a pulse plays.
+      const frame = () => page.evaluate(() => document.querySelector<HTMLCanvasElement>("canvas.scene")!.toDataURL().length);
+      const a = await frame();
+      await page.waitForTimeout(250);
+      const b = await frame();
+      assert(a !== b, "the scene canvas did not change between frames");
+      return `${got.pulses} pulses (${got.kinds})`;
+    });
+    await page.screenshot({ path: join(SHOTS, "core-neurons.png") });
+
     await check("the Field view renders nodes of each type", async () => {
       await page.click(".btn-field");
       await page.waitForSelector(".field .react-flow__node", { timeout: 10000 });
