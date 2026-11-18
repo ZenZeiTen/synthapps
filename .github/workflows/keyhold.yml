@@ -1,8 +1,12 @@
 name: keyhold
 
 # Tests Keyhold, builds the Windows app and checks it on Windows, builds the Android
-# app and the installable web app. Pushing a tag named keyhold-v* also publishes the
-# builds as a GitHub release.
+# app and the installable web app, and keeps them as downloadable artifacts. Two ways
+# to publish them as a GitHub release:
+#  - the "Run workflow" button on the Actions page, run on main with "Publish a release"
+#    ticked: publishes release keyhold-v<version in keyhold/main.go>, creating that tag
+#    on the commit it built;
+#  - pushing a tag named keyhold-v<version>.
 #
 # The Android app is signed with the repository's own key when these secrets exist:
 #   KEYHOLD_ANDROID_KEYSTORE (the keystore file, base64), KEYHOLD_ANDROID_KEYSTORE_PASSWORD,
@@ -22,6 +26,11 @@ on:
       - "keyhold/**"
       - ".github/workflows/keyhold.yml"
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a release of the version in keyhold/main.go (run on main)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -189,7 +198,9 @@ jobs:
 
   release:
     name: Publish the GitHub release
-    if: startsWith(github.ref, 'refs/tags/keyhold-v')
+    if: >-
+      startsWith(github.ref, 'refs/tags/keyhold-v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
     needs: [test, browser, windows, android]
     runs-on: ubuntu-latest
     permissions:
@@ -197,7 +208,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: keyhold/RELEASE_NOTES.md
+          sparse-checkout: |
+            keyhold/RELEASE_NOTES.md
+            keyhold/main.go
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v4
         with:
@@ -219,11 +232,36 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l files
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" files/* --repo "$GITHUB_REPOSITORY" --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" files/* \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "Keyhold ${GITHUB_REF_NAME#keyhold-v}" \
-              --notes-file keyhold/RELEASE_NOTES.md
+          version="$(sed -n 's/^\tversion  = "\(.*\)"/\1/p' keyhold/main.go)"
+          if [[ -z "$version" ]]; then
+            echo "::error::No version found in keyhold/main.go." >&2
+            exit 1
           fi
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # A pushed tag: it must name the version this commit was built as.
+            tag="$GITHUB_REF_NAME"
+            if [[ "$tag" != "keyhold-v$version" ]]; then
+              echo "::error::Tag $tag does not match the version in keyhold/main.go ($version)." >&2
+              exit 1
+            fi
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              # Made on GitHub's release page with this tag: add the files to it.
+              gh release upload "$tag" files/* --repo "$GITHUB_REPOSITORY" --clobber
+              exit 0
+            fi
+          else
+            # The Run workflow button: never replace or move an earlier release.
+            tag="keyhold-v$version"
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              echo "::error::Release $tag already exists. Raise the version in keyhold/main.go to publish a new one." >&2
+              exit 1
+            fi
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" > /dev/null 2>&1; then
+              echo "::error::Tag $tag already exists without a release. Delete the tag, or make the release from it on GitHub's release page." >&2
+              exit 1
+            fi
+          fi
+          gh release create "$tag" files/* \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Keyhold $version" \
+            --notes-file keyhold/RELEASE_NOTES.md
