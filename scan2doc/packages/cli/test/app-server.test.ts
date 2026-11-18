@@ -165,7 +165,7 @@ describe('security', () => {
     // Only the SVG namespace (inside the data: icon) looks like a URL; nothing is fetched elsewhere.
     expect((html.match(/https?:\/\/[^'"\s)]+/g) ?? []).filter((u) => !u.startsWith('http://www.w3.org/2000/svg'))).toEqual([]);
     // The page's script parses.
-    expect(() => new Function(/<script>([\s\S]*)<\/script>/.exec(html)![1]!)).not.toThrow();
+    expect(() => new Function(/<script\b[^>]*>([\s\S]*)<\/script\s*>/i.exec(html)![1]!)).not.toThrow();
   });
 
   it('refuses what is not a PDF, and shows only files it made', async () => {
