@@ -838,6 +838,38 @@ async function main() {
       return `${out.split("\n").at(-1)}; audited: ${ran.join(", ")}`;
     });
 
+    // ---- i7 --------------------------------------------------------------------------------------------------
+    await check("i7. Notes and Tasks on the real kernel: a note typed in the UI is a Markdown file in Notes/; a task already due raises its reminder", async () => {
+      await closePanel(page);
+      await page.click(".hud .btn-launch");
+      await page.click('.launch-tile[data-app="notes"]');
+      await page.click('.note-list-bar button:has-text("New note")');
+      await page.waitForSelector(".note-editor", { timeout: 8000 });
+      await page.fill(".note-editor", "# Meeting\n\nAgree the delivery date.\n");
+      await page.waitForSelector('.note-state:has-text("Saved")', { timeout: 8000 });
+      const notesDir = join(projectRoot, "Notes");
+      const files = readdirSync(notesDir).filter((f) => f.endsWith(".md"));
+      assert(files.length === 1, `notes on disk: ${files.join(", ")}`);
+      const body = readFileSync(join(notesDir, files[0]), "utf8");
+      assert(body === "# Meeting\n\nAgree the delivery date.\n", `note body: ${JSON.stringify(body)}`);
+      await closePanel(page);
+      await page.click(".hud .btn-launch");
+      await page.click('.launch-tile[data-app="tasks"]');
+      await page.fill("#task-title", "Send the invoice");
+      const past = new Date(Date.now() - 120_000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      await page.fill("#task-due", `${past.getFullYear()}-${pad(past.getMonth() + 1)}-${pad(past.getDate())}T${pad(past.getHours())}:${pad(past.getMinutes())}`);
+      await page.click('.task-add button:has-text("Add")');
+      await page.waitForSelector('.task-overdue .task-row:has-text("Send the invoice")', { timeout: 5000 });
+      // The kernel checks due tasks every 15 s.
+      await page.waitForSelector('.toast:has-text("Reminder: Send the invoice")', { timeout: 20_000 });
+      const tasks = await api<{ title: string; reminded: boolean }[]>("GET", "/api/tasks");
+      assert(tasks.some((t) => t.title === "Send the invoice" && t.reminded), `tasks: ${JSON.stringify(tasks)}`);
+      await shot(page, "13g-tasks.png");
+      await closePanel(page);
+      return `note ${files[0]}; reminder shown for "Send the invoice"`;
+    });
+
     // ---- j ---------------------------------------------------------------------------------------------------
     await check("j. kill switch: Halt with confirmation turns the core into an ember and the server reports halted; Resume clears it", async () => {
       await page.click(".hud .btn-halt");

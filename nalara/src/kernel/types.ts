@@ -164,11 +164,13 @@ export const EVENT_TYPES = [
   "review.round",
   "review.verdict",
   "secret.changed",
+  "reminder.due",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 /** Display names used by the UI, matching the spec's wording where it has one. */
 export const EVENT_LABELS: Partial<Record<EventType, string>> = {
+  "reminder.due": "Reminder",
   "node.created": "Node Created",
   "file.updated": "File Updated",
   "file.created": "File Created",

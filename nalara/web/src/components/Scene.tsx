@@ -108,6 +108,7 @@ const PULSE_FOR: Partial<Record<KernelEvent["type"], PulseKind>> = {
   "task.completed": "burst",
   "workspace.completed": "burst",
   "deployment.succeeded": "burst",
+  "reminder.due": "burst",
   "agent.failed": "fail",
   "workspace.failed": "fail",
   "deployment.failed": "fail",

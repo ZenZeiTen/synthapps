@@ -17,7 +17,10 @@ import { EventLog } from "./components/EventLog";
 import { FilePreview, FileViewer } from "./components/FileViewer";
 import { FleetPanel } from "./components/FleetPanel";
 import { Hud } from "./components/Hud";
-import { IconFolder, IconMemory, IconRefresh, IconSearch, IconSettings, IconSpark, IconTerminal } from "./components/Icons";
+import { IconCheck, IconFile, IconFolder, IconMemory, IconPencil, IconRefresh, IconSearch, IconSettings, IconSpark, IconTerminal } from "./components/Icons";
+import { EditorPanel, rememberFile } from "./components/EditorPanel";
+import { NotesPanel } from "./components/NotesPanel";
+import { TasksPanel } from "./components/TasksPanel";
 import { IntentDock } from "./components/IntentDock";
 import { KillSwitch, ResumeButton } from "./components/KillSwitch";
 import { MemoryPanel } from "./components/MemoryPanel";
@@ -36,13 +39,16 @@ import { Ticker } from "./components/Ticker";
 const NALARA_APPS: NalaraApp[] = [
   { id: "assistant", name: "Ask", description: "Answers, writing and work on your files", icon: <IconSpark size={20} /> },
   { id: "files", name: "Files", description: "Your folders, edit and save, trash", icon: <IconFolder size={20} /> },
+  { id: "notes", name: "Notes", description: "Markdown notes, saved as you type", icon: <IconPencil size={20} /> },
+  { id: "tasks", name: "Tasks", description: "To-dos and reminders", icon: <IconCheck size={20} /> },
+  { id: "editor", name: "Text editor", description: "New documents and recent files", icon: <IconFile size={20} /> },
   { id: "terminal", name: "Terminal", description: "Run commands on this computer", icon: <IconTerminal size={20} /> },
   { id: "search", name: "Search", description: "Find files by meaning", icon: <IconSearch size={20} /> },
   { id: "memory", name: "Memory", description: "What Nalara remembers", icon: <IconMemory size={20} /> },
   { id: "settings", name: "Settings", description: "Claude key, policy, secrets", icon: <IconSettings size={20} /> },
 ];
 
-type PanelId = "assistant" | "terminal" | "launcher" | "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events" | "fleet" | "observatory";
+type PanelId = "assistant" | "terminal" | "launcher" | "notes" | "tasks" | "editor" | "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events" | "fleet" | "observatory";
 const ROOT_PANELS: PanelId[] = ["search", "files", "agents", "projects", "apps", "memory", "settings"];
 
 /** Panel and sheet widths (px) plus their 20 px margin; the stage centres the core in the space left between them. */
@@ -136,6 +142,24 @@ export function App() {
     setToasts((t) => [...t.slice(-3), { id, message, tone }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === "error" ? 8000 : 5000);
   }, []);
+
+  // Reminders: a toast, and a system notification when the user allowed them.
+  useEffect(
+    () =>
+      onEvent((ev) => {
+        if (ev.type !== "reminder.due") return;
+        // The stream replays recent history on (re)connect: an old reminder is not shown again.
+        if (Date.now() - Date.parse(ev.ts) > 60_000) return;
+        const title = String((ev.data as { title?: unknown })?.title ?? "A task is due");
+        toast(`Reminder: ${title}`);
+        try {
+          if ("Notification" in window && Notification.permission === "granted") new Notification(`${BRAND} reminder`, { body: title, tag: String((ev.data as { taskId?: unknown })?.taskId ?? title) });
+        } catch {
+          /* notifications unavailable */
+        }
+      }),
+    [onEvent, toast],
+  );
 
   // ---- loaders ---------------------------------------------------------------------------------------
   const loadStatus = useCallback(async () => {
@@ -351,10 +375,10 @@ export function App() {
   }, [paced, tick]);
 
   // ---- actions -----------------------------------------------------------------------------------------
-  const openFile = useCallback(
-    (path: string, line?: number, place?: string, edit?: boolean) => setFileView({ path, line, ...(place ? { place } : {}), ...(edit ? { edit } : {}) }),
-    [],
-  );
+  const openFile = useCallback((path: string, line?: number, place?: string, edit?: boolean) => {
+    rememberFile(place ?? "home", path);
+    setFileView({ path, line, ...(place ? { place } : {}), ...(edit ? { edit } : {}) });
+  }, []);
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
   const coreGeometry = useCallback(() => {
@@ -520,7 +544,7 @@ export function App() {
   }, []);
 
   // ---- layout ------------------------------------------------------------------------------------------
-  const leftW = panel ? (panel === "settings" || panel === "observatory" || panel === "assistant" || panel === "files" || panel === "terminal" || panel === "launcher" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
+  const leftW = panel ? (panel === "settings" || panel === "observatory" || panel === "assistant" || panel === "files" || panel === "terminal" || panel === "launcher" || panel === "notes" || panel === "tasks" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
   const rightW = sheetWs ? SHEET_W + EDGE : 0;
   // Shrink the core when panels leave it less room than its orbit needs.
   const orbPx = Math.min(vp.h * 0.266, 300);
@@ -641,6 +665,9 @@ export function App() {
         />
       ) : null}
       {panel === "terminal" ? <TerminalPanel onClose={() => setPanel(null)} /> : null}
+      {panel === "notes" ? <NotesPanel onClose={() => setPanel(null)} onToast={toast} /> : null}
+      {panel === "tasks" ? <TasksPanel onClose={() => setPanel(null)} onEvent={onEvent} /> : null}
+      {panel === "editor" ? <EditorPanel onClose={() => setPanel(null)} onOpen={(path, place, edit) => openFile(path, undefined, place, edit)} onBrowse={() => setPanel("files")} /> : null}
       {panel === "launcher" ? (
         <LauncherPanel apps={NALARA_APPS} onOpenApp={(id) => setPanel(id as PanelId)} onClose={() => setPanel(null)} onToast={toast} />
       ) : null}

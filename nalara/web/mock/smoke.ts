@@ -338,6 +338,55 @@ async function main() {
       return `${tiles.length} Nalara apps; launched Calculator; terminal ran 3 commands`;
     });
 
+    await check("Notes, Tasks and Text editor: a note saves as you type; a due task reminds and completes; a new document opens in the editor", async () => {
+      await page.click(".hud .btn-launch");
+      await page.click('.launch-tile[data-app="notes"]');
+      await page.waitForSelector('.note-list-bar button:has-text("New note")', { timeout: 3000 });
+      await page.click('.note-list-bar button:has-text("New note")');
+      await page.waitForSelector(".note-editor", { timeout: 3000 });
+      await page.fill(".note-editor", "# Groceries\n\n- [ ] milk\n- [x] bread\n");
+      await page.waitForSelector('.note-state:has-text("Saved")', { timeout: 5000 });
+      await page.click('.note-bar button:has-text("Preview")');
+      await page.waitForSelector(".note-preview li.md-task", { timeout: 3000 });
+      await page.fill("#note-title", "Groceries");
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => (document.querySelector(".side-panel-sub")?.textContent ?? "").includes("Notes/Groceries.md"), undefined, { timeout: 3000 });
+      await page.click('.note-bar button:has-text("All notes")');
+      await page.waitForSelector('.note-item:has-text("Groceries")', { timeout: 3000 });
+      const saved = (await (await fetch(`${BASE}/api/files/content?path=Notes/Groceries.md`)).json()) as { content: string };
+      assert(saved.content.includes("- [x] bread"), `note on disk: ${JSON.stringify(saved)}`);
+
+      await page.click(".hud .btn-launch");
+      await page.click('.launch-tile[data-app="tasks"]');
+      await page.waitForSelector("#task-title", { timeout: 3000 });
+      await page.fill("#task-title", "Call the client");
+      const past = new Date(Date.now() - 60_000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      await page.fill("#task-due", `${past.getFullYear()}-${pad(past.getMonth() + 1)}-${pad(past.getDate())}T${pad(past.getHours())}:${pad(past.getMinutes())}`);
+      await page.click('.task-add button:has-text("Add")');
+      await page.waitForSelector('.toast:has-text("Reminder: Call the client")', { timeout: 5000 });
+      await page.waitForSelector('.task-overdue .task-row:has-text("Call the client")', { timeout: 3000 });
+      await page.fill("#task-title", "Read the contract");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector('.task-someday .task-row:has-text("Read the contract")', { timeout: 3000 });
+      await page.click('input[aria-label="Complete Call the client"]');
+      await page.waitForSelector('.task-done-toggle:has-text("done (1)")', { timeout: 3000 });
+      await page.screenshot({ path: join(SHOTS, "tasks.png") });
+
+      await page.click(".hud .btn-launch");
+      await page.click('.launch-tile[data-app="editor"]');
+      await page.fill("#ed-name", "letter.txt");
+      await page.click('.ed-new button:has-text("Create")');
+      await page.waitForSelector(".viewer .viewer-editor", { timeout: 3000 });
+      const title = ((await page.textContent(".viewer .viewer-path")) ?? "").trim();
+      assert(title === "Documents/letter.txt", `editor opened ${title}`);
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".viewer", { state: "detached", timeout: 3000 });
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
+      return "Notes/Groceries.md saved and renamed; reminder shown; task done; Documents/letter.txt opened in the editor";
+    });
+
     await check("File manager: new folder and file, edit and save, rename, move to the trash and restore", async () => {
       await openRootMenu(page);
       await page.click('.radial-opt[data-action-id="files"]');

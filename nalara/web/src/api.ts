@@ -3,6 +3,7 @@
  * Mutating requests carry `X-Nalara-Client: 1`; errors surface as ApiError with the server's message.
  */
 import type {
+  TaskItem,
   InstalledApp,
   TerminalEvent,
   FileEntry,
@@ -230,6 +231,11 @@ export const api = {
   saveText: (place: string, path: string, content: string, mode: "create" | "overwrite" | "any" = "any") =>
     request<FileEntry>("PUT", "/api/files/content", { place, path, content, mode }),
   mkdir: (place: string, path: string) => request<FileEntry>("POST", "/api/files/mkdir", { place, path }),
+  /** Creates a top-level folder of a place unless it exists (checked first, so no error response is logged). */
+  ensureFolder: async (place: string, name: string) => {
+    const top = await request<FileListing>("GET", `/api/files/list${qs({ place, path: "" })}`);
+    if (!top.entries.some((e) => e.type === "dir" && e.name === name)) await request<FileEntry>("POST", "/api/files/mkdir", { place, path: name });
+  },
   moveFile: (place: string, from: string, to: string) => request<FileEntry>("POST", "/api/files/move", { place, from, to }),
   copyFile: (place: string, from: string, to: string) => request<FileEntry>("POST", "/api/files/copy", { place, from, to }),
   trashFile: (place: string, path: string) => request<TrashItem>("POST", "/api/files/trash", { place, path }),
@@ -250,6 +256,10 @@ export const api = {
   run: runCommand,
   terminalInput: (id: string, text: string) => request<{ ok: true }>("POST", `/api/terminal/${enc(id)}/input`, { text }),
   terminalKill: (id: string) => request<{ ok: true }>("POST", `/api/terminal/${enc(id)}/kill`),
+  tasks: () => request<TaskItem[]>("GET", "/api/tasks"),
+  addTask: (input: { title: string; notes?: string; due?: string | null }) => request<TaskItem>("POST", "/api/tasks", input),
+  updateTask: (id: string, patch: { title?: string; notes?: string; due?: string | null; done?: boolean }) => request<TaskItem>("PUT", `/api/tasks/${enc(id)}`, patch),
+  deleteTask: (id: string) => request<{ ok: true }>("DELETE", `/api/tasks/${enc(id)}`),
   installedApps: (q?: string) => request<InstalledApp[]>("GET", `/api/launcher${qs({ q })}`),
   refreshApps: () => request<InstalledApp[]>("POST", "/api/launcher/refresh"),
   launchApp: (id: string) => request<InstalledApp>("POST", "/api/launcher/launch", { id }),

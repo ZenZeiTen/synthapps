@@ -67,6 +67,7 @@ export const API_FEATURES = [
   "file-manager",
   "terminal",
   "launcher",
+  "tasks",
 ];
 /** Files the UI may preview from disk (no SVG or HTML: they could run scripts). */
 const PREVIEW_TYPES: Record<string, string> = {
@@ -858,6 +859,31 @@ export function createHttpServer(kernel: NeuralKernel, opts: HttpServerOptions =
         }
         if (is("POST", 3) && c === "kill") {
           if (!kernel.terminal.kill(b)) throw new HttpError(404, `No running command "${b}"`);
+          return ok({ ok: true });
+        }
+        break;
+
+      case "tasks":
+        if (is("GET", 1)) return ok(kernel.tasks.list({ includeDone: q.get("done") !== "0" }));
+        if (is("POST", 1)) {
+          return ok(
+            kernel.tasks.add({
+              title: text(body.title, "title"),
+              ...(typeof body.notes === "string" ? { notes: body.notes } : {}),
+              ...(typeof body.due === "string" || body.due === null ? { due: body.due as string | null } : {}),
+            }),
+          );
+        }
+        if (is("PUT", 2)) {
+          const patch: { title?: string; notes?: string; due?: string | null; done?: boolean } = {};
+          if (typeof body.title === "string") patch.title = body.title;
+          if (typeof body.notes === "string") patch.notes = body.notes;
+          if (typeof body.due === "string" || body.due === null) patch.due = body.due as string | null;
+          if (typeof body.done === "boolean") patch.done = body.done;
+          return ok(kernel.tasks.update(b, patch));
+        }
+        if (is("DELETE", 2)) {
+          if (!kernel.tasks.remove(b)) throw new HttpError(404, `No task "${b}"`);
           return ok({ ok: true });
         }
         break;

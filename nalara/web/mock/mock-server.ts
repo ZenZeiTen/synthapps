@@ -762,6 +762,7 @@ interface MockConversation {
 }
 const conversations = new Map<string, MockConversation>();
 const mockDirs = new Set<string>();
+const mockTasks: { id: string; title: string; notes: string; due: string | null; done: boolean; createdAt: string; updatedAt: string; completedAt: string | null; reminded: boolean }[] = [];
 const mockTrash: { id: string; place: string; path: string; type: string; size: number; trashedAt: string; files: Record<string, string> }[] = [];
 
 const requestLog: { method: string; path: string; ts: string }[] = [];
@@ -1015,7 +1016,9 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     return send(res, 200, { name: path.split("/").pop(), path, place: "home", type: "file", size: FILES[path].length, mtimeMs: Date.now(), hidden: false, kind: kindOf(path) });
   }
   if (a === "files" && method === "POST" && b === "mkdir") {
-    mockDirs.add(String(body.path ?? ""));
+    const dirPath = String(body.path ?? "");
+    if (mockDirs.has(dirPath) || Object.keys(FILES).some((f) => f.startsWith(`${dirPath}/`))) throw new HttpError(409, `"${dirPath}" already exists`);
+    mockDirs.add(dirPath);
     return send(res, 200, { name: String(body.path).split("/").pop(), path: body.path, place: "home", type: "dir", size: 0, mtimeMs: Date.now(), hidden: false });
   }
   if (a === "files" && method === "POST" && (b === "move" || b === "copy")) {
@@ -1215,6 +1218,40 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (method === "GET" && !b) return send(res, 200, { mode: "offline", model: "claude-opus-5-5", credentials: "none", canRestart: false });
     if ((method === "PUT" || method === "DELETE") && b === "key") return send(res, 400, { error: "The mock kernel cannot use a Claude key", code: "claude_key_rejected" });
   }
+  // --- tasks (in memory); a task added already due fires its reminder at once --------------------------------
+  if (a === "tasks") {
+    if (method === "GET" && !b) return send(res, 200, [...mockTasks].sort((x, y) => Number(x.done) - Number(y.done) || String(x.due ?? "~").localeCompare(String(y.due ?? "~"))));
+    if (method === "POST" && !b) {
+      const title = String(body.title ?? "").trim();
+      if (!title) throw new HttpError(400, "title is required");
+      const ts = now();
+      const due = typeof body.due === "string" && body.due ? new Date(body.due).toISOString() : null;
+      const task = { id: `task_${mockTasks.length + 1}`, title, notes: "", due, done: false, createdAt: ts, updatedAt: ts, completedAt: null as string | null, reminded: false };
+      mockTasks.push(task);
+      if (due && Date.parse(due) <= Date.now()) {
+        task.reminded = true;
+        publish("reminder.due", { taskId: task.id, title, due }, undefined, "tasks");
+      }
+      return send(res, 200, task);
+    }
+    const task = mockTasks.find((t) => t.id === b);
+    if (b && !task) throw new HttpError(404, `No task "${b}"`);
+    if (method === "PUT" && task) {
+      if (typeof body.done === "boolean") {
+        task.done = body.done;
+        task.completedAt = body.done ? now() : null;
+      }
+      if (typeof body.title === "string") task.title = body.title;
+      if (typeof body.due === "string" || body.due === null) task.due = body.due ? new Date(body.due as string).toISOString() : null;
+      task.updatedAt = now();
+      return send(res, 200, task);
+    }
+    if (method === "DELETE" && task) {
+      mockTasks.splice(mockTasks.indexOf(task), 1);
+      return send(res, 200, { ok: true });
+    }
+  }
+
   // --- terminal and launcher: a tiny simulated shell and a fixed app list --------------------------------
   if (a === "terminal") {
     if (method === "GET" && !b) return send(res, 200, { shell: "bash", home: "/home/you/Nalara", running: [] });

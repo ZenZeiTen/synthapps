@@ -3626,3 +3626,241 @@ li > .tree-btn {
 .term-input input:focus-visible {
   outline: none;
 }
+
+/* --- Tasks ---------------------------------------------------------------------------------------- */
+.task-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.task-add input,
+.ed-new-row input,
+.note-title {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  background: rgba(8, 12, 22, 0.8);
+  color: var(--text);
+  font-size: 13.5px;
+}
+.task-add #task-title {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.task-add input[type="datetime-local"],
+.task-due-edit {
+  color-scheme: dark;
+  font-size: 12.5px;
+}
+.task-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.task-overdue .launch-h {
+  color: var(--amber);
+}
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 6px;
+  border-radius: 8px;
+}
+.task-row:hover,
+.task-row:focus-within {
+  background: rgba(22, 34, 56, 0.55);
+}
+.task-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  flex: none;
+}
+.task-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.task-row.is-done .task-title {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+.task-due {
+  flex: none;
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.task-due.is-late {
+  color: var(--amber);
+}
+.task-due-edit {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: transparent;
+  opacity: 0;
+  cursor: pointer;
+}
+.task-row:hover .task-due-edit,
+.task-row:focus-within .task-due-edit {
+  width: auto;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: rgba(8, 12, 22, 0.8);
+  color: var(--text-2);
+  opacity: 1;
+}
+.task-row .icon-btn {
+  width: 26px;
+  height: 26px;
+  border-color: transparent;
+  background: none;
+  opacity: 0;
+}
+.task-row:hover .icon-btn,
+.task-row:focus-within .icon-btn {
+  opacity: 1;
+}
+@media (hover: none) {
+  .task-row .icon-btn,
+  .task-due-edit {
+    opacity: 1;
+  }
+}
+.task-done-toggle {
+  align-self: flex-start;
+}
+
+/* --- Notes ----------------------------------------------------------------------------------------- */
+.note-list-bar {
+  display: flex;
+  gap: 8px;
+}
+.note-list-bar .launch-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.note-item {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(14, 22, 38, 0.55);
+  color: var(--text);
+  text-align: left;
+}
+.note-item:hover,
+.note-item:focus-visible {
+  border-color: var(--accent-line);
+}
+.note-item-title {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-item-date {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.side-panel-body.note-body {
+  overflow: hidden;
+}
+.note-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.note-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 500;
+}
+.note-state {
+  flex: none;
+  color: var(--text-3);
+}
+.note-state.is-err {
+  color: var(--red);
+}
+.note-editor,
+.note-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(4, 8, 16, 0.7);
+}
+.note-editor {
+  width: 100%;
+  resize: none;
+  padding: 14px 16px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.note-editor:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+.note-preview {
+  overflow-y: auto;
+  padding: 14px 16px;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.rot180 {
+  transform: rotate(180deg);
+}
+
+/* --- Text editor start page ----------------------------------------------------------------------- */
+.ed-new {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ed-new-row {
+  display: flex;
+  gap: 8px;
+}
+.ed-new-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+}
+.ed-browse {
+  align-self: flex-start;
+}

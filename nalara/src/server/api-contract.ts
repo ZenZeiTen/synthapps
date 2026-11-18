@@ -94,6 +94,10 @@
  * GET     /api/launcher[?q=]                     -                            InstalledApp[] (from the system's app menus)
  * POST    /api/launcher/launch                   { id }                       InstalledApp (only ids from the list)
  * POST    /api/launcher/refresh                  -                            InstalledApp[] (rescans)
+ * GET     /api/tasks[?done=0]                    -                            TaskItem[] (open first, by due time; done=0 hides done)
+ * POST    /api/tasks                             { title, notes?, due? }      TaskItem (due: ISO date-time; at that time reminder.due fires)
+ * PUT     /api/tasks/:id                         { title?, notes?, due?, done? } TaskItem (a new due time re-arms the reminder)
+ * DELETE  /api/tasks/:id                         -                            { ok: true }
  * GET     /api/assistant                         -                            { online, mode, model }
  * POST    /api/assistant/ask                     { text, conversationId? }    NDJSON stream, one event per line: start, delta,
  *                                                                              turn_text, tool, tool_result, done (the saved

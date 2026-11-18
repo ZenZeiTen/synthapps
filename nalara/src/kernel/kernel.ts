@@ -34,6 +34,7 @@ import { createAssistant, type Assistant } from "../assistant/assistant";
 import { createFileManager, type FileManager, type Opener } from "../files/manager";
 import { registerFileTools } from "../files/tools";
 import { createLauncher, type Launcher, type Spawner } from "../apps/launcher";
+import { createTaskStore, registerTaskTools, type TaskStore } from "../apps/tasks";
 import { createTerminal, type ShellSpec, type Terminal } from "../shell/terminal";
 import { registerShellTools } from "../shell/tools";
 import { loadConfig, type ConfigOverrides } from "./config";
@@ -172,6 +173,8 @@ export interface NeuralKernel extends Kernel {
   readonly terminal: Terminal;
   /** Programs installed on this computer, and starting them. */
   readonly launcher: Launcher;
+  /** The user's tasks and reminders. */
+  readonly tasks: TaskStore;
   /** Workflow files that failed validation at start. */
   readonly workflowErrors: string[];
   isHalted(): boolean;
@@ -296,6 +299,8 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     ...(deps.appDirs ? { dirs: deps.appDirs } : {}),
   });
   registerShellTools(tools, terminal, launcher);
+  const tasks = createTaskStore({ db, bus });
+  registerTaskTools(tools, tasks);
   const hashesFile = join(dataDir, "mcp-approved.json");
   const mcp = createMcpManager({ registry: tools, graph, bus, approvedHashes: readHashes(hashesFile) });
 
@@ -637,6 +642,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     files,
     terminal,
     launcher,
+    tasks,
     get workflowErrors() {
       return [...workflowErrors];
     },
@@ -673,6 +679,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
 
       if (config.triggers) triggers.start();
       if (watcher) await watcher.start();
+      tasks.start();
 
       // Crash recovery: plans that were running when the last process stopped resume from their checkpoint.
       for (const ws of deps.resume === false ? [] : workspaces.list()) {
@@ -727,6 +734,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
       triggers.stop();
       orchestrator.terminateAll("kernel stopping");
       terminal.killAll();
+      tasks.stop();
       const settle = Promise.allSettled([...inflight]);
       await Promise.race([settle, new Promise((r) => setTimeout(r, STOP_WAIT_MS).unref?.())]);
       persistHashes();

@@ -1,6 +1,6 @@
 {
   "name": "nalara",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "description": "An AI-native operating system where Claude is the kernel: intent in, agent swarm and workspace out, on a graph canvas.",
   "type": "module",

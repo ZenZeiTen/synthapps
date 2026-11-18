@@ -79,10 +79,20 @@ function titleFrom(text: string): string {
   return one.length > TITLE_CHARS ? `${one.slice(0, TITLE_CHARS - 1)}…` : one || "New conversation";
 }
 
+/** "2026-11-18 21:05 (UTC+07:00, Wednesday)" in the computer's own time zone. */
+export function localTime(d: Date): string {
+  const pad = (n: number) => String(Math.abs(n)).padStart(2, "0");
+  const off = -d.getTimezoneOffset();
+  const sign = off >= 0 ? "+" : "-";
+  const day = d.toLocaleDateString("en-US", { weekday: "long" });
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())} (UTC${sign}${pad(Math.trunc(off / 60))}:${pad(off % 60)}, ${day})`;
+}
+
 export function assistantSystemPrompt(opts: { root: string; date: Date; memories: string[]; web: boolean; toolNames: string[] }): string {
   const lines = [
     "You are Nalara, the AI at the centre of the user's desktop. You answer questions directly and do work for the user.",
-    `Today is ${opts.date.toISOString().slice(0, 10)}. The user's Nalara home folder is ${opts.root}; file tools take paths relative to it.`,
+    `It is ${localTime(opts.date)} on the user's computer. The user's Nalara home folder is ${opts.root}; file tools take paths relative to it.`,
+    "Notes are Markdown files in the Notes folder; tasks and reminders are in tasks.* (give due times with the user's UTC offset).",
     "Answer in the user's language. Be direct and concise: lead with the answer, then the details that matter. Use Markdown (short paragraphs, lists, code blocks) where it helps.",
     "Use your tools when the question is about the user's files, notes, tasks, projects or memory, or when you need to act. Read before you change. Say what you changed, with paths.",
     "Some tools change things and wait for the user's approval in Nalara; if one is denied, say so and stop that line of work rather than retrying.",
