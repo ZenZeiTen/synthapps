@@ -30,13 +30,31 @@
 
 	/* ---------- Templates (same rules as ContextChat_Template) ---------- */
 
+	/* Stands in for a placeholder that had no value, until closeGaps() has cleaned up around it. */
+	var GAP = '\x00';
+	var GAPS = /\x00/g;
+	var EMPTY_PAIRS = /\(\s*(?:\x00\s*)+\)|\[\s*(?:\x00\s*)+\]|“\s*(?:\x00\s*)+”|‘\s*(?:\x00\s*)+’|«\s*(?:\x00\s*)+»|"\x00(?:[ \t]*\x00)*"/g;
+
+	/** Remove the marks of empty placeholders, and the punctuation that only made sense with them. */
+	function closeGaps( text ) {
+		var before;
+		do {
+			before = text;
+			text = text.replace( EMPTY_PAIRS, GAP );
+		} while ( text !== before );
+
+		return text
+			.replace( /[,;:][ \t]*(?:\x00[ \t]*)+(?=[,;:.!?])/g, GAP )
+			.replace( /(?:\x00[ \t]*)+[,;:][ \t]*/g, GAP )
+			.replace( /[ \t]*(?:\x00[ \t]*)+(?=[,;:.!?])/g, '' )
+			.replace( GAPS, '' );
+	}
+
+	/** Normalise whitespace and cap the length. Safe for text a visitor typed. */
 	function tidy( text ) {
 		text = String( text )
 			.replace( /\r\n|\r/g, '\n' )
-			.replace( /\(\s*\)|\[\s*\]|"\s*"|“\s*”/g, '' )
 			.replace( /[ \t]+/g, ' ' )
-			.replace( / +([,.!?;:])/g, '$1' )
-			.replace( /([,;:])(?=[,;:.!?])/g, '' )
 			.replace( /^ +| +$/gm, '' )
 			.replace( /\n{3,}/g, '\n\n' );
 		text = phpTrim( text );
@@ -50,15 +68,15 @@
 
 	function render( template, vars ) {
 		vars = vars || {};
-		var text = String( template || '' ).replace( /\{([a-z0-9_]+)(?:\|([^{}]*))?\}/gi, function ( all, key, fallback ) {
+		var text = String( template || '' ).replace( GAPS, '' ).replace( /\{([a-z0-9_]+)(?:\|([^{}]*))?\}/gi, function ( all, key, fallback ) {
 			key = key.toLowerCase();
-			var value = Object.prototype.hasOwnProperty.call( vars, key ) && vars[ key ] != null ? phpTrim( vars[ key ] ) : '';
+			var value = Object.prototype.hasOwnProperty.call( vars, key ) && vars[ key ] != null ? phpTrim( String( vars[ key ] ).replace( GAPS, '' ) ) : '';
 			if ( value === '' && fallback !== undefined ) {
 				value = phpTrim( fallback );
 			}
-			return value;
+			return value === '' ? GAP : value;
 		} );
-		return tidy( text );
+		return tidy( closeGaps( text ) );
 	}
 
 	/* ---------- Opening hours ---------- */
@@ -326,7 +344,11 @@
 		var rule = rootEl.getAttribute( 'data-ctxc-rule' ) || '';
 		activeTemplate = template;
 
-		var anyOnline = cfg.agents.some( online );
+		// Hide only when nobody this button leads to is available, whoever else may be online.
+		var offered = panel ? panelAgentIds() : [ launcher.getAttribute( 'data-ctxc-agent' ) ];
+		var anyOnline = offered.some( function ( id ) {
+			return online( agentById( id ) );
+		} );
 		if ( ! anyOnline && cfg.offline.behavior === 'hide' ) {
 			rootEl.hidden = true;
 			return;
@@ -339,6 +361,9 @@
 			}
 			Array.prototype.forEach.call( panel.querySelectorAll( '.ctxc-agent' ), function ( a ) {
 				var agent = agentById( a.getAttribute( 'data-ctxc-agent' ) );
+				if ( ! agent ) {
+					return;
+				}
 				var status = a.querySelector( '.ctxc-agent-status' );
 				var isOnline = online( agent );
 				a.classList.toggle( 'is-offline', ! isOnline );
@@ -386,8 +411,10 @@
 				return;
 			}
 			var agent = agentById( launcher.getAttribute( 'data-ctxc-agent' ) ) || cfg.agents[ 0 ];
-			launcher.href = link( agent.phone, messageFor( template, agent ), cfg.target, mobile );
-			track( agent.id, 'float', rule );
+			if ( agent ) {
+				launcher.href = link( agent.phone, messageFor( template, agent ), cfg.target, mobile );
+				track( agent.id, 'float', rule );
+			}
 		} );
 
 		var reveal = function () {

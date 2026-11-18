@@ -82,5 +82,59 @@
     "template": "Hi! Came from {utm_source|your site} ({utm_campaign}) about {page_title}.",
     "vars": { "utm_source": "instagram", "utm_campaign": "visa-season", "page_title": "Visa" },
     "expected": "Hi! Came from instagram (visa-season) about Visa."
+  },
+  {
+    "name": "spacing and emoticons the author wrote are left alone",
+    "template": "Bonjour ! J'ai une question :) {x}",
+    "vars": {},
+    "expected": "Bonjour ! J'ai une question :)"
+  },
+  {
+    "name": "values keep their own punctuation",
+    "template": "Title: {page_title}",
+    "vars": { "page_title": "What now ?! (really)" },
+    "expected": "Title: What now ?! (really)"
+  },
+  {
+    "name": "a comma after an empty value goes with it",
+    "template": "{greeting}, I need help with {page_title}.",
+    "vars": { "page_title": "Visa" },
+    "expected": "I need help with Visa."
+  },
+  {
+    "name": "a list with its first item missing",
+    "template": "I like {a}, {b} and {c}.",
+    "vars": { "b": "tea", "c": "cake" },
+    "expected": "I like tea and cake."
+  },
+  {
+    "name": "a list with its last item missing",
+    "template": "About {a}, {b}.",
+    "vars": { "a": "prices" },
+    "expected": "About prices."
+  },
+  {
+    "name": "nested brackets and quotes around an empty value",
+    "template": "Product (\"{product_name}\") please [{product_sku}] «{x}» ‘{y}’",
+    "vars": {},
+    "expected": "Product please"
+  },
+  {
+    "name": "quotes around values next to an empty one stay paired",
+    "template": "From \"{a}\" {b} \"{c}\"",
+    "vars": { "a": "X", "c": "Y" },
+    "expected": "From \"X\" \"Y\""
+  },
+  {
+    "name": "a label keeps its colon when the value is empty",
+    "template": "SKU: {product_sku}\nThanks",
+    "vars": {},
+    "expected": "SKU:\nThanks"
+  },
+  {
+    "name": "brackets with one of two values",
+    "template": "Order ({product_name}, {product_sku})",
+    "vars": { "product_sku": "TR-001" },
+    "expected": "Order (TR-001)"
   }
 ]

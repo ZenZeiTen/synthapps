@@ -61,7 +61,26 @@ export const API_FEATURES = [
   "secrets",
   "idempotency-keys",
   "structured-errors",
+  "claude-key",
+  "kernel-restart",
+  "assistant",
+  "file-manager",
+  "terminal",
+  "launcher",
+  "tasks",
 ];
+/** Files the UI may preview from disk (no SVG or HTML: they could run scripts). */
+const PREVIEW_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".ico": "image/x-icon",
+  ".avif": "image/avif",
+  ".pdf": "application/pdf",
+};
 /** How long a response is kept for replay under its Idempotency-Key. */
 export const IDEMPOTENCY_TTL_MS = 10 * 60_000;
 const IDEMPOTENCY_MAX_ENTRIES = 1000;
@@ -121,6 +140,8 @@ export function codeFor(err: unknown, status: number): string {
   if (name === "KernelHaltedError") return "kernel_halted";
   if (name === "SecretError") return "invalid_secret";
   if (name === "ConfigError") return "invalid_config";
+  if (name === "NeedsClaudeError") return "needs_claude";
+  if (name === "ClaudeKeyRejectedError") return status >= 500 ? "claude_unreachable" : "claude_key_rejected";
   return STATUS_CODES[status] ?? (status >= 500 ? "internal_error" : "request_failed");
 }
 
@@ -242,7 +263,17 @@ interface IdempotentEntry {
   result: Promise<{ status: number; body: unknown } | undefined>;
 }
 
-export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: string; now?: () => number } = {}): NeuralHttpServer {
+export interface HttpServerOptions {
+  staticDir?: string;
+  now?: () => number;
+  /**
+   * Restarts the kernel in this process (the desktop app and `nalara serve` provide it). Without it
+   * POST /api/kernel/restart answers 501, and the UI asks the user to restart Nalara themselves.
+   */
+  onRestart?: () => void;
+}
+
+export function createHttpServer(kernel: NeuralKernel, opts: HttpServerOptions = {}): NeuralHttpServer {
   const staticRoot = opts.staticDir && existsSync(opts.staticDir) ? realpathSync(opts.staticDir) : undefined;
   const sseClients = new Set<ServerResponse>();
   let boundHost = kernel.config.host;
@@ -393,6 +424,89 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
     res.on("close", cleanup);
   }
 
+  // --- file previews ------------------------------------------------------------------------------------
+
+  const placeOf = (body: Json): string | undefined => (typeof body.place === "string" && body.place ? body.place : undefined);
+
+  /** Images and PDFs only, sandboxed: a file from the user's disk never runs as a page of this origin. */
+  function serveRaw(res: ServerResponse, place: string | undefined, path: string): void {
+    const abs = kernel.files.resolveFile(place, path);
+    const type = PREVIEW_TYPES[extname(abs).toLowerCase()];
+    if (!type) throw new HttpError(415, "Only images and PDFs can be previewed", "unsupported_media");
+    const size = statSync(abs).size;
+    res.writeHead(200, {
+      "Content-Type": type,
+      "Content-Length": size,
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'",
+      "Content-Disposition": "inline",
+      "X-Content-Type-Options": "nosniff",
+    });
+    createReadStream(abs).pipe(res);
+  }
+
+  // --- terminal (NDJSON stream) -------------------------------------------------------------------
+
+  /** POST /api/terminal/run streams the command's output; closing the request stops the command. */
+  async function runStream(res: ServerResponse, body: Json): Promise<void> {
+    const command = text(body.command, "command");
+    const cwd = typeof body.cwd === "string" && body.cwd.trim() ? body.cwd : undefined;
+    if (kernel.isHalted()) throw new HttpError(409, "Nalara is halted. Resume it to run commands.", "kernel_halted");
+    const controller = new AbortController();
+    res.writeHead(200, {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "X-Accel-Buffering": "no",
+      "X-Nalara-Api-Version": String(API_VERSION),
+    });
+    res.flushHeaders?.();
+    res.on("close", () => {
+      if (!res.writableEnded) controller.abort();
+    });
+    const write = (ev: unknown) => {
+      if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(kernel.secrets.redactValue(ev))}\n`);
+    };
+    try {
+      await kernel.terminal.run(command, { ...(cwd ? { cwd } : {}), signal: controller.signal, onEvent: write });
+    } catch (err) {
+      write({ type: "error", error: err instanceof Error ? err.message : String(err), code: codeFor(err, statusOf(err)) });
+    }
+    if (!res.writableEnded) res.end();
+  }
+
+  // --- assistant (NDJSON stream) ------------------------------------------------------------------
+
+  /** POST /api/assistant/ask streams one JSON event per line; closing the request stops the answer. */
+  async function askStream(res: ServerResponse, body: Json): Promise<void> {
+    const question = text(body.text, "text");
+    const conversationId = body.conversationId === undefined || body.conversationId === null ? undefined : text(body.conversationId, "conversationId");
+    if (conversationId && !kernel.assistant.conversations(10_000).some((c) => c.id === conversationId)) throw new HttpError(404, `No conversation "${conversationId}"`);
+    if (kernel.isHalted()) throw new HttpError(409, "Nalara is halted. Resume it to ask questions.", "kernel_halted");
+    const controller = new AbortController();
+    res.writeHead(200, {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "X-Accel-Buffering": "no",
+      "X-Nalara-Api-Version": String(API_VERSION),
+    });
+    res.flushHeaders?.();
+    res.on("close", () => {
+      if (!res.writableEnded) controller.abort(new Error("client closed the request"));
+    });
+    const write = (ev: unknown) => {
+      if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(kernel.secrets.redactValue(ev))}\n`);
+    };
+    try {
+      await kernel.assistant.ask(question, { ...(conversationId ? { conversationId } : {}), signal: controller.signal, onEvent: write });
+    } catch (err) {
+      const status = statusOf(err);
+      write({ type: "error", error: err instanceof Error ? err.message : String(err), code: codeFor(err, status) });
+    }
+    if (!res.writableEnded) res.end();
+  }
+
   // --- API routes -------------------------------------------------------------------------------------
 
   async function api(req: IncomingMessage, res: ServerResponse, seg: string[], q: Query, body: Json, record?: (status: number, value: unknown) => void): Promise<void> {
@@ -488,10 +602,11 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
 
       case "intents":
         if (is("POST", 1)) {
-          const { workspace } = await kernel.submitIntent(text(body.text, "text"), { run: body.run !== false });
+          // Offline, intents only Claude can carry out are refused unless the user asks for the offline checks.
+          const { workspace } = await kernel.submitIntent(text(body.text, "text"), { run: body.run !== false, offline: body.offlineAnyway === true ? "allow" : "refuse" });
           return ok({ workspace });
         }
-        if (is("POST", 2) && b === "classify") return ok(await kernel.intents.classify(text(body.text, "text")));
+        if (is("POST", 2) && b === "classify") return ok(await kernel.classifyIntent(text(body.text, "text")));
         break;
 
       case "workspaces": {
@@ -555,7 +670,45 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
         if (is("GET", 1)) return ok(kernel.index.concepts());
         break;
 
+      case "places":
+        if (is("GET", 1)) return ok({ places: kernel.files.places(), suggested: kernel.files.suggestedPlaces() });
+        if (is("POST", 1)) return ok(kernel.files.addPlace(text(body.path, "path"), typeof body.name === "string" && body.name.trim() ? body.name : undefined));
+        if (is("DELETE", 2)) {
+          if (!kernel.files.removePlace(b)) throw new HttpError(404, `No place "${b}"`);
+          return ok({ ok: true });
+        }
+        break;
+
+      case "trash":
+        if (is("GET", 1)) return ok(kernel.files.trashList());
+        if (is("DELETE", 1)) return ok({ removed: kernel.files.emptyTrash() });
+        if (is("POST", 3) && c === "restore") return ok(kernel.files.restore(b));
+        if (is("DELETE", 2)) {
+          if (!kernel.files.purge(b)) throw new HttpError(404, `No trash item "${b}"`);
+          return ok({ ok: true });
+        }
+        break;
+
       case "files":
+        if (is("GET", 2) && b === "list") return ok(kernel.files.list(q.get("place") ?? undefined, q.get("path") ?? "", { hidden: q.get("hidden") === "1" || q.get("hidden") === "true" }));
+        if (is("GET", 2) && b === "raw") return serveRaw(res, q.get("place") ?? undefined, text(q.get("path"), "path"));
+        if (is("PUT", 2) && b === "content") {
+          if (typeof body.content !== "string") throw new HttpError(400, "content must be a string");
+          const mode = body.mode === "create" || body.mode === "overwrite" ? body.mode : "any";
+          return ok(kernel.files.write(placeOf(body), text(body.path, "path"), body.content, { mode }));
+        }
+        if (is("POST", 2) && b === "mkdir") return ok(kernel.files.mkdir(placeOf(body), text(body.path, "path")));
+        if (is("POST", 2) && b === "move") return ok(kernel.files.move(placeOf(body), text(body.from, "from"), text(body.to, "to")));
+        if (is("POST", 2) && b === "copy") return ok(kernel.files.copy(placeOf(body), text(body.from, "from"), text(body.to, "to")));
+        if (is("POST", 2) && b === "trash") return ok(kernel.files.trash(placeOf(body), text(body.path, "path")));
+        if (is("POST", 2) && b === "open") {
+          await kernel.files.open(placeOf(body), typeof body.path === "string" ? body.path : "");
+          return ok({ ok: true });
+        }
+        if (is("GET", 2) && b === "content" && q.get("place") && q.get("place") !== "home") {
+          const f = kernel.files.read(q.get("place")!, text(q.get("path"), "path"));
+          return ok({ path: f.path, content: f.content, kind: f.kind, place: f.place, size: f.size, mtimeMs: f.mtimeMs });
+        }
         if (is("GET", 2) && b === "content") {
           const path = text(q.get("path"), "path");
           // Through the gateway as the human: root-confined, audited, and able to read workspace outputs.
@@ -674,6 +827,90 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
         if (is("POST", 2) && b === "resume") {
           kernel.resume();
           return ok(kernel.status());
+        }
+        if (is("POST", 2) && b === "restart") {
+          if (!opts.onRestart) throw new HttpError(501, "This Nalara cannot restart itself: close it and start it again.", "restart_unavailable");
+          const restart = opts.onRestart;
+          // Answer first; the restart closes this server.
+          res.once("finish", () => setTimeout(restart, 50));
+          return ok({ restarting: true });
+        }
+        break;
+
+      case "claude":
+        if (is("GET", 1)) {
+          const st = kernel.status();
+          return ok({ mode: st.mode, model: st.model, credentials: st.credentials, canRestart: Boolean(opts.onRestart) });
+        }
+        if (is("PUT", 2) && b === "key") {
+          const result = await kernel.setClaudeKey(text(body.key, "key"));
+          return ok({ ...result, canRestart: Boolean(opts.onRestart) });
+        }
+        if (is("DELETE", 2) && b === "key") return ok({ ok: kernel.deleteClaudeKey(), canRestart: Boolean(opts.onRestart) });
+        break;
+
+      case "terminal":
+        if (is("GET", 1)) return ok({ shell: kernel.terminal.shellName, home: kernel.terminal.home, running: kernel.terminal.running() });
+        if (is("POST", 2) && b === "run") return runStream(res, body);
+        if (is("POST", 3) && c === "input") {
+          if (typeof body.text !== "string") throw new HttpError(400, "text must be a string");
+          if (!kernel.terminal.input(b, body.text)) throw new HttpError(404, `No running command "${b}"`);
+          return ok({ ok: true });
+        }
+        if (is("POST", 3) && c === "kill") {
+          if (!kernel.terminal.kill(b)) throw new HttpError(404, `No running command "${b}"`);
+          return ok({ ok: true });
+        }
+        break;
+
+      case "tasks":
+        if (is("GET", 1)) return ok(kernel.tasks.list({ includeDone: q.get("done") !== "0" }));
+        if (is("POST", 1)) {
+          return ok(
+            kernel.tasks.add({
+              title: text(body.title, "title"),
+              ...(typeof body.notes === "string" ? { notes: body.notes } : {}),
+              ...(typeof body.due === "string" || body.due === null ? { due: body.due as string | null } : {}),
+            }),
+          );
+        }
+        if (is("PUT", 2)) {
+          const patch: { title?: string; notes?: string; due?: string | null; done?: boolean } = {};
+          if (typeof body.title === "string") patch.title = body.title;
+          if (typeof body.notes === "string") patch.notes = body.notes;
+          if (typeof body.due === "string" || body.due === null) patch.due = body.due as string | null;
+          if (typeof body.done === "boolean") patch.done = body.done;
+          return ok(kernel.tasks.update(b, patch));
+        }
+        if (is("DELETE", 2)) {
+          if (!kernel.tasks.remove(b)) throw new HttpError(404, `No task "${b}"`);
+          return ok({ ok: true });
+        }
+        break;
+
+      case "launcher":
+        if (is("GET", 1)) return ok(kernel.launcher.list(q.get("q") ?? undefined));
+        if (is("POST", 2) && b === "launch") return ok(await kernel.launcher.launch(text(body.id, "id")));
+        if (is("POST", 2) && b === "refresh") {
+          kernel.launcher.refresh();
+          return ok(kernel.launcher.list());
+        }
+        break;
+
+      case "assistant":
+        if (is("GET", 1)) {
+          const st = kernel.status();
+          return ok({ online: kernel.assistant.online, mode: st.mode, model: st.model });
+        }
+        if (is("POST", 2) && b === "ask") return askStream(res, body);
+        if (is("GET", 2) && b === "conversations") return ok(kernel.assistant.conversations(optInt(q, "limit", 1, 500) ?? 50));
+        if (is("GET", 3) && b === "conversations") {
+          if (!kernel.assistant.conversations(10_000).some((x) => x.id === c)) throw new HttpError(404, `No conversation "${c}"`);
+          return ok(kernel.assistant.messages(c));
+        }
+        if (is("DELETE", 3) && b === "conversations") {
+          if (!kernel.assistant.deleteConversation(c)) throw new HttpError(404, `No conversation "${c}"`);
+          return ok({ ok: true });
         }
         break;
 

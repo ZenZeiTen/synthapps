@@ -1,7 +1,7 @@
 // Larger views: settings, password generator, health report, recovery code.
-import { h, icon, iconBtn, clear, fill, toast, modal, confirmBox, askPassword, download, pickFile, timeAgo } from './ui.js';
+import { h, icon, iconBtn, clear, fill, toast, modal, confirmBox, askPassword, download, pickFile, timeAgo, openUrl, copyText } from './ui.js';
 import { deriveFromPassword, openVault, decryptPayload, sha1Hex, WrongPasswordError } from './crypto.js';
-import { TYPES, mergePayloads, primaryKey, normalizePayload, DEFAULT_POLICY, MAX_HISTORY } from './model.js';
+import { TYPES, mergePayloads, primaryKey, normalizePayload, dedupeImport, DEFAULT_POLICY, MAX_HISTORY } from './model.js';
 import { policiesSection, policyForm } from './workbench.js';
 import { importAny, exportCSV, exportPasswordSafeXML, importReport } from './importers.js';
 import { generatePassword, generatePassphrase, loadWords } from './generator.js';
@@ -19,7 +19,7 @@ export function showRecoveryCode(code, first = false) {
         h('p', { text: 'If you forget your master password, this code is the only other way into your vault. Print it or write it down and keep it somewhere safe, away from this computer.' }),
         h('div', { class: 'code-box', text: code }),
         h('div', { class: 'btn-row', style: 'margin-bottom:12px' },
-          h('button', { class: 'btn', type: 'button', onclick: () => navigator.clipboard.writeText(code).then(() => toast('Copied. Paste it somewhere safe, then clear your clipboard.')) }, icon('copy'), 'Copy'),
+          h('button', { class: 'btn', type: 'button', onclick: () => copyText(code).then(() => toast('Copied. Paste it somewhere safe, then clear your clipboard.')) }, icon('copy'), 'Copy'),
           h('button', { class: 'btn', type: 'button', onclick: () => download('keyhold-recovery-code.txt', `Keyhold recovery code\r\n\r\n${code}\r\n\r\nCreated ${new Date().toLocaleString()}.\r\nAnyone with this code can open your vault. Keep it offline.\r\n`, 'text/plain') }, icon('download'), 'Save as file')),
         first ? null : h('p', { class: 'notice', text: 'Your previous recovery code no longer works.' }),
         h('label', { class: 'check' }, ok, 'I have stored this code safely'),
@@ -187,6 +187,7 @@ export function renderHealth(app) {
     section('Weak', 'Easy to guess. Use the generator to replace them.', r.weak, (e) => e.strength.label + (e.strength.warnings[0] ? ' · ' + e.strength.warnings[0] : '')),
     section('Not changed for over a year', 'Consider changing these, starting with important accounts.', r.old, (e) => 'Set ' + timeAgo(e.item.passwordChangedAt)),
     section('Due soon', 'You set a reminder to change these.', r.expiring, (e) => 'Due ' + new Date(e.item.expiresAt).toLocaleDateString()),
+    section('Website address without https', 'These logins point at http:// pages, where a password can be read on the way. Check whether the site has an https:// address.', r.insecure, (e) => e.item.fields.url),
     section('No two-factor code stored', 'If the site offers two-step sign-in, turning it on protects you even if the password leaks.', r.noTotp.slice(0, 50), (e) => e.item.fields.url),
     !r.breached.length && !r.reused.length && !r.weak.length && !r.old.length ? h('p', { class: 'notice ok', text: 'No weak, reused or old passwords found.' }) : null);
 }
@@ -224,7 +225,7 @@ async function breachCheck(app, btn, status) {
 // ---------- settings ----------
 export function openSettings(app, tab = 'security') {
   const s = app.state.session;
-  const desktop = app.state.mode === 'desktop';
+  const desktop = app.isLocal();
   // Arranged like Password Safe's Options, plus sync and the vault's properties.
   const tabs = [['security', 'Security'], ['display', 'Display'], ['entries', 'Entries'], ['policies', 'Policies'],
     ...(desktop ? [['sync', 'Sync']] : [['account', 'Account']]), ['backup', 'Backup'], ['vault', 'Vault'], ['about', 'About']];
@@ -257,12 +258,15 @@ function numSelect(value, options, onchange) {
 
 function secSecurity(app, s, close, redraw) {
   const st = s.settings;
+  const autoLock = numSelect(st.autoLockMinutes, [[1, 'After 1 minute without activity'], [5, 'After 5 minutes'], [15, 'After 15 minutes'], [60, 'After 1 hour'], [0, 'Never']], (v) => save(s, { autoLockMinutes: v }, app.renderAll));
+  const clip = numSelect(st.clipboardSeconds, [[15, '15 seconds'], [30, '30 seconds'], [60, '1 minute'], [120, '2 minutes'], [0, 'Never clear']], (v) => save(s, { clipboardSeconds: v }));
+  [autoLock, clip].forEach((x) => { x.disabled = s.readOnly; });
   return [
     sec('Lock automatically', 'Locking forgets the keys; the master password is needed again.',
-      numSelect(st.autoLockMinutes, [[1, 'After 1 minute without activity'], [5, 'After 5 minutes'], [15, 'After 15 minutes'], [60, 'After 1 hour'], [0, 'Never']], (v) => s.updateSettings({ autoLockMinutes: v })),
-      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: st.lockOnHide, onchange: (e) => s.updateSettings({ lockOnHide: e.target.checked }) }), 'Lock as soon as the window is minimised or hidden')),
+      autoLock,
+      check(s, 'lockOnHide', 'Lock as soon as the window is minimised or hidden')),
     sec('Clipboard', 'Copied passwords are removed from the clipboard after:',
-      numSelect(st.clipboardSeconds, [[15, '15 seconds'], [30, '30 seconds'], [60, '1 minute'], [120, '2 minutes'], [0, 'Never clear']], (v) => s.updateSettings({ clipboardSeconds: v })),
+      clip,
       h('div', { class: 'btn-row', style: 'margin-top:8px' }, h('button', { class: 'btn', type: 'button', onclick: () => app.clearClipboard(true) }, icon('x'), 'Clear clipboard now'))),
     sec('Master password', `Unlock difficulty: PBKDF2-SHA256, ${s.envelope.kdf.iterations.toLocaleString()} rounds. Last changed ${st.vault.passwordChangedAt ? timeAgo(st.vault.passwordChangedAt) : 'unknown'}. Changing the password also lets you raise the difficulty.`,
       h('button', { class: 'btn', type: 'button', onclick: async () => {
@@ -294,10 +298,10 @@ function secSync(app, s, close, redraw) {
           h('tr', {}, h('th', { text: 'Last sync' }), h('td', { text: s.meta.lastSync ? timeAgo(s.meta.lastSync) : 'never' }))),
         h('div', { class: 'btn-row', style: 'margin-top:12px' },
           h('button', { class: 'btn primary', type: 'button', onclick: () => s.sync().then(() => { toast('Synced'); redraw(); }).catch((e) => toast(e.message, { error: true })) }, icon('refresh'), 'Sync now'),
-          h('button', { class: 'btn', type: 'button', onclick: () => window.open(sync.url, '_blank', 'noopener,noreferrer') }, icon('external'), 'Open in browser'),
+          h('button', { class: 'btn', type: 'button', onclick: () => openUrl(sync.url) }, icon('external'), 'Open in browser'),
           h('button', { class: 'btn danger', type: 'button', onclick: async () => {
             if (!(await confirmBox('Stop syncing?', 'The vault stays on this computer. The copy on the server is not deleted.', { ok: 'Stop syncing' }))) return;
-            await s.disconnect(); toast('Sync turned off'); redraw();
+            try { await s.disconnect(); toast('Sync turned off'); redraw(); } catch (e) { toast(e.message, { error: true }); }
           } }, 'Stop syncing'))),
       sec('Versions on the server', 'The server keeps earlier versions. Opening one merges its items back in; nothing is lost.', serverHistory(app, s)),
     ];
@@ -327,7 +331,9 @@ function secSync(app, s, close, redraw) {
       h('div', { class: 'grid2' },
         h('label', { class: 'field' }, h('span', { text: 'Master password of that account (to sign in)' }), pw),
         h('label', { class: 'field' }, h('span', { text: 'Invite code (to create, if the server needs one)' }), inv)),
-      h('p', { class: 'hint', text: 'Signing in to an existing account merges both vaults; afterwards this computer uses that account\'s master password. Creating an account uploads this vault with your current master password.' }),
+      h('p', { class: 'hint', text: 'Signing in to an existing account merges both vaults; afterwards this vault uses that account\'s master password. Creating an account uploads this vault with your current master password.' }),
+      app.state.mode === 'device' && app.state.platform !== 'android'
+        ? h('p', { class: 'hint', text: `If the server cannot be reached from here, start it with --cors-origins ${location.origin} so it accepts this page. Or simply open the server's own address, which has Keyhold built in.` }) : null,
       err, h('div', { class: 'btn-row' }, joinBtn, createBtn)),
   ];
 }
@@ -399,11 +405,11 @@ async function mergeVersion(app, s, vault) {
 }
 
 function secBackup(app, s, close) {
-  const desktop = app.state.mode === 'desktop';
+  const desktop = app.isLocal();
   const local = desktop ? h('div', {}, h('button', { class: 'btn', type: 'button', onclick: async () => {
     try {
       const { backups, folder } = await app.state.store.backups();
-      fill(local, h('p', { class: 'small muted', text: 'Folder: ' + folder }), historyTable(backups, async (b) => {
+      fill(local, folder ? h('p', { class: 'small muted', text: 'Folder: ' + folder }) : null, historyTable(backups, async (b) => {
         const rec = await app.state.store.backup(b.name);
         await mergeVersion(app, s, rec.vault);
       }));
@@ -416,7 +422,7 @@ function secBackup(app, s, close) {
         download(`keyhold-backup-${new Date().toISOString().slice(0, 10)}.keyhold`, JSON.stringify(env));
         toast('Backup saved to your Downloads folder');
       } }, icon('download'), 'Download encrypted backup')),
-    desktop ? sec('Automatic backups', 'Every save keeps the previous version (the last 30). Use these to undo a mistake.', local) : null,
+    desktop ? sec('Automatic backups', 'Every save keeps the previous version (the last 30)' + (app.state.mode === 'device' ? ', next to the vault. They go when the vault goes: keep an encrypted backup somewhere else too.' : '. Use these to undo a mistake.'), local) : null,
     sec('Merge another vault', 'Adds the items of another Keyhold vault or backup file (for example one kept on another computer). Nothing here is overwritten; where the same item exists in both, the newer version wins and the older password goes to its history.',
       h('button', { class: 'btn', type: 'button', disabled: s.readOnly, onclick: () => mergeFile(app, s, close) }, icon('upload'), 'Merge a vault file…')),
     sec('Import', 'From Password Safe: use File › Export To › XML format, then import that file here. Also accepted: CSV from Bitwarden, 1Password, KeePass, LastPass, Chrome, Edge and Firefox, and Password Safe text exports.',
@@ -426,11 +432,14 @@ function secBackup(app, s, close) {
         let res;
         try { res = importAny(f.name, f.text); } catch (e) { toast(e.message, { error: true }); return; }
         if (!res.items.length) { toast('No entries found in that file.', { error: true }); return; }
-        const ok = await confirmBox('Import ' + res.items.length + ' items?', `From ${f.name} (${res.kind}). Items are added; nothing is overwritten. Delete the export file afterwards: it is not encrypted.`, { ok: 'Import' });
+        // Importing the same file twice must not double the vault.
+        const { fresh, duplicates } = dedupeImport(s.items(), res.items);
+        if (!fresh.length) { toast(`Nothing new: all ${duplicates.length} entries in ${f.name} are already in your vault.`, { ms: 7000 }); return; }
+        const ok = await confirmBox('Import ' + fresh.length + ' items?', `From ${f.name} (${res.kind}). Items are added; nothing is overwritten.${duplicates.length ? ` ${duplicates.length} entries that are already in your vault are skipped.` : ''} Delete the export file afterwards: it is not encrypted.`, { ok: 'Import' });
         if (!ok) return;
-        try { await s.addItems(res.items); } catch (e) { return app.fail(e); }
+        try { await s.addItems(fresh); } catch (e) { return app.fail(e); }
         close(); app.setFilter({ kind: 'all' });
-        await showImportReport(res, f.name);
+        await showImportReport({ kind: res.kind, items: fresh, skipped: duplicates.length }, f.name);
       } }, icon('upload'), 'Import a file…')),
     sec('Export as plain text', 'CSV (spreadsheets, other password managers) or Password Safe XML (File › Import From › XML format in Password Safe). Anyone can read these files: use them only to move to another program, and delete them straight after.',
       h('div', { class: 'btn-row' },
@@ -454,9 +463,12 @@ function secDisplay(app, s, close, redraw) {
       check(s, 'notesTooltip', 'Show notes as a tooltip when pointing at an item', app.renderAll),
       h('p', { class: 'hint', text: 'Switch between the list and a table with sortable columns with the button next to the list title.' })),
     sec('Folders when the vault opens', null, tree),
+    sec('Search filters', 'Type these in the search box, alone or together with words.', h('table', { class: 'table' }, [['type:card', 'Only one kind of item (login, card, identity, bank, wifi, apikey, ssh, note)'], ['folder:work', 'Items in a folder, or in folders inside it'], ['tag:bank', 'Items with a tag'],
+      ['is:favorite  is:protected', 'Favorites; protected items'], ['is:expired  is:due', 'Past the change reminder; with any reminder'], ['has:totp  has:notes  has:url  has:history', 'Items that have a two-factor code, notes, a website, earlier passwords'],
+      ['"two words"', 'The exact phrase'], ['-word  -tag:old', 'Leave out what matches']].map(([k, d]) => h('tr', {}, h('td', {}, h('kbd', { text: k })), h('td', { text: d }))))),
     sec('Expiry warnings', 'Password health lists items whose change reminder is due within:', warn),
     sec('Keyboard', null, h('table', { class: 'table' }, [['/', 'Search'], ['N', 'New item'], ['↑ ↓ or J K', 'Move through the list'], ['Enter', 'Open the selected item'], ['E', 'Edit selected item'],
-      ['C', 'Copy password (or main secret)'], ['U', 'Copy username'], ['Delete', 'Move to trash'], ['Shift+F10 or Menu key', 'Actions for the selected item'], ['Ctrl+S', 'Save while editing'],
+      ['C', 'Copy password (or main secret)'], ['U', 'Copy username'], ['Delete', 'Move to trash'], ['Ctrl+click, Shift+click', 'Select several items'], ['Ctrl+A', 'Select everything shown'], ['Shift+F10 or Menu key', 'Actions for the selected item'], ['Ctrl+S', 'Save while editing'],
       ['Esc', 'Cancel editing, clear search'], ['Ctrl+Shift+L', 'Lock']].map(([k, d]) => h('tr', {}, h('td', {}, h('kbd', { text: k })), h('td', { text: d }))))),
   ];
 }
@@ -472,6 +484,9 @@ function secEntries(app, s, close, redraw) {
   const keep = numSelect(st.historyKeep, [[0, 'Keep none'], [3, 'Keep the last 3'], [5, 'Keep the last 5'], [10, 'Keep the last 10'], [30, 'Keep the last 30'], [MAX_HISTORY, `Keep the last ${MAX_HISTORY}`]], (v) => save(s, { historyKeep: v }));
   const exp = numSelect(st.defaultExpiryDays, [[0, 'No reminder'], [30, 'After 30 days'], [90, 'After 90 days'], [180, 'After 180 days'], [365, 'After 1 year']], (v) => save(s, { defaultExpiryDays: v }));
   const dbl = numSelectStr(st.doubleClick, [['copyPassword', 'Copy the password'], ['copyUsername', 'Copy the username'], ['openUrl', 'Open the website'], ['edit', 'Edit the item'], ['view', 'Nothing extra (just open it)']], (v) => save(s, { doubleClick: v }));
+  const trash = numSelect(st.trashKeepDays, [[0, 'Keep until I empty the trash'], [7, 'Delete after 7 days in the trash'], [30, 'Delete after 30 days in the trash'], [90, 'Delete after 90 days in the trash']], (v) => save(s, { trashKeepDays: v }));
+  trash.setAttribute('aria-label', 'Empty the trash automatically');
+  trash.disabled = s.readOnly;
   const user = h('input', { class: 'input', style: 'max-width:320px', value: st.defaultUsername, placeholder: 'None', 'aria-label': 'Default username' });
   user.addEventListener('change', () => save(s, { defaultUsername: user.value.trim(), askedDefaultUsername: true }));
   [keep, exp, dbl, user].forEach((x) => { x.disabled = s.readOnly; });
@@ -486,6 +501,7 @@ function secEntries(app, s, close, redraw) {
     sec('Change reminders', 'When you set a new password, remind me to change it:', exp),
     sec('Default username', 'Filled in for new logins.', user),
     sec('Double-click on an item', null, dbl),
+    sec('Trash', 'Old items can leave the trash by themselves. This is checked each time the vault is unlocked; removed items are gone from every device.', trash),
     sec('Safety', null,
       check(s, 'confirmTrash', 'Ask before moving an item to the trash'),
       check(s, 'trackAccess', 'Record when each password was last copied or used (shows a "Last used" column)', app.renderAll)),
@@ -512,7 +528,8 @@ function secVault(app, s, close, redraw) {
     ['Created', v.createdAt ? new Date(v.createdAt).toLocaleString() : 'before this information was recorded'],
     ['Master password last set', v.passwordChangedAt ? new Date(v.passwordChangedAt).toLocaleString() : 'unknown'],
     ['Last saved', s.lastSaved ? s.lastSaved.toLocaleString() : 'not in this session'],
-    ['Stored', app.state.mode === 'desktop' ? 'On this computer' + (st.sync ? ', synced with ' + st.sync.url : '') : 'On ' + location.host + ', with a copy in this browser'],
+    ['Stored', (app.state.mode === 'desktop' ? 'On this computer' : app.state.mode === 'device' ? (app.state.platform === 'android' ? 'In the Keyhold app on this phone' : 'In this browser') : 'On ' + location.host + ', with a copy in this browser')
+      + (app.isLocal() && st.sync ? ', synced with ' + st.sync.url : '')],
     ['Format', `Keyhold vault v${s.envelope.v}; ${s.envelope.kdf.name}, ${s.envelope.kdf.iterations.toLocaleString()} rounds; AES-256-GCM`],
     ['Vault ID', s.envelope.id],
     ['Recovery code', s.envelope.keys.recovery ? 'Set' : 'Not set'],
@@ -556,7 +573,8 @@ function showImportReport(res, name) {
         h('tr', {}, h('th', { text: 'With two-factor keys' }), h('td', { text: r.withTotp })),
         h('tr', {}, h('th', { text: 'With password history' }), h('td', { text: r.withHistory })),
         h('tr', {}, h('th', { text: 'With extra fields' }), h('td', { text: r.withCustom })),
-        r.withoutPassword ? h('tr', {}, h('th', { text: 'Logins without a password' }), h('td', { text: r.withoutPassword })) : null),
+        r.withoutPassword ? h('tr', {}, h('th', { text: 'Logins without a password' }), h('td', { text: r.withoutPassword })) : null,
+        res.skipped ? h('tr', {}, h('th', { text: 'Skipped (already in the vault)' }), h('td', { text: res.skipped })) : null),
       h('p', { class: 'notice', text: `Delete ${name} now: it is not encrypted.` })],
     foot: h('button', { class: 'btn primary', type: 'button', onclick: () => close() }, 'Done'),
   }));
@@ -565,7 +583,7 @@ function showImportReport(res, name) {
 function secAbout(app, s) {
   const desktop = app.state.mode === 'desktop';
   return [
-    sec('Keyhold', 'Everything is encrypted on this device with AES-256-GCM. The key comes from your master password through PBKDF2-SHA256 (600,000 rounds). Files and servers only ever hold encrypted data.'),
+    sec('Keyhold' + (app.state.version ? ' ' + app.state.version : ''), 'Everything is encrypted on this device with AES-256-GCM. The key comes from your master password through PBKDF2-SHA256 (600,000 rounds). Files and servers only ever hold encrypted data.'),
     sec('Items', null, h('table', { class: 'table' }, Object.entries(TYPES).map(([k, t]) => h('tr', {}, h('td', { text: t.plural }), h('td', { text: s.items().filter((i) => i.type === k && !i.deletedAt).length }))))),
     sec('Credits', 'Passphrase words: EFF Large Wordlist (CC BY 3.0 US). Breach check: Have I Been Pwned Pwned Passwords.'),
     desktop ? sec('Close Keyhold', 'Stops the Keyhold program on this computer. It also stops by itself a few minutes after its window closes.',

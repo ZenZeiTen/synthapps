@@ -17,8 +17,9 @@ import { createRelay, type Relay } from "../fleet/relay";
 import { createFleetStore, type FleetStore, type FleetTree } from "../fleet/store";
 import { createTriggerEngine, DEFAULT_TRIGGER_RULES } from "../events/triggers";
 import { createKnowledgeGraph } from "../graph/store";
+import { findIntentClass } from "../intent/catalog";
 import { createIntentEngine } from "../intent/engine";
-import { createAnthropicProvider, hasClaudeCredentials } from "../llm/anthropic";
+import { checkClaudeKey as defaultClaudeKeyCheck, ClaudeKeyError, createAnthropicProvider, hasClaudeCredentials, type ClaudeKeyCheck } from "../llm/anthropic";
 import { meterProvider } from "../llm/meter";
 import { attachMemoryAgent, seedMemoryFromRoot } from "../memory/agent";
 import { createMemoryService } from "../memory/service";
@@ -29,6 +30,13 @@ import { createMcpManager, type NeuralMcpManager } from "../tools/mcp";
 import { createToolRegistry } from "../tools/registry";
 import { createWorkspaceGenerator, outputDirFor } from "../workspace/generator";
 import { createAuditLog } from "./audit";
+import { createAssistant, type Assistant } from "../assistant/assistant";
+import { createFileManager, type FileManager, type Opener } from "../files/manager";
+import { registerFileTools } from "../files/tools";
+import { createLauncher, type Launcher, type Spawner } from "../apps/launcher";
+import { createTaskStore, registerTaskTools, type TaskStore } from "../apps/tasks";
+import { createTerminal, type ShellSpec, type Terminal } from "../shell/terminal";
+import { registerShellTools } from "../shell/tools";
 import { loadConfig, type ConfigOverrides } from "./config";
 import { openDatabase, type Database } from "./db";
 import { createActionJournal } from "./journal";
@@ -39,6 +47,7 @@ import type {
   AgentInstance,
   AgentUsage,
   ApprovalRequest,
+  IntentClassification,
   Observatory,
   WorkQueue,
   StepReview,
@@ -81,6 +90,37 @@ export class KernelHaltedError extends Error {
   }
 }
 
+/** The secret name a Claude API key saved in Nalara's settings is stored under. */
+export const CLAUDE_KEY_SECRET = "ANTHROPIC_API_KEY";
+
+/**
+ * HTTP 422: the intent needs Claude and the kernel is offline. Offline agents can only scan and check files, which
+ * would answer a different question; the caller may resubmit with the offline run allowed.
+ */
+export class NeedsClaudeError extends Error {
+  readonly status = 422;
+  constructor(
+    readonly intent: string,
+    readonly label: string,
+  ) {
+    super(
+      `"${label}" needs Claude, and Nalara is offline: its agents can only scan and check the files in your Nalara folder. ` +
+        "Add your Claude API key in Settings > Claude, or run the offline checks anyway.",
+    );
+    this.name = "NeedsClaudeError";
+  }
+}
+
+/** HTTP 400 or 502: a Claude API key that could not be saved. */
+export class ClaudeKeyRejectedError extends Error {
+  readonly status: number;
+  constructor(err: ClaudeKeyError) {
+    super(err.message);
+    this.name = "ClaudeKeyRejectedError";
+    this.status = err.reason === "unreachable" ? 502 : 400;
+  }
+}
+
 /** A lookup that failed: HTTP 404. */
 export class NotFoundError extends Error {
   readonly status = 404;
@@ -106,6 +146,17 @@ export interface KernelDeps {
   env?: NodeJS.ProcessEnv;
   /** Resume workspaces left "running" by a previous process (default true; short-lived CLI commands pass false). */
   resume?: boolean;
+  /** Checks a Claude API key before it is saved (default: one Models API call). Tests pass a fake. */
+  checkClaudeKey?: ClaudeKeyCheck;
+  /** Opens files in the system's default app (tests pass a fake). */
+  opener?: Opener;
+  /** Folders offered as one-click places in the file manager (tests pass their own). */
+  placeSuggestions?: () => { name: string; path: string }[];
+  /** The terminal's shell (default: PowerShell on Windows, the user's shell elsewhere). */
+  shell?: ShellSpec;
+  /** Starts installed apps; tests pass a fake, with `appDirs` to scan instead of the system's folders. */
+  appSpawner?: Spawner;
+  appDirs?: string[];
 }
 
 /** The Kernel contract plus what the HTTP server and CLI need. */
@@ -114,6 +165,16 @@ export interface NeuralKernel extends Kernel {
   readonly mcp: NeuralMcpManager;
   readonly index: SemanticIndexImpl;
   readonly radial: Radial;
+  /** Ask anything: direct answers from Claude with the user's files and memory as tools; an honest local fallback offline. */
+  readonly assistant: Assistant;
+  /** The user's files: places, list, read, save, folders, move, copy, trash and restore, open in the default app. */
+  readonly files: FileManager;
+  /** Runs command lines typed by the user (and, with approval, by the assistant). */
+  readonly terminal: Terminal;
+  /** Programs installed on this computer, and starting them. */
+  readonly launcher: Launcher;
+  /** The user's tasks and reminders. */
+  readonly tasks: TaskStore;
   /** Workflow files that failed validation at start. */
   readonly workflowErrors: string[];
   isHalted(): boolean;
@@ -142,6 +203,15 @@ export interface NeuralKernel extends Kernel {
   readonly secrets: SecretStore;
   setSecret(name: string, value: string): SecretInfo;
   deleteSecret(name: string): boolean;
+  /** Classifies an intent without creating a workspace; `needsClaude` says the offline kernel would refuse it. */
+  classifyIntent(text: string): Promise<IntentClassification & { label: string; needsClaude: boolean }>;
+  /**
+   * Checks a Claude API key with Anthropic, then stores it in the secret store. It is used from the next start of
+   * the kernel; the result says whether it replaced a stored key. Throws ClaudeKeyRejectedError.
+   */
+  setClaudeKey(key: string): Promise<{ saved: true; replaced: boolean }>;
+  /** Removes a Claude API key saved in settings. A key from the environment is not touched. */
+  deleteClaudeKey(): boolean;
   /** A workspace's process tree, with live state for instances still running. */
   fleetTree(workspaceId: string): FleetTree & { reviews: StepReview[] };
   /** Telemetry for every fleet: usage and burn per workspace run, per agent and in total. */
@@ -202,16 +272,55 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     ...(config.deployCommand ? { deployCommand: config.deployCommand } : {}),
     ...(config.procTimeoutMs ? { procTimeoutMs: config.procTimeoutMs } : {}),
   });
+  const files = createFileManager({
+    db,
+    root,
+    dataDir,
+    bus,
+    audit,
+    index,
+    principal: () => human(),
+    ...(deps.opener ? { opener: deps.opener } : {}),
+    ...(deps.placeSuggestions ? { suggestions: deps.placeSuggestions } : {}),
+  });
+  registerFileTools(tools, files);
+  const terminal = createTerminal({
+    home: root,
+    audit,
+    principal: () => human(),
+    isHalted: () => halted,
+    redact: (t) => secrets.redact(t),
+    ...(deps.shell ? { shell: deps.shell } : {}),
+  });
+  const launcher = createLauncher({
+    audit,
+    principal: () => human(),
+    ...(deps.appSpawner ? { spawner: deps.appSpawner } : {}),
+    ...(deps.appDirs ? { dirs: deps.appDirs } : {}),
+  });
+  registerShellTools(tools, terminal, launcher);
+  const tasks = createTaskStore({ db, bus });
+  registerTaskTools(tools, tasks);
   const hashesFile = join(dataDir, "mcp-approved.json");
   const mcp = createMcpManager({ registry: tools, graph, bus, approvedHashes: readHashes(hashesFile) });
 
   // --- Claude or offline --------------------------------------------------------------
+  // Credentials from the environment or an `ant auth` profile win; otherwise a key the user saved in Settings.
+  const envCredentials = hasClaudeCredentials(deps.env ?? process.env);
+  const storedKey = !envCredentials && secrets.has(CLAUDE_KEY_SECRET) ? secrets.resolve(`\${secret:${CLAUDE_KEY_SECRET}}`) : undefined;
+  const credentials: KernelStatus["credentials"] = deps.llm !== undefined ? (deps.llm ? "environment" : "none") : envCredentials ? "environment" : storedKey ? "settings" : "none";
   const llm: LLMProvider | null =
     deps.llm !== undefined
       ? deps.llm
-      : config.useClaude && hasClaudeCredentials(deps.env ?? process.env)
-        ? createAnthropicProvider({ model: config.model, effort: config.effort, onProviderOutcome: (o) => governor.reportProvider(o) })
+      : config.useClaude && (envCredentials || storedKey)
+        ? createAnthropicProvider({
+            model: config.model,
+            effort: config.effort,
+            ...(storedKey ? { apiKey: storedKey } : {}),
+            onProviderOutcome: (o) => governor.reportProvider(o),
+          })
         : null;
+  const claudeKeyCheck = deps.checkClaudeKey ?? defaultClaudeKeyCheck;
   const meter = (provider: LLMProvider, instanceId: string, priority: "low" | "normal" | "high" | "urgent") =>
     meterProvider(provider, {
       beforeCall: (signal) => governor.admit(instanceId, priority, signal),
@@ -328,11 +437,15 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     return { instance, done };
   }
 
-  async function submitIntent(text: string, opts: { run?: boolean } = {}) {
+  async function submitIntent(text: string, opts: { run?: boolean; offline?: "refuse" | "allow" } = {}) {
     const run = opts.run ?? true;
     if (!text || !text.trim()) throw Object.assign(new Error("Intent text is required"), { status: 400 });
     if (run) assertRunning();
     const intent = await intents.process(text.trim());
+    if (!llm && opts.offline === "refuse") {
+      const cls = findIntentClass(intent.intent);
+      if (cls?.needsClaude) throw new NeedsClaudeError(cls.intent, cls.label);
+    }
     const workspace = await workspaces.generate(intent);
     if (!run) return { workspace, done: Promise.resolve(workspace) };
     const started = startWorkspace(workspace.id);
@@ -465,6 +578,19 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
 
   // --- radial -----------------------------------------------------------------------------------
   let kernel!: NeuralKernel;
+  const assistant = createAssistant({
+    db,
+    llm,
+    tools,
+    index,
+    memory,
+    root,
+    principal: () => ({ ...human(), agentId: "assistant", chain: [`user:${config.userId}`, "assistant"] }),
+    isHalted: () => halted,
+    redact: (t) => secrets.redact(t),
+    webTools: deps.env?.NALARA_WEB_TOOLS !== "0" && process.env.NALARA_WEB_TOOLS !== "0",
+  });
+
   const radial = createRadial({
     config,
     graph,
@@ -513,6 +639,11 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     audit,
     journal,
     radial,
+    assistant,
+    files,
+    terminal,
+    launcher,
+    tasks,
     get workflowErrors() {
       return [...workflowErrors];
     },
@@ -549,6 +680,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
 
       if (config.triggers) triggers.start();
       if (watcher) await watcher.start();
+      tasks.start();
 
       // Crash recovery: plans that were running when the last process stopped resume from their checkpoint.
       for (const ws of deps.resume === false ? [] : workspaces.list()) {
@@ -570,6 +702,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
       tools.setHalted(true);
       triggers.stop();
       const terminated = orchestrator.terminateAll(`halted: ${why}`);
+      terminal.killAll();
       audit.append({ kind: "halt", principal: human(), subject: "kernel", outcome: "info", detail: { reason: why, terminated } });
       bus.publish("kernel.halted", { reason: why, terminated }, { source: "kernel" });
     },
@@ -601,6 +734,8 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
       }
       triggers.stop();
       orchestrator.terminateAll("kernel stopping");
+      terminal.killAll();
+      tasks.stop();
       const settle = Promise.allSettled([...inflight]);
       await Promise.race([settle, new Promise((r) => setTimeout(r, STOP_WAIT_MS).unref?.())]);
       persistHashes();
@@ -628,6 +763,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
         ...(project ? { projectName: project.name } : {}),
         mode: llm ? "claude" : "offline",
         model: llm?.model ?? config.model,
+        credentials,
         startedAt,
         graph: graph.stats(),
         files: index.fileCount(),
@@ -740,6 +876,30 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
       audit.append({ kind: "secret", principal: human(), subject: `secret:${name}`, outcome: removed ? "ok" : "error", detail: { action: "delete" } });
       if (removed) bus.publish("secret.changed", { name, action: "delete" }, { source: "kernel" });
       return removed;
+    },
+
+    async classifyIntent(text: string) {
+      const c = await intents.classify(text);
+      const cls = findIntentClass(c.intent);
+      return { ...c, label: cls?.label ?? c.intent, needsClaude: !llm && Boolean(cls?.needsClaude) };
+    },
+
+    async setClaudeKey(key: string) {
+      const value = typeof key === "string" ? key.trim() : "";
+      if (!value) throw Object.assign(new Error("Paste a Claude API key"), { status: 400 });
+      try {
+        await claudeKeyCheck(value, config.model);
+      } catch (err) {
+        if (err instanceof ClaudeKeyError) throw new ClaudeKeyRejectedError(err);
+        throw err;
+      }
+      const replaced = secrets.has(CLAUDE_KEY_SECRET);
+      kernel.setSecret(CLAUDE_KEY_SECRET, value);
+      return { saved: true as const, replaced };
+    },
+
+    deleteClaudeKey() {
+      return kernel.deleteSecret(CLAUDE_KEY_SECRET);
     },
 
     fleetTree(workspaceId: string) {

@@ -50,6 +50,14 @@ async function shot( page, name, selector ) {
 	await ( selector ? page.locator( selector ).screenshot( { path: file } ) : page.screenshot( { path: file } ) );
 }
 
+async function login( page ) {
+	await page.goto( BASE + '/wp-login.php' );
+	await page.fill( '#user_login', 'admin' );
+	await page.fill( '#user_pass', 'password' );
+	await page.click( '#wp-submit' );
+	await page.waitForURL( /wp-admin/ );
+}
+
 function textOf( url ) {
 	return new URL( url ).searchParams.get( 'text' );
 }
@@ -111,11 +119,13 @@ test( 'the visitor can edit the message before sending', async () => {
 	const page = await newPage();
 	await page.goto( BASE + '/visa-translation/' );
 	await page.locator( '.ctxc-launcher' ).click();
-	await page.locator( '#ctxc-composer' ).fill( 'Hello, I need 3 documents translated by Friday.' );
+	// What the visitor types is sent as typed: spacing before punctuation and emoticons included.
+	const typed = 'Hello, I need 3 documents (a passport, 2 diplomas) translated by Friday :) Is that possible ?';
+	await page.locator( '#ctxc-composer' ).fill( typed );
 	const popup = page.context().waitForEvent( 'page' );
 	await page.locator( '.ctxc-agent' ).first().click();
 	await popup;
-	assert.equal( textOf( opened[ 0 ] ), 'Hello, I need 3 documents translated by Friday.' );
+	assert.equal( textOf( opened[ 0 ] ), typed );
 	await page.context().close();
 } );
 
@@ -260,6 +270,43 @@ test( 'direct mode skips the panel', async () => {
 	}
 } );
 
+test( 'a delayed button arrives on time, with or without the script', async () => {
+	settings( { delay: 3 } );
+	try {
+		for ( const javaScriptEnabled of [ true, false ] ) {
+			const page = await newPage( { javaScriptEnabled } );
+			await page.goto( BASE + '/contact/' );
+			const launcher = page.locator( '#contextchat .ctxc-launcher' );
+			assert.equal( await launcher.isVisible(), false, 'hidden at first, script ' + ( javaScriptEnabled ? 'on' : 'off' ) );
+			await launcher.waitFor( { state: 'visible', timeout: 8000 } );
+			assert.match( await launcher.getAttribute( 'href' ), /^https:\/\/wa\.me\/6281211112222\?text=/ );
+			await page.context().close();
+		}
+	} finally {
+		settings( { delay: 0 } );
+	}
+} );
+
+test( 'opening hours: the button hides when the agents it offers are all offline', async () => {
+	// Budi is always available, but the visa rule is the only place he is offered; Rina is offline.
+	const closed = Array.from( { length: 7 }, () => ( { on: false, start: '09:00', end: '17:00' } ) );
+	settings( { hours_enabled: true, hours: closed, offline_behavior: 'hide' } );
+	try {
+		const page = await newPage();
+		await page.goto( BASE + '/visa-translation/' );
+		assert.equal( await page.locator( '#contextchat' ).isVisible(), true, 'the visa desk is available' );
+		await page.context().close();
+
+		settings( { mode: 'direct' } );
+		const page2 = await newPage();
+		await page2.goto( BASE + '/contact/' );
+		assert.equal( await page2.locator( '#contextchat' ).isHidden(), true, 'direct mode leads to Rina, who is offline' );
+		await page2.context().close();
+	} finally {
+		settings( { hours_enabled: false, offline_behavior: 'note', mode: 'widget' } );
+	}
+} );
+
 test( 'Indonesian: front-end and block editor strings are translated', async () => {
 	const info = JSON.parse( execFileSync( 'php', [ path.join( __dirname, 'set-language.php' ), SITE, 'id_ID' ] ).toString() );
 	try {
@@ -273,6 +320,14 @@ test( 'Indonesian: front-end and block editor strings are translated', async () 
 		assert.equal( await page.locator( '.ctxc-composer-label' ).textContent(), 'Pesan Anda' );
 		assert.equal( await page.locator( '.ctxc-agents' ).getAttribute( 'aria-label' ), 'Pilih yang ingin Anda hubungi' );
 		await page.context().close();
+
+		// The settings screen: placeholder tooltips and the photo button are translated too.
+		const admin = await newPage();
+		await login( admin );
+		await admin.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-routing' );
+		assert.equal( await admin.locator( '#ctxc-tab-general .ctxc-chip[data-insert="{page_title}"]' ).getAttribute( 'title' ), 'Judul halaman' );
+		assert.equal( await admin.locator( '.ctxc-agent-row .ctxc-avatar-remove' ).first().textContent(), 'Hapus foto' );
+		await admin.context().close();
 	} finally {
 		execFileSync( 'php', [ path.join( __dirname, 'set-language.php' ), SITE, '' ] );
 	}
@@ -280,11 +335,7 @@ test( 'Indonesian: front-end and block editor strings are translated', async () 
 
 test( 'admin: settings save through the form and analytics count the clicks', async () => {
 	const page = await newPage();
-	await page.goto( BASE + '/wp-login.php' );
-	await page.fill( '#user_login', 'admin' );
-	await page.fill( '#user_pass', 'password' );
-	await page.click( '#wp-submit' );
-	await page.waitForURL( /wp-admin/ );
+	await login( page );
 
 	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-appearance' );
 	await page.fill( '#ctxc-label', 'Ask us anything' );
@@ -305,6 +356,39 @@ test( 'admin: settings save through the form and analytics count the clicks', as
 	const rows = page.locator( '.ctxc-repeater[data-repeater="rules"] .ctxc-row' );
 	assert.equal( await rows.count(), 3 );
 	await shot( page, 'admin-routing', '.ctxc-admin' );
+
+	// Every field keeps its own ID, however many rows are added.
+	await page.locator( '.ctxc-repeater[data-repeater="rules"] .ctxc-add' ).click();
+	const ids = await page.locator( '.ctxc-form [id]' ).evaluateAll( ( nodes ) => nodes.map( ( n ) => n.id ) );
+	assert.equal( new Set( ids ).size, ids.length, 'no duplicate IDs: ' + ids.filter( ( id, i ) => ids.indexOf( id ) !== i ).join( ', ' ) );
+
+	// Tabs work from the keyboard.
+	await page.locator( '#ctxc-tablink-routing' ).focus();
+	await page.keyboard.press( 'ArrowRight' );
+	assert.equal( await page.locator( '#ctxc-tablink-appearance' ).getAttribute( 'aria-selected' ), 'true' );
+	assert.equal( await page.locator( '#ctxc-tab-appearance' ).isVisible(), true );
+
+	// A new agent without a number, left behind on another tab: saving leads back to it.
+	await page.locator( '#ctxc-tablink-routing' ).click();
+	await page.locator( '.ctxc-repeater[data-repeater="agents"] .ctxc-add' ).click();
+	await page.locator( '#ctxc-tablink-general' ).click();
+	assert.equal( await page.locator( '#ctxc-tab-routing' ).isVisible(), false );
+	await page.click( '#submit' );
+	assert.equal( await page.locator( '#ctxc-tab-routing' ).isVisible(), true, 'the tab with the empty required field opens' );
+	assert.doesNotMatch( page.url(), /settings-updated/ );
+
+	// A photo can be taken off again with a button.
+	const newAgent = page.locator( '.ctxc-agent-row' ).last();
+	assert.equal( await newAgent.locator( '.ctxc-avatar-remove' ).isHidden(), true );
+	if ( ! ( await page.evaluate( () => !! ( window.wp && window.wp.media ) ) ) ) {
+		// The test build has no media library, so the picker asks for an address instead.
+		page.once( 'dialog', ( dialog ) => dialog.accept( BASE + '/photo.jpg' ) );
+		await newAgent.locator( '.ctxc-avatar-btn' ).click();
+		assert.equal( await newAgent.locator( '.ctxc-avatar-url' ).inputValue(), BASE + '/photo.jpg' );
+		await newAgent.locator( '.ctxc-avatar-remove' ).click();
+		assert.equal( await newAgent.locator( '.ctxc-avatar-url' ).inputValue(), '' );
+		assert.equal( await newAgent.locator( '.ctxc-avatar-remove' ).isHidden(), true );
+	}
 
 	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat-analytics&range=7' );
 	const total = Number( ( await page.locator( '.ctxc-card-value' ).first().textContent() ).replace( /\D/g, '' ) );

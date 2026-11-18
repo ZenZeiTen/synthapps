@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The shield and keyhole of web/icons/icon.svg (64 units), scaled into the 108 dp
+     adaptive-icon canvas so that it stays inside the 66 dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.2"
+        android:scaleY="1.2"
+        android:translateX="15.6"
+        android:translateY="15.6">
+        <path
+            android:fillColor="@color/kh_icon_fg"
+            android:pathData="M32,12 L16,19 V31 C16,41 22.8,49 32,52 C41.2,49 48,41 48,31 V19 Z" />
+        <path
+            android:fillColor="@color/kh_icon_bg"
+            android:pathData="M26.5,29 A5.5,5.5 0 1,0 37.5,29 A5.5,5.5 0 1,0 26.5,29 Z" />
+        <path
+            android:fillColor="@color/kh_icon_bg"
+            android:pathData="M29.5,33 H34.5 L36,43 H28 Z" />
+    </group>
+</vector>

@@ -40,9 +40,18 @@
 	align-items: flex-start;
 }
 
-.ctxc[hidden],
-.ctxc--wait {
+.ctxc[hidden] {
 	display: none;
+}
+
+/* "Appear after N seconds". Done in CSS so the button also arrives when the script does not run. */
+.ctxc--wait {
+	visibility: hidden;
+	animation: ctxc-wait 0s linear var(--ctxc-delay, 0s) forwards;
+}
+
+@keyframes ctxc-wait {
+	to { visibility: visible; }
 }
 
 @media (max-width: 767px) {

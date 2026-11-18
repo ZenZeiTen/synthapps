@@ -19,6 +19,14 @@ test( 'template: long messages are cut to 1500 characters, counting emoji as one
 	assert.ok( out.endsWith( '…' ) );
 } );
 
+test( 'template: text a visitor typed keeps its punctuation', () => {
+	assert.equal( engine.tidy( 'Thanks :)  ( )\r\n\r\n\r\n\r\nBye , now ' ), 'Thanks :) ( )\n\nBye , now' );
+} );
+
+test( 'template: a value cannot smuggle in the empty-placeholder mark', () => {
+	assert.equal( engine.render( 'A ({x}) B', { x: '\0' } ), 'A B' );
+} );
+
 // Weekdays Monday–Friday 09:00–17:00, Saturday 22:00–02:00 (runs past midnight), Sunday closed.
 const days = [
 	{ on: false, start: '09:00', end: '17:00' },

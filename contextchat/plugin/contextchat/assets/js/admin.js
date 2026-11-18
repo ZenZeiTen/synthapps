@@ -4,7 +4,7 @@
 ( function () {
 	'use strict';
 
-	var data = window.contextchatAdmin || { samples: {}, i18n: {} };
+	var data = window.contextchatAdmin || { samples: {}, valueRules: [], i18n: {} };
 	var engine = window.ContextChat;
 	var form = document.querySelector( '.ctxc-form' );
 	if ( ! form ) {
@@ -13,7 +13,11 @@
 	document.documentElement.classList.add( 'js' );
 
 	/* Tabs, remembered in the address so a save returns to the same tab. */
-	var tabs = document.querySelectorAll( '.ctxc-tabs .nav-tab' );
+	var tabs = Array.from( document.querySelectorAll( '.ctxc-tabs .nav-tab' ) );
+	var sections = document.querySelectorAll( '.ctxc-tab' );
+	sections.forEach( function ( s ) {
+		s.setAttribute( 'role', 'tabpanel' );
+	} );
 	function showTab( id ) {
 		var found = false;
 		tabs.forEach( function ( t ) {
@@ -21,11 +25,13 @@
 			found = found || on;
 			t.classList.toggle( 'nav-tab-active', on );
 			t.setAttribute( 'aria-selected', on ? 'true' : 'false' );
+			// One tab stop for the row of tabs; the arrow keys move between them.
+			t.tabIndex = on ? 0 : -1;
 		} );
 		if ( ! found ) {
 			return showTab( 'general' );
 		}
-		document.querySelectorAll( '.ctxc-tab' ).forEach( function ( s ) {
+		sections.forEach( function ( s ) {
 			s.classList.toggle( 'is-active', s.getAttribute( 'data-tab' ) === id );
 		} );
 		var ref = form.querySelector( 'input[name="_wp_http_referer"]' );
@@ -33,13 +39,32 @@
 			ref.value = ref.value.replace( /#.*$/, '' ) + '#ctxc-tab-' + id;
 		}
 	}
-	tabs.forEach( function ( t ) {
+	function openTab( id ) {
+		showTab( id );
+		history.replaceState( null, '', '#ctxc-tab-' + id );
+	}
+	tabs.forEach( function ( t, i ) {
 		t.addEventListener( 'click', function ( e ) {
 			e.preventDefault();
-			showTab( t.getAttribute( 'data-tab' ) );
-			history.replaceState( null, '', '#ctxc-tab-' + t.getAttribute( 'data-tab' ) );
+			openTab( t.getAttribute( 'data-tab' ) );
+		} );
+		t.addEventListener( 'keydown', function ( e ) {
+			var step = { ArrowRight: 1, ArrowLeft: -1 }[ e.key ];
+			var next = e.key === 'Home' ? tabs[ 0 ] : e.key === 'End' ? tabs[ tabs.length - 1 ] : step ? tabs[ ( i + step + tabs.length ) % tabs.length ] : null;
+			if ( next ) {
+				e.preventDefault();
+				openTab( next.getAttribute( 'data-tab' ) );
+				next.focus();
+			}
 		} );
 	} );
+	/* A required field left empty on another tab: go there, or the browser cannot point at it and the save silently does nothing. */
+	form.addEventListener( 'invalid', function ( e ) {
+		var section = e.target.closest && e.target.closest( '.ctxc-tab' );
+		if ( section && ! section.classList.contains( 'is-active' ) ) {
+			openTab( section.getAttribute( 'data-tab' ) );
+		}
+	}, true );
 	var tabFromHash = function () {
 		showTab( ( location.hash || '' ).replace( '#ctxc-tab-', '' ) || 'general' );
 	};
@@ -81,7 +106,7 @@
 			return;
 		}
 		var update = function () {
-			var needs = [ 'url_contains', 'page', 'post_type', 'category', 'product_category' ].indexOf( select.value ) > -1;
+			var needs = data.valueRules.indexOf( select.value ) > -1;
 			value.classList.toggle( 'is-disabled', ! needs );
 			value.querySelector( 'input' ).disabled = ! needs;
 		};
@@ -93,12 +118,16 @@
 	function bindAvatar( row ) {
 		var btn = row.querySelector( '.ctxc-avatar-btn' );
 		var input = row.querySelector( '.ctxc-avatar-url' );
+		var clear = row.querySelector( '.ctxc-avatar-remove' );
 		if ( ! btn || ! input ) {
 			return;
 		}
 		var paint = function () {
 			btn.style.backgroundImage = input.value ? 'url("' + encodeURI( input.value ) + '")' : '';
 			btn.classList.toggle( 'has-image', !! input.value );
+			if ( clear ) {
+				clear.hidden = ! input.value;
+			}
 		};
 		btn.addEventListener( 'click', function () {
 			if ( ! window.wp || ! wp.media ) {
@@ -118,13 +147,13 @@
 			} );
 			frame.open();
 		} );
-		btn.addEventListener( 'contextmenu', function ( e ) {
-			if ( input.value ) {
-				e.preventDefault();
+		if ( clear ) {
+			clear.addEventListener( 'click', function () {
 				input.value = '';
 				paint();
-			}
-		} );
+				btn.focus();
+			} );
+		}
 		paint();
 	}
 

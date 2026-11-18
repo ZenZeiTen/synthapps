@@ -1,7 +1,18 @@
 name: keyhold
 
-# Tests Keyhold, builds the Windows app and checks it on Windows.
-# Pushing a tag named keyhold-v* also publishes the builds as a GitHub release.
+# Tests Keyhold, builds the Windows app and checks it on Windows, builds the Android
+# app and the installable web app, and keeps them as downloadable artifacts. Two ways
+# to publish them as a GitHub release:
+#  - the "Run workflow" button on the Actions page, run on main with "Publish a release"
+#    ticked: publishes release keyhold-v<version in keyhold/main.go>, creating that tag
+#    on the commit it built;
+#  - pushing a tag named keyhold-v<version>.
+#
+# The Android app is signed with the repository's own key when these secrets exist:
+#   KEYHOLD_ANDROID_KEYSTORE (the keystore file, base64), KEYHOLD_ANDROID_KEYSTORE_PASSWORD,
+#   KEYHOLD_ANDROID_KEY_ALIAS, KEYHOLD_ANDROID_KEY_PASSWORD   (see keyhold/README.md)
+# Without them a debug build is made: fine for trying it, but each build has a different
+# key, so Android refuses to install the next one over it.
 on:
   pull_request:
     paths:
@@ -15,6 +26,11 @@ on:
       - "keyhold/**"
       - ".github/workflows/keyhold.yml"
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a release of the version in keyhold/main.go (run on main)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -94,9 +110,15 @@ jobs:
         run: |
           $data = "$env:RUNNER_TEMP\kh-desk"
           $srv  = "$env:RUNNER_TEMP\kh-srv"
-          & .\dist\keyhold.exe version
+          # The app must open without a console window (Windows GUI subsystem 2), the command line with one (3).
+          function Get-Subsystem($path) { $b = [IO.File]::ReadAllBytes((Resolve-Path $path)); $pe = [BitConverter]::ToInt32($b, 0x3C); [BitConverter]::ToUInt16($b, $pe + 0x5C) }
+          foreach ($f in @{ "Keyhold.exe" = 2; "Keyhold-arm64.exe" = 2; "keyhold-cli.exe" = 3 }.GetEnumerator()) {
+            $got = Get-Subsystem ".\dist\$($f.Key)"
+            if ($got -ne $f.Value) { throw "$($f.Key): subsystem $got, expected $($f.Value)" }
+          }
+          & .\dist\keyhold-cli.exe version
           # Desktop mode: loopback server, per-launch key, no vault yet.
-          $p = Start-Process -FilePath ".\dist\keyhold.exe" -ArgumentList "desktop","--no-browser","--data",$data,"--port","47821" -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\desk.out"
+          $p = Start-Process -FilePath ".\dist\keyhold-cli.exe" -ArgumentList "desktop","--no-browser","--data",$data,"--port","47821" -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\desk.out"
           Start-Sleep -Seconds 3
           $inst = Get-Content "$data\instance.json" | ConvertFrom-Json
           $mode = Invoke-RestMethod "http://127.0.0.1:$($inst.port)/api/mode"
@@ -106,11 +128,11 @@ jobs:
           $html = Invoke-WebRequest "http://127.0.0.1:$($inst.port)/" -UseBasicParsing
           if ($html.Headers["Content-Security-Policy"] -notmatch "script-src 'self'") { throw "CSP missing" }
           # A second launch must reuse the running instance, not start another.
-          $second = & .\dist\keyhold.exe desktop --no-browser --data $data
+          $second = & .\dist\keyhold-cli.exe desktop --no-browser --data $data
           if ("$second" -notmatch "47821") { throw "second launch did not find the first: $second" }
           Stop-Process -Id $p.Id
           # Sync server mode.
-          $s = Start-Process -FilePath ".\dist\keyhold.exe" -ArgumentList "serve","--addr","127.0.0.1:47822","--data",$srv -PassThru
+          $s = Start-Process -FilePath ".\dist\keyhold-cli.exe" -ArgumentList "serve","--addr","127.0.0.1:47822","--data",$srv -PassThru
           Start-Sleep -Seconds 3
           $m2 = Invoke-RestMethod "http://127.0.0.1:47822/api/mode"
           if ($m2.mode -ne "server" -or $m2.signup -ne "closed") { throw "server mode wrong" }
@@ -125,32 +147,138 @@ jobs:
           retention-days: 30
           compression-level: 0
 
+  android:
+    name: Build the Android app and the web app
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: keyhold/android
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the Gradle wrapper is Gradle's own
+        uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Install the Android platform
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      - name: Signing key, when the repository has one
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYHOLD_ANDROID_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/keyhold.jks"
+            echo "KEYHOLD_KEYSTORE=$RUNNER_TEMP/keyhold.jks" >> "$GITHUB_ENV"
+          fi
+      - name: Build the APK
+        env:
+          KEYHOLD_KEYSTORE_PASSWORD: ${{ secrets.KEYHOLD_ANDROID_KEYSTORE_PASSWORD }}
+          KEYHOLD_KEY_ALIAS: ${{ secrets.KEYHOLD_ANDROID_KEY_ALIAS }}
+          KEYHOLD_KEY_PASSWORD: ${{ secrets.KEYHOLD_ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "${KEYHOLD_KEYSTORE:-}" ]; then
+            ./gradlew assembleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk ../Keyhold.apk
+          else
+            echo "::warning::No Android signing key in this repository's secrets: building a debug APK that later builds cannot update."
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk ../Keyhold-debug.apk
+          fi
+          ls -l ../*.apk
+      - name: Package the web app (for any HTTPS web host)
+        working-directory: keyhold/web
+        run: zip -qr ../keyhold-web.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Keyhold-android
+          path: keyhold/Keyhold*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: keyhold-web
+          path: keyhold/keyhold-web.zip
+          if-no-files-found: error
+
   release:
     name: Publish the GitHub release
-    if: startsWith(github.ref, 'refs/tags/keyhold-v')
-    needs: [test, browser, windows]
+    if: >-
+      startsWith(github.ref, 'refs/tags/keyhold-v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
+    needs: [test, browser, windows, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: keyhold/RELEASE_NOTES.md
+          sparse-checkout: |
+            keyhold/RELEASE_NOTES.md
+            keyhold/main.go
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v4
         with:
           name: Keyhold
           path: files
+      - uses: actions/download-artifact@v4
+        with:
+          name: Keyhold-android
+          path: files
+      - uses: actions/download-artifact@v4
+        with:
+          name: keyhold-web
+          path: files
+      - name: Checksums for the Android and web files
+        working-directory: files
+        run: sha256sum Keyhold*.apk keyhold-web.zip >> SHA256SUMS.txt
       - name: Create the release, or add the files to it
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l files
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" files/* --repo "$GITHUB_REPOSITORY" --clobber
-          else
-            gh release create "$GITHUB_REF_NAME" files/* \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "Keyhold ${GITHUB_REF_NAME#keyhold-v}" \
-              --notes-file keyhold/RELEASE_NOTES.md
+          for f in Keyhold.exe Keyhold-arm64.exe keyhold-cli.exe keyhold-linux-amd64 keyhold-linux-arm64 \
+                   keyhold-macos-arm64 keyhold-macos-amd64 keyhold-web.zip SHA256SUMS.txt; do
+            if [[ ! -f "files/$f" ]]; then
+              echo "::error::files/$f is missing; nothing was published." >&2
+              exit 1
+            fi
+          done
+          if ! compgen -G "files/Keyhold*.apk" > /dev/null; then
+            echo "::error::The Android app is missing; nothing was published." >&2
+            exit 1
           fi
+          version="$(sed -n 's/^\tversion  = "\(.*\)"/\1/p' keyhold/main.go)"
+          if [[ -z "$version" ]]; then
+            echo "::error::No version found in keyhold/main.go." >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # A pushed tag: it must name the version this commit was built as.
+            tag="$GITHUB_REF_NAME"
+            if [[ "$tag" != "keyhold-v$version" ]]; then
+              echo "::error::Tag $tag does not match the version in keyhold/main.go ($version)." >&2
+              exit 1
+            fi
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              # Made on GitHub's release page with this tag: add the files to it.
+              gh release upload "$tag" files/* --repo "$GITHUB_REPOSITORY" --clobber
+              exit 0
+            fi
+          else
+            # The Run workflow button: never replace or move an earlier release.
+            tag="keyhold-v$version"
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              echo "::error::Release $tag already exists. Raise the version in keyhold/main.go to publish a new one." >&2
+              exit 1
+            fi
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" > /dev/null 2>&1; then
+              echo "::error::Tag $tag already exists without a release. Delete the tag, or make the release from it on GitHub's release page." >&2
+              exit 1
+            fi
+          fi
+          gh release create "$tag" files/* \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Keyhold $version" \
+            --notes-file keyhold/RELEASE_NOTES.md

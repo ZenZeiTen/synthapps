@@ -1,8 +1,8 @@
 // Offline support for the hosted web app: the app files are cached so it opens
 // without a connection. API calls always go to the network (never cached).
-const CACHE = 'keyhold-app-v2';
+const CACHE = 'keyhold-app-v5';
 const FILES = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/ui.js', 'js/crypto.js', 'js/model.js', 'js/totp.js',
-  'js/generator.js', 'js/importers.js', 'js/storage.js', 'js/session.js', 'js/views.js', 'js/workbench.js', 'icons/icon.svg', 'manifest.webmanifest',
+  'js/generator.js', 'js/importers.js', 'js/storage.js', 'js/session.js', 'js/views.js', 'js/workbench.js', 'icons/icon.svg', 'icons/maskable.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'manifest.webmanifest',
   'words/eff_large_wordlist.txt'];
 
 self.addEventListener('install', (e) => {

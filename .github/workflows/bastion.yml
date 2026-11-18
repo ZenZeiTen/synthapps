@@ -112,16 +112,10 @@ jobs:
           extensions: mysqli, zlib
           tools: none
           coverage: none
-      # The runner image already has the mysql client. Installing the mysql-client package again
-      # upgrades the image's mysql-server too, and that upgrade's setup script can fail (it did on
-      # 14 Nov 2026), so install only when the client is missing, and only the client itself.
-      - name: Install MySQL client
-        run: |
-          if command -v mysql >/dev/null; then
-            mysql --version
-          else
-            sudo apt-get update && sudo apt-get install -y --no-install-recommends mysql-client-core
-          fi
+      # The runner image already has the MySQL client. Installing it again with apt upgrades the
+      # preinstalled MySQL server too, and that upgrade fails on the runner (dpkg exit 100).
+      - name: MySQL client
+        run: command -v mysql || { sudo apt-get update && sudo apt-get install -y --no-upgrade mysql-client; }
       - run: bash bastion/tests/wordpress-smoke.sh
         env:
           WORK: ${{ runner.temp }}/wp-smoke

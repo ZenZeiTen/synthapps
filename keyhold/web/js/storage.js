@@ -46,17 +46,28 @@ export class DesktopStore {
   quit() { return request('/api/local/quit', { method: 'POST', token: this.token, timeout: 3000 }); }
 }
 
-/** A copy kept in this browser (IndexedDB), so the web app opens without a connection. */
+/**
+ * A vault kept in this browser (IndexedDB). On a sync server it is the offline
+ * copy; in device mode (no server: installed web app, Android app) it is the
+ * vault itself, and `keep` earlier versions are kept as automatic backups.
+ */
 export class BrowserStore {
-  constructor(username) { this.key = 'vault:' + username; this.kind = 'browser'; }
+  constructor(username, { keep = 0 } = {}) { this.key = 'vault:' + username; this.kind = 'browser'; this.keep = keep; }
   static open() {
     if (BrowserStore._db) return BrowserStore._db;
     BrowserStore._db = new Promise((resolve, reject) => {
-      const r = indexedDB.open('keyhold', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('vaults');
+      const r = indexedDB.open('keyhold', 2);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains('vaults')) db.createObjectStore('vaults');
+        if (!db.objectStoreNames.contains('backups')) db.createObjectStore('backups');
+      };
       r.onsuccess = () => resolve(r.result);
-      r.onerror = () => reject(r.error);
+      r.onerror = () => reject(r.error || new Error('This browser does not allow storage for this page'));
+      r.onblocked = () => reject(new Error('Close other Keyhold tabs and try again'));
     });
+    // A failed open must not be remembered: the next try may succeed.
+    BrowserStore._db.catch(() => { BrowserStore._db = null; });
     return BrowserStore._db;
   }
   async tx(mode, fn) {
@@ -68,16 +79,19 @@ export class BrowserStore {
       Promise.resolve(fn(st)).then((v) => { out = v; });
       t.oncomplete = () => resolve(out);
       t.onerror = () => reject(t.error);
+      t.onabort = () => reject(t.error || new Error('The browser could not read its saved copy'));
     });
   }
   async load() {
-    return this.tx('readonly', (st) => new Promise((res) => { const g = st.get(this.key); g.onsuccess = () => res(g.result || null); }));
+    return this.tx('readonly', (st) => new Promise((res, rej) => { const g = st.get(this.key); g.onsuccess = () => res(g.result || null); g.onerror = () => rej(g.error); }));
   }
+  backupRange() { return IDBKeyRange.bound(this.key + '#', this.key + '#\uffff'); }
   async save(rev, vault, meta) {
     const db = await BrowserStore.open();
     return new Promise((resolve, reject) => {
-      const t = db.transaction('vaults', 'readwrite');
+      const t = db.transaction(['vaults', 'backups'], 'readwrite');
       const st = t.objectStore('vaults');
+      const bk = t.objectStore('backups');
       let next;
       const g = st.get(this.key);
       g.onsuccess = () => {
@@ -86,14 +100,45 @@ export class BrowserStore {
         if (curRev !== rev) { t.abort(); reject(new ConflictError(curRev)); return; }
         next = { rev: curRev + 1, vault, meta, savedAt: new Date().toISOString() };
         st.put(next, this.key);
+        // The version being replaced becomes a backup, in the same transaction.
+        if (cur && this.keep > 0) {
+          bk.put(cur, this.key + '#' + String(cur.rev).padStart(12, '0'));
+          const k = bk.getAllKeys(this.backupRange());
+          k.onsuccess = () => { for (const old of k.result.slice(0, Math.max(0, k.result.length - this.keep))) bk.delete(old); };
+        }
       };
       t.oncomplete = () => resolve({ rev: next.rev });
       t.onerror = () => reject(t.error);
+      // A full disk aborts the transaction; without this the save would wait for ever.
+      t.onabort = () => reject(t.error || new Error('The browser could not save (storage may be full)'));
     });
   }
   async remove() {
     const db = await BrowserStore.open();
-    return new Promise((res) => { const t = db.transaction('vaults', 'readwrite'); t.objectStore('vaults').delete(this.key); t.oncomplete = res; });
+    return new Promise((res, rej) => {
+      const t = db.transaction(['vaults', 'backups'], 'readwrite');
+      t.objectStore('vaults').delete(this.key);
+      t.objectStore('backups').delete(this.backupRange());
+      t.oncomplete = res; t.onerror = t.onabort = () => rej(t.error);
+    });
+  }
+  /** Earlier versions, newest first: { backups: [{ name, rev, savedAt, size }] }. */
+  async backups() {
+    const db = await BrowserStore.open();
+    const list = await new Promise((res, rej) => {
+      const t = db.transaction('backups', 'readonly');
+      const r = t.objectStore('backups').getAll(this.backupRange());
+      r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error);
+    });
+    return { backups: list.map((b) => ({ name: String(b.rev), rev: b.rev, savedAt: b.savedAt, size: JSON.stringify(b.vault).length })).reverse(), folder: null };
+  }
+  async backup(name) {
+    const db = await BrowserStore.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('backups', 'readonly');
+      const r = t.objectStore('backups').get(this.key + '#' + String(parseInt(name, 10)).padStart(12, '0'));
+      r.onsuccess = () => (r.result ? res(r.result) : rej(new Error('That version is no longer kept'))); r.onerror = () => rej(r.error);
+    });
   }
 }
 
@@ -119,7 +164,7 @@ export class RemoteClient {
   static check(base) {
     let u;
     try { u = new URL(base); } catch { throw new Error('Enter the full server address, for example https://vault.example.com'); }
-    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]';
     if (u.protocol !== 'https:' && !(u.protocol === 'http:' && local)) throw new Error('The sync server must use https://');
     return u.origin + u.pathname.replace(/\/+$/, '');
   }

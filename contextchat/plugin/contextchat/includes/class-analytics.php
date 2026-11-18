@@ -21,6 +21,9 @@ class ContextChat_Analytics {
 	/** Clicks one visitor may record per minute. */
 	const RATE_LIMIT = 20;
 
+	/** Where a button can be: the floating button, a shortcode, a block or the product button. */
+	const SOURCES = array( 'float', 'shortcode', 'block', 'product' );
+
 	/**
 	 * Hooks.
 	 */
@@ -29,6 +32,10 @@ class ContextChat_Analytics {
 		add_action( self::CRON, array( __CLASS__, 'prune' ) );
 		if ( get_option( 'contextchat_db_version' ) !== CONTEXTCHAT_DB_VERSION ) {
 			self::install();
+		}
+		// Activation schedules pruning, but not on every site of a network, and schedules get lost.
+		if ( is_admin() ) {
+			self::schedule();
 		}
 	}
 
@@ -47,6 +54,13 @@ class ContextChat_Analytics {
 	 */
 	public static function activate() {
 		self::install();
+		self::schedule();
+	}
+
+	/**
+	 * Schedule daily pruning, unless it already is.
+	 */
+	private static function schedule() {
 		if ( ! wp_next_scheduled( self::CRON ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', self::CRON );
 		}
@@ -104,7 +118,7 @@ class ContextChat_Analytics {
 					'path'   => array( 'type' => 'string', 'default' => '' ),
 					'agent'  => array( 'type' => 'string', 'default' => '' ),
 					'rule'   => array( 'type' => 'string', 'default' => '' ),
-					'source' => array( 'type' => 'string', 'default' => 'float', 'enum' => array( 'float', 'shortcode', 'product', 'block' ) ),
+					'source' => array( 'type' => 'string', 'default' => 'float', 'enum' => self::SOURCES ),
 					'device' => array( 'type' => 'string', 'default' => '', 'enum' => array( '', 'mobile', 'desktop' ) ),
 				),
 			)
@@ -153,7 +167,16 @@ class ContextChat_Analytics {
 	 * @return bool
 	 */
 	private static function within_rate_limit() {
-		$ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+
+		/**
+		 * Filter the visitor address used for rate limiting. Behind a proxy or CDN that does not
+		 * put the visitor's address in REMOTE_ADDR, every visitor shares one limit; return the
+		 * real address here (from a header your proxy sets and you trust).
+		 *
+		 * @param string $ip Address from REMOTE_ADDR.
+		 */
+		$ip  = (string) apply_filters( 'contextchat_client_ip', $ip );
 		$key = 'contextchat_rl_' . md5( $ip . wp_salt( 'nonce' ) . gmdate( 'YmdHi' ) );
 		$n   = (int) get_transient( $key );
 		if ( $n >= self::RATE_LIMIT ) {
@@ -174,7 +197,7 @@ class ContextChat_Analytics {
 	}
 
 	/**
-	 * Report for the last N days.
+	 * Report for the last N days. Days are days in the site time zone.
 	 *
 	 * @param int $days Days to cover, including today.
 	 * @return array{total: int, previous: int, daily: array, pages: array, agents: array, sources: array, devices: array}
@@ -183,33 +206,25 @@ class ContextChat_Analytics {
 		global $wpdb;
 		$days  = max( 1, (int) $days );
 		$table = self::table();
-		$start = gmdate( 'Y-m-d 00:00:00', time() - ( $days - 1 ) * DAY_IN_SECONDS );
-		$prev  = gmdate( 'Y-m-d 00:00:00', time() - ( 2 * $days - 1 ) * DAY_IN_SECONDS );
+		$start = self::day_start( $days - 1 );
+		$prev  = self::day_start( 2 * $days - 1 );
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery
 		$total    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE created_at >= %s', $table, $start ) );
 		$previous = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE created_at >= %s AND created_at < %s', $table, $prev, $start ) );
-		$by_day   = $wpdb->get_results( $wpdb->prepare( 'SELECT DATE(created_at) AS d, COUNT(*) AS n FROM %i WHERE created_at >= %s GROUP BY DATE(created_at)', $table, $start ), ARRAY_A );
+		// Counted per quarter of an hour, the finest step any time zone is offset by, so that
+		// daily_counts() can put each click on the right local day.
+		$slots    = $wpdb->get_results( $wpdb->prepare( 'SELECT DATE(created_at) AS d, HOUR(created_at) AS h, FLOOR(MINUTE(created_at) / 15) AS q, COUNT(*) AS n FROM %i WHERE created_at >= %s GROUP BY d, h, q', $table, $start ), ARRAY_A );
 		$pages    = $wpdb->get_results( $wpdb->prepare( 'SELECT path, MAX(post_id) AS post_id, COUNT(*) AS n FROM %i WHERE created_at >= %s GROUP BY path ORDER BY n DESC LIMIT 10', $table, $start ), ARRAY_A );
 		$agents   = $wpdb->get_results( $wpdb->prepare( 'SELECT agent, COUNT(*) AS n FROM %i WHERE created_at >= %s GROUP BY agent ORDER BY n DESC', $table, $start ), ARRAY_A );
 		$sources  = $wpdb->get_results( $wpdb->prepare( 'SELECT source, COUNT(*) AS n FROM %i WHERE created_at >= %s GROUP BY source ORDER BY n DESC', $table, $start ), ARRAY_A );
 		$devices  = $wpdb->get_results( $wpdb->prepare( 'SELECT device, COUNT(*) AS n FROM %i WHERE created_at >= %s GROUP BY device ORDER BY n DESC', $table, $start ), ARRAY_A );
 		// phpcs:enable
 
-		$counts = array();
-		foreach ( (array) $by_day as $row ) {
-			$counts[ $row['d'] ] = (int) $row['n'];
-		}
-		$daily = array();
-		for ( $i = $days - 1; $i >= 0; $i-- ) {
-			$d           = gmdate( 'Y-m-d', time() - $i * DAY_IN_SECONDS );
-			$daily[ $d ] = isset( $counts[ $d ] ) ? $counts[ $d ] : 0;
-		}
-
 		return array(
 			'total'    => $total,
 			'previous' => $previous,
-			'daily'    => $daily,
+			'daily'    => self::daily_counts( (array) $slots, $days, wp_timezone(), time() ),
 			'pages'    => (array) $pages,
 			'agents'   => (array) $agents,
 			'sources'  => (array) $sources,
@@ -218,14 +233,58 @@ class ContextChat_Analytics {
 	}
 
 	/**
+	 * Clicks per local day, oldest first, with a zero for days without clicks.
+	 *
+	 * Clicks are stored in UTC. Each slot is a quarter of an hour of UTC time; it counts towards
+	 * the day it falls on in the given time zone, which also follows daylight saving changes.
+	 *
+	 * @param array        $slots Rows with d (UTC date), h (hour), q (quarter, 0-3) and n (clicks).
+	 * @param int          $days  Days to cover, including today.
+	 * @param DateTimeZone $tz    Time zone the days are in.
+	 * @param int          $now   Current Unix time.
+	 * @return array<string, int> Counts keyed by Y-m-d.
+	 */
+	public static function daily_counts( array $slots, $days, DateTimeZone $tz, $now ) {
+		$today = ( new DateTimeImmutable( '@' . (int) $now ) )->setTimezone( $tz )->setTime( 0, 0 );
+		$daily = array();
+		for ( $i = max( 1, (int) $days ) - 1; $i >= 0; $i-- ) {
+			$daily[ $today->modify( '-' . $i . ' days' )->format( 'Y-m-d' ) ] = 0;
+		}
+
+		$utc = new DateTimeZone( 'UTC' );
+		foreach ( $slots as $slot ) {
+			$at = DateTimeImmutable::createFromFormat( '!Y-m-d G:i', sprintf( '%s %d:%02d', $slot['d'], $slot['h'], 15 * $slot['q'] ), $utc );
+			if ( ! $at ) {
+				continue;
+			}
+			$day = $at->setTimezone( $tz )->format( 'Y-m-d' );
+			if ( isset( $daily[ $day ] ) ) {
+				$daily[ $day ] += (int) $slot['n'];
+			}
+		}
+		return $daily;
+	}
+
+	/**
 	 * All clicks in a period, oldest first, for CSV export.
 	 *
-	 * @param int $days Days to cover.
+	 * @param int $days Days to cover, including today.
 	 * @return array
 	 */
 	public static function rows( $days ) {
 		global $wpdb;
-		$start = gmdate( 'Y-m-d 00:00:00', time() - ( max( 1, (int) $days ) - 1 ) * DAY_IN_SECONDS );
+		$start = self::day_start( max( 1, (int) $days ) - 1 );
 		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT created_at, post_id, path, agent, rule, source, device FROM %i WHERE created_at >= %s ORDER BY id ASC', self::table(), $start ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
+	/**
+	 * When a day began in the site time zone, as the UTC time the table stores.
+	 *
+	 * @param int $days_ago 0 for today, 1 for yesterday, and so on.
+	 * @return string Y-m-d H:i:s in UTC.
+	 */
+	private static function day_start( $days_ago ) {
+		$midnight = new DateTimeImmutable( 'today', wp_timezone() );
+		return $midnight->modify( '-' . (int) $days_ago . ' days' )->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 	}
 }

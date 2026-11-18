@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin: the settings screen and the analytics report.
+ * Admin: the menu and the settings screen. The analytics report is in class-admin-analytics.php.
  *
  * @package ContextChat
  */
@@ -12,9 +12,8 @@ defined( 'ABSPATH' ) || exit;
  */
 class ContextChat_Admin {
 
-	const SLUG     = 'contextchat';
-	const CAP      = 'manage_options';
-	const RANGES   = array( 7, 30, 90 );
+	const SLUG = 'contextchat';
+	const CAP  = 'manage_options';
 
 	/**
 	 * Hooks.
@@ -23,7 +22,6 @@ class ContextChat_Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'setup_notice' ) );
-		add_action( 'admin_post_contextchat_export', array( __CLASS__, 'export' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( CONTEXTCHAT_FILE ), array( __CLASS__, 'action_links' ) );
 	}
 
@@ -33,7 +31,7 @@ class ContextChat_Admin {
 	public static function menu() {
 		add_menu_page( __( 'ContextChat', 'contextchat' ), __( 'ContextChat', 'contextchat' ), self::CAP, self::SLUG, array( __CLASS__, 'settings_page' ), 'dashicons-format-chat', 81 );
 		add_submenu_page( self::SLUG, __( 'ContextChat Settings', 'contextchat' ), __( 'Settings', 'contextchat' ), self::CAP, self::SLUG, array( __CLASS__, 'settings_page' ) );
-		add_submenu_page( self::SLUG, __( 'ContextChat Analytics', 'contextchat' ), __( 'Analytics', 'contextchat' ), self::CAP, self::SLUG . '-analytics', array( __CLASS__, 'analytics_page' ) );
+		add_submenu_page( self::SLUG, __( 'ContextChat Analytics', 'contextchat' ), __( 'Analytics', 'contextchat' ), self::CAP, self::SLUG . '-analytics', array( 'ContextChat_Admin_Analytics', 'page' ) );
 	}
 
 	/**
@@ -45,7 +43,10 @@ class ContextChat_Admin {
 		if ( false === strpos( $hook, self::SLUG ) ) {
 			return;
 		}
-		wp_enqueue_media();
+		// The media library is only needed for agent photos, on the settings screen.
+		if ( false === strpos( $hook, self::SLUG . '-analytics' ) ) {
+			wp_enqueue_media();
+		}
 		wp_enqueue_style( 'contextchat', CONTEXTCHAT_URL . 'assets/css/contextchat.css', array(), CONTEXTCHAT_VERSION );
 		wp_enqueue_style( 'contextchat-admin', CONTEXTCHAT_URL . 'assets/css/admin.css', array(), CONTEXTCHAT_VERSION );
 		wp_enqueue_script( 'contextchat-engine', CONTEXTCHAT_URL . 'assets/js/contextchat.js', array(), CONTEXTCHAT_VERSION, true );
@@ -60,10 +61,11 @@ class ContextChat_Admin {
 			'contextchat-admin',
 			'contextchatAdmin',
 			array(
-				'samples' => $samples,
-				'i18n'    => array(
-					'chooseAvatar' => __( 'Choose avatar', 'contextchat' ),
-					'useImage'     => __( 'Use this image', 'contextchat' ),
+				'samples'    => $samples,
+				'valueRules' => ContextChat_Settings::RULE_TYPES_WITH_VALUE,
+				'i18n'       => array(
+					'chooseAvatar'  => __( 'Choose avatar', 'contextchat' ),
+					'useImage'      => __( 'Use this image', 'contextchat' ),
 					'confirmRemove' => __( 'Remove this row?', 'contextchat' ),
 				),
 			)
@@ -123,14 +125,14 @@ class ContextChat_Admin {
 
 			<nav class="nav-tab-wrapper ctxc-tabs" role="tablist">
 				<?php foreach ( $tabs as $id => $label ) : ?>
-					<a href="#ctxc-tab-<?php echo esc_attr( $id ); ?>" class="nav-tab" role="tab" data-tab="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $label ); ?></a>
+					<a href="#ctxc-tab-<?php echo esc_attr( $id ); ?>" id="ctxc-tablink-<?php echo esc_attr( $id ); ?>" class="nav-tab" role="tab" aria-controls="ctxc-tab-<?php echo esc_attr( $id ); ?>" data-tab="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $label ); ?></a>
 				<?php endforeach; ?>
 			</nav>
 
 			<form method="post" action="options.php" class="ctxc-form">
 				<?php settings_fields( 'contextchat' ); ?>
 
-				<section id="ctxc-tab-general" class="ctxc-tab" data-tab="general">
+				<section id="ctxc-tab-general" class="ctxc-tab" data-tab="general" aria-labelledby="ctxc-tablink-general">
 					<h2><?php esc_html_e( 'General', 'contextchat' ); ?></h2>
 					<table class="form-table" role="presentation">
 						<?php
@@ -154,7 +156,7 @@ class ContextChat_Admin {
 					<?php self::template_field( 'default_message', $s['default_message'] ); ?>
 				</section>
 
-				<section id="ctxc-tab-routing" class="ctxc-tab" data-tab="routing">
+				<section id="ctxc-tab-routing" class="ctxc-tab" data-tab="routing" aria-labelledby="ctxc-tablink-routing">
 					<h2><?php esc_html_e( 'Agents', 'contextchat' ); ?></h2>
 					<p><?php esc_html_e( 'People or teams visitors can choose between. Leave empty to use the main number only.', 'contextchat' ); ?></p>
 					<div class="ctxc-repeater" data-repeater="agents">
@@ -184,7 +186,7 @@ class ContextChat_Admin {
 					</div>
 				</section>
 
-				<section id="ctxc-tab-appearance" class="ctxc-tab" data-tab="appearance">
+				<section id="ctxc-tab-appearance" class="ctxc-tab" data-tab="appearance" aria-labelledby="ctxc-tablink-appearance">
 					<h2><?php esc_html_e( 'Button', 'contextchat' ); ?></h2>
 					<div class="ctxc-split">
 						<table class="form-table" role="presentation">
@@ -247,7 +249,7 @@ class ContextChat_Admin {
 					</table>
 				</section>
 
-				<section id="ctxc-tab-hours" class="ctxc-tab" data-tab="hours">
+				<section id="ctxc-tab-hours" class="ctxc-tab" data-tab="hours" aria-labelledby="ctxc-tablink-hours">
 					<h2><?php esc_html_e( 'Opening hours', 'contextchat' ); ?></h2>
 					<p>
 						<?php
@@ -297,7 +299,7 @@ class ContextChat_Admin {
 					</table>
 				</section>
 
-				<section id="ctxc-tab-advanced" class="ctxc-tab" data-tab="advanced">
+				<section id="ctxc-tab-advanced" class="ctxc-tab" data-tab="advanced" aria-labelledby="ctxc-tablink-advanced">
 					<h2><?php esc_html_e( 'WooCommerce', 'contextchat' ); ?></h2>
 					<?php if ( ! class_exists( 'WooCommerce' ) ) : ?>
 						<p class="description"><?php esc_html_e( 'WooCommerce is not active. These settings take effect once it is.', 'contextchat' ); ?></p>
@@ -372,7 +374,8 @@ class ContextChat_Admin {
 			<input type="hidden" name="<?php echo esc_attr( $base ); ?>[id]" value="<?php echo esc_attr( $agent['id'] ); ?>">
 			<div class="ctxc-avatar-pick">
 				<input type="hidden" class="ctxc-avatar-url" name="<?php echo esc_attr( $base ); ?>[avatar]" value="<?php echo esc_attr( $agent['avatar'] ); ?>">
-				<button type="button" class="ctxc-avatar-btn" aria-label="<?php esc_attr_e( 'Choose avatar', 'contextchat' ); ?>" style="<?php echo $agent['avatar'] ? esc_attr( 'background-image:url(' . esc_url( $agent['avatar'] ) . ')' ) : ''; ?>"><span class="dashicons dashicons-format-image"></span></button>
+				<button type="button" class="ctxc-avatar-btn" aria-label="<?php esc_attr_e( 'Choose avatar', 'contextchat' ); ?>" style="<?php echo $agent['avatar'] ? esc_attr( 'background-image:url("' . esc_url( $agent['avatar'] ) . '")' ) : ''; ?>"><span class="dashicons dashicons-format-image"></span></button>
+				<button type="button" class="button-link ctxc-avatar-remove" <?php echo $agent['avatar'] ? '' : 'hidden'; ?>><?php esc_html_e( 'Remove photo', 'contextchat' ); ?></button>
 			</div>
 			<div class="ctxc-fields">
 				<label for="<?php echo esc_attr( $uid ); ?>-name"><?php esc_html_e( 'Name', 'contextchat' ); ?>
@@ -452,7 +455,7 @@ class ContextChat_Admin {
 					<fieldset class="ctxc-wide ctxc-rule-agents">
 						<legend><?php esc_html_e( 'Route to (none ticked = all agents)', 'contextchat' ); ?></legend>
 						<?php foreach ( $agents as $agent ) : ?>
-							<label class="ctxc-inline-check"><input type="checkbox" name="<?php echo esc_attr( $base ); ?>[agents][]" value="<?php echo esc_attr( $agent['id'] ); ?>" <?php checked( in_array( $agent['id'], $rule['agents'], true ) ); ?>> <?php echo esc_html( '' !== $agent['name'] ? $agent['name'] : '+' . $agent['phone'] ); ?></label>
+							<label class="ctxc-inline-check"><input type="checkbox" name="<?php echo esc_attr( $base ); ?>[agents][]" value="<?php echo esc_attr( $agent['id'] ); ?>" <?php checked( in_array( $agent['id'], $rule['agents'], true ) ); ?>> <?php echo esc_html( ContextChat_Settings::agent_label( $agent ) ); ?></label>
 						<?php endforeach; ?>
 					</fieldset>
 				<?php endif; ?>
@@ -471,15 +474,17 @@ class ContextChat_Admin {
 	 * @param string $help  Help text.
 	 */
 	private static function template_field( $key, $value, $name = '', $help = '' ) {
-		$name = '' !== $name ? $name : ContextChat_Settings::OPTION . '[' . $key . ']';
-		$id   = 'ctxc-tpl-' . md5( $name );
+		$name   = '' !== $name ? $name : ContextChat_Settings::OPTION . '[' . $key . ']';
+		// Built from the field name, so a row cloned from the <template> gets its own ID with its index.
+		$id     = 'ctxc-tpl-' . trim( preg_replace( '/[^A-Za-z0-9_]+/', '-', $name ), '-' );
+		$labels = self::placeholder_labels();
 		?>
 		<div class="ctxc-template">
 			<label class="screen-reader-text" for="<?php echo esc_attr( $id ); ?>"><?php esc_html_e( 'Message template', 'contextchat' ); ?></label>
 			<textarea id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" rows="3" class="large-text ctxc-template-input"><?php echo esc_textarea( $value ); ?></textarea>
 			<div class="ctxc-chips" role="group" aria-label="<?php esc_attr_e( 'Insert a placeholder', 'contextchat' ); ?>">
 				<?php foreach ( ContextChat_Template::placeholders() as $ph => $info ) : ?>
-					<button type="button" class="ctxc-chip ctxc-chip--<?php echo esc_attr( $info['scope'] ); ?>" data-insert="{<?php echo esc_attr( $ph ); ?>}" title="<?php echo esc_attr( $info['label'] ); ?>">{<?php echo esc_html( $ph ); ?>}</button>
+					<button type="button" class="ctxc-chip ctxc-chip--<?php echo esc_attr( $info['scope'] ); ?>" data-insert="{<?php echo esc_attr( $ph ); ?>}" title="<?php echo esc_attr( isset( $labels[ $ph ] ) ? $labels[ $ph ] : $ph ); ?>">{<?php echo esc_html( $ph ); ?>}</button>
 				<?php endforeach; ?>
 			</div>
 			<p class="ctxc-template-preview"><span class="ctxc-preview-label"><?php esc_html_e( 'Preview:', 'contextchat' ); ?></span> <span class="ctxc-preview-text"></span></p>
@@ -491,6 +496,33 @@ class ContextChat_Admin {
 			</p>
 		</div>
 		<?php
+	}
+
+	/**
+	 * What each placeholder stands for, shown as the tooltip of its chip.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function placeholder_labels() {
+		return array(
+			'page_title'    => __( 'Page title', 'contextchat' ),
+			'page_url'      => __( 'Page address', 'contextchat' ),
+			'site_name'     => __( 'Site name', 'contextchat' ),
+			'post_type'     => __( 'Content type', 'contextchat' ),
+			'category'      => __( 'Category', 'contextchat' ),
+			'search_query'  => __( 'Search terms', 'contextchat' ),
+			'product_name'  => __( 'Product name', 'contextchat' ),
+			'product_price' => __( 'Product price', 'contextchat' ),
+			'product_sku'   => __( 'Product SKU', 'contextchat' ),
+			'product_stock' => __( 'Stock status', 'contextchat' ),
+			'agent_name'    => __( 'Agent name', 'contextchat' ),
+			'utm_source'    => __( 'Campaign source', 'contextchat' ),
+			'utm_medium'    => __( 'Campaign medium', 'contextchat' ),
+			'utm_campaign'  => __( 'Campaign name', 'contextchat' ),
+			'referrer'      => __( 'Referring site', 'contextchat' ),
+			'date'          => __( 'Visitor date', 'contextchat' ),
+			'time'          => __( 'Visitor time', 'contextchat' ),
+		);
 	}
 
 	/**
@@ -609,174 +641,5 @@ class ContextChat_Admin {
 			</td>
 		</tr>
 		<?php
-	}
-
-	/**
-	 * Analytics screen.
-	 */
-	public static function analytics_page() {
-		if ( ! current_user_can( self::CAP ) ) {
-			return;
-		}
-		$days = isset( $_GET['range'] ) ? absint( $_GET['range'] ) : 30; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filter.
-		$days = in_array( $days, self::RANGES, true ) ? $days : 30;
-		$r    = ContextChat_Analytics::report( $days );
-		$s    = ContextChat_Settings::get();
-
-		$names = array( 'main' => __( 'Main number', 'contextchat' ) );
-		foreach ( $s['agents'] as $agent ) {
-			$names[ $agent['id'] ] = '' !== $agent['name'] ? $agent['name'] : '+' . $agent['phone'];
-		}
-		$sources = array(
-			'float'     => __( 'Floating button', 'contextchat' ),
-			'shortcode' => __( 'Shortcode', 'contextchat' ),
-			'block'     => __( 'Block', 'contextchat' ),
-			'product'   => __( 'Product button', 'contextchat' ),
-		);
-		$change = $r['previous'] > 0 ? round( ( $r['total'] - $r['previous'] ) / $r['previous'] * 100 ) : null;
-		$max    = max( 1, max( $r['daily'] ) );
-		?>
-		<div class="wrap ctxc-admin">
-			<h1><?php esc_html_e( 'ContextChat Analytics', 'contextchat' ); ?></h1>
-			<?php if ( empty( $s['analytics'] ) ) : ?>
-				<div class="notice notice-warning inline"><p><?php esc_html_e( 'Click counting is turned off in Settings → WooCommerce & advanced.', 'contextchat' ); ?></p></div>
-			<?php endif; ?>
-
-			<div class="ctxc-range">
-				<?php foreach ( self::RANGES as $range ) : ?>
-					<a class="button <?php echo $range === $days ? 'button-primary' : ''; ?>" href="<?php echo esc_url( add_query_arg( 'range', $range ) ); ?>" <?php echo $range === $days ? 'aria-current="page"' : ''; ?>>
-						<?php echo esc_html( sprintf( /* translators: %d: number of days. */ __( 'Last %d days', 'contextchat' ), $range ) ); ?>
-					</a>
-				<?php endforeach; ?>
-				<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=contextchat_export&range=' . $days ), 'contextchat_export' ) ); ?>"><?php esc_html_e( 'Export CSV', 'contextchat' ); ?></a>
-			</div>
-
-			<div class="ctxc-cards">
-				<div class="ctxc-card">
-					<p class="ctxc-card-label"><?php esc_html_e( 'Chats started', 'contextchat' ); ?></p>
-					<p class="ctxc-card-value"><?php echo esc_html( number_format_i18n( $r['total'] ) ); ?></p>
-					<?php if ( null !== $change ) : ?>
-						<p class="ctxc-card-note <?php echo $change >= 0 ? 'is-up' : 'is-down'; ?>">
-							<?php echo esc_html( sprintf( /* translators: 1: signed percent change, 2: days. */ __( '%1$s%% vs the previous %2$d days', 'contextchat' ), ( $change > 0 ? '+' : '' ) . $change, $days ) ); ?>
-						</p>
-					<?php endif; ?>
-				</div>
-				<div class="ctxc-card">
-					<p class="ctxc-card-label"><?php esc_html_e( 'Daily average', 'contextchat' ); ?></p>
-					<p class="ctxc-card-value"><?php echo esc_html( number_format_i18n( $r['total'] / $days, 1 ) ); ?></p>
-				</div>
-				<div class="ctxc-card">
-					<p class="ctxc-card-label"><?php esc_html_e( 'From phones', 'contextchat' ); ?></p>
-					<p class="ctxc-card-value">
-						<?php
-						$mobile = 0;
-						foreach ( $r['devices'] as $row ) {
-							if ( 'mobile' === $row['device'] ) {
-								$mobile = (int) $row['n'];
-							}
-						}
-						echo esc_html( $r['total'] ? round( $mobile / $r['total'] * 100 ) . '%' : '–' );
-						?>
-					</p>
-				</div>
-			</div>
-
-			<div class="ctxc-panel-box">
-				<h2><?php esc_html_e( 'Chats per day', 'contextchat' ); ?></h2>
-				<div class="ctxc-chart" role="img" aria-label="<?php echo esc_attr( sprintf( /* translators: 1: total, 2: days. */ __( '%1$d chats over %2$d days', 'contextchat' ), $r['total'], $days ) ); ?>">
-					<?php foreach ( $r['daily'] as $date => $n ) : ?>
-						<span class="ctxc-bar" style="<?php echo esc_attr( 'height:' . max( 2, round( $n / $max * 100 ) ) . '%' ); ?>" title="<?php echo esc_attr( date_i18n( get_option( 'date_format' ), strtotime( $date ) ) . ': ' . $n ); ?>"></span>
-					<?php endforeach; ?>
-				</div>
-			</div>
-
-			<div class="ctxc-grid">
-				<div class="ctxc-panel-box">
-					<h2><?php esc_html_e( 'Top pages', 'contextchat' ); ?></h2>
-					<?php if ( $r['pages'] ) : ?>
-						<table class="widefat striped">
-							<thead><tr><th><?php esc_html_e( 'Page', 'contextchat' ); ?></th><th class="num"><?php esc_html_e( 'Chats', 'contextchat' ); ?></th></tr></thead>
-							<tbody>
-								<?php foreach ( $r['pages'] as $row ) : ?>
-									<?php $title = $row['post_id'] ? get_the_title( (int) $row['post_id'] ) : ''; ?>
-									<tr>
-										<td><?php echo esc_html( '' !== $title ? $title : $row['path'] ); ?><br><code><?php echo esc_html( $row['path'] ); ?></code></td>
-										<td class="num"><?php echo esc_html( number_format_i18n( (int) $row['n'] ) ); ?></td>
-									</tr>
-								<?php endforeach; ?>
-							</tbody>
-						</table>
-					<?php else : ?>
-						<p><?php esc_html_e( 'No chats yet in this period.', 'contextchat' ); ?></p>
-					<?php endif; ?>
-				</div>
-				<div class="ctxc-panel-box">
-					<h2><?php esc_html_e( 'By agent', 'contextchat' ); ?></h2>
-					<?php self::share_list( $r['agents'], 'agent', $names, $r['total'] ); ?>
-					<h2><?php esc_html_e( 'By button', 'contextchat' ); ?></h2>
-					<?php self::share_list( $r['sources'], 'source', $sources, $r['total'] ); ?>
-				</div>
-			</div>
-		</div>
-		<?php
-	}
-
-	/**
-	 * A list of shares with bars.
-	 *
-	 * @param array  $rows  Rows with a key column and n.
-	 * @param string $col   Key column.
-	 * @param array  $names Display names.
-	 * @param int    $total Total for percentages.
-	 */
-	private static function share_list( array $rows, $col, array $names, $total ) {
-		if ( ! $rows ) {
-			echo '<p>' . esc_html__( 'No data yet.', 'contextchat' ) . '</p>';
-			return;
-		}
-		echo '<ul class="ctxc-shares">';
-		foreach ( $rows as $row ) {
-			$key   = (string) $row[ $col ];
-			$label = isset( $names[ $key ] ) ? $names[ $key ] : ( '' !== $key ? $key : __( 'Unknown', 'contextchat' ) );
-			$pct   = $total ? round( (int) $row['n'] / $total * 100 ) : 0;
-			printf(
-				'<li><span class="ctxc-share-label">%1$s</span><span class="ctxc-share-n">%2$s</span><span class="ctxc-share-bar"><span style="%3$s"></span></span></li>',
-				esc_html( $label ),
-				esc_html( number_format_i18n( (int) $row['n'] ) . ' · ' . $pct . '%' ),
-				esc_attr( 'width:' . $pct . '%' )
-			);
-		}
-		echo '</ul>';
-	}
-
-	/**
-	 * Download clicks as CSV.
-	 */
-	public static function export() {
-		if ( ! current_user_can( self::CAP ) ) {
-			wp_die( esc_html__( 'You are not allowed to export this data.', 'contextchat' ), 403 );
-		}
-		check_admin_referer( 'contextchat_export' );
-		$days = isset( $_GET['range'] ) ? absint( $_GET['range'] ) : 30;
-		$days = in_array( $days, self::RANGES, true ) ? $days : 30;
-
-		nocache_headers();
-		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename=contextchat-clicks-' . gmdate( 'Y-m-d' ) . '.csv' );
-
-		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
-		fputcsv( $out, array( 'time_utc', 'post_id', 'path', 'agent', 'rule', 'source', 'device' ) );
-		foreach ( ContextChat_Analytics::rows( $days ) as $row ) {
-			// Neutralise spreadsheet formulas in text cells.
-			$row = array_map(
-				static function ( $v ) {
-					return preg_match( '/^[=+\-@\t\r]/', (string) $v ) ? "'" . $v : $v;
-				},
-				$row
-			);
-			fputcsv( $out, $row );
-		}
-		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
-		exit;
 	}
 }

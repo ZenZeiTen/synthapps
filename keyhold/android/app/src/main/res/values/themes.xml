@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light; values-night/themes.xml is the dark one. The web app follows the same choice. -->
+    <style name="Theme.Keyhold" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/kh_bg</item>
+        <item name="android:statusBarColor">@color/kh_bg</item>
+        <item name="android:navigationBarColor">@color/kh_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

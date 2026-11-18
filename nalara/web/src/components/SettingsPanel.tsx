@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
-import type { AuditEntry, GovernorSnapshot, KernelEvent, KernelStatus, McpServerStatus, SecretInfo, ToolPolicy, TriggerRule } from "../types";
+import type { AuditEntry, ClaudeState, GovernorSnapshot, KernelEvent, KernelStatus, McpServerStatus, SecretInfo, ToolPolicy, TriggerRule } from "../types";
 import { SidePanel } from "./SidePanel";
 import { IconEvents, IconRefresh, IconShield } from "./Icons";
 
@@ -12,6 +12,8 @@ interface Props {
   onStatusChanged: () => void;
   onOpenEvents: () => void;
   onOpenObservatory?: () => void;
+  /** Restarts Nalara in place; resolves false when it cannot restart itself. */
+  onRestart?: () => Promise<boolean>;
 }
 
 const POLICY_HELP: Record<ToolPolicy["mode"], string> = {
@@ -20,7 +22,7 @@ const POLICY_HELP: Record<ToolPolicy["mode"], string> = {
   readonly: "Only reversible read and search tools run.",
 };
 
-export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChanged, onOpenEvents, onOpenObservatory }: Props) {
+export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChanged, onOpenEvents, onOpenObservatory, onRestart }: Props) {
   const [policy, setPolicy] = useState<ToolPolicy | null>(null);
   const [mcp, setMcp] = useState<McpServerStatus[] | null>(null);
   const [triggers, setTriggers] = useState<TriggerRule[] | null>(null);
@@ -30,6 +32,10 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
   const [secrets, setSecrets] = useState<SecretInfo[] | null>(null);
   const [form, setForm] = useState({ name: "", command: "", args: "" });
   const [secretForm, setSecretForm] = useState({ name: "", value: "" });
+  const [claude, setClaude] = useState<ClaudeState | null>(null);
+  const [claudeKey, setClaudeKey] = useState("");
+  /** What the Claude section is doing right now, shown under its button. */
+  const [claudeStep, setClaudeStep] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const guard = useCallback(async <T,>(key: string, fn: () => Promise<T>, set: (v: T) => void) => {
@@ -52,6 +58,7 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
     void guard("governor", api.governor, setGovernor);
     void guard("audit", () => api.audit({ limit: 40 }), setAudit);
     void guard("secrets", api.secrets, setSecrets);
+    void guard("claude", api.claude, setClaude);
   }, [guard]);
 
   useEffect(() => loadAll(), [loadAll]);
@@ -153,6 +160,59 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
     }
   };
 
+  /** After the key changed: restart in place when possible, else say what to do. */
+  const applyClaudeChange = async (done: string) => {
+    if (!onRestart || !claude?.canRestart) {
+      setClaudeStep(`${done} Close Nalara and start it again to apply it.`);
+      return;
+    }
+    setClaudeStep(`${done} Restarting Nalara...`);
+    try {
+      const restarted = await onRestart();
+      setClaudeStep(restarted ? null : `${done} Close Nalara and start it again to apply it.`);
+      if (restarted) {
+        const next = await api.claude();
+        setClaude(next);
+        onToast(next.mode === "claude" ? `Nalara now uses Claude (${next.model})` : "Nalara restarted; it is offline");
+        onStatusChanged();
+      }
+    } catch (e) {
+      setClaudeStep(null);
+      onToast((e as Error).message, "error");
+    }
+  };
+
+  const saveClaudeKey = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!claudeKey.trim()) return;
+    setBusy("claude");
+    setClaudeStep("Checking the key with Anthropic...");
+    try {
+      await api.setClaudeKey(claudeKey.trim());
+      setClaudeKey("");
+      void guard("secrets", api.secrets, setSecrets);
+      await applyClaudeChange("Key checked and saved.");
+    } catch (err) {
+      setClaudeStep(null);
+      onToast((err as Error).message, "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeClaudeKey = async () => {
+    setBusy("claude");
+    try {
+      await api.deleteClaudeKey();
+      void guard("secrets", api.secrets, setSecrets);
+      await applyClaudeChange("Key removed.");
+    } catch (err) {
+      onToast((err as Error).message, "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const err = (k: string) =>
     errors[k] ? (
       <p className="inline-error" role="alert">
@@ -162,6 +222,66 @@ export function SettingsPanel({ status, onClose, onToast, onEvent, onStatusChang
 
   return (
     <SidePanel title="Settings" subtitle="Kernel, tool policy, MCP servers, triggers and the audit ledger." onClose={onClose} wide>
+      <section className="panel-sec claude-sec" aria-label="Claude">
+        <h3>Claude</h3>
+        {err("claude")}
+        {claude ? (
+          <>
+            <p className="small">
+              {claude.mode === "claude" ? (
+                <>
+                  <span className="badge badge-accent">Claude</span> Nalara uses <span className="mono">{claude.model}</span> to understand intents and run its agents.
+                </>
+              ) : (
+                <>
+                  <span className="badge badge-amber">Offline</span> Without Claude, the agents are simple rule-based checkers: they can review code, check security, run tests and
+                  search the files in your Nalara folder, but they cannot write, translate, summarize or answer questions.
+                </>
+              )}
+            </p>
+            {claude.credentials === "environment" ? (
+              <p className="small muted">The key comes from this computer&apos;s environment (ANTHROPIC_API_KEY or an Anthropic sign-in profile).</p>
+            ) : null}
+            {claude.credentials === "settings" ? (
+              <div className="row gap">
+                <p className="small muted grow">The key is saved in Nalara&apos;s settings, on this computer only.</p>
+                <button type="button" className="btn btn-sm" disabled={busy === "claude"} onClick={() => void removeClaudeKey()}>
+                  Remove key
+                </button>
+              </div>
+            ) : null}
+            {claude.credentials !== "environment" ? (
+              <form className="form" onSubmit={saveClaudeKey}>
+                <label className="field">
+                  <span className="field-label">{claude.credentials === "settings" ? "Replace the API key" : "Anthropic API key"}</span>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={claudeKey}
+                    onChange={(e) => setClaudeKey(e.target.value)}
+                    placeholder="sk-ant-..."
+                    aria-describedby="claude-key-help"
+                  />
+                </label>
+                <p id="claude-key-help" className="small muted">
+                  Create one at console.anthropic.com (API keys). Nalara checks it with Anthropic before saving it. It is stored on this computer and never shown to
+                  agents; Claude use is billed to your Anthropic account.
+                </p>
+                <button type="submit" className="btn btn-primary" disabled={busy === "claude" || !claudeKey.trim()}>
+                  {busy === "claude" ? "Working..." : "Check and save key"}
+                </button>
+              </form>
+            ) : null}
+            {claudeStep ? (
+              <p className="small" role="status">
+                {claudeStep}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </section>
+
       <section className="panel-sec">
         <div className="row between">
           <h3>Kernel</h3>

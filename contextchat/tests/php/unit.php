@@ -11,6 +11,7 @@ $plugin = dirname( __DIR__, 2 ) . '/plugin/contextchat';
 require $plugin . '/includes/class-template.php';
 require $plugin . '/includes/class-context.php';
 require $plugin . '/includes/class-updates.php';
+require $plugin . '/includes/class-analytics.php';
 
 // Just enough of WordPress's hook and plugin API for ContextChat_Updates.
 define( 'CONTEXTCHAT_FILE', $plugin . '/contextchat.php' );
@@ -51,6 +52,9 @@ foreach ( $cases as $case ) {
 $long = ContextChat_Template::render( str_repeat( 'ab ', 600 ), array() );
 check( 'template: long messages are cut to the limit', mb_strlen( $long ), ContextChat_Template::MAX_LENGTH );
 check( 'template: cut messages end with an ellipsis', mb_substr( $long, -1 ), '…' );
+
+check( 'template: text a visitor typed keeps its punctuation', ContextChat_Template::tidy( "Thanks :)  ( )\r\n\r\n\r\n\r\nBye , now " ), "Thanks :) ( )\n\nBye , now" );
+check( 'template: a value cannot smuggle in the empty-placeholder mark', ContextChat_Template::render( 'A ({x}) B', array( 'x' => "\0" ) ), 'A B' );
 
 // Phone numbers.
 $phones = array(
@@ -110,6 +114,46 @@ $rules = array(
 );
 check( 'rules: first match wins', ContextChat_Context::first_match( $rules, $env )['id'], 'r2' );
 check( 'rules: no match', ContextChat_Context::first_match( array( $rules[0] ), $env ), null );
+
+// Analytics: clicks are stored in UTC and counted on the day they fall on in the site time zone.
+$slot = function ( $day, $hour, $quarter, $n = 1 ) {
+	return array( 'd' => $day, 'h' => (string) $hour, 'q' => (string) $quarter, 'n' => (string) $n );
+};
+check(
+	'analytics: Jakarta (UTC+7), a click at 17:00 UTC belongs to the next local day',
+	ContextChat_Analytics::daily_counts(
+		array( $slot( '2026-11-11', 16, 3 ), $slot( '2026-11-11', 17, 0, 2 ), $slot( '2026-11-12', 2, 0 ), $slot( '2026-11-09', 16, 3, 9 ) ),
+		3,
+		new DateTimeZone( 'Asia/Jakarta' ),
+		strtotime( '2026-11-12 03:00:00 UTC' )
+	),
+	array( '2026-11-10' => 0, '2026-11-11' => 1, '2026-11-12' => 3 )
+);
+check(
+	'analytics: Kathmandu (UTC+5:45), quarter-hour offsets land on the right day',
+	ContextChat_Analytics::daily_counts(
+		array( $slot( '2026-11-11', 18, 0 ), $slot( '2026-11-11', 18, 1, 4 ) ),
+		2,
+		new DateTimeZone( 'Asia/Kathmandu' ),
+		strtotime( '2026-11-12 03:00:00 UTC' )
+	),
+	array( '2026-11-11' => 1, '2026-11-12' => 4 )
+);
+check(
+	'analytics: New York, the 25-hour day when daylight saving ends keeps its last hour',
+	ContextChat_Analytics::daily_counts(
+		array( $slot( '2026-11-01', 3, 3 ), $slot( '2026-11-01', 4, 0, 2 ), $slot( '2026-11-02', 4, 3, 5 ), $slot( '2026-11-02', 5, 0, 7 ) ),
+		3,
+		new DateTimeZone( 'America/New_York' ),
+		strtotime( '2026-11-03 12:00:00 UTC' )
+	),
+	array( '2026-11-01' => 7, '2026-11-02' => 7, '2026-11-03' => 0 )
+);
+check(
+	'analytics: UTC, days without clicks are listed with zero, oldest first',
+	ContextChat_Analytics::daily_counts( array( $slot( '2026-11-12', 0, 0 ) ), 3, new DateTimeZone( 'UTC' ), strtotime( '2026-11-12 23:59:00 UTC' ) ),
+	array( '2026-11-10' => 0, '2026-11-11' => 0, '2026-11-12' => 1 )
+);
 
 // Updates: WordPress.org must not offer a same-named plugin as an update to this one.
 ContextChat_Updates::init();

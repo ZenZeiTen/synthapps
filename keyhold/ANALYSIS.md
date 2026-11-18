@@ -35,7 +35,7 @@ HMAC-SHA256 protects integrity.
 | Area | Password Safe 3.73 | Keyhold |
 |---|---|---|
 | Installation | NSIS installer needing administrator rights (an MSI and a zip are also offered) | One file, runs as the user, no installer |
-| Platforms | Native per platform (Windows MFC; separate Linux/macOS builds) | One program for Windows, Linux, macOS; any browser and phones through the sync server |
+| Platforms | Native per platform (Windows MFC; separate Linux/macOS builds) | One program for Windows, Linux, macOS; an Android app; an installable web app for any browser |
 | Online access | None built in; copy the file yourself | Optional self-hosted sync server; web app that also works offline |
 | Merging between copies | Manual "Compare/Merge/Synchronize" | Automatic, per item; nothing typed on any device is lost |
 | Item structure | One entry type for everything; cards or bank details go into notes or custom fields | 8 typed item kinds with proper fields, plus custom fields |
@@ -89,5 +89,10 @@ neutralising spreadsheet formulas in exported CSV.
   per-entry global hotkeys. See PASSWORD_SAFE_MAP.md for the full list.
 - **`.psafe3` files are not read directly**; Password Safe's XML export is the bridge.
 - The Windows executable is not code-signed, so SmartScreen warns on first run.
+- **On Android and in the web app without a server, the vault lives in the app's or the
+  browser's storage.** Uninstalling the app or clearing site data deletes it; the app turns
+  Android's cloud backup off so the vault never leaves the phone unasked. Encrypted backups
+  and the sync server are the safeguards. The Android app is not on Google Play; it is
+  installed from the APK.
 - The Windows build is checked by automated tests on Windows in CI; it was built and tested on
   Linux during development, where the same code runs.

@@ -3,7 +3,19 @@
  * Mutating requests carry `X-Nalara-Client: 1`; errors surface as ApiError with the server's message.
  */
 import type {
+  TaskItem,
+  InstalledApp,
+  TerminalEvent,
+  FileEntry,
+  FileListing,
+  Place,
+  TrashItem,
+  AssistantEvent,
+  AssistantMessage,
+  Conversation,
   AgentDefinition,
+  ClaudeState,
+  IntentPreview,
   AgentInstance,
   AgentPerformance,
   ApprovalRequest,
@@ -12,7 +24,6 @@ import type {
   FileKind,
   GovernorSnapshot,
   GraphSlice,
-  IntentClassification,
   JournalEntry,
   KernelEvent,
   KernelStatus,
@@ -119,9 +130,11 @@ export const api = {
     ),
   node: (id: string) => request<NodeDetail>("GET", `/api/nodes/${enc(id)}`),
 
-  submitIntent: (text: string, run = true) => request<{ workspace: Workspace }>("POST", "/api/intents", { text, run }),
+  /** `offlineAnyway`: run the offline checks even when the intent needs Claude (otherwise 422 needs_claude). */
+  submitIntent: (text: string, run = true, offlineAnyway = false) =>
+    request<{ workspace: Workspace }>("POST", "/api/intents", { text, run, ...(offlineAnyway ? { offlineAnyway: true } : {}) }),
   classifyIntent: (text: string, signal?: AbortSignal) =>
-    request<IntentClassification>("POST", "/api/intents/classify", { text }, signal),
+    request<IntentPreview>("POST", "/api/intents/classify", { text }, signal),
 
   workspaces: () => request<Workspace[]>("GET", "/api/workspaces"),
   workspace: (id: string, signal?: AbortSignal) => request<WorkspaceDetail>("GET", `/api/workspaces/${enc(id)}`, undefined, signal),
@@ -182,6 +195,12 @@ export const api = {
   runWorkflow: (id: string) => request<{ started: true }>("POST", `/api/workflows/${enc(id)}/run`),
 
   halt: (reason: string) => request<KernelStatus>("POST", "/api/kernel/halt", { reason }),
+  /** 501 restart_unavailable when this Nalara has no supervisor (then the user restarts it). */
+  restart: () => request<{ restarting: true }>("POST", "/api/kernel/restart", {}),
+  claude: () => request<ClaudeState>("GET", "/api/claude"),
+  /** Checks the key with Anthropic first: 400 claude_key_rejected, 502 claude_unreachable. */
+  setClaudeKey: (key: string) => request<{ saved: true; replaced: boolean; canRestart: boolean }>("PUT", "/api/claude/key", { key }),
+  deleteClaudeKey: () => request<{ ok: boolean; canRestart: boolean }>("DELETE", "/api/claude/key"),
   resume: () => request<KernelStatus>("POST", "/api/kernel/resume"),
 
   audit: (opts: { since?: number; limit?: number } = {}) =>
@@ -201,7 +220,127 @@ export const api = {
 
   events: (opts: { since?: number; limit?: number; correlationId?: string } = {}) =>
     request<KernelEvent[]>("GET", `/api/events${qs({ since: opts.since, limit: opts.limit, correlationId: opts.correlationId })}`),
+
+  places: () => request<{ places: Place[]; suggested: { name: string; path: string }[] }>("GET", "/api/places"),
+  addPlace: (path: string, name?: string) => request<Place>("POST", "/api/places", { path, ...(name ? { name } : {}) }),
+  removePlace: (id: string) => request<{ ok: true }>("DELETE", `/api/places/${enc(id)}`),
+  listFiles: (place: string, path: string, opts: { hidden?: boolean } = {}, signal?: AbortSignal) =>
+    request<FileListing>("GET", `/api/files/list${qs({ place, path, hidden: opts.hidden ? 1 : undefined })}`, undefined, signal),
+  readText: (place: string, path: string, signal?: AbortSignal) =>
+    request<{ path: string; content: string; kind: FileKind }>("GET", `/api/files/content${qs({ path, place: place === "home" ? undefined : place })}`, undefined, signal),
+  saveText: (place: string, path: string, content: string, mode: "create" | "overwrite" | "any" = "any") =>
+    request<FileEntry>("PUT", "/api/files/content", { place, path, content, mode }),
+  mkdir: (place: string, path: string) => request<FileEntry>("POST", "/api/files/mkdir", { place, path }),
+  /** Creates a top-level folder of a place unless it exists (checked first, so no error response is logged). */
+  ensureFolder: async (place: string, name: string) => {
+    const top = await request<FileListing>("GET", `/api/files/list${qs({ place, path: "" })}`);
+    if (!top.entries.some((e) => e.type === "dir" && e.name === name)) await request<FileEntry>("POST", "/api/files/mkdir", { place, path: name });
+  },
+  moveFile: (place: string, from: string, to: string) => request<FileEntry>("POST", "/api/files/move", { place, from, to }),
+  copyFile: (place: string, from: string, to: string) => request<FileEntry>("POST", "/api/files/copy", { place, from, to }),
+  trashFile: (place: string, path: string) => request<TrashItem>("POST", "/api/files/trash", { place, path }),
+  openExternal: (place: string, path: string) => request<{ ok: true }>("POST", "/api/files/open", { place, path }),
+  rawUrl: (place: string, path: string) => `/api/files/raw${qs({ place, path })}`,
+  trash: () => request<TrashItem[]>("GET", "/api/trash"),
+  restore: (id: string) => request<FileEntry>("POST", `/api/trash/${enc(id)}/restore`),
+  purge: (id: string) => request<{ ok: true }>("DELETE", `/api/trash/${enc(id)}`),
+  emptyTrash: () => request<{ removed: number }>("DELETE", "/api/trash"),
+
+  assistant: () => request<{ online: boolean; mode: "claude" | "offline"; model: string }>("GET", "/api/assistant"),
+  conversations: () => request<Conversation[]>("GET", "/api/assistant/conversations"),
+  conversation: (id: string) => request<AssistantMessage[]>("GET", `/api/assistant/conversations/${enc(id)}`),
+  deleteConversation: (id: string) => request<{ ok: true }>("DELETE", `/api/assistant/conversations/${enc(id)}`),
+  ask: askAssistant,
+
+  terminal: () => request<{ shell: string; home: string; running: string[] }>("GET", "/api/terminal"),
+  run: runCommand,
+  terminalInput: (id: string, text: string) => request<{ ok: true }>("POST", `/api/terminal/${enc(id)}/input`, { text }),
+  terminalKill: (id: string) => request<{ ok: true }>("POST", `/api/terminal/${enc(id)}/kill`),
+  tasks: () => request<TaskItem[]>("GET", "/api/tasks"),
+  addTask: (input: { title: string; notes?: string; due?: string | null }) => request<TaskItem>("POST", "/api/tasks", input),
+  updateTask: (id: string, patch: { title?: string; notes?: string; due?: string | null; done?: boolean }) => request<TaskItem>("PUT", `/api/tasks/${enc(id)}`, patch),
+  deleteTask: (id: string) => request<{ ok: true }>("DELETE", `/api/tasks/${enc(id)}`),
+  installedApps: (q?: string) => request<InstalledApp[]>("GET", `/api/launcher${qs({ q })}`),
+  refreshApps: () => request<InstalledApp[]>("POST", "/api/launcher/refresh"),
+  launchApp: (id: string) => request<InstalledApp>("POST", "/api/launcher/launch", { id }),
 };
+
+/** POSTs JSON and reads an NDJSON response, one event per line. Errors before the stream starts throw ApiError. */
+async function streamNdjson<E>(path: string, body: unknown, onEvent: (ev: E) => void, signal?: AbortSignal): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/x-ndjson", "X-Nalara-Client": "1" },
+      body: JSON.stringify(body),
+      signal,
+      credentials: "same-origin",
+    });
+  } catch (err) {
+    if ((err as Error)?.name === "AbortError") throw err;
+    throw new ApiError("Kernel unreachable", 0);
+  }
+  if (!res.ok || !res.body) {
+    let msg = res.statusText || `HTTP ${res.status}`;
+    let code: string | undefined;
+    try {
+      const b = (await res.json()) as { error?: string; code?: string };
+      msg = b.error ?? msg;
+      code = b.code;
+    } catch {
+      /* not JSON */
+    }
+    throw new ApiError(msg, res.status, code);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const handle = (line: string) => {
+    if (!line.trim()) return;
+    try {
+      onEvent(JSON.parse(line) as E);
+    } catch {
+      /* a malformed line is skipped */
+    }
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      handle(buffer.slice(0, nl));
+      buffer = buffer.slice(nl + 1);
+    }
+  }
+  handle(buffer + decoder.decode());
+}
+
+/**
+ * POST /api/assistant/ask: calls `onEvent` for each streamed event and resolves with the saved answer.
+ * Aborting the signal stops the answer on the kernel too.
+ */
+export async function askAssistant(
+  text: string,
+  opts: { conversationId?: string; signal?: AbortSignal; onEvent: (ev: AssistantEvent) => void },
+): Promise<AssistantMessage | undefined> {
+  let answer: AssistantMessage | undefined;
+  await streamNdjson<AssistantEvent>(
+    "/api/assistant/ask",
+    { text, ...(opts.conversationId ? { conversationId: opts.conversationId } : {}) },
+    (ev) => {
+      if (ev.type === "done") answer = ev.message;
+      opts.onEvent(ev);
+    },
+    opts.signal,
+  );
+  return answer;
+}
+
+/** POST /api/terminal/run: streams the command's output. Aborting the signal stops the command. */
+export function runCommand(command: string, cwd: string | undefined, onEvent: (ev: TerminalEvent) => void, signal?: AbortSignal): Promise<void> {
+  return streamNdjson<TerminalEvent>("/api/terminal/run", { command, ...(cwd ? { cwd } : {}) }, onEvent, signal);
+}
 
 export type ConnectionState = "connecting" | "open" | "reconnecting";
 
