@@ -75,6 +75,10 @@ npm run android:apk          # builds the web app, copies it in, and runs gradle
 
 Or open `android/` in Android Studio after `npm run android:sync`. To publish on Google Play, create a release keystore and build with `./gradlew bundleRelease`.
 
+The APK's version comes from `package.json` (1.1.1 becomes versionName 1.1.1, versionCode 10101), so every release can update the one before it. Debug builds are signed with `android/app/vitalis-debug.keystore`, a fixed test key kept in the repository: Android only updates an installed app when the new APK has the same signature, and without a fixed key each build machine would sign with its own random key. It is fine for test builds; a Google Play release needs a private key that stays out of the repository.
+
+Since September 2026, certified Android phones in Brazil, Indonesia, Singapore and Thailand block apps from developers who have not registered with Google when they are installed from outside the app stores. In those countries a downloaded APK installs only after turning on **Settings > System > Developer options > Apps from unverified developers** (a one-time, 24-hour wait), or through `adb install` with USB debugging; elsewhere it installs after allowing installs from the browser or file manager.
+
 The GitHub Actions workflow [`.github/workflows/vitalis.yml`](../.github/workflows/vitalis.yml) runs the tests and uploads `vitalis-web.zip` and `Vitalis-debug.apk` as artifacts on every pull request. To publish both on a GitHub release, open **Actions > Vitalis > Run workflow** on `main` and tick **Publish a release**: it releases the version in `package.json` as `vitalis-v<version>`. Pushing a tag with that name does the same. A version is released once; raise the version for the next release.
 
 ### Icons
