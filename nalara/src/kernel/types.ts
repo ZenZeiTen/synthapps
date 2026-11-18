@@ -164,11 +164,13 @@ export const EVENT_TYPES = [
   "review.round",
   "review.verdict",
   "secret.changed",
+  "reminder.due",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 /** Display names used by the UI, matching the spec's wording where it has one. */
 export const EVENT_LABELS: Partial<Record<EventType, string>> = {
+  "reminder.due": "Reminder",
   "node.created": "Node Created",
   "file.updated": "File Updated",
   "file.created": "File Created",
@@ -543,7 +545,7 @@ export interface ToolRegistry {
 export interface AuditEntry {
   seq: number;
   ts: string;
-  kind: "tool_call" | "approval" | "halt" | "resume" | "undo" | "budget" | "memory_confirm" | "policy" | "relay" | "verdict" | "secret";
+  kind: "tool_call" | "approval" | "halt" | "resume" | "undo" | "budget" | "memory_confirm" | "policy" | "relay" | "verdict" | "secret" | "file" | "shell" | "app";
   principal: Principal | null;
   subject: string; // tool name, workspace id, ...
   outcome: "allowed" | "denied" | "ok" | "error" | "info";
@@ -640,7 +642,8 @@ export interface McpManager {
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface AgentLoopEvent {
-  type: "text" | "tool_call" | "tool_result" | "turn";
+  /** "delta": text streamed while a turn is generated (with `streamText`); "text": the turn's final text, which replaces its deltas. */
+  type: "text" | "delta" | "tool_call" | "tool_result" | "turn";
   text?: string;
   tool?: string;
   input?: Record<string, unknown>;
@@ -672,8 +675,21 @@ export interface LLMProvider {
     effort?: Effort;
     signal?: AbortSignal;
     onEvent?: (event: AgentLoopEvent) => void;
+    /** Earlier turns of a conversation, oldest first; `task` is the newest user message. */
+    history?: ConversationTurn[];
+    /** Server-side tools run by the model provider itself (web search and fetch). Providers without them ignore this. */
+    serverTools?: ServerTool[];
+    /** Emit "delta" events while text is generated. */
+    streamText?: boolean;
   }): Promise<AgentLoopResult>;
 }
+
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export type ServerTool = "web_search" | "web_fetch";
 
 export class LLMError extends Error {
   constructor(
@@ -1137,7 +1153,7 @@ export interface NalaraConfig {
   dataDir: string;
   port: number;
   host: string;
-  /** Claude model id. Default "claude-opus-5". */
+  /** Claude model id. Default "claude-opus-5-5". */
   model: string;
   effort: Effort;
   /** Use Claude when credentials exist. Set false to force offline mode. */
@@ -1173,6 +1189,8 @@ export interface KernelStatus {
   projectName?: string;
   mode: "claude" | "offline";
   model: string;
+  /** Where the Claude credentials come from: the environment (or an `ant auth` profile), a key saved in Settings, or none. */
+  credentials: "environment" | "settings" | "none";
   startedAt: string;
   graph: { nodes: number; edges: number; byType: Record<string, number> };
   files: number;
@@ -1211,7 +1229,11 @@ export interface Kernel {
   stop(): Promise<void>;
   status(): KernelStatus;
   /** Intent -> workspace. With run (default true) the plan starts in the background; await `done` to wait for it. */
-  submitIntent(text: string, opts?: { run?: boolean }): Promise<{ workspace: Workspace; done: Promise<Workspace> }>;
+  /**
+   * Classifies, plans and (by default) runs an intent. With `offline: "refuse"`, an offline kernel throws
+   * NeedsClaudeError for intents only Claude can carry out (the UI and CLI use this; internal callers allow).
+   */
+  submitIntent(text: string, opts?: { run?: boolean; offline?: "refuse" | "allow" }): Promise<{ workspace: Workspace; done: Promise<Workspace> }>;
   runWorkspace(id: string): Promise<Workspace>;
   radialActions(nodeId: string | "root"): { kind: RadialKind; actions: RadialAction[] };
   radialAction(nodeId: string | "root", actionId: string, input?: Record<string, unknown>): Promise<RadialResult>;

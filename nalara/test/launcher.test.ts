@@ -137,3 +137,18 @@ describe("self-test", () => {
     expect(lines.join("\n")).toMatch(/Nalara check passed: api .*files indexed, mode offline; search -> .*battle_system\.ts; ui served/);
   }, 60_000);
 });
+
+describe("system certificates", () => {
+  it("adds the system store to the default certificates, once each, and skips Node versions without the API", async () => {
+    const { trustSystemCertificates } = await import("../src/kernel/trust");
+    let set: string[] = [];
+    const api = {
+      getCACertificates: (type?: string) => (type === "system" ? ["SYS1", "B1"] : ["B1", "B2"]),
+      setDefaultCACertificates: (certs: string[]) => void (set = certs),
+    };
+    expect(trustSystemCertificates(api)).toBe(2);
+    expect(set).toEqual(["B1", "B2", "SYS1"]);
+    expect(trustSystemCertificates({})).toBe(0);
+    expect(trustSystemCertificates({ getCACertificates: () => [], setDefaultCACertificates: () => undefined })).toBe(0);
+  });
+});

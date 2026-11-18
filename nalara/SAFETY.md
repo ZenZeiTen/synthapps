@@ -116,7 +116,10 @@ agents cannot learn across runs until a human confirms their memory.
   the root as cwd, but without namespaces or cgroups. Do not point Nalara at
   code you would not run yourself.
 - **Secrets are stored in plain text** in `<dataDir>/secrets.json` (mode
-  0600), not in an OS keychain. Values shorter than 6 characters are not
+  0600), not in an OS keychain. That includes a Claude API key saved in
+  Settings (`ANTHROPIC_API_KEY`), which is checked with one free Models API
+  call before it is stored, used only by the kernel's Claude client, and
+  redacted from output like every other secret. Values shorter than 6 characters are not
   redacted from output. An MCP server receives the resolved value; what it
   does with it is up to that server.
 - **Evidence checks are structural.** A critic's finding counts as verified

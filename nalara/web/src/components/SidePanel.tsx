@@ -8,10 +8,12 @@ interface Props {
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  /** Extra class for the body, e.g. to manage its own scrolling. */
+  bodyClassName?: string;
 }
 
 /** Glass panel on the left of the core. Escape closes it. */
-export function SidePanel({ title, subtitle, onClose, children, wide }: Props) {
+export function SidePanel({ title, subtitle, onClose, children, wide, bodyClassName }: Props) {
   const id = useId();
   const ref = useRef<HTMLElement>(null);
   const closeRef = useRef(onClose);
@@ -46,7 +48,7 @@ export function SidePanel({ title, subtitle, onClose, children, wide }: Props) {
           <IconClose size={16} />
         </button>
       </header>
-      <div className="side-panel-body">{children}</div>
+      <div className={`side-panel-body${bodyClassName ? ` ${bodyClassName}` : ""}`}>{children}</div>
     </aside>
   );
 }

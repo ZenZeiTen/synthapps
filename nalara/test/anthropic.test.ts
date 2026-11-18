@@ -35,7 +35,7 @@ function message(c: Exclude<Canned, Error>): BetaMessage {
     id: "msg_test",
     type: "message",
     role: "assistant",
-    model: "claude-opus-5",
+    model: "claude-opus-5-5",
     content: c.content,
     stop_reason: c.stop_reason,
     stop_sequence: null,
@@ -136,7 +136,7 @@ describe("createAnthropicProvider: request shape", () => {
     expect(calls).toHaveLength(1);
     const { mode, params } = calls[0];
     expect(mode).toBe("stream");
-    expect(params.model).toBe("claude-opus-5");
+    expect(params.model).toBe("claude-opus-5-5");
     expect(params.max_tokens).toBe(64000);
     expect(params.thinking).toEqual({ type: "adaptive" });
     expect(params.output_config).toEqual({ effort: "high" });

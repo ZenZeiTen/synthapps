@@ -117,7 +117,8 @@ describe("kernel: the four spec intents offline", () => {
     expect(ws.status).toBe("completed");
     const titles = ws.report!.findings.map((f) => f.title);
     expect(titles).toContain("Use of `any`");
-    expect(titles).toContain("Magic number in formula");
+    // The same finding at several places is grouped into one entry with the count in its title.
+    expect(titles.some((t) => t.startsWith("Magic number in formula"))).toBe(true);
     expect(titles.some((t) => /TODO/.test(t))).toBe(true);
   });
 

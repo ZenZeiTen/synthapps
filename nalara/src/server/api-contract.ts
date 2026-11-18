@@ -11,8 +11,9 @@
  * GET     /api/status                            -                            KernelStatus
  * GET     /api/graph?rootId=&depth=&types=&limit= -                           GraphSlice          (types: comma list)
  * GET     /api/nodes/:id                         -                            NodeDetail          (id is URL-encoded)
- * POST    /api/intents                           { text, run?: boolean }      { workspace: Workspace }
- * POST    /api/intents/classify                  { text }                     IntentClassification (no workspace created)
+ * POST    /api/intents                           { text, run?, offlineAnyway? } { workspace: Workspace }  (offline: 422 needs_claude for
+ *                                                                              intents that need Claude, unless offlineAnyway)
+ * POST    /api/intents/classify                  { text }                     IntentClassification & { label, needsClaude } (no workspace)
  * GET     /api/workspaces                        -                            Workspace[]
  * GET     /api/workspaces/:id                    -                            WorkspaceDetail
  * POST    /api/workspaces/:id/run                -                            { workspace: Workspace }   (starts in background)
@@ -26,7 +27,23 @@
  * POST    /api/radial/:nodeId/:actionId          { input?: object }           RadialResult
  * GET     /api/search?q=&limit=&kind=            -                            SearchHit[]
  * GET     /api/concepts                          -                            ConceptInfo[]
- * GET     /api/files/content?path=               -                            { path, content, kind }
+ * GET     /api/files/content?path=[&place=]      -                            { path, content, kind } (other places: + place, size, mtimeMs)
+ * Places and paths below: `place` is a place id (default "home", the Nalara folder); paths are relative to it.
+ * GET     /api/places                            -                            { places: Place[], suggested: {name, path}[] }
+ * POST    /api/places                            { path, name? }              Place (an absolute folder path on this computer)
+ * DELETE  /api/places/:id                        -                            { ok: true } (the folder itself is untouched)
+ * GET     /api/files/list?place=&path=&hidden=   -                            FileListing (folders first)
+ * PUT     /api/files/content                     { place?, path, content, mode?: "create"|"overwrite"|"any" }  FileEntry
+ * POST    /api/files/mkdir                       { place?, path }             FileEntry
+ * POST    /api/files/move                        { place?, from, to }         FileEntry (rename or move; 409 if the target exists)
+ * POST    /api/files/copy                        { place?, from, to }         FileEntry
+ * POST    /api/files/trash                       { place?, path }             TrashItem (recoverable)
+ * POST    /api/files/open                        { place?, path }             { ok: true } (default app; 403 for programs and scripts)
+ * GET     /api/files/raw?place=&path=            -                            the file bytes, images and PDF only, CSP sandbox
+ * GET     /api/trash                             -                            TrashItem[] (newest first)
+ * POST    /api/trash/:id/restore                 -                            FileEntry (its old place, or "name (restored).ext")
+ * DELETE  /api/trash/:id                         -                            { ok: true } (deleted for good)
+ * DELETE  /api/trash                             -                            { removed: number } (empty the trash)
  * GET     /api/memory?category=&q=&limit=&includeProposed= - MemoryRecord[]  (includeProposed=true also returns proposed records)
  * POST    /api/memory                            { category, key, content, tags? } MemoryRecord
  * DELETE  /api/memory/:id                        -                            { ok: boolean }
@@ -63,6 +80,31 @@
  * GET     /api/secrets                           -                            SecretInfo[]        (names only, never values)
  * PUT     /api/secrets/:name                     { value }                    SecretInfo
  * DELETE  /api/secrets/:name                     -                            { ok: boolean }
+ * GET     /api/claude                            -                            { mode, model, credentials: "environment"|"settings"|"none", canRestart }
+ * PUT     /api/claude/key                        { key }                      { saved, replaced, canRestart }  (checked with Anthropic first:
+ *                                                                              400 claude_key_rejected, 502 claude_unreachable)
+ * DELETE  /api/claude/key                        -                            { ok, canRestart }
+ * POST    /api/kernel/restart                    -                            { restarting: true }  (501 restart_unavailable without a supervisor)
+ * GET     /api/terminal                          -                            { shell, home, running: string[] }
+ * POST    /api/terminal/run                      { command, cwd? }            NDJSON stream: start, output (stdout|stderr), exit
+ *                                                                              (with the folder for the next command) or error.
+ *                                                                              Closing the request stops the command.
+ * POST    /api/terminal/:id/input                { text }                     { ok: true } (a line to the command's stdin)
+ * POST    /api/terminal/:id/kill                 -                            { ok: true }
+ * GET     /api/launcher[?q=]                     -                            InstalledApp[] (from the system's app menus)
+ * POST    /api/launcher/launch                   { id }                       InstalledApp (only ids from the list)
+ * POST    /api/launcher/refresh                  -                            InstalledApp[] (rescans)
+ * GET     /api/tasks[?done=0]                    -                            TaskItem[] (open first, by due time; done=0 hides done)
+ * POST    /api/tasks                             { title, notes?, due? }      TaskItem (due: ISO date-time; at that time reminder.due fires)
+ * PUT     /api/tasks/:id                         { title?, notes?, due?, done? } TaskItem (a new due time re-arms the reminder)
+ * DELETE  /api/tasks/:id                         -                            { ok: true }
+ * GET     /api/assistant                         -                            { online, mode, model }
+ * POST    /api/assistant/ask                     { text, conversationId? }    NDJSON stream, one event per line: start, delta,
+ *                                                                              turn_text, tool, tool_result, done (the saved
+ *                                                                              answer) or error. Closing the request stops it.
+ * GET     /api/assistant/conversations[?limit]   -                            Conversation[] (newest first)
+ * GET     /api/assistant/conversations/:id       -                            AssistantMessage[]
+ * DELETE  /api/assistant/conversations/:id       -                            { ok: true }
  * GET     /*                                     -                            web/dist static files (index.html fallback for non-/api paths)
  *
  * System interface (every route):
@@ -70,7 +112,7 @@
  *   unsupported_version.
  * - Errors are { error: string, code: string }. Codes: invalid_request, forbidden, not_found, conflict,
  *   payload_too_large, unprocessable, internal_error, kernel_halted, invalid_secret, unsupported_version,
- *   idempotency_conflict.
+ *   idempotency_conflict, needs_claude, claude_key_rejected, claude_unreachable, restart_unavailable.
  * - Mutating requests may send Idempotency-Key (at most 200 characters). The same key and body on the same route
  *   within 10 minutes replays the first response (any status below 500) with Idempotent-Replayed: true; the same key
  *   with a different body gets 422 idempotency_conflict.

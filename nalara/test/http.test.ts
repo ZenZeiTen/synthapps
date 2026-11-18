@@ -532,7 +532,7 @@ describe("HTTP API: secrets", () => {
 
 describe("HTTP API: fleet", () => {
   it("exposes the process tree, relay, fleet memory, Observatory and work queue", async () => {
-    const { json } = await post("/api/intents", { text: "Implement a new feature: merchant discounts" });
+    const { json } = await post("/api/intents", { text: "Implement a new feature: merchant discounts", offlineAnyway: true });
     const id = json.workspace.id as string;
     const ws = await kernel.runWorkspace(id).catch(() => kernel.workspaces.get(id)!);
     expect(["completed", "failed"]).toContain(ws.status);
