@@ -1,0 +1,96 @@
+{
+  "_doc": "Every word the game shows. A page is {who, lines}; `who` names a portrait (or empty). With a portrait a line holds 36 characters, without one 46. The `fit` harness check fails on any line that spills out of its window.",
+  "opening": [
+    {"who": "", "lines": ["The Saltmarch is a chain of tidal islands,", "strung around a whirlpool called the Maw.", "", "Six bronze bells hang on its rim. Their", "ringing keeps the Grey Tide asleep: a silt", "that turns all it touches to salt-stone."]},
+    {"who": "", "lines": ["One grey morning the bells fell silent.", "", "Captain Ossery Grane and his Brinecrow", "raiders had cut them down, to sell the", "bronze in far harbours."]},
+    {"who": "pell", "lines": ["The tide is rising, wardens. I can", "taste it in the lamp-oil.", "", "Bring the bells home. One on each", "island, and a guardian on each bell."]},
+    {"who": "pell", "lines": ["I am too old and too slow for climbing.", "But I keep a good lantern, and I keep", "count. Come back here between islands,", "and I will tell you what I know."]}
+  ],
+  "pell_reach": [{"who": "pell", "lines": ["Mangrove Reach first. The raiders", "moor there to take on water.", "", "Mind the roots. Climb the trunks when", "the way is blocked. Vell the Netter", "holds the first bell."]}],
+  "pell_harbor": [{"who": "pell", "lines": ["Lantern Harbor. My old home, before", "the raiders took the piers.", "", "Their bottle-throwers keep their", "distance. Close it. And the crabs", "have armour in front: hit from behind."]}],
+  "pell_village": [{"who": "pell", "lines": ["The Stilt Village trades with anyone,", "even Brinecrows. The Tallyman counts", "their coin there.", "", "Ropes run between the houses. High", "paths and low paths both go through."]}],
+  "pell_cliffs": [{"who": "pell", "lines": ["Gullstone Cliffs. Up, and up, and up.", "", "Old Grey nests at the top. She is no", "raider, but she guards that bell like", "an egg. Watch the sky when she dives."]}],
+  "pell_abbey": [{"who": "pell", "lines": ["The Drowned Abbey. The bell-keepers", "built it, long before the raiders.", "", "The inner gate is locked. The key hangs", "in the gallery, up the western column."]}],
+  "pell_brinecrow": [{"who": "pell", "lines": ["The last bell is on the Brinecrow", "herself, Grane's flagship.", "", "He knows you are coming. Carry tonics.", "Whatever happens on that deck, the", "bells must ring together."]}],
+  "pell_done": [{"who": "pell", "lines": ["Six bells. I never thought I would", "hear them all again."]}],
+  "captive_reach": [{"who": "villager", "lines": ["Warden! They tied me to the roots", "and took my boat.", "", "Take these knives. Use the item", "button to throw them."]}],
+  "captive_harbor": [{"who": "villager", "lines": ["The piers used to be lit all night.", "Now the raiders drink the lamp-oil.", "", "Here, a tonic. Drink it when you", "are hurt; it mends you whole."]}],
+  "captive_village": [{"who": "villager", "lines": ["The Tallyman keeps every coin he", "ever took in that ledger of his.", "", "Take this fury salt. With it, the", "Tide Cleave costs you nothing."]}],
+  "captive_cliffs": [{"who": "villager", "lines": ["I came up for gull eggs and could", "not get down again.", "", "Take a feather from the nest. It", "makes your jumps light for a while."]}],
+  "captive_abbey": [{"who": "villager", "lines": ["I was the last bell-keeper here.", "The halls flooded when the bells", "stopped.", "", "This charm calls up a squall. It", "strikes all the foes you can see."]}],
+  "captive_brinecrow": [{"who": "villager", "lines": ["I was a sail-maker. They pressed me", "into Grane's crew.", "", "Take this heartroot. It makes your", "heart stronger for good."]}],
+  "meet_vell": [{"who": "vell", "lines": ["A warden? On my water?", "", "I have netted eels bigger than you.", "The bell stays in my boat."]}],
+  "meet_hullbreaker": [{"who": "hullbreaker", "lines": ["* The great crab clacks its hammers", "against the pier. Its shell is", "plated with iron from a dozen hulls.", "It charges. *"]}],
+  "meet_tallyman": [{"who": "tallyman", "lines": ["One bell, bronze, heavy. Worth", "four hundred crowns on the mainland.", "", "You would take it for nothing?", "That is not how accounts work."]}],
+  "meet_oldgrey": [{"who": "oldgrey", "lines": ["* Old Grey spreads her wings over", "the bell in her nest. She has", "seen off eagles. She screams. *"]}],
+  "meet_warden": [{"who": "warden", "lines": ["...a bell... was taken... from", "this house...", "", "...none shall take... another..."]}],
+  "meet_grane": [
+    {"who": "grane", "lines": ["So you are the one ringing my bells.", "", "Do you know what bronze fetches in", "the south? More than your islands", "will be worth when the tide comes in."]},
+    {"who": "kess", "lines": ["When the tide comes in, there will", "be no south left to sell to.", "", "Put down the sword, Grane."]}
+  ],
+  "grane_change": [
+    {"who": "grane", "lines": ["No... NO. If I cannot have the", "bells, the tide can have them.", "And me with them!"]},
+    {"who": "", "lines": ["Grane leaps to the rail as the", "sea turns grey and thick beneath", "the ship. The silt rises up his", "boots, his coat, his throat..."]},
+    {"who": "siltking", "lines": ["WARDEN.", "", "THE TIDE REMEMBERS EVERY SHORE.", "IT WILL HAVE THEM ALL."]}
+  ],
+  "ending": [
+    {"who": "", "lines": ["The six bells are hung on the rim of", "the Maw again, one on every island.", "", "At dawn they ring together."]},
+    {"who": "", "lines": ["The grey silt shivers, slackens, and", "slides back into the deep. Salt-stone", "crumbles to plain sand on the shore."]},
+    {"who": "pell", "lines": ["Listen to that. You can hear it", "from every island at once.", "", "Well rung, wardens. Well rung."]},
+    {"who": "", "lines": ["The Brinecrows scatter to the south.", "The piers of Lantern Harbor are lit", "again, all night long.", "", "The tide is only the tide."]}
+  ],
+  "credits": [
+    "TIDEBELL",
+    "",
+    "An original game on the rules of",
+    "The Pirates of Dark Water (Genesis, 1994)",
+    "",
+    "Design, code, art, music and words",
+    "made for the protogames collection",
+    "",
+    "Rules measured from the cartridge",
+    "in Genesis Plus GX and a disassembly",
+    "",
+    "Sprites and tiles: the Aseprite format",
+    "Backdrops and the Silt King: Blender",
+    "Painted scenes: reality.js",
+    "Desktop build: Godot 4.7",
+    "Browser build: three.js",
+    "",
+    "The world, its people and its story",
+    "are Tidebell's own.",
+    "",
+    "Thank you for playing."
+  ],
+  "profiles": {
+    "kess": ["KESS MARROW", "Harbour pilot of Lantern Harbor.", "Cutlass. Steady and even.", "Walk 2.75  Reach 30  Swing 20"],
+    "june": ["JUNE ROOK", "Netmender from the Stilt Village.", "Two hook-knives: quick, two hits a cut.", "Walk 3.0  Reach 24  Swing 16"],
+    "brannoch": ["BRANNOCH TULL", "The bell-founder who cast the six.", "A boarding anchor: slow, heavy, long.", "Walk 2.5  Reach 36  Swing 24"]
+  },
+  "help": [
+    "MOVE          arrows or WASD / D-pad, stick",
+    "JUMP          Z, K or Space / A (Cross)",
+    "ATTACK        X or J / X (Square)",
+    "ITEM          C or L / B (Circle)",
+    "NEXT ITEM     Up + ITEM",
+    "TIDE CLEAVE   V or I / Y (Triangle)",
+    "PAUSE, ITEMS  Enter or Esc / Start",
+    "",
+    "Down + JUMP drops through a thin ledge.",
+    "Up on a trunk, rope or mast climbs it.",
+    "Attack three times for cut, cut, spin.",
+    "Tide Cleave costs 12 health (needs 24)."
+  ],
+  "items": {
+    "tonic": "Tonic: fills your health.",
+    "heartroot": "Heartroot: +24 to your greatest health.",
+    "knives": "Throwing knives: 2 damage each.",
+    "feather": "Gull feather: light jumps for 15 s.",
+    "squall": "Squall charm: strikes all foes in view.",
+    "stoneskin": "Stoneskin: no harm for 20 s.",
+    "fury": "Fury salt: free Tide Cleaves for 20 s.",
+    "key": "Abbey key: walk into the locked gate."
+  },
+  "over": ["The tide takes the Saltmarch...", "", "Continue from this island?"],
+  "code_help": ["Write down your tide-code. Enter it on", "the title screen to go on from here."]
+}

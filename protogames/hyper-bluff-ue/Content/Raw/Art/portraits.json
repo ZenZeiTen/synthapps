@@ -1,0 +1,55 @@
+{
+ "cell": 96,
+ "order": [
+  "rin",
+  "mako",
+  "jiro",
+  "aya",
+  "pochi",
+  "goro",
+  "yuki",
+  "zeno",
+  "onyx",
+  "tetsu",
+  "suzu",
+  "kagero",
+  "q7"
+ ],
+ "expr": [
+  "neutral",
+  "happy",
+  "shock",
+  "defeat",
+  "fierce"
+ ],
+ "names": {
+  "rin": "Rin Hoshikawa",
+  "mako": "Mako Tendo",
+  "jiro": "Jiro Kanzaki",
+  "aya": "Aya Kurogane",
+  "pochi": "Pochi Maruyama",
+  "goro": "\"Thunder\" Goro Daimon",
+  "yuki": "Lady Shirayuki",
+  "zeno": "Professor Zeno Quark",
+  "onyx": "Baron Onyx",
+  "tetsu": "Tetsu Kanabo",
+  "suzu": "Suzu Hayate",
+  "kagero": "Kagero",
+  "q7": "Unit Q-7"
+ },
+ "eye_y": {
+  "rin": 39,
+  "mako": 40,
+  "jiro": 44,
+  "aya": 41,
+  "pochi": 49,
+  "goro": 43,
+  "yuki": 44,
+  "zeno": 48,
+  "onyx": 41,
+  "tetsu": 39,
+  "suzu": 40,
+  "kagero": 37,
+  "q7": 31
+ }
+}

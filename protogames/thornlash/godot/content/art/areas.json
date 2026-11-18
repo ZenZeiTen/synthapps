@@ -1,0 +1,164 @@
+{
+ "courtyard": {
+  "sky": "#0c0a1a",
+  "rain": true,
+  "lightning": true,
+  "fog": true,
+  "bats": true,
+  "layers": [
+   {
+    "file": "bg_sky_moon",
+    "px": 0.0,
+    "py": 0.0
+   },
+   {
+    "file": "bg_clouds",
+    "px": 0.05,
+    "py": 0.0,
+    "drift": 0.08,
+    "y": 0
+   },
+   {
+    "file": "bg_castle",
+    "px": 0.15,
+    "py": 0.05,
+    "y": 0
+   },
+   {
+    "file": "bg_courtyard_mid",
+    "px": 0.45,
+    "py": 0.2,
+    "y": 96
+   }
+  ]
+ },
+ "hall": {
+  "sky": "#0a0608",
+  "rain": false,
+  "lightning": true,
+  "fog": false,
+  "layers": [
+   {
+    "file": "bg_hall_wall",
+    "px": 0.4,
+    "py": 0.1,
+    "y": 0
+   }
+  ]
+ },
+ "belfry": {
+  "sky": "#0a0c16",
+  "rain": false,
+  "lightning": false,
+  "fog": true,
+  "bats": true,
+  "layers": [
+   {
+    "file": "bg_sky_belfry",
+    "px": 0.0,
+    "py": 0.0
+   },
+   {
+    "file": "bg_clouds_belfry",
+    "px": 0.08,
+    "py": 0.0,
+    "drift": 0.15
+   },
+   {
+    "file": "bg_bells",
+    "px": 0.3,
+    "py": 0.1,
+    "y": 0
+   }
+  ]
+ },
+ "catacomb": {
+  "sky": "#060406",
+  "fog": true,
+  "layers": [
+   {
+    "file": "bg_ossuary",
+    "px": 0.4,
+    "py": 0.2
+   }
+  ]
+ },
+ "rampart": {
+  "sky": "#0c0a1a",
+  "rain": true,
+  "lightning": true,
+  "fog": false,
+  "bats": true,
+  "layers": [
+   {
+    "file": "bg_sky_moon",
+    "px": 0.0,
+    "py": 0.0
+   },
+   {
+    "file": "bg_clouds",
+    "px": 0.06,
+    "py": 0.0,
+    "drift": 0.2
+   },
+   {
+    "file": "bg_castle",
+    "px": 0.12,
+    "py": 0.05
+   },
+   {
+    "file": "bg_battlements",
+    "px": 0.4,
+    "py": 0.2,
+    "y": 96
+   }
+  ]
+ },
+ "tower": {
+  "sky": "#080a10",
+  "layers": [
+   {
+    "file": "bg_tower_wall",
+    "px": 0.5,
+    "py": 0.5
+   }
+  ]
+ },
+ "dungeon": {
+  "sky": "#050404",
+  "fog": true,
+  "layers": [
+   {
+    "file": "bg_dungeon_wall",
+    "px": 0.4,
+    "py": 0.2
+   }
+  ]
+ },
+ "clock": {
+  "sky": "#0e0a08",
+  "layers": [
+   {
+    "file": "bg_tower_wall",
+    "px": 0.3,
+    "py": 0.3
+   },
+   {
+    "file": "bg_gears",
+    "px": 0.5,
+    "py": 0.4
+   }
+  ]
+ },
+ "throne": {
+  "sky": "#0a0408",
+  "lightning": true,
+  "layers": [
+   {
+    "file": "bg_throne",
+    "px": 0.35,
+    "py": 0.2
+   }
+  ]
+ }
+}

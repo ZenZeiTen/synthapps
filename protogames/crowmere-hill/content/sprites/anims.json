@@ -1,0 +1,174 @@
+{
+ "gus": {
+  "size": [
+   16,
+   34
+  ],
+  "anchor": [
+   8,
+   33
+  ],
+  "frames": [
+   "down_stand",
+   "down_stepL",
+   "down_stepR",
+   "up_stand",
+   "up_stepL",
+   "up_stepR",
+   "side_stand",
+   "side_stepA",
+   "side_pass",
+   "side_stepB"
+  ],
+  "anims": {
+   "down": {
+    "stand": 0,
+    "walk": [
+     1,
+     0,
+     2,
+     0
+    ]
+   },
+   "up": {
+    "stand": 3,
+    "walk": [
+     4,
+     3,
+     5,
+     3
+    ]
+   },
+   "side": {
+    "stand": 6,
+    "walk": [
+     7,
+     8,
+     9,
+     8
+    ]
+   }
+  }
+ },
+ "crumpet": {
+  "size": [
+   16,
+   12
+  ],
+  "anchor": [
+   8,
+   11
+  ],
+  "frames": [
+   "walk_a",
+   "walk_b",
+   "sit",
+   "wag",
+   "peek"
+  ],
+  "anims": {
+   "walk": [
+    0,
+    1
+   ],
+   "idle": [
+    2,
+    2,
+    2,
+    3
+   ],
+   "hide": [
+    4
+   ]
+  }
+ },
+ "crow": {
+  "size": [
+   14,
+   12
+  ],
+  "anchor": [
+   7,
+   11
+  ],
+  "frames": [
+   "perch",
+   "blink",
+   "caw",
+   "fly_up",
+   "fly_down"
+  ],
+  "anims": {
+   "perch": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1
+   ],
+   "caw": [
+    2
+   ],
+   "fly": [
+    3,
+    4
+   ]
+  }
+ },
+ "items": {
+  "size": [
+   12,
+   8
+  ],
+  "anchor": [
+   6,
+   7
+  ],
+  "frames": [
+   "brass_key",
+   "iron_key",
+   "matches",
+   "whistle",
+   "candle",
+   "candle_lit",
+   "biscuits",
+   "collar",
+   "flame_a",
+   "flame_b"
+  ],
+  "anims": {}
+ },
+ "eyes": {
+  "size": [
+   8,
+   2
+  ],
+  "anchor": [
+   4,
+   1
+  ],
+  "frames": [
+   "left",
+   "ahead",
+   "right"
+  ],
+  "anims": {}
+ },
+ "bubbles": {
+  "size": [
+   12,
+   6
+  ],
+  "anchor": [
+   6,
+   5
+  ],
+  "frames": [
+   "a",
+   "b",
+   "c"
+  ],
+  "anims": {}
+ }
+}

@@ -1,0 +1,56 @@
+name: Mossgate Hollow
+theme: moss
+music: hollow
+stage: 1
+intro: Orrin sets out | into the overgrown hollow
+route: 54,22; 54,8; 69,8; 73,22; 92,14; 107,23
+map:
+#                                                                                                              #
+#                                                                                                              #
+#                                                                                                              #
+#                                                                                                              #
+#                                                                                                              #
+#                                                                                                              #
+#                                                                                                              #
+#                                                                                                              #
+#                                                         v SSSS4 u5 K                                         #
+#                                                     ! ###############                                        #
+#                                                     | ###############                                        #
+#                                                     |                   #                                    #
+#                                                     |                   #                                    #
+#                                                     |                   #                                    #
+#                                                     |                   #           L SSS X f                #
+#                                                     |       B           #          ==========                #
+#                                                     |                   #                                    #
+#                                                     |                   #                           + r      #
+#                                                     |                   #                          ====      #
+#                                                     |                   #                                    #
+#                                       NSSSy         |                   #                         y          #
+#                                       ======        |                   #                      ====          #
+#                          ###                        |                   D                                    #
+# 03@   P3SSSS3*  31V 2#######0      3    t      C    | 22      2 H    1  #  F   G0 A $  J0     1 M   2   0E   #
+################################     ###########################################################################
+################################xxxxx###########################################################################
+################################################################################################################
+################################################################################################################
+end
+legend:
+P signpost text=sign_hollow_1
+* pad channel=1
+V owl text=owl_hollow channel=1 xd=-4
+t piptoad
+N bonus note=note_hollow
+C crate drop=heart
+v bonus rune=v
+K key color=amber
+B duskwing xd=2
+D door color=amber channel=2
+G burrowhog xd=-4
+A bonus rune=a
+$ signpost text=sign_hollow_2
+J spring counter=2
+L bonus rune=l
+X token item=gatekey
+M piptoad
++ bonus rune=e
+E exit state=2

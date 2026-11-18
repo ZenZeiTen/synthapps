@@ -1,0 +1,147 @@
+{
+ "room": "bedroom",
+ "size": [
+  320,
+  168
+ ],
+ "pixel_aspect_y": 1.2,
+ "near": 8.99,
+ "far": 21.050000915527345,
+ "camera": {
+  "loc": [
+   0.0,
+   -14.0,
+   6.199999809265137
+  ],
+  "rot": [
+   1.2793396711349487,
+   -0.0,
+   0.0
+  ],
+  "lens": 40.0
+ },
+ "points": {
+  "from_hall": [
+   63.93,
+   105.37,
+   16.3
+  ],
+  "stairs": [
+   59.84,
+   105.37,
+   16.3
+  ],
+  "bed": [
+   113.62,
+   101.56,
+   16.95
+  ],
+  "collar": [
+   131.46,
+   105.07,
+   16.35
+  ],
+  "window": [
+   184.91,
+   91.1,
+   19.0
+  ],
+  "wardrobe": [
+   230.54,
+   93.94,
+   18.4
+  ],
+  "chair": [
+   229.91,
+   116.76,
+   14.6
+  ]
+ },
+ "zones": {
+  "stairs": {
+   "poly": [
+    [
+     1.76,
+     110.46
+    ],
+    [
+     44.53,
+     110.46
+    ],
+    [
+     54.28,
+     100.72
+    ],
+    [
+     15.12,
+     100.72
+    ]
+   ],
+   "target": [
+    41.44,
+    105.37
+   ]
+  }
+ },
+ "markers": {
+  "crow": [
+   187.79,
+   70.56,
+   20.62
+  ],
+  "iron_key": [
+   185.19,
+   70.8,
+   20.55
+  ],
+  "collar": [
+   131.99,
+   102.53,
+   16.7
+  ]
+ },
+ "probes": {},
+ "groups": {
+  "bed": 1,
+  "beyond_l": 2,
+  "canopy": 3,
+  "curtains": 4,
+  "eyes": 5,
+  "flames": 6,
+  "floor": 7,
+  "frame_l": 8,
+  "ledge": 9,
+  "nest": 10,
+  "nightstand": 11,
+  "pillow": 12,
+  "rocker": 13,
+  "rug": 14,
+  "sash": 15,
+  "sconce": 16,
+  "under_bed": 17,
+  "walls": 18,
+  "ward_door_l": 19,
+  "ward_door_r": 20,
+  "wardrobe": 21,
+  "wardrobe_inside": 22,
+  "window_frame": 23
+ },
+ "states": {
+  "window_open": {
+   "base": null
+  },
+  "wardrobe_open": {
+   "base": null
+  }
+ },
+ "shade": {},
+ "sky": true,
+ "erode": [
+  3,
+  0
+ ],
+ "glow_ids": [
+  5,
+  6
+ ]
+}

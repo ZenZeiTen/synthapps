@@ -1,0 +1,217 @@
+{
+ "_doc": "Monster templates. Stats use the 24-slot names. flags: walk, watch, listen, big, guard, shoot, cast, npc, stay (never walks toward the party), fly (crosses water). sight = sight range in squares, reach = engagement range, step_ticks = world ticks per square walked (10 ticks = 1 s). xp = pool shared by damage dealt; bonus = paid to every living member on the kill. flee 0-100.",
+ "rat": {
+  "name": "Cellar Rat",
+  "sprite": "rat",
+  "hp": 9,
+  "flags": [
+   "walk",
+   "watch",
+   "listen"
+  ],
+  "sight": 4,
+  "reach": 1,
+  "step_ticks": 5,
+  "xp": 60,
+  "bonus": 40,
+  "flee": 35,
+  "money": 0,
+  "stats": {
+   "str": 6,
+   "dex": 12,
+   "mob": 15,
+   "atk_l": 1,
+   "atk_h": 3,
+   "def_l": 1,
+   "def_h": 2
+  }
+ },
+ "ooze": {
+  "name": "Cellar Ooze",
+  "sprite": "ooze",
+  "hp": 28,
+  "flags": [
+   "watch",
+   "big"
+  ],
+  "sight": 3,
+  "reach": 1,
+  "step_ticks": 14,
+  "xp": 200,
+  "bonus": 120,
+  "flee": 0,
+  "money": 0,
+  "stats": {
+   "str": 14,
+   "dex": 4,
+   "mob": 15,
+   "atk_l": 3,
+   "atk_h": 6,
+   "def_l": 0,
+   "def_h": 1,
+   "r_fire": -50,
+   "r_water": 40,
+   "mag_l": 1,
+   "mag_h": 3,
+   "mag_el": 2
+  }
+ },
+ "bones": {
+  "name": "Bone Guard",
+  "sprite": "bones",
+  "hp": 26,
+  "flags": [
+   "walk",
+   "watch",
+   "guard"
+  ],
+  "sight": 5,
+  "reach": 1,
+  "step_ticks": 8,
+  "xp": 300,
+  "bonus": 160,
+  "flee": 0,
+  "money": 6,
+  "stats": {
+   "str": 16,
+   "dex": 12,
+   "mob": 15,
+   "atk_l": 4,
+   "atk_h": 8,
+   "def_l": 3,
+   "def_h": 6,
+   "r_water": 50,
+   "r_mind": 100
+  }
+ },
+ "wisp": {
+  "name": "Grave Wisp",
+  "sprite": "wisp",
+  "hp": 18,
+  "flags": [
+   "walk",
+   "watch",
+   "listen",
+   "cast",
+   "shoot",
+   "fly"
+  ],
+  "sight": 5,
+  "reach": 4,
+  "step_ticks": 7,
+  "xp": 320,
+  "bonus": 180,
+  "flee": 20,
+  "money": 0,
+  "cast": "chill",
+  "cast_pct": 55,
+  "stats": {
+   "str": 4,
+   "dex": 18,
+   "mob": 20,
+   "mag": 16,
+   "atk_l": 1,
+   "atk_h": 3,
+   "def_l": 4,
+   "def_h": 8,
+   "r_water": 80,
+   "r_fire": -30
+  }
+ },
+ "ghoul": {
+  "name": "Ghoul",
+  "sprite": "ghoul",
+  "hp": 40,
+  "flags": [
+   "walk",
+   "watch",
+   "listen"
+  ],
+  "sight": 5,
+  "reach": 1,
+  "step_ticks": 7,
+  "xp": 450,
+  "bonus": 250,
+  "flee": 10,
+  "money": 12,
+  "drain": true,
+  "stats": {
+   "str": 18,
+   "dex": 14,
+   "mob": 18,
+   "atk_l": 5,
+   "atk_h": 10,
+   "def_l": 3,
+   "def_h": 6,
+   "r_mind": 60
+  }
+ },
+ "warden": {
+  "name": "The Warden",
+  "sprite": "warden",
+  "hp": 120,
+  "flags": [
+   "watch",
+   "big",
+   "cast",
+   "stay"
+  ],
+  "sight": 6,
+  "reach": 3,
+  "step_ticks": 10,
+  "xp": 2000,
+  "bonus": 1000,
+  "flee": 0,
+  "money": 0,
+  "cast": "grave_chill",
+  "cast_pct": 22,
+  "drops": [
+   "sealstone"
+  ],
+  "stats": {
+   "str": 26,
+   "dex": 16,
+   "mob": 30,
+   "mag": 24,
+   "atk_l": 6,
+   "atk_h": 11,
+   "def_l": 3,
+   "def_h": 7,
+   "r_water": 70,
+   "r_mind": 100,
+   "r_fire": 20
+  }
+ },
+ "tamsin": {
+  "name": "Tamsin the Peddler",
+  "sprite": "tamsin",
+  "hp": 30,
+  "flags": [
+   "npc"
+  ],
+  "dialog": "tamsin",
+  "sight": 0,
+  "reach": 0,
+  "step_ticks": 0,
+  "xp": 0,
+  "bonus": 0,
+  "flee": 100,
+  "stats": {}
+ },
+ "maren": {
+  "name": "Maren",
+  "sprite": "maren",
+  "hp": 30,
+  "flags": [
+   "npc"
+  ],
+  "dialog": "maren",
+  "sight": 0,
+  "reach": 0,
+  "step_ticks": 0,
+  "xp": 0,
+  "bonus": 0,
+  "flee": 100,
+  "stats": {}
+ }
+}

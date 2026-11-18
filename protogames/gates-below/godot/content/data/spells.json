@@ -1,0 +1,495 @@
+{
+ "_doc": "Spells. A spell is (rune, power 1-3); runes belong to an element (fire, water, earth, air, mind), which picks the resistance. need = Magic skill for a safe cast (below need/2 impossible, between: risky, see scripts/core/rules.gd cast_outcome). target: self|ally|party|dead|front|front_all|line|none. ops run in order; ops after 'duration' are reverted when it runs out (the original's trvani/end semantics). backfire: spell cast on the caster's own square when a risky cast backfires.",
+ "runes": {
+  "ember": {
+   "name": "Ember",
+   "element": "fire",
+   "icon": "rune_fire"
+  },
+  "rime": {
+   "name": "Rime",
+   "element": "water",
+   "icon": "rune_frost"
+  },
+  "spark": {
+   "name": "Spark",
+   "element": "air",
+   "icon": "rune_air"
+  },
+  "mend": {
+   "name": "Mend",
+   "element": "earth",
+   "icon": "rune_life"
+  },
+  "return": {
+   "name": "Return",
+   "element": "earth",
+   "icon": "rune_earth"
+  },
+  "sight": {
+   "name": "Sight",
+   "element": "mind",
+   "icon": "rune_void"
+  }
+ },
+ "spells": {
+  "ember_1": {
+   "name": "Ember Dart",
+   "rune": "ember",
+   "power": 1,
+   "need": 6,
+   "mana": 4,
+   "target": "line",
+   "resist": true,
+   "fx": "fire",
+   "backfire": "singe",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 3,
+     "max": 8
+    }
+   ]
+  },
+  "ember_2": {
+   "name": "Flame Bolt",
+   "rune": "ember",
+   "power": 2,
+   "need": 14,
+   "mana": 9,
+   "target": "line",
+   "resist": true,
+   "fx": "fire",
+   "backfire": "singe",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 8,
+     "max": 16
+    }
+   ]
+  },
+  "ember_3": {
+   "name": "Pyre",
+   "rune": "ember",
+   "power": 3,
+   "need": 24,
+   "mana": 16,
+   "target": "front_all",
+   "resist": true,
+   "fx": "fire",
+   "backfire": "singe",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 12,
+     "max": 24
+    }
+   ]
+  },
+  "rime_1": {
+   "name": "Chill",
+   "rune": "rime",
+   "power": 1,
+   "need": 5,
+   "mana": 4,
+   "target": "line",
+   "resist": true,
+   "fx": "frost",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 3,
+     "max": 7
+    },
+    {
+     "op": "stat",
+     "stat": "mob",
+     "amount": -6
+    },
+    {
+     "op": "duration",
+     "ticks": 3
+    }
+   ]
+  },
+  "rime_2": {
+   "name": "Ice Lance",
+   "rune": "rime",
+   "power": 2,
+   "need": 13,
+   "mana": 9,
+   "target": "line",
+   "resist": true,
+   "fx": "frost",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 7,
+     "max": 14
+    }
+   ]
+  },
+  "rime_3": {
+   "name": "Frost Ward",
+   "rune": "rime",
+   "power": 3,
+   "need": 20,
+   "mana": 14,
+   "target": "party",
+   "resist": false,
+   "fx": "frost",
+   "ops": [
+    {
+     "op": "stat",
+     "stat": "r_fire",
+     "amount": 40
+    },
+    {
+     "op": "duration",
+     "ticks": 30
+    }
+   ]
+  },
+  "spark_1": {
+   "name": "Spark",
+   "rune": "spark",
+   "power": 1,
+   "need": 8,
+   "mana": 5,
+   "target": "line",
+   "resist": true,
+   "fx": "spark",
+   "backfire": "jolt",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 4,
+     "max": 9
+    }
+   ]
+  },
+  "spark_2": {
+   "name": "Arc",
+   "rune": "spark",
+   "power": 2,
+   "need": 16,
+   "mana": 10,
+   "target": "line",
+   "resist": true,
+   "fx": "spark",
+   "backfire": "jolt",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 9,
+     "max": 18
+    }
+   ]
+  },
+  "spark_3": {
+   "name": "Stormcall",
+   "rune": "spark",
+   "power": 3,
+   "need": 26,
+   "mana": 18,
+   "target": "front_all",
+   "resist": true,
+   "fx": "spark",
+   "backfire": "jolt",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 14,
+     "max": 28
+    }
+   ]
+  },
+  "mend_1": {
+   "name": "Mend",
+   "rune": "mend",
+   "power": 1,
+   "need": 4,
+   "mana": 4,
+   "target": "ally",
+   "resist": false,
+   "fx": "heal",
+   "ops": [
+    {
+     "op": "dmg",
+     "min": -10,
+     "max": -6
+    }
+   ]
+  },
+  "mend_2": {
+   "name": "Greater Mend",
+   "rune": "mend",
+   "power": 2,
+   "need": 12,
+   "mana": 9,
+   "target": "ally",
+   "resist": false,
+   "fx": "heal",
+   "ops": [
+    {
+     "op": "dmg",
+     "min": -22,
+     "max": -14
+    }
+   ]
+  },
+  "mend_3": {
+   "name": "Circle of Mending",
+   "rune": "mend",
+   "power": 3,
+   "need": 20,
+   "mana": 18,
+   "target": "party",
+   "resist": false,
+   "fx": "heal",
+   "ops": [
+    {
+     "op": "dmg",
+     "min": -16,
+     "max": -10
+    }
+   ]
+  },
+  "return_1": {
+   "name": "Vigor",
+   "rune": "return",
+   "power": 1,
+   "need": 6,
+   "mana": 5,
+   "target": "ally",
+   "resist": false,
+   "fx": "heal",
+   "ops": [
+    {
+     "op": "stamina",
+     "amount": 20
+    }
+   ]
+  },
+  "return_2": {
+   "name": "Sanctuary",
+   "rune": "return",
+   "power": 2,
+   "need": 14,
+   "mana": 10,
+   "target": "ally",
+   "resist": false,
+   "fx": "heal",
+   "ops": [
+    {
+     "op": "flag",
+     "set": "sanctuary"
+    },
+    {
+     "op": "duration",
+     "ticks": 12
+    }
+   ]
+  },
+  "return_3": {
+   "name": "Return",
+   "rune": "return",
+   "power": 3,
+   "need": 22,
+   "mana": 20,
+   "target": "dead",
+   "resist": false,
+   "fx": "heal",
+   "ops": [
+    {
+     "op": "raise",
+     "frac": 0.34
+    }
+   ]
+  },
+  "sight_1": {
+   "name": "Far Sight",
+   "rune": "sight",
+   "power": 1,
+   "need": 5,
+   "mana": 4,
+   "target": "none",
+   "resist": false,
+   "fx": "sight",
+   "ops": [
+    {
+     "op": "reveal",
+     "radius": 4
+    }
+   ]
+  },
+  "sight_2": {
+   "name": "True Sight",
+   "rune": "sight",
+   "power": 2,
+   "need": 12,
+   "mana": 8,
+   "target": "none",
+   "resist": false,
+   "fx": "sight",
+   "ops": [
+    {
+     "op": "reveal",
+     "radius": 8
+    },
+    {
+     "op": "truesight"
+    }
+   ]
+  },
+  "sight_3": {
+   "name": "Omen",
+   "rune": "sight",
+   "power": 3,
+   "need": 20,
+   "mana": 12,
+   "target": "none",
+   "resist": false,
+   "fx": "sight",
+   "ops": [
+    {
+     "op": "reveal",
+     "radius": 15
+    },
+    {
+     "op": "truesight"
+    },
+    {
+     "op": "omen",
+     "ticks": 60
+    }
+   ]
+  },
+  "singe": {
+   "name": "Backlash",
+   "rune": "",
+   "power": 0,
+   "need": 0,
+   "mana": 0,
+   "target": "self",
+   "resist": true,
+   "element": "fire",
+   "fx": "fire",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 2,
+     "max": 6
+    }
+   ]
+  },
+  "jolt": {
+   "name": "Backlash",
+   "rune": "",
+   "power": 0,
+   "need": 0,
+   "mana": 0,
+   "target": "self",
+   "resist": true,
+   "element": "air",
+   "fx": "spark",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 2,
+     "max": 6
+    },
+    {
+     "op": "stamina",
+     "amount": -6
+    }
+   ]
+  },
+  "chill": {
+   "name": "Grave Chill",
+   "rune": "",
+   "power": 0,
+   "need": 0,
+   "mana": 0,
+   "target": "enemy",
+   "resist": true,
+   "element": "water",
+   "fx": "frost",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 3,
+     "max": 8
+    }
+   ]
+  },
+  "grave_chill": {
+   "name": "Hollow Frost",
+   "rune": "",
+   "power": 0,
+   "need": 0,
+   "mana": 0,
+   "target": "enemy_all",
+   "resist": true,
+   "element": "water",
+   "fx": "frost",
+   "ops": [
+    {
+     "op": "dmg_el",
+     "min": 3,
+     "max": 7
+    }
+   ]
+  },
+  "potion_heal": {
+   "name": "Red Draught",
+   "rune": "",
+   "power": 0,
+   "need": 0,
+   "mana": 0,
+   "target": "self",
+   "resist": false,
+   "fx": "heal",
+   "ops": [
+    {
+     "op": "dmg",
+     "min": -24,
+     "max": -16
+    }
+   ]
+  },
+  "potion_mana": {
+   "name": "Blue Draught",
+   "rune": "",
+   "power": 0,
+   "need": 0,
+   "mana": 0,
+   "target": "self",
+   "resist": false,
+   "fx": "sight",
+   "ops": [
+    {
+     "op": "mana",
+     "amount": 18
+    }
+   ]
+  },
+  "potion_vigor": {
+   "name": "Green Draught",
+   "rune": "",
+   "power": 0,
+   "need": 0,
+   "mana": 0,
+   "target": "self",
+   "resist": false,
+   "fx": "heal",
+   "ops": [
+    {
+     "op": "stamina",
+     "amount": 30
+    }
+   ]
+  }
+ }
+}

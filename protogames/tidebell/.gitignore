@@ -1,0 +1,7 @@
+build/
+dist/
+godot/.godot/
+web/node_modules/
+web/dist/
+__pycache__/
+*.pyc
