@@ -1,0 +1,5 @@
+// The Keyhold Android app: a WebView around the same web app the desktop program
+// and the sync server serve. Only the Android SDK is used; there are no libraries.
+plugins {
+    id 'com.android.application' version '8.13.0' apply false
+}

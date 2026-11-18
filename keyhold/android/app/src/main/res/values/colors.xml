@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="kh_bg">#f6f7f5</color>
+    <color name="kh_icon_bg">#1f5f5b</color>
+    <color name="kh_icon_fg">#e9f2ef</color>
+</resources>

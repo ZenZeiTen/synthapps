@@ -1,5 +1,5 @@
 // Larger views: settings, password generator, health report, recovery code.
-import { h, icon, iconBtn, clear, fill, toast, modal, confirmBox, askPassword, download, pickFile, timeAgo } from './ui.js';
+import { h, icon, iconBtn, clear, fill, toast, modal, confirmBox, askPassword, download, pickFile, timeAgo, openUrl, copyText } from './ui.js';
 import { deriveFromPassword, openVault, decryptPayload, sha1Hex, WrongPasswordError } from './crypto.js';
 import { TYPES, mergePayloads, primaryKey, normalizePayload, dedupeImport, DEFAULT_POLICY, MAX_HISTORY } from './model.js';
 import { policiesSection, policyForm } from './workbench.js';
@@ -19,7 +19,7 @@ export function showRecoveryCode(code, first = false) {
         h('p', { text: 'If you forget your master password, this code is the only other way into your vault. Print it or write it down and keep it somewhere safe, away from this computer.' }),
         h('div', { class: 'code-box', text: code }),
         h('div', { class: 'btn-row', style: 'margin-bottom:12px' },
-          h('button', { class: 'btn', type: 'button', onclick: () => navigator.clipboard.writeText(code).then(() => toast('Copied. Paste it somewhere safe, then clear your clipboard.')) }, icon('copy'), 'Copy'),
+          h('button', { class: 'btn', type: 'button', onclick: () => copyText(code).then(() => toast('Copied. Paste it somewhere safe, then clear your clipboard.')) }, icon('copy'), 'Copy'),
           h('button', { class: 'btn', type: 'button', onclick: () => download('keyhold-recovery-code.txt', `Keyhold recovery code\r\n\r\n${code}\r\n\r\nCreated ${new Date().toLocaleString()}.\r\nAnyone with this code can open your vault. Keep it offline.\r\n`, 'text/plain') }, icon('download'), 'Save as file')),
         first ? null : h('p', { class: 'notice', text: 'Your previous recovery code no longer works.' }),
         h('label', { class: 'check' }, ok, 'I have stored this code safely'),
@@ -225,7 +225,7 @@ async function breachCheck(app, btn, status) {
 // ---------- settings ----------
 export function openSettings(app, tab = 'security') {
   const s = app.state.session;
-  const desktop = app.state.mode === 'desktop';
+  const desktop = app.isLocal();
   // Arranged like Password Safe's Options, plus sync and the vault's properties.
   const tabs = [['security', 'Security'], ['display', 'Display'], ['entries', 'Entries'], ['policies', 'Policies'],
     ...(desktop ? [['sync', 'Sync']] : [['account', 'Account']]), ['backup', 'Backup'], ['vault', 'Vault'], ['about', 'About']];
@@ -298,7 +298,7 @@ function secSync(app, s, close, redraw) {
           h('tr', {}, h('th', { text: 'Last sync' }), h('td', { text: s.meta.lastSync ? timeAgo(s.meta.lastSync) : 'never' }))),
         h('div', { class: 'btn-row', style: 'margin-top:12px' },
           h('button', { class: 'btn primary', type: 'button', onclick: () => s.sync().then(() => { toast('Synced'); redraw(); }).catch((e) => toast(e.message, { error: true })) }, icon('refresh'), 'Sync now'),
-          h('button', { class: 'btn', type: 'button', onclick: () => window.open(sync.url, '_blank', 'noopener,noreferrer') }, icon('external'), 'Open in browser'),
+          h('button', { class: 'btn', type: 'button', onclick: () => openUrl(sync.url) }, icon('external'), 'Open in browser'),
           h('button', { class: 'btn danger', type: 'button', onclick: async () => {
             if (!(await confirmBox('Stop syncing?', 'The vault stays on this computer. The copy on the server is not deleted.', { ok: 'Stop syncing' }))) return;
             try { await s.disconnect(); toast('Sync turned off'); redraw(); } catch (e) { toast(e.message, { error: true }); }
@@ -331,7 +331,9 @@ function secSync(app, s, close, redraw) {
       h('div', { class: 'grid2' },
         h('label', { class: 'field' }, h('span', { text: 'Master password of that account (to sign in)' }), pw),
         h('label', { class: 'field' }, h('span', { text: 'Invite code (to create, if the server needs one)' }), inv)),
-      h('p', { class: 'hint', text: 'Signing in to an existing account merges both vaults; afterwards this computer uses that account\'s master password. Creating an account uploads this vault with your current master password.' }),
+      h('p', { class: 'hint', text: 'Signing in to an existing account merges both vaults; afterwards this vault uses that account\'s master password. Creating an account uploads this vault with your current master password.' }),
+      app.state.mode === 'device' && app.state.platform !== 'android'
+        ? h('p', { class: 'hint', text: `If the server cannot be reached from here, start it with --cors-origins ${location.origin} so it accepts this page. Or simply open the server's own address, which has Keyhold built in.` }) : null,
       err, h('div', { class: 'btn-row' }, joinBtn, createBtn)),
   ];
 }
@@ -403,11 +405,11 @@ async function mergeVersion(app, s, vault) {
 }
 
 function secBackup(app, s, close) {
-  const desktop = app.state.mode === 'desktop';
+  const desktop = app.isLocal();
   const local = desktop ? h('div', {}, h('button', { class: 'btn', type: 'button', onclick: async () => {
     try {
       const { backups, folder } = await app.state.store.backups();
-      fill(local, h('p', { class: 'small muted', text: 'Folder: ' + folder }), historyTable(backups, async (b) => {
+      fill(local, folder ? h('p', { class: 'small muted', text: 'Folder: ' + folder }) : null, historyTable(backups, async (b) => {
         const rec = await app.state.store.backup(b.name);
         await mergeVersion(app, s, rec.vault);
       }));
@@ -420,7 +422,7 @@ function secBackup(app, s, close) {
         download(`keyhold-backup-${new Date().toISOString().slice(0, 10)}.keyhold`, JSON.stringify(env));
         toast('Backup saved to your Downloads folder');
       } }, icon('download'), 'Download encrypted backup')),
-    desktop ? sec('Automatic backups', 'Every save keeps the previous version (the last 30). Use these to undo a mistake.', local) : null,
+    desktop ? sec('Automatic backups', 'Every save keeps the previous version (the last 30)' + (app.state.mode === 'device' ? ', next to the vault. They go when the vault goes: keep an encrypted backup somewhere else too.' : '. Use these to undo a mistake.'), local) : null,
     sec('Merge another vault', 'Adds the items of another Keyhold vault or backup file (for example one kept on another computer). Nothing here is overwritten; where the same item exists in both, the newer version wins and the older password goes to its history.',
       h('button', { class: 'btn', type: 'button', disabled: s.readOnly, onclick: () => mergeFile(app, s, close) }, icon('upload'), 'Merge a vault file…')),
     sec('Import', 'From Password Safe: use File › Export To › XML format, then import that file here. Also accepted: CSV from Bitwarden, 1Password, KeePass, LastPass, Chrome, Edge and Firefox, and Password Safe text exports.',
@@ -526,7 +528,8 @@ function secVault(app, s, close, redraw) {
     ['Created', v.createdAt ? new Date(v.createdAt).toLocaleString() : 'before this information was recorded'],
     ['Master password last set', v.passwordChangedAt ? new Date(v.passwordChangedAt).toLocaleString() : 'unknown'],
     ['Last saved', s.lastSaved ? s.lastSaved.toLocaleString() : 'not in this session'],
-    ['Stored', app.state.mode === 'desktop' ? 'On this computer' + (st.sync ? ', synced with ' + st.sync.url : '') : 'On ' + location.host + ', with a copy in this browser'],
+    ['Stored', (app.state.mode === 'desktop' ? 'On this computer' : app.state.mode === 'device' ? (app.state.platform === 'android' ? 'In the Keyhold app on this phone' : 'In this browser') : 'On ' + location.host + ', with a copy in this browser')
+      + (app.isLocal() && st.sync ? ', synced with ' + st.sync.url : '')],
     ['Format', `Keyhold vault v${s.envelope.v}; ${s.envelope.kdf.name}, ${s.envelope.kdf.iterations.toLocaleString()} rounds; AES-256-GCM`],
     ['Vault ID', s.envelope.id],
     ['Recovery code', s.envelope.keys.recovery ? 'Set' : 'Not set'],

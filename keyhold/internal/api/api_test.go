@@ -249,6 +249,16 @@ func TestSyncCORSAndHeaders(t *testing.T) {
 	if rr.Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatalf("foreign origin allowed")
 	}
+	// The Android app syncs from its own page origin, allowed without any setting.
+	rr, _ = do(t, h, "OPTIONS", "/api/v1/vault", "", "", "Origin", AndroidAppOrigin, "Access-Control-Request-Method", "PUT")
+	if rr.Code != 204 || rr.Header().Get("Access-Control-Allow-Origin") != AndroidAppOrigin {
+		t.Fatalf("Android app preflight: %d %v", rr.Code, rr.Header())
+	}
+	// An explicit list replaces the defaults.
+	only := syncSrv(t, SyncConfig{OpenSignup: true, CORSOrigins: []string{"https://vault.example"}})
+	if rr, _ := do(t, only, "OPTIONS", "/api/v1/vault", "", "", "Origin", AndroidAppOrigin); rr.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("Android origin allowed despite an explicit list")
+	}
 	rr, _ = do(t, h, "GET", "/", "", "")
 	if rr.Header().Get("Strict-Transport-Security") == "" || rr.Header().Get("X-Frame-Options") != "DENY" {
 		t.Fatalf("headers: %v", rr.Header())

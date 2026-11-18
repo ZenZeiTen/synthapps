@@ -32,7 +32,7 @@ var webFiles embed.FS
 
 // Set with -ldflags "-X main.version=... -X main.guiBuild=1".
 var (
-	version  = "1.2.0"
+	version  = "1.3.0"
 	guiBuild = "0"
 )
 
@@ -123,7 +123,7 @@ func runServe(args []string) error {
 	key := fl.String("tls-key", "", "TLS key file (PEM)")
 	open := fl.Bool("open-signup", false, "let anyone create an account")
 	invite := fl.String("invite-code", "", "require this code to create an account")
-	cors := fl.String("cors-origins", "", "comma-separated origins allowed to call the API (default: desktop apps on loopback)")
+	cors := fl.String("cors-origins", "", "comma-separated origins allowed to call the API (default: the desktop and Android apps)")
 	proxy := fl.Bool("trust-proxy", false, "behind a reverse proxy: use X-Forwarded-For for rate limits")
 	keep := fl.Int("history", 50, "previous versions kept per vault")
 	if err := fl.Parse(args); err != nil {

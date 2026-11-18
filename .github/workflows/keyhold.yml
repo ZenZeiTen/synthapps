@@ -1,7 +1,14 @@
 name: keyhold
 
-# Tests Keyhold, builds the Windows app and checks it on Windows.
-# Pushing a tag named keyhold-v* also publishes the builds as a GitHub release.
+# Tests Keyhold, builds the Windows app and checks it on Windows, builds the Android
+# app and the installable web app. Pushing a tag named keyhold-v* also publishes the
+# builds as a GitHub release.
+#
+# The Android app is signed with the repository's own key when these secrets exist:
+#   KEYHOLD_ANDROID_KEYSTORE (the keystore file, base64), KEYHOLD_ANDROID_KEYSTORE_PASSWORD,
+#   KEYHOLD_ANDROID_KEY_ALIAS, KEYHOLD_ANDROID_KEY_PASSWORD   (see keyhold/README.md)
+# Without them a debug build is made: fine for trying it, but each build has a different
+# key, so Android refuses to install the next one over it.
 on:
   pull_request:
     paths:
@@ -125,10 +132,65 @@ jobs:
           retention-days: 30
           compression-level: 0
 
+  android:
+    name: Build the Android app and the web app
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: keyhold/android
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the Gradle wrapper is Gradle's own
+        uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Install the Android platform
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      - name: Signing key, when the repository has one
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYHOLD_ANDROID_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/keyhold.jks"
+            echo "KEYHOLD_KEYSTORE=$RUNNER_TEMP/keyhold.jks" >> "$GITHUB_ENV"
+          fi
+      - name: Build the APK
+        env:
+          KEYHOLD_KEYSTORE_PASSWORD: ${{ secrets.KEYHOLD_ANDROID_KEYSTORE_PASSWORD }}
+          KEYHOLD_KEY_ALIAS: ${{ secrets.KEYHOLD_ANDROID_KEY_ALIAS }}
+          KEYHOLD_KEY_PASSWORD: ${{ secrets.KEYHOLD_ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "${KEYHOLD_KEYSTORE:-}" ]; then
+            ./gradlew assembleRelease --no-daemon
+            cp app/build/outputs/apk/release/app-release.apk ../Keyhold.apk
+          else
+            echo "::warning::No Android signing key in this repository's secrets: building a debug APK that later builds cannot update."
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk ../Keyhold-debug.apk
+          fi
+          ls -l ../*.apk
+      - name: Package the web app (for any HTTPS web host)
+        working-directory: keyhold/web
+        run: zip -qr ../keyhold-web.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Keyhold-android
+          path: keyhold/Keyhold*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: keyhold-web
+          path: keyhold/keyhold-web.zip
+          if-no-files-found: error
+
   release:
     name: Publish the GitHub release
     if: startsWith(github.ref, 'refs/tags/keyhold-v')
-    needs: [test, browser, windows]
+    needs: [test, browser, windows, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -141,6 +203,17 @@ jobs:
         with:
           name: Keyhold
           path: files
+      - uses: actions/download-artifact@v4
+        with:
+          name: Keyhold-android
+          path: files
+      - uses: actions/download-artifact@v4
+        with:
+          name: keyhold-web
+          path: files
+      - name: Checksums for the Android and web files
+        working-directory: files
+        run: sha256sum Keyhold*.apk keyhold-web.zip >> SHA256SUMS.txt
       - name: Create the release, or add the files to it
         env:
           GH_TOKEN: ${{ github.token }}

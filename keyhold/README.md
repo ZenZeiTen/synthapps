@@ -4,6 +4,9 @@ A password manager for Windows (also Linux and macOS) that keeps working offline
 want, syncs through a server you control. Everything is encrypted on your device before it is
 saved or sent; the file on disk and the sync server only ever hold data they cannot read.
 
+Keyhold runs as a Windows program (also Linux and macOS), as an Android app, and as an
+installable web app in any modern browser.
+
 Keyhold was designed after a close look at Password Safe 3.73: it keeps what that program does
 well (one master password, a single encrypted file, no account needed) and adds what it lacks:
 structured item types, a health report, recovery codes, automatic backups, and sync between
@@ -22,6 +25,25 @@ window comes back. It stops on its own a few minutes after you close the window.
 
 Windows may show a SmartScreen warning the first time, because the program is not code-signed.
 Choose "More info" › "Run anyway", after checking the file against `SHA256SUMS.txt`.
+
+## On a phone or tablet
+
+**Android app.** Download `Keyhold-<version>.apk` from the release on your phone and open it.
+Android asks once to allow installs from your browser or file manager. The vault is kept,
+encrypted, inside the app on that phone. Copied passwords are marked as sensitive (keyboards
+and the clipboard preview hide them), screenshots of Keyhold are blocked, and links open in
+your browser. Uninstalling the app deletes its vault, so keep encrypted backups (Settings ›
+Backup) or connect a sync server.
+
+**Web app (any phone, tablet or computer).** Either open your sync server's address and
+choose *Install app* / *Add to Home Screen*, or put the files of `keyhold-web.zip` on any
+HTTPS web host (GitHub Pages, Netlify, your own server) and open that address. Without a
+Keyhold server behind it the web app keeps the vault in that browser, with the last 30
+versions as automatic backups, and works offline once it has been opened.
+
+To sync either of them with a server, use Settings › Sync, as on Windows. The server accepts
+the Android app without any setting; a web app on another host needs that host in
+`--cors-origins` (the page tells you which).
 
 ### Moving from Password Safe
 
@@ -107,7 +129,7 @@ Server options:
 | `--invite-code CODE` | New accounts need this code. |
 | `--open-signup` | Anyone can create an account. Without this or an invite code, sign-up is closed. |
 | `--history 50` | Earlier versions kept per vault. |
-| `--cors-origins` | Which web pages may call the API. The default allows only the Keyhold desktop app. |
+| `--cors-origins` | Which web pages may call the API. The default allows the Keyhold desktop and Android apps. |
 
 Changes from different devices are merged item by item: the newest edit of an item wins, and a
 password replaced by a newer edit from another device is kept in that item's history.
@@ -124,8 +146,32 @@ password replaced by a newer edit from another device is kept in that item's his
 | `keyhold-linux-amd64`, `keyhold-linux-arm64` | Linux desktop or server |
 | `keyhold-macos-arm64`, `keyhold-macos-amd64` | macOS |
 
-GitHub Actions builds these on every change and publishes them as a release for each
-`keyhold-v*` tag.
+GitHub Actions also builds the Android app (`Keyhold.apk`) and the web app (`keyhold-web.zip`)
+on every change, and publishes everything as a release for each `keyhold-v*` tag.
+
+### The Android app
+
+`android/` is a small native app (one Java file, no libraries) around the same `web/` files,
+which are packed into the APK unchanged. To build it yourself you need the Android SDK
+(platform 36) and Java 17 or newer:
+
+```bash
+cd android && ./gradlew assembleDebug    # app/build/outputs/apk/debug/app-debug.apk
+```
+
+Releases must be signed with the same key every time, or Android will not install an update
+over the earlier version. Make the key once and keep it safe (losing it means users must
+reinstall, which deletes their vault):
+
+```bash
+keytool -genkeypair -v -keystore keyhold-release.jks -alias keyhold -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Then add four secrets to the GitHub repository (Settings › Secrets and variables › Actions):
+`KEYHOLD_ANDROID_KEYSTORE` (the output of `base64 -w0 keyhold-release.jks`),
+`KEYHOLD_ANDROID_KEYSTORE_PASSWORD`, `KEYHOLD_ANDROID_KEY_ALIAS` (`keyhold`) and
+`KEYHOLD_ANDROID_KEY_PASSWORD`. Without them, CI makes a debug build, good for trying the app
+but not for keeping it updated.
 
 ## Command line
 
@@ -142,7 +188,7 @@ keyhold version
 ```bash
 go test ./...                       # storage, desktop API, sync server
 node --test test/core.test.mjs      # encryption, TOTP, generator, merge, importers, sync
-node test/e2e.mjs [screenshot-dir]  # the real program in Chromium: desktop, sync server, phone, offline
+node test/e2e.mjs [screenshot-dir]  # the real program in Chromium: desktop, sync server, phone, offline, web app, Android page
 ```
 
 ## License and credits
