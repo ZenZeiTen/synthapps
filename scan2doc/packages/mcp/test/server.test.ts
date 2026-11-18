@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { CreateMessageRequestSchema, type CreateMessageRequest } from '@modelcontextprotocol/sdk/types.js';
+import { PDFDocument, rgb } from 'pdf-lib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createScan2DocServer, parseRepair, type RepairContext } from '../src/index.js';
 import { makeFixturePdf, simulateScan } from '../../../test/support/make-pdf.js';
@@ -17,7 +18,12 @@ beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), 'scan2doc-mcp-'));
   writeFileSync(join(dir, 'report.pdf'), await makeFixturePdf());
   // Image-only, as from a scanner: a digital Korean PDF would be read from its text layer and never fail.
-  writeFileSync(join(dir, 'korean.pdf'), await simulateScan(await makeLanguagePdf(KOREAN), 300, 85, 0));
+  if (fontAvailable(KOREAN.font)) writeFileSync(join(dir, 'korean.pdf'), await simulateScan(await makeLanguagePdf(KOREAN), 300, 85, 0));
+  // A scan that is specks of ink and no text: always fails the quality gate ("no-text"), and needs no fonts.
+  const ink = await PDFDocument.create();
+  const inkPage = ink.addPage([595, 842]);
+  for (let i = 0; i < 400; i++) inkPage.drawRectangle({ x: 40 + ((i * 37) % 500), y: 100 + ((i * 91) % 640), width: 4, height: 4, color: rgb(0, 0, 0) });
+  writeFileSync(join(dir, 'ink.pdf'), await simulateScan(await ink.save(), 300, 85, 0));
 });
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -57,7 +63,7 @@ const goodAnswer: Model = (req) => {
 describe.skipIf(!fontAvailable(KOREAN.font))('escalation by MCP sampling', () => {
   it('sends a failing page to the host model and applies its answer', async () => {
     const { call, requests, close } = await connect(goodAnswer);
-    const res = await call('scan_document', { path: 'korean.pdf', languages: ['eng'] });
+    const res = await call('scan_document', { path: 'korean.pdf', languages: ['eng'], escalation: 'sampling' });
     expect(res.isError).toBeFalsy();
     const page = (res.structuredContent!.pages as { escalation: string; issues: { code: string }[] }[])[0]!;
     expect(page.issues.length).toBeGreaterThan(0);
@@ -88,7 +94,7 @@ describe.skipIf(!fontAvailable(KOREAN.font))('escalation by MCP sampling', () =>
     const { call, requests, close } = await connect((req, n) =>
       n === 1 ? '{"blocks": [{"id": "x", "type": "paragraph", "text": "?"}]}' : goodAnswer(req, n),
     );
-    const res = await call('scan_document', { path: 'korean.pdf', languages: ['eng'] });
+    const res = await call('scan_document', { path: 'korean.pdf', languages: ['eng'], escalation: 'sampling' });
     expect((res.structuredContent!.pages as { escalation: string }[])[0]!.escalation).toBe('applied');
     expect(requests).toHaveLength(2);
     const followUp = requests[1]!.messages.at(-1)!.content as { text: string };
@@ -98,7 +104,7 @@ describe.skipIf(!fontAvailable(KOREAN.font))('escalation by MCP sampling', () =>
 
   it('keeps the OCR draft when the model keeps answering badly', async () => {
     const { call, requests, close } = await connect(() => 'I cannot read this page, sorry.');
-    const res = await call('scan_document', { path: 'korean.pdf', languages: ['eng'] });
+    const res = await call('scan_document', { path: 'korean.pdf', languages: ['eng'], escalation: 'sampling' });
     const page = (res.structuredContent!.pages as { escalation: string }[])[0]!;
     expect(page.escalation).toBe('failed');
     expect(res.text).toMatch(/no JSON object in the reply/);
@@ -109,7 +115,7 @@ describe.skipIf(!fontAvailable(KOREAN.font))('escalation by MCP sampling', () =>
 
   it('does not bother the model with pages that pass', async () => {
     const { call, requests, close } = await connect(goodAnswer);
-    const res = await call('scan_document', { path: 'report.pdf' });
+    const res = await call('scan_document', { path: 'report.pdf', escalation: 'sampling' });
     expect((res.structuredContent!.pages as { escalation: string }[]).map((p) => p.escalation)).toEqual(['not-needed', 'not-needed']);
     expect(requests).toHaveLength(0);
     await close();
@@ -163,6 +169,37 @@ describe.skipIf(!fontAvailable(KOREAN.font))('escalation to the agent (client wi
     const res = await call('scan_document', { path: 'korean.pdf', escalation: 'sampling' });
     expect(res.isError).toBe(true);
     expect(res.text).toMatch(/does not support sampling/);
+    await close();
+  });
+});
+
+describe('sampling is opt-in', () => {
+  const reply = () => 'I cannot read this page, sorry.';
+
+  it('does not send a page to the host model unless sampling is asked for', async () => {
+    const { call, requests, close } = await connect(reply);
+    const res = await call('scan_document', { path: 'ink.pdf', languages: ['eng'] });
+    expect(res.isError).toBeFalsy();
+    const page = (res.structuredContent!.pages as { escalation: string; issues: unknown[] }[])[0]!;
+    expect(page.issues.length).toBeGreaterThan(0);
+    expect(page.escalation).toBe('unavailable');
+    expect(requests).toHaveLength(0);
+    await close();
+  });
+
+  it('treats auto the same way: flag for the agent, no sampling request', async () => {
+    const { call, requests, close } = await connect(reply);
+    const res = await call('scan_document', { path: 'ink.pdf', languages: ['eng'], escalation: 'auto' });
+    expect((res.structuredContent!.pages as { escalation: string }[])[0]!.escalation).toBe('unavailable');
+    expect(requests).toHaveLength(0);
+    await close();
+  });
+
+  it('samples when escalation is "sampling"', async () => {
+    const { call, requests, close } = await connect(reply);
+    const res = await call('scan_document', { path: 'ink.pdf', languages: ['eng'], escalation: 'sampling' });
+    expect((res.structuredContent!.pages as { escalation: string }[])[0]!.escalation).toBe('failed');
+    expect(requests.length).toBeGreaterThan(0);
     await close();
   });
 });
