@@ -118,7 +118,7 @@ export function createScan2DocServer(options: ServerOptions): McpServer {
       title: 'Scan a PDF',
       description:
         'Recognises a PDF (scanned or digital): text in 27 languages (auto-detected by default), headings, ruled tables, pictures. ' +
-        'Checks every page; pages that fail are escalated to an AI model via sampling when the client supports it, otherwise flagged for get_page / update_page. Returns a job id.',
+        'Checks every page; pages that fail are flagged for get_page / update_page, or, only when escalation is "sampling", sent to the host\'s model through MCP sampling. Returns a job id.',
       inputSchema: {
         path: z.string().describe('PDF path, inside an allowed directory'),
         languages: z.array(z.string()).optional().describe('Tesseract codes such as ["jpn","eng"]; omit to detect per page'),
@@ -126,7 +126,7 @@ export function createScan2DocServer(options: ServerOptions): McpServer {
         escalation: z
           .enum(['auto', 'sampling', 'agent', 'off'])
           .default('auto')
-          .describe('auto: sampling if available, else flag for the agent; sampling: require it; agent: never sample; off: do not flag'),
+          .describe('auto and agent: flag failing pages for the agent, never sample (page images stay with this tool and the agent); sampling: send failing pages to the host\'s model through MCP sampling (opt-in; the client must support it); off: do not flag'),
         dpi: z.number().int().min(100).max(600).optional(),
         textLayer: z
           .enum(['auto', 'include-hidden', 'ignore'])
@@ -141,8 +141,8 @@ export function createScan2DocServer(options: ServerOptions): McpServer {
         const sourcePath = roots.resolve(path);
         const sampling = canSample(server.server);
         if (escalation === 'sampling' && !sampling) return failure('This MCP client does not support sampling; use escalation "agent" or "auto".');
-        const escalate: PageEscalator | undefined =
-          (escalation === 'auto' || escalation === 'sampling') && sampling ? samplingEscalator(server.server, options.sampling) : undefined;
+        // Sampling sends the page image and the OCR draft to the host's model, so it is opt-in: only "sampling" asks for it.
+        const escalate: PageEscalator | undefined = escalation === 'sampling' && sampling ? samplingEscalator(server.server, options.sampling) : undefined;
         const pdf = await readFile(sourcePath);
         const raster = await PdfRasterizer.open(pdf, assets, password);
         const count = raster.pageCount;

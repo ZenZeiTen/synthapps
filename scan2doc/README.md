@@ -10,8 +10,11 @@ compiled to WebAssembly) reads them, so no document leaves the machine.
   encoded, upright, covering the page). That is exact and fast. Anything else goes through OCR.
 - **Layout:** headings, paragraphs, ruled tables (with merged cells), pictures and reading
   order. Each document is classified as a document, spreadsheet or presentation.
-- **Quality gates** flag pages that were read poorly. `scan2doc mcp` hands those pages to an AI
-  model through the Model Context Protocol, for example from Claude Desktop.
+- **Quality gates** flag pages that were read poorly. `scan2doc mcp` lets a model such as Claude
+  (for example in Claude Desktop) look at those pages and correct them through the Model Context
+  Protocol. By default the page images stay with Scan2Doc and the assistant you are talking to;
+  Scan2Doc does not send them to the host's model on its own. Passing `escalation: "sampling"` to
+  `scan_document` opts in to that.
 
 ## Download
 
