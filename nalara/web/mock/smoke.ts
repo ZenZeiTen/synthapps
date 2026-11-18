@@ -302,6 +302,42 @@ async function main() {
       return decodeURIComponent(new URL(req.url()).pathname);
     });
 
+    await check("Start: Nalara's apps and the computer's programs; the Terminal runs commands, follows cd and shows errors", async () => {
+      await page.click(".hud .btn-launch");
+      await page.waitForSelector(".launch-tile", { timeout: 3000 });
+      const tiles = await page.$$eval(".launch-tile .launch-name", (els) => els.map((e) => e.textContent ?? ""));
+      assert(["Ask", "Files", "Terminal"].every((t) => tiles.includes(t)), `tiles: ${tiles.join(", ")}`);
+      await page.waitForSelector(".launch-row", { timeout: 3000 });
+      await page.fill("#launch-q", "calc");
+      const rows = await page.$$eval(".launch-row .launch-row-name", (els) => els.map((e) => e.textContent ?? ""));
+      assert(rows.join(",") === "Calculator", `filtered: ${rows.join(", ")}`);
+      const [req] = await Promise.all([
+        page.waitForRequest((r) => r.method() === "POST" && new URL(r.url()).pathname === "/api/launcher/launch", { timeout: 3000 }),
+        page.click('.launch-row:has-text("Calculator")'),
+      ]);
+      assert((req.postDataJSON() as { id: string }).id === "app_calc", "wrong app id");
+      await page.waitForSelector('.toast:has-text("Starting Calculator")', { timeout: 3000 });
+      await page.fill("#launch-q", "");
+      await page.click('.launch-tile[data-app="terminal"]');
+      await page.waitForSelector("#term-line", { timeout: 3000 });
+      await page.fill("#term-line", "echo hello from nalara");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector('.term-text:has-text("hello from nalara")', { timeout: 3000 });
+      await page.fill("#term-line", "cd src");
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => (document.querySelector(".term-input .term-prompt")?.textContent ?? "").includes("src"), undefined, { timeout: 3000 });
+      await page.fill("#term-line", "frobnicate");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector('.term-status:has-text("exit code 127")', { timeout: 3000 });
+      // History: up arrow brings back the last command.
+      await page.keyboard.press("ArrowUp");
+      assert((await page.inputValue("#term-line")) === "frobnicate", "history did not recall the last command");
+      await page.screenshot({ path: join(SHOTS, "terminal.png") });
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
+      return `${tiles.length} Nalara apps; launched Calculator; terminal ran 3 commands`;
+    });
+
     await check("File manager: new folder and file, edit and save, rename, move to the trash and restore", async () => {
       await openRootMenu(page);
       await page.click('.radial-opt[data-action-id="files"]');

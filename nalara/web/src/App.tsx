@@ -6,6 +6,8 @@ import { usePacedInstances, usePacer } from "./core/pacing";
 import { useDebouncedCallback, useGraph, useKernelEvents } from "./hooks";
 import type { AgentDefinition, AgentInstance, AgentState, ApprovalRequest, GraphNode, KernelEvent, KernelStatus, RadialAction, RadialResult, SearchHit, Workspace } from "./types";
 import { AssistantPanel } from "./components/AssistantPanel";
+import { LauncherPanel, type NalaraApp } from "./components/LauncherPanel";
+import { TerminalPanel } from "./components/TerminalPanel";
 import { ApprovalCard } from "./components/ApprovalCard";
 import { ClaudeNotice, type ClaudeNeeded } from "./components/ClaudeNotice";
 import { AgentsPanel, AppsPanel, ProjectsPanel } from "./components/BrowsePanels";
@@ -15,7 +17,7 @@ import { EventLog } from "./components/EventLog";
 import { FilePreview, FileViewer } from "./components/FileViewer";
 import { FleetPanel } from "./components/FleetPanel";
 import { Hud } from "./components/Hud";
-import { IconRefresh } from "./components/Icons";
+import { IconFolder, IconMemory, IconRefresh, IconSearch, IconSettings, IconSpark, IconTerminal } from "./components/Icons";
 import { IntentDock } from "./components/IntentDock";
 import { KillSwitch, ResumeButton } from "./components/KillSwitch";
 import { MemoryPanel } from "./components/MemoryPanel";
@@ -30,7 +32,17 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { SidePanel } from "./components/SidePanel";
 import { Ticker } from "./components/Ticker";
 
-type PanelId = "assistant" | "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events" | "fleet" | "observatory";
+/** Nalara's own apps, as the Launcher shows them; each opens the panel with its id. */
+const NALARA_APPS: NalaraApp[] = [
+  { id: "assistant", name: "Ask", description: "Answers, writing and work on your files", icon: <IconSpark size={20} /> },
+  { id: "files", name: "Files", description: "Your folders, edit and save, trash", icon: <IconFolder size={20} /> },
+  { id: "terminal", name: "Terminal", description: "Run commands on this computer", icon: <IconTerminal size={20} /> },
+  { id: "search", name: "Search", description: "Find files by meaning", icon: <IconSearch size={20} /> },
+  { id: "memory", name: "Memory", description: "What Nalara remembers", icon: <IconMemory size={20} /> },
+  { id: "settings", name: "Settings", description: "Claude key, policy, secrets", icon: <IconSettings size={20} /> },
+];
+
+type PanelId = "assistant" | "terminal" | "launcher" | "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events" | "fleet" | "observatory";
 const ROOT_PANELS: PanelId[] = ["search", "files", "agents", "projects", "apps", "memory", "settings"];
 
 /** Panel and sheet widths (px) plus their 20 px margin; the stage centres the core in the space left between them. */
@@ -508,7 +520,7 @@ export function App() {
   }, []);
 
   // ---- layout ------------------------------------------------------------------------------------------
-  const leftW = panel ? (panel === "settings" || panel === "observatory" || panel === "assistant" || panel === "files" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
+  const leftW = panel ? (panel === "settings" || panel === "observatory" || panel === "assistant" || panel === "files" || panel === "terminal" || panel === "launcher" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
   const rightW = sheetWs ? SHEET_W + EDGE : 0;
   // Shrink the core when panels leave it less room than its orbit needs.
   const orbPx = Math.min(vp.h * 0.266, 300);
@@ -578,6 +590,8 @@ export function App() {
         onClaudeOffline={() => setPanel("settings")}
         askOpen={panel === "assistant"}
         onAsk={() => setPanel((p) => (p === "assistant" ? null : "assistant"))}
+        launcherOpen={panel === "launcher"}
+        onLauncher={() => setPanel((p) => (p === "launcher" ? null : "launcher"))}
       />
 
       <main className={`stage${room < 720 ? " is-narrow" : ""}`} style={stageStyle} aria-label={`${BRAND} core`} aria-hidden={fieldOpen || undefined}>
@@ -625,6 +639,10 @@ export function App() {
           question={askQuestion}
           onQuestionTaken={takeQuestion}
         />
+      ) : null}
+      {panel === "terminal" ? <TerminalPanel onClose={() => setPanel(null)} /> : null}
+      {panel === "launcher" ? (
+        <LauncherPanel apps={NALARA_APPS} onOpenApp={(id) => setPanel(id as PanelId)} onClose={() => setPanel(null)} onToast={toast} />
       ) : null}
       {panel === "search" ? <SearchPanel onClose={() => setPanel(null)} onOpenHit={onOpenHit} /> : null}
       {panel === "files" ? (

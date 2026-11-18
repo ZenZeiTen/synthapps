@@ -3,6 +3,8 @@
  * Mutating requests carry `X-Nalara-Client: 1`; errors surface as ApiError with the server's message.
  */
 import type {
+  InstalledApp,
+  TerminalEvent,
   FileEntry,
   FileListing,
   Place,
@@ -243,23 +245,25 @@ export const api = {
   conversation: (id: string) => request<AssistantMessage[]>("GET", `/api/assistant/conversations/${enc(id)}`),
   deleteConversation: (id: string) => request<{ ok: true }>("DELETE", `/api/assistant/conversations/${enc(id)}`),
   ask: askAssistant,
+
+  terminal: () => request<{ shell: string; home: string; running: string[] }>("GET", "/api/terminal"),
+  run: runCommand,
+  terminalInput: (id: string, text: string) => request<{ ok: true }>("POST", `/api/terminal/${enc(id)}/input`, { text }),
+  terminalKill: (id: string) => request<{ ok: true }>("POST", `/api/terminal/${enc(id)}/kill`),
+  installedApps: (q?: string) => request<InstalledApp[]>("GET", `/api/launcher${qs({ q })}`),
+  refreshApps: () => request<InstalledApp[]>("POST", "/api/launcher/refresh"),
+  launchApp: (id: string) => request<InstalledApp>("POST", "/api/launcher/launch", { id }),
 };
 
-/**
- * POST /api/assistant/ask: calls `onEvent` for each streamed event and resolves with the saved answer.
- * Aborting the signal stops the answer on the kernel too. Errors before the stream starts throw ApiError.
- */
-export async function askAssistant(
-  text: string,
-  opts: { conversationId?: string; signal?: AbortSignal; onEvent: (ev: AssistantEvent) => void },
-): Promise<AssistantMessage | undefined> {
+/** POSTs JSON and reads an NDJSON response, one event per line. Errors before the stream starts throw ApiError. */
+async function streamNdjson<E>(path: string, body: unknown, onEvent: (ev: E) => void, signal?: AbortSignal): Promise<void> {
   let res: Response;
   try {
-    res = await fetch("/api/assistant/ask", {
+    res = await fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/x-ndjson", "X-Nalara-Client": "1" },
-      body: JSON.stringify({ text, ...(opts.conversationId ? { conversationId: opts.conversationId } : {}) }),
-      signal: opts.signal,
+      body: JSON.stringify(body),
+      signal,
       credentials: "same-origin",
     });
   } catch (err) {
@@ -270,9 +274,9 @@ export async function askAssistant(
     let msg = res.statusText || `HTTP ${res.status}`;
     let code: string | undefined;
     try {
-      const body = (await res.json()) as { error?: string; code?: string };
-      msg = body.error ?? msg;
-      code = body.code;
+      const b = (await res.json()) as { error?: string; code?: string };
+      msg = b.error ?? msg;
+      code = b.code;
     } catch {
       /* not JSON */
     }
@@ -281,17 +285,13 @@ export async function askAssistant(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let answer: AssistantMessage | undefined;
   const handle = (line: string) => {
     if (!line.trim()) return;
-    let ev: AssistantEvent;
     try {
-      ev = JSON.parse(line) as AssistantEvent;
+      onEvent(JSON.parse(line) as E);
     } catch {
-      return;
+      /* a malformed line is skipped */
     }
-    if (ev.type === "done") answer = ev.message;
-    opts.onEvent(ev);
   };
   for (;;) {
     const { value, done } = await reader.read();
@@ -304,7 +304,32 @@ export async function askAssistant(
     }
   }
   handle(buffer + decoder.decode());
+}
+
+/**
+ * POST /api/assistant/ask: calls `onEvent` for each streamed event and resolves with the saved answer.
+ * Aborting the signal stops the answer on the kernel too.
+ */
+export async function askAssistant(
+  text: string,
+  opts: { conversationId?: string; signal?: AbortSignal; onEvent: (ev: AssistantEvent) => void },
+): Promise<AssistantMessage | undefined> {
+  let answer: AssistantMessage | undefined;
+  await streamNdjson<AssistantEvent>(
+    "/api/assistant/ask",
+    { text, ...(opts.conversationId ? { conversationId: opts.conversationId } : {}) },
+    (ev) => {
+      if (ev.type === "done") answer = ev.message;
+      opts.onEvent(ev);
+    },
+    opts.signal,
+  );
   return answer;
+}
+
+/** POST /api/terminal/run: streams the command's output. Aborting the signal stops the command. */
+export function runCommand(command: string, cwd: string | undefined, onEvent: (ev: TerminalEvent) => void, signal?: AbortSignal): Promise<void> {
+  return streamNdjson<TerminalEvent>("/api/terminal/run", { command, ...(cwd ? { cwd } : {}) }, onEvent, signal);
 }
 
 export type ConnectionState = "connecting" | "open" | "reconnecting";

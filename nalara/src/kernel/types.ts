@@ -543,7 +543,7 @@ export interface ToolRegistry {
 export interface AuditEntry {
   seq: number;
   ts: string;
-  kind: "tool_call" | "approval" | "halt" | "resume" | "undo" | "budget" | "memory_confirm" | "policy" | "relay" | "verdict" | "secret" | "file";
+  kind: "tool_call" | "approval" | "halt" | "resume" | "undo" | "budget" | "memory_confirm" | "policy" | "relay" | "verdict" | "secret" | "file" | "shell" | "app";
   principal: Principal | null;
   subject: string; // tool name, workspace id, ...
   outcome: "allowed" | "denied" | "ok" | "error" | "info";

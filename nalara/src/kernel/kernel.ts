@@ -33,6 +33,9 @@ import { createAuditLog } from "./audit";
 import { createAssistant, type Assistant } from "../assistant/assistant";
 import { createFileManager, type FileManager, type Opener } from "../files/manager";
 import { registerFileTools } from "../files/tools";
+import { createLauncher, type Launcher, type Spawner } from "../apps/launcher";
+import { createTerminal, type ShellSpec, type Terminal } from "../shell/terminal";
+import { registerShellTools } from "../shell/tools";
 import { loadConfig, type ConfigOverrides } from "./config";
 import { openDatabase, type Database } from "./db";
 import { createActionJournal } from "./journal";
@@ -148,6 +151,11 @@ export interface KernelDeps {
   opener?: Opener;
   /** Folders offered as one-click places in the file manager (tests pass their own). */
   placeSuggestions?: () => { name: string; path: string }[];
+  /** The terminal's shell (default: PowerShell on Windows, the user's shell elsewhere). */
+  shell?: ShellSpec;
+  /** Starts installed apps; tests pass a fake, with `appDirs` to scan instead of the system's folders. */
+  appSpawner?: Spawner;
+  appDirs?: string[];
 }
 
 /** The Kernel contract plus what the HTTP server and CLI need. */
@@ -160,6 +168,10 @@ export interface NeuralKernel extends Kernel {
   readonly assistant: Assistant;
   /** The user's files: places, list, read, save, folders, move, copy, trash and restore, open in the default app. */
   readonly files: FileManager;
+  /** Runs command lines typed by the user (and, with approval, by the assistant). */
+  readonly terminal: Terminal;
+  /** Programs installed on this computer, and starting them. */
+  readonly launcher: Launcher;
   /** Workflow files that failed validation at start. */
   readonly workflowErrors: string[];
   isHalted(): boolean;
@@ -269,6 +281,21 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     ...(deps.placeSuggestions ? { suggestions: deps.placeSuggestions } : {}),
   });
   registerFileTools(tools, files);
+  const terminal = createTerminal({
+    home: root,
+    audit,
+    principal: () => human(),
+    isHalted: () => halted,
+    redact: (t) => secrets.redact(t),
+    ...(deps.shell ? { shell: deps.shell } : {}),
+  });
+  const launcher = createLauncher({
+    audit,
+    principal: () => human(),
+    ...(deps.appSpawner ? { spawner: deps.appSpawner } : {}),
+    ...(deps.appDirs ? { dirs: deps.appDirs } : {}),
+  });
+  registerShellTools(tools, terminal, launcher);
   const hashesFile = join(dataDir, "mcp-approved.json");
   const mcp = createMcpManager({ registry: tools, graph, bus, approvedHashes: readHashes(hashesFile) });
 
@@ -608,6 +635,8 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     radial,
     assistant,
     files,
+    terminal,
+    launcher,
     get workflowErrors() {
       return [...workflowErrors];
     },
@@ -665,6 +694,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
       tools.setHalted(true);
       triggers.stop();
       const terminated = orchestrator.terminateAll(`halted: ${why}`);
+      terminal.killAll();
       audit.append({ kind: "halt", principal: human(), subject: "kernel", outcome: "info", detail: { reason: why, terminated } });
       bus.publish("kernel.halted", { reason: why, terminated }, { source: "kernel" });
     },
@@ -696,6 +726,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
       }
       triggers.stop();
       orchestrator.terminateAll("kernel stopping");
+      terminal.killAll();
       const settle = Promise.allSettled([...inflight]);
       await Promise.race([settle, new Promise((r) => setTimeout(r, STOP_WAIT_MS).unref?.())]);
       persistHashes();

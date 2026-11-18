@@ -144,9 +144,15 @@ async function radialLabels(page: Page): Promise<string[]> {
 }
 
 async function closePanel(page: Page) {
-  if (await page.$(".side-panel")) {
+  // Escape closes the newest overlay first. A results sheet that opened over the panel (a triggered run finished
+  // meanwhile) takes the first Escape, so press again while something newer than the panel is still open.
+  for (let i = 0; i < 3 && (await page.$(".side-panel")); i++) {
     await page.keyboard.press("Escape");
-    await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
+    try {
+      await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
+    } catch (err) {
+      if (i === 2 || !(await page.$(".side-panel"))) throw err;
+    }
   }
 }
 
@@ -806,6 +812,30 @@ async function main() {
       await shot(page, "13e-files.png");
       await closePanel(page);
       return `saved, trashed (${item.id}) and restored`;
+    });
+
+    // ---- i6 --------------------------------------------------------------------------------------------------
+    await check("i6. Start and Terminal on the real kernel: a real shell runs the command in the Nalara folder, cd carries over, the run is audited", async () => {
+      await closePanel(page);
+      await page.click(".hud .btn-launch");
+      await page.waitForSelector('.launch-tile[data-app="terminal"]', { timeout: 5000 });
+      await page.click('.launch-tile[data-app="terminal"]');
+      await page.waitForSelector("#term-line", { timeout: 5000 });
+      await page.waitForFunction(() => (document.querySelector(".term-input .term-prompt")?.textContent ?? "").includes("Nalara"), undefined, { timeout: 5000 });
+      await page.fill("#term-line", "cd src/combat");
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => (document.querySelector(".term-input .term-prompt")?.textContent ?? "").includes("combat"), undefined, { timeout: 5000 });
+      await page.fill("#term-line", "ls && node --version");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector('.term-text:has-text("damage.ts")', { timeout: 10000 });
+      const out = ((await page.locator(".term-text").last().textContent()) ?? "").trim();
+      assert(/v\d+\.\d+/.test(out), `no node version in: ${out}`);
+      const audit = await api<{ entries: { kind: string; detail: { command?: string; exitCode?: number } }[] }>("GET", "/api/audit?limit=5000");
+      const ran = audit.entries.filter((e) => e.kind === "shell").map((e) => `${e.detail.command}=${e.detail.exitCode}`);
+      assert(ran.includes("ls && node --version=0"), `audit: ${ran.join(", ")}`);
+      await shot(page, "13f-terminal.png");
+      await closePanel(page);
+      return `${out.split("\n").at(-1)}; audited: ${ran.join(", ")}`;
     });
 
     // ---- j ---------------------------------------------------------------------------------------------------

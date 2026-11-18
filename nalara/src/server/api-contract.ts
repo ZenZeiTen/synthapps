@@ -85,6 +85,15 @@
  *                                                                              400 claude_key_rejected, 502 claude_unreachable)
  * DELETE  /api/claude/key                        -                            { ok, canRestart }
  * POST    /api/kernel/restart                    -                            { restarting: true }  (501 restart_unavailable without a supervisor)
+ * GET     /api/terminal                          -                            { shell, home, running: string[] }
+ * POST    /api/terminal/run                      { command, cwd? }            NDJSON stream: start, output (stdout|stderr), exit
+ *                                                                              (with the folder for the next command) or error.
+ *                                                                              Closing the request stops the command.
+ * POST    /api/terminal/:id/input                { text }                     { ok: true } (a line to the command's stdin)
+ * POST    /api/terminal/:id/kill                 -                            { ok: true }
+ * GET     /api/launcher[?q=]                     -                            InstalledApp[] (from the system's app menus)
+ * POST    /api/launcher/launch                   { id }                       InstalledApp (only ids from the list)
+ * POST    /api/launcher/refresh                  -                            InstalledApp[] (rescans)
  * GET     /api/assistant                         -                            { online, mode, model }
  * POST    /api/assistant/ask                     { text, conversationId? }    NDJSON stream, one event per line: start, delta,
  *                                                                              turn_text, tool, tool_result, done (the saved

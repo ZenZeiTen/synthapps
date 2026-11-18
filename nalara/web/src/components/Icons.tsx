@@ -199,3 +199,17 @@ export const IconCopy = (p: IconProps) => (
     <path d="M15.5 8.5V5.5a1 1 0 00-1-1h-9a1 1 0 00-1 1v9a1 1 0 001 1h3" />
   </Svg>
 );
+export const IconTerminal = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+    <path d="M7.5 10l3 2.5-3 2.5M12.5 15.5h4" />
+  </Svg>
+);
+export const IconGrid = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="4.5" y="4.5" width="6" height="6" rx="1.2" />
+    <rect x="13.5" y="4.5" width="6" height="6" rx="1.2" />
+    <rect x="4.5" y="13.5" width="6" height="6" rx="1.2" />
+    <rect x="13.5" y="13.5" width="6" height="6" rx="1.2" />
+  </Svg>
+);

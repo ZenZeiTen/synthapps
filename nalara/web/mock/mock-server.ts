@@ -1215,6 +1215,50 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (method === "GET" && !b) return send(res, 200, { mode: "offline", model: "claude-opus-5-5", credentials: "none", canRestart: false });
     if ((method === "PUT" || method === "DELETE") && b === "key") return send(res, 400, { error: "The mock kernel cannot use a Claude key", code: "claude_key_rejected" });
   }
+  // --- terminal and launcher: a tiny simulated shell and a fixed app list --------------------------------
+  if (a === "terminal") {
+    if (method === "GET" && !b) return send(res, 200, { shell: "bash", home: "/home/you/Nalara", running: [] });
+    if (method === "POST" && b === "run") {
+      const command = String(body.command ?? "").trim();
+      if (!command) throw new HttpError(400, "command is required");
+      let cwd = typeof body.cwd === "string" && body.cwd ? body.cwd : "/home/you/Nalara";
+      const id = `cmd_${Math.random().toString(36).slice(2, 8)}`;
+      res.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" });
+      const line = (ev: unknown) => res.write(`${JSON.stringify(ev)}\n`);
+      line({ type: "start", id, cwd, shell: "bash" });
+      let code = 0;
+      const cd = /^cd(?:\s+(.+))?$/.exec(command);
+      if (cd) cwd = cd[1] ? `${cwd}/${cd[1]}` : "/home/you/Nalara";
+      else if (command.startsWith("echo ")) line({ type: "output", stream: "stdout", text: `${command.slice(5)}\n` });
+      else if (command === "pwd") line({ type: "output", stream: "stdout", text: `${cwd}\n` });
+      else if (command === "ls") line({ type: "output", stream: "stdout", text: "README.md\nsrc\ndocs\n" });
+      else {
+        line({ type: "output", stream: "stderr", text: `bash: ${command.split(" ")[0]}: command not found\n` });
+        code = 127;
+      }
+      line({ type: "exit", id, exitCode: code, signal: null, cwd });
+      res.end();
+      return;
+    }
+  }
+  if (a === "launcher") {
+    const apps = [
+      { id: "app_calc", name: "Calculator", source: "applications", comment: "Do arithmetic" },
+      { id: "app_files", name: "Files", source: "applications", comment: "Browse the file system" },
+      { id: "app_writer", name: "Writer", source: "applications", comment: "Write documents" },
+    ];
+    if (method === "GET" && !b) {
+      const term = (q.get("q") ?? "").toLowerCase();
+      return send(res, 200, apps.filter((x) => !term || x.name.toLowerCase().includes(term)));
+    }
+    if (method === "POST" && b === "refresh") return send(res, 200, apps);
+    if (method === "POST" && b === "launch") {
+      const app = apps.find((x) => x.id === body.id);
+      if (!app) throw new HttpError(404, `No installed app "${String(body.id)}"`);
+      return send(res, 200, app);
+    }
+  }
+
   // --- assistant: offline answers like the real kernel; a question containing "stream" plays a scripted Claude
   // answer (tool use, streamed text) so the UI's streaming path can be exercised.
   if (a === "assistant") {

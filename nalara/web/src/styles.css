@@ -3408,3 +3408,221 @@ li > .tree-btn {
   object-fit: contain;
   image-rendering: auto;
 }
+
+/* --- Terminal ------------------------------------------------------------------------------------ */
+.side-panel-body.term-body {
+  overflow: hidden;
+  padding-bottom: 14px;
+}
+.term-out {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(2, 4, 9, 0.88);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #d6dde8;
+}
+.term-hint {
+  margin: 0;
+  color: var(--text-3);
+  font-family: var(--sans);
+  font-size: 13px;
+}
+.term-hint code {
+  font-family: var(--mono);
+  color: var(--accent-2);
+}
+.term-block + .term-block {
+  margin-top: 8px;
+}
+.term-cmd {
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+.term-prompt {
+  color: var(--accent);
+  white-space: nowrap;
+}
+.term-text {
+  margin: 2px 0 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.term-text .is-err {
+  color: #ffb0a8;
+}
+.term-status {
+  margin-top: 2px;
+  color: var(--amber);
+  font-size: 11.5px;
+}
+.term-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  background: rgba(2, 4, 9, 0.88);
+}
+.term-input:focus-within {
+  border-color: var(--accent-line);
+}
+.term-input .term-prompt {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.term-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #ffffff;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+/* --- Start (launcher) ---------------------------------------------------------------------------- */
+.launch-search {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  background: rgba(8, 12, 22, 0.8);
+  color: var(--text);
+  font-size: 14px;
+}
+.launch-search:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+.launch-h {
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.launch-h-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.launch-h-row .icon-btn {
+  width: 28px;
+  height: 28px;
+}
+.launch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.launch-tile {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(14, 22, 38, 0.65);
+  color: var(--text);
+  text-align: left;
+}
+.launch-tile:hover,
+.launch-tile:focus-visible {
+  border-color: var(--accent-line);
+  background: rgba(20, 34, 56, 0.8);
+}
+.launch-icon {
+  grid-row: 1 / 3;
+  display: inline-flex;
+  color: var(--accent);
+}
+.launch-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+.launch-desc {
+  font-size: 11.5px;
+  color: var(--text-3);
+  line-height: 1.3;
+}
+.launch-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.launch-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font-size: 13.5px;
+}
+.launch-row:hover,
+.launch-row:focus-visible {
+  background: rgba(22, 34, 56, 0.6);
+}
+.launch-row svg {
+  flex: none;
+  color: var(--text-2);
+}
+.launch-row-name {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.launch-row-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.launch-open {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  opacity: 0;
+}
+.launch-row:hover .launch-open,
+.launch-row:focus-visible .launch-open,
+.launch-row:disabled .launch-open {
+  opacity: 1;
+}
+/* The input row shows focus with its border. */
+.term-input input:focus-visible {
+  outline: none;
+}

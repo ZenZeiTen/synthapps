@@ -65,6 +65,8 @@ export const API_FEATURES = [
   "kernel-restart",
   "assistant",
   "file-manager",
+  "terminal",
+  "launcher",
 ];
 /** Files the UI may preview from disk (no SVG or HTML: they could run scripts). */
 const PREVIEW_TYPES: Record<string, string> = {
@@ -442,6 +444,36 @@ export function createHttpServer(kernel: NeuralKernel, opts: HttpServerOptions =
     createReadStream(abs).pipe(res);
   }
 
+  // --- terminal (NDJSON stream) -------------------------------------------------------------------
+
+  /** POST /api/terminal/run streams the command's output; closing the request stops the command. */
+  async function runStream(res: ServerResponse, body: Json): Promise<void> {
+    const command = text(body.command, "command");
+    const cwd = typeof body.cwd === "string" && body.cwd.trim() ? body.cwd : undefined;
+    if (kernel.isHalted()) throw new HttpError(409, "Nalara is halted. Resume it to run commands.", "kernel_halted");
+    const controller = new AbortController();
+    res.writeHead(200, {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "X-Accel-Buffering": "no",
+      "X-Nalara-Api-Version": String(API_VERSION),
+    });
+    res.flushHeaders?.();
+    res.on("close", () => {
+      if (!res.writableEnded) controller.abort();
+    });
+    const write = (ev: unknown) => {
+      if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(kernel.secrets.redactValue(ev))}\n`);
+    };
+    try {
+      await kernel.terminal.run(command, { ...(cwd ? { cwd } : {}), signal: controller.signal, onEvent: write });
+    } catch (err) {
+      write({ type: "error", error: err instanceof Error ? err.message : String(err), code: codeFor(err, statusOf(err)) });
+    }
+    if (!res.writableEnded) res.end();
+  }
+
   // --- assistant (NDJSON stream) ------------------------------------------------------------------
 
   /** POST /api/assistant/ask streams one JSON event per line; closing the request stops the answer. */
@@ -814,6 +846,29 @@ export function createHttpServer(kernel: NeuralKernel, opts: HttpServerOptions =
           return ok({ ...result, canRestart: Boolean(opts.onRestart) });
         }
         if (is("DELETE", 2) && b === "key") return ok({ ok: kernel.deleteClaudeKey(), canRestart: Boolean(opts.onRestart) });
+        break;
+
+      case "terminal":
+        if (is("GET", 1)) return ok({ shell: kernel.terminal.shellName, home: kernel.terminal.home, running: kernel.terminal.running() });
+        if (is("POST", 2) && b === "run") return runStream(res, body);
+        if (is("POST", 3) && c === "input") {
+          if (typeof body.text !== "string") throw new HttpError(400, "text must be a string");
+          if (!kernel.terminal.input(b, body.text)) throw new HttpError(404, `No running command "${b}"`);
+          return ok({ ok: true });
+        }
+        if (is("POST", 3) && c === "kill") {
+          if (!kernel.terminal.kill(b)) throw new HttpError(404, `No running command "${b}"`);
+          return ok({ ok: true });
+        }
+        break;
+
+      case "launcher":
+        if (is("GET", 1)) return ok(kernel.launcher.list(q.get("q") ?? undefined));
+        if (is("POST", 2) && b === "launch") return ok(await kernel.launcher.launch(text(body.id, "id")));
+        if (is("POST", 2) && b === "refresh") {
+          kernel.launcher.refresh();
+          return ok(kernel.launcher.list());
+        }
         break;
 
       case "assistant":
