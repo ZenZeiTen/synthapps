@@ -18,7 +18,9 @@ node test/e2e.mjs [screenshot-dir]   # builds the binary, runs desktop + sync se
 ```
 
 CI: `.github/workflows/keyhold.yml` (tests on Ubuntu and Windows, the browser run, a smoke test of
-the built `keyhold.exe` on Windows, release on `keyhold-v*` tags).
+the built `keyhold.exe` on Windows, the Android and web-app builds). A release is published by
+"Run workflow" on `main` with "Publish a release" ticked, or by a `keyhold-v<version>` tag; both
+take the version from `main.go`.
 
 ## Rules
 
