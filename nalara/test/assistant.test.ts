@@ -40,11 +40,11 @@ async function boot(llm: LLMProvider | null) {
 const scripted = (agent: ScriptedProviderOptions["agent"]) => createScriptedProvider({ agent });
 
 describe("assistant tools", () => {
-  it("covers files, search, memory and notes, and leaves commands, apps, tasks, git, MCP and deploys out", () => {
-    for (const name of ["fs.read_file", "fs.write_file", "search.semantic", "memory.recall", "files.list", "files.write", "notes.create"]) {
+  it("covers files, search, memory, notes, tasks and git reads, and leaves commands, apps, git writes, MCP and deploys out", () => {
+    for (const name of ["fs.read_file", "fs.write_file", "search.semantic", "memory.recall", "files.list", "files.write", "notes.create", "tasks.add", "tasks.delete", "git.status", "git.log", "git.diff"]) {
       expect(matchAny(name, ASSISTANT_TOOLS, { dots: true }), name).toBe(true);
     }
-    for (const name of ["shell.run", "apps.launch", "apps.list", "tasks.add", "git.status", "mcp.github.create_issue", "proc.deploy", "proc.run_tests"]) {
+    for (const name of ["shell.run", "apps.launch", "apps.list", "git.commit", "git.push", "mcp.github.create_issue", "proc.deploy", "proc.run_tests"]) {
       expect(matchAny(name, ASSISTANT_TOOLS, { dots: true }), name).toBe(false);
     }
   });

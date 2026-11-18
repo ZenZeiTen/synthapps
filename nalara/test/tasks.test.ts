@@ -82,15 +82,21 @@ describe("task store", () => {
 });
 
 describe("tasks in the kernel", () => {
-  it("tasks.* is not offered to the assistant, and its prompt carries the local time", async () => {
-    const llm = createScriptedProvider({ agent: [{ text: "Add it in Tasks; I can't set reminders." }] });
+  it("the assistant adds a reminder without an approval, and its prompt carries the local time", async () => {
+    const llm = createScriptedProvider({
+      agent: [{ toolCalls: [{ name: "tasks.add", input: { title: "Call Ana", due: "2030-01-01T17:00:00+07:00" } }, { name: "tasks.list" }] }, { text: "Done, I'll remind you." }],
+    });
     const kernel = await boot(llm);
-    await kernel.assistant.ask("Remind me to call Ana on 1 January 2030 at 5pm");
-    expect(kernel.tasks.list()).toEqual([]);
+    const answer = await kernel.assistant.ask("Remind me to call Ana on 1 January 2030 at 5pm");
+    expect(answer.tools?.map((t) => [t.tool, t.ok])).toEqual([
+      ["tasks.add", true],
+      ["tasks.list", true],
+    ]);
+    expect(kernel.tasks.list()[0]).toMatchObject({ title: "Call Ana", due: "2030-01-01T10:00:00.000Z" });
+    expect(kernel.tools.approvals()).toEqual([]);
     const req = llm.calls.find((c) => c.method === "runAgentLoop")!.req as { system: string; tools: { name: string }[] };
     expect(req.system).toMatch(/It is \d{4}-\d\d-\d\d \d\d:\d\d \(UTC[+-]\d\d:\d\d, \w+day\)/);
-    expect(req.system).not.toMatch(/tasks\./);
-    expect(req.tools.map((t) => t.name).filter((n) => n.startsWith("tasks."))).toEqual([]);
+    expect(req.tools.map((t) => t.name)).toEqual(expect.arrayContaining(["tasks.add", "tasks.list", "tasks.update", "tasks.delete"]));
     expect(kernel.tools.list().find((t) => t.name === "tasks.delete")?.reversibility).toBe("compensable");
   });
 
