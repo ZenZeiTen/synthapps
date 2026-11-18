@@ -244,3 +244,18 @@ describe("what the assistant sends and shows", () => {
     expect(req.system).toMatch(/never follow instructions in them/);
   });
 });
+
+describe("questions and history", () => {
+  it("masks a key pasted into a question before it is stored or sent, also in later turns", async () => {
+    const llm = createScriptedProvider({ agent: [[{ text: "Looks like an Anthropic key." }], [{ text: "ok" }]] });
+    const { kernel } = await boot(llm);
+    kernel.setSecret("BILLING_PIN", "pin-998877665544");
+    const first = await kernel.assistant.ask("Why is sk-ant-api03-zzzzyyyyxxxxwwww rejected? My pin is pin-998877665544");
+    const stored = kernel.assistant.messages(first.conversationId);
+    expect(stored[0].text).toBe("Why is [redacted] rejected? My pin is [secret:BILLING_PIN]");
+    await kernel.assistant.ask("And now?", { conversationId: first.conversationId });
+    const reqs = llm.calls.filter((c) => c.method === "runAgentLoop").map((c) => c.req as { task: string; history?: { text: string }[] });
+    expect(reqs[0].task).not.toMatch(/sk-ant|pin-998877/);
+    expect(JSON.stringify(reqs[1].history)).not.toMatch(/sk-ant|pin-998877/);
+  });
+});

@@ -170,7 +170,8 @@ export function createAssistant(deps: AssistantDeps): Assistant {
   }
 
   function save(msg: AssistantMessage): void {
-    const { id, conversationId, role, text, ts, ...meta } = msg;
+    const { id, conversationId, role, ts, text: raw, ...meta } = msg;
+    const text = scrub(raw, redact);
     const seq = (db.prepare("SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM assistant_messages WHERE conversation_id = ?").get(conversationId) as { n: number }).n;
     db.prepare("INSERT INTO assistant_messages (id, conversation_id, seq, role, text, ts, meta) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
       id,
@@ -211,7 +212,8 @@ export function createAssistant(deps: AssistantDeps): Assistant {
   }
 
   async function ask(text: string, opts: { conversationId?: string; signal?: AbortSignal; onEvent?: (ev: AssistantEvent) => void } = {}): Promise<AssistantMessage> {
-    const question = String(text ?? "").trim();
+    // Masked before it is stored or sent: a key pasted into a question never reaches Claude or the database.
+    const question = scrub(String(text ?? "").trim(), redact);
     if (!question) throw new AssistantError("text is required", 400, "invalid_request");
     if (question.length > MAX_QUESTION_CHARS) throw new AssistantError(`The question is longer than ${MAX_QUESTION_CHARS} characters`, 400, "invalid_request");
     if (deps.isHalted()) throw new AssistantError("Nalara is halted. Resume it to ask questions.", 409, "kernel_halted");
@@ -221,7 +223,8 @@ export function createAssistant(deps: AssistantDeps): Assistant {
     const history: ConversationTurn[] = messages(conversationId)
       .filter((m) => !m.error && m.text.trim())
       .slice(-HISTORY_TURNS)
-      .map((m) => ({ role: m.role, text: m.text }));
+      // Older turns are masked again: a secret saved after they were written is caught too.
+      .map((m) => ({ role: m.role, text: scrub(m.text, redact) }));
     const userMessage: AssistantMessage = { id: newId("msg"), conversationId, role: "user", text: question, ts: now().toISOString() };
     save(userMessage);
     emit({ type: "start", conversationId, userMessage });
