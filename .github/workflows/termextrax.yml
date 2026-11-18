@@ -1,16 +1,27 @@
-name: Build Windows executable
+name: termextrax (Windows)
+
+# Builds TermExtrax.exe, smoke-tests it on Windows and keeps it as an artifact.
+# Pushing a tag named termextrax-v* (or running the workflow with a release tag) also
+# publishes it as a GitHub release.
 
 on:
-  release:
-    types: [published]
+  pull_request:
+    paths:
+      - "termextrax/**"
+      - ".github/workflows/termextrax.yml"
   push:
-    tags: ["v*"]
+    branches: [main]
+    tags:
+      - "termextrax-v*"
+    paths:
+      - "termextrax/**"
+      - ".github/workflows/termextrax.yml"
   workflow_dispatch:
     inputs:
       release_tag:
         description: >-
-          Optional release tag (e.g. v1.0.0). If set, a release with this
-          tag is created (or updated) with the exe attached.
+          Optional release tag (e.g. termextrax-v1.0.0). If set, a release
+          with this tag is created (or updated) with the exe attached.
         required: false
         default: ""
 
@@ -27,22 +38,22 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: termextrax/frontend/package-lock.json
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: termextrax/backend/requirements.txt
 
       - name: Build frontend
-        working-directory: frontend
+        working-directory: termextrax/frontend
         run: |
           npm ci
           npm run build
 
       - name: Install backend dependencies
-        working-directory: backend
+        working-directory: termextrax/backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
@@ -53,18 +64,18 @@ jobs:
       - name: Bundle frontend into backend/static
         shell: pwsh
         run: |
-          Remove-Item -Recurse -Force backend/static -ErrorAction SilentlyContinue
-          Copy-Item -Recurse frontend/dist backend/static
+          Remove-Item -Recurse -Force termextrax/backend/static -ErrorAction SilentlyContinue
+          Copy-Item -Recurse termextrax/frontend/dist termextrax/backend/static
 
       - name: Build executable
-        working-directory: backend
+        working-directory: termextrax/backend
         run: pyinstaller --noconfirm TermExtrax.spec
 
       - name: Smoke test executable
         shell: pwsh
         run: |
           $env:TERMEXTRAX_NO_BROWSER = "1"
-          $proc = Start-Process -FilePath "backend/dist/TermExtrax.exe" -PassThru
+          $proc = Start-Process -FilePath "termextrax/backend/dist/TermExtrax.exe" -PassThru
           $ok = $false
           foreach ($i in 1..30) {
             Start-Sleep -Seconds 2
@@ -81,21 +92,18 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TermExtrax-windows-x64
-          path: backend/dist/TermExtrax.exe
+          path: termextrax/backend/dist/TermExtrax.exe
 
       - name: Attach to release
         if: >-
-          github.event_name == 'release' ||
-          startsWith(github.ref, 'refs/tags/v') ||
+          startsWith(github.ref, 'refs/tags/termextrax-v') ||
           (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          Copy-Item backend/dist/TermExtrax.exe TermExtrax-windows-x64.exe
-          if ("${{ github.event_name }}" -eq "release") {
-            $tag = "${{ github.event.release.tag_name }}"
-          } elseif ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          Copy-Item termextrax/backend/dist/TermExtrax.exe TermExtrax-windows-x64.exe
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             $tag = "${{ inputs.release_tag }}"
           } else {
             $tag = "${{ github.ref_name }}"

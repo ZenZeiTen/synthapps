@@ -74,14 +74,16 @@ installed in the Python environment at build time, so optionally run
 
 ### Pre-built .exe from GitHub Actions
 
-The `Build Windows executable` workflow
-(`.github/workflows/build-windows-exe.yml`) builds `TermExtrax.exe` on a
-Windows runner with the English spaCy model bundled, smoke-tests it, and:
+The `termextrax (Windows)` workflow
+(`.github/workflows/termextrax.yml` at the root of the synthapps repository)
+builds `TermExtrax.exe` on a Windows runner with the English spaCy model
+bundled, smoke-tests it, and:
 
-- on every **published release** — attaches `TermExtrax-windows-x64.exe`
+- on every pushed **`termextrax-v*` tag** — attaches `TermExtrax-windows-x64.exe`
   as a release asset;
-- on **manual dispatch** (Actions tab → Build Windows executable →
-  Run workflow) — uploads it as a downloadable workflow artifact.
+- on **manual dispatch** (Actions tab → termextrax (Windows) →
+  Run workflow) — uploads it as a downloadable workflow artifact; enter a
+  release tag there to publish it as a release too.
 
 ## Running from source
 
