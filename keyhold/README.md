@@ -142,7 +142,7 @@ password replaced by a newer edit from another device is kept in that item's his
 |---|---|
 | `Keyhold.exe` | Windows (64-bit Intel/AMD): the app, no console window |
 | `Keyhold-arm64.exe` | Windows on ARM |
-| `keyhold.exe` | Windows command line (`keyhold serve`, `keyhold version`) |
+| `keyhold-cli.exe` | Windows command line (`keyhold-cli serve`, `keyhold-cli version`) |
 | `keyhold-linux-amd64`, `keyhold-linux-arm64` | Linux desktop or server |
 | `keyhold-macos-arm64`, `keyhold-macos-amd64` | macOS |
 
