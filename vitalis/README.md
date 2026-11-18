@@ -75,7 +75,7 @@ npm run android:apk          # builds the web app, copies it in, and runs gradle
 
 Or open `android/` in Android Studio after `npm run android:sync`. To publish on Google Play, create a release keystore and build with `./gradlew bundleRelease`.
 
-The GitHub Actions workflow [`.github/workflows/vitalis.yml`](../.github/workflows/vitalis.yml) runs the tests and uploads `vitalis-web.zip` and `Vitalis-debug.apk` as artifacts on every pull request. Pushing a tag named `vitalis-v1.0.0` publishes both on a GitHub release.
+The GitHub Actions workflow [`.github/workflows/vitalis.yml`](../.github/workflows/vitalis.yml) runs the tests and uploads `vitalis-web.zip` and `Vitalis-debug.apk` as artifacts on every pull request. To publish both on a GitHub release, open **Actions > Vitalis > Run workflow** on `main` and tick **Publish a release**: it releases the version in `package.json` as `vitalis-v<version>`. Pushing a tag with that name does the same. A version is released once; raise the version for the next release.
 
 ### Icons
 
