@@ -194,6 +194,31 @@ async function main() {
     });
     await page.screenshot({ path: join(SHOTS, "core-neurons.png") });
 
+    await check("Ask: the intent bar's ASK hands the question to the assistant, which streams an answer with its tool use and keeps the conversation", async () => {
+      await page.fill("#nos-intent", "Please stream the README summary");
+      await page.click(".dock-ask");
+      await page.waitForSelector(".as-msg.as-user", { timeout: 5000 });
+      await page.waitForSelector(".as-msg.as-bot.is-live", { timeout: 5000 });
+      await page.waitForSelector(".as-msg.as-bot:not(.is-live) strong", { timeout: 10000 });
+      const bot = (await page.textContent(".as-msg.as-bot:not(.is-live)")) ?? "";
+      assert(bot.includes("README") && bot.includes("src/combat/"), `answer: ${bot}`);
+      const chip = ((await page.textContent(".as-tool")) ?? "").trim();
+      assert(chip.includes("Read") && chip.includes("README.md"), `tool chip: ${chip}`);
+      assert((await page.inputValue("#nos-intent")) === "", "the intent bar did not clear");
+      // A second, offline-style answer in the same conversation, asked from the panel itself.
+      await page.fill("#as-input", "Where is the damage code?");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector(".as-tag", { timeout: 5000 });
+      const options = await page.$$eval("#as-history option", (els) => els.map((e) => e.textContent ?? ""));
+      assert(options.some((o) => o.startsWith("Please stream")), `history: ${options.join(" | ")}`);
+      const count = await page.$$eval(".as-msg", (els) => els.length);
+      assert(count === 4, `${count} messages in the conversation`);
+      await page.screenshot({ path: join(SHOTS, "assistant.png") });
+      await page.click(".btn-ask");
+      await page.waitForSelector(".as-list", { state: "detached", timeout: 3000 });
+      return `${count} messages; chip "${chip}"`;
+    });
+
     await check("the Field view renders nodes of each type", async () => {
       await page.click(".btn-field");
       await page.waitForSelector(".field .react-flow__node", { timeout: 10000 });

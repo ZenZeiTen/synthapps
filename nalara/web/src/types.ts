@@ -68,3 +68,5 @@ export interface ClaudeState {
   credentials: "environment" | "settings" | "none";
   canRestart: boolean;
 }
+
+export type { AssistantEvent, AssistantMessage, AssistantToolUse, Conversation } from "../../src/assistant/types";

@@ -69,6 +69,13 @@
  *                                                                              400 claude_key_rejected, 502 claude_unreachable)
  * DELETE  /api/claude/key                        -                            { ok, canRestart }
  * POST    /api/kernel/restart                    -                            { restarting: true }  (501 restart_unavailable without a supervisor)
+ * GET     /api/assistant                         -                            { online, mode, model }
+ * POST    /api/assistant/ask                     { text, conversationId? }    NDJSON stream, one event per line: start, delta,
+ *                                                                              turn_text, tool, tool_result, done (the saved
+ *                                                                              answer) or error. Closing the request stops it.
+ * GET     /api/assistant/conversations[?limit]   -                            Conversation[] (newest first)
+ * GET     /api/assistant/conversations/:id       -                            AssistantMessage[]
+ * DELETE  /api/assistant/conversations/:id       -                            { ok: true }
  * GET     /*                                     -                            web/dist static files (index.html fallback for non-/api paths)
  *
  * System interface (every route):

@@ -759,6 +759,24 @@ async function main() {
       return `hint "${hint}"; refused without a workspace, then ran offline as ${after.id}; wrong key rejected, accepted key stored (restart asked of the user here)`;
     });
 
+    // ---- i4 --------------------------------------------------------------------------------------------------
+    await check("i4. Ask: the HUD's Ask opens the assistant; offline, the real kernel answers honestly with a local file search and keeps the conversation", async () => {
+      await closePanel(page);
+      await page.click(".hud .btn-ask");
+      await page.waitForSelector(".as-offline", { timeout: 5000 });
+      await page.fill("#as-input", "Where is the damage calculation?");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector(".as-tag", { timeout: 10000 });
+      const answer = ((await page.textContent(".as-msg.as-bot")) ?? "").replace(/\s+/g, " ");
+      assert(/offline/i.test(answer) && answer.includes("Settings → Claude"), `answer: ${answer.slice(0, 200)}`);
+      assert(answer.includes("src/combat/"), `no file hit in: ${answer.slice(0, 300)}`);
+      const convs = await api<{ id: string; title: string; messages: number }[]>("GET", "/api/assistant/conversations");
+      assert(convs[0]?.title === "Where is the damage calculation?" && convs[0].messages === 2, `conversations: ${JSON.stringify(convs)}`);
+      await shot(page, "13d-assistant.png");
+      await closePanel(page);
+      return `conversation ${convs[0].id}; answer starts "${answer.slice(0, 60)}"`;
+    });
+
     // ---- j ---------------------------------------------------------------------------------------------------
     await check("j. kill switch: Halt with confirmation turns the core into an ember and the server reports halted; Resume clears it", async () => {
       await page.click(".hud .btn-halt");

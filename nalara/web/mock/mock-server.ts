@@ -753,6 +753,15 @@ const interval = setInterval(() => {
 // ---------------------------------------------------------------------------------------------------------
 // HTTP
 
+interface MockConversation {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: Record<string, unknown>[];
+}
+const conversations = new Map<string, MockConversation>();
+
 const requestLog: { method: string; path: string; ts: string }[] = [];
 
 class HttpError extends Error {
@@ -1127,6 +1136,63 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     // The mock is always offline; a key is never checked or stored.
     if (method === "GET" && !b) return send(res, 200, { mode: "offline", model: "claude-opus-5-5", credentials: "none", canRestart: false });
     if ((method === "PUT" || method === "DELETE") && b === "key") return send(res, 400, { error: "The mock kernel cannot use a Claude key", code: "claude_key_rejected" });
+  }
+  // --- assistant: offline answers like the real kernel; a question containing "stream" plays a scripted Claude
+  // answer (tool use, streamed text) so the UI's streaming path can be exercised.
+  if (a === "assistant") {
+    if (method === "GET" && !b) return send(res, 200, { online: false, mode: "offline", model: "claude-opus-5-5" });
+    if (method === "GET" && b === "conversations" && !c) return send(res, 200, [...conversations.values()].map((x) => ({ id: x.id, title: x.title, createdAt: x.createdAt, updatedAt: x.updatedAt, messages: x.messages.length })).reverse());
+    if (method === "GET" && b === "conversations" && c) {
+      const conv = conversations.get(c);
+      if (!conv) throw new HttpError(404, `No conversation "${c}"`);
+      return send(res, 200, conv.messages);
+    }
+    if (method === "DELETE" && b === "conversations" && c) {
+      if (!conversations.delete(c)) throw new HttpError(404, `No conversation "${c}"`);
+      return send(res, 200, { ok: true });
+    }
+    if (method === "POST" && b === "ask") {
+      const text = typeof body.text === "string" ? body.text.trim() : "";
+      if (!text) throw new HttpError(400, "text is required");
+      let conv = typeof body.conversationId === "string" ? conversations.get(body.conversationId) : undefined;
+      if (body.conversationId && !conv) throw new HttpError(404, `No conversation "${String(body.conversationId)}"`);
+      const ts = now();
+      if (!conv) {
+        conv = { id: `conv_${conversations.size + 1}`, title: text.slice(0, 60), createdAt: ts, updatedAt: ts, messages: [] };
+        conversations.set(conv.id, conv);
+      }
+      const userMessage = { id: `msg_${Math.random().toString(36).slice(2, 10)}`, conversationId: conv.id, role: "user", text, ts };
+      conv.messages.push(userMessage);
+      res.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" });
+      const line = (ev: unknown) => res.write(`${JSON.stringify(ev)}\n`);
+      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      line({ type: "start", conversationId: conv.id, userMessage });
+      let answer: Record<string, unknown>;
+      if (/stream/i.test(text)) {
+        line({ type: "tool", tool: "fs.read_file", detail: "README.md" });
+        await wait(150);
+        publish("tool.called", { name: "fs.read_file", path: "README.md" }, undefined, "tools");
+        line({ type: "tool_result", tool: "fs.read_file", ok: true });
+        const full = "The **README** describes a remake of a classic RPG:\n\n- combat in `src/combat/`\n- an inventory module\n- localized dialogue";
+        for (const word of full.split(/(?<= )/)) {
+          line({ type: "delta", text: word });
+          await wait(35);
+        }
+        line({ type: "turn_text", text: full });
+        answer = { text: full, tools: [{ tool: "fs.read_file", detail: "README.md", ok: true }] };
+      } else {
+        answer = {
+          text: "I'm offline, so I can't answer open questions or write for you yet. Add a Claude API key in **Settings → Claude** and ask again.\n\nMeanwhile, this is what a search of your files found:\n\n- `src/combat/damage_calc.ts:12`: export function calculateDamage(attacker, defender)",
+          offline: true,
+        };
+      }
+      const message = { id: `msg_${Math.random().toString(36).slice(2, 10)}`, conversationId: conv.id, role: "assistant", ts: now(), ...answer };
+      conv.messages.push(message as (typeof conv.messages)[number]);
+      conv.updatedAt = now();
+      line({ type: "done", message });
+      res.end();
+      return;
+    }
   }
   if (method === "POST" && a === "kernel" && b === "restart") return send(res, 501, { error: "The mock kernel cannot restart", code: "restart_unavailable" });
   if (method === "GET" && a === "version") return send(res, 200, { name: "nalara", version: "mock", apiVersion: 2, supportedApiVersions: [1, 2], features: [] });

@@ -3,6 +3,9 @@
  * Mutating requests carry `X-Nalara-Client: 1`; errors surface as ApiError with the server's message.
  */
 import type {
+  AssistantEvent,
+  AssistantMessage,
+  Conversation,
   AgentDefinition,
   ClaudeState,
   IntentPreview,
@@ -210,7 +213,75 @@ export const api = {
 
   events: (opts: { since?: number; limit?: number; correlationId?: string } = {}) =>
     request<KernelEvent[]>("GET", `/api/events${qs({ since: opts.since, limit: opts.limit, correlationId: opts.correlationId })}`),
+
+  assistant: () => request<{ online: boolean; mode: "claude" | "offline"; model: string }>("GET", "/api/assistant"),
+  conversations: () => request<Conversation[]>("GET", "/api/assistant/conversations"),
+  conversation: (id: string) => request<AssistantMessage[]>("GET", `/api/assistant/conversations/${enc(id)}`),
+  deleteConversation: (id: string) => request<{ ok: true }>("DELETE", `/api/assistant/conversations/${enc(id)}`),
+  ask: askAssistant,
 };
+
+/**
+ * POST /api/assistant/ask: calls `onEvent` for each streamed event and resolves with the saved answer.
+ * Aborting the signal stops the answer on the kernel too. Errors before the stream starts throw ApiError.
+ */
+export async function askAssistant(
+  text: string,
+  opts: { conversationId?: string; signal?: AbortSignal; onEvent: (ev: AssistantEvent) => void },
+): Promise<AssistantMessage | undefined> {
+  let res: Response;
+  try {
+    res = await fetch("/api/assistant/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/x-ndjson", "X-Nalara-Client": "1" },
+      body: JSON.stringify({ text, ...(opts.conversationId ? { conversationId: opts.conversationId } : {}) }),
+      signal: opts.signal,
+      credentials: "same-origin",
+    });
+  } catch (err) {
+    if ((err as Error)?.name === "AbortError") throw err;
+    throw new ApiError("Kernel unreachable", 0);
+  }
+  if (!res.ok || !res.body) {
+    let msg = res.statusText || `HTTP ${res.status}`;
+    let code: string | undefined;
+    try {
+      const body = (await res.json()) as { error?: string; code?: string };
+      msg = body.error ?? msg;
+      code = body.code;
+    } catch {
+      /* not JSON */
+    }
+    throw new ApiError(msg, res.status, code);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let answer: AssistantMessage | undefined;
+  const handle = (line: string) => {
+    if (!line.trim()) return;
+    let ev: AssistantEvent;
+    try {
+      ev = JSON.parse(line) as AssistantEvent;
+    } catch {
+      return;
+    }
+    if (ev.type === "done") answer = ev.message;
+    opts.onEvent(ev);
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      handle(buffer.slice(0, nl));
+      buffer = buffer.slice(nl + 1);
+    }
+  }
+  handle(buffer + decoder.decode());
+  return answer;
+}
 
 export type ConnectionState = "connecting" | "open" | "reconnecting";
 

@@ -63,6 +63,7 @@ export const API_FEATURES = [
   "structured-errors",
   "claude-key",
   "kernel-restart",
+  "assistant",
 ];
 /** How long a response is kept for replay under its Idempotency-Key. */
 export const IDEMPOTENCY_TTL_MS = 10 * 60_000;
@@ -407,6 +408,38 @@ export function createHttpServer(kernel: NeuralKernel, opts: HttpServerOptions =
     res.on("close", cleanup);
   }
 
+  // --- assistant (NDJSON stream) ------------------------------------------------------------------
+
+  /** POST /api/assistant/ask streams one JSON event per line; closing the request stops the answer. */
+  async function askStream(res: ServerResponse, body: Json): Promise<void> {
+    const question = text(body.text, "text");
+    const conversationId = body.conversationId === undefined || body.conversationId === null ? undefined : text(body.conversationId, "conversationId");
+    if (conversationId && !kernel.assistant.conversations(10_000).some((c) => c.id === conversationId)) throw new HttpError(404, `No conversation "${conversationId}"`);
+    if (kernel.isHalted()) throw new HttpError(409, "Nalara is halted. Resume it to ask questions.", "kernel_halted");
+    const controller = new AbortController();
+    res.writeHead(200, {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "X-Accel-Buffering": "no",
+      "X-Nalara-Api-Version": String(API_VERSION),
+    });
+    res.flushHeaders?.();
+    res.on("close", () => {
+      if (!res.writableEnded) controller.abort(new Error("client closed the request"));
+    });
+    const write = (ev: unknown) => {
+      if (!res.writableEnded && !res.destroyed) res.write(`${JSON.stringify(kernel.secrets.redactValue(ev))}\n`);
+    };
+    try {
+      await kernel.assistant.ask(question, { ...(conversationId ? { conversationId } : {}), signal: controller.signal, onEvent: write });
+    } catch (err) {
+      const status = statusOf(err);
+      write({ type: "error", error: err instanceof Error ? err.message : String(err), code: codeFor(err, status) });
+    }
+    if (!res.writableEnded) res.end();
+  }
+
   // --- API routes -------------------------------------------------------------------------------------
 
   async function api(req: IncomingMessage, res: ServerResponse, seg: string[], q: Query, body: Json, record?: (status: number, value: unknown) => void): Promise<void> {
@@ -709,6 +742,23 @@ export function createHttpServer(kernel: NeuralKernel, opts: HttpServerOptions =
           return ok({ ...result, canRestart: Boolean(opts.onRestart) });
         }
         if (is("DELETE", 2) && b === "key") return ok({ ok: kernel.deleteClaudeKey(), canRestart: Boolean(opts.onRestart) });
+        break;
+
+      case "assistant":
+        if (is("GET", 1)) {
+          const st = kernel.status();
+          return ok({ online: kernel.assistant.online, mode: st.mode, model: st.model });
+        }
+        if (is("POST", 2) && b === "ask") return askStream(res, body);
+        if (is("GET", 2) && b === "conversations") return ok(kernel.assistant.conversations(optInt(q, "limit", 1, 500) ?? 50));
+        if (is("GET", 3) && b === "conversations") {
+          if (!kernel.assistant.conversations(10_000).some((x) => x.id === c)) throw new HttpError(404, `No conversation "${c}"`);
+          return ok(kernel.assistant.messages(c));
+        }
+        if (is("DELETE", 3) && b === "conversations") {
+          if (!kernel.assistant.deleteConversation(c)) throw new HttpError(404, `No conversation "${c}"`);
+          return ok({ ok: true });
+        }
         break;
 
       case "audit":

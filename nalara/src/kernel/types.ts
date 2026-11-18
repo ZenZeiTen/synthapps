@@ -640,7 +640,8 @@ export interface McpManager {
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface AgentLoopEvent {
-  type: "text" | "tool_call" | "tool_result" | "turn";
+  /** "delta": text streamed while a turn is generated (with `streamText`); "text": the turn's final text, which replaces its deltas. */
+  type: "text" | "delta" | "tool_call" | "tool_result" | "turn";
   text?: string;
   tool?: string;
   input?: Record<string, unknown>;
@@ -672,8 +673,21 @@ export interface LLMProvider {
     effort?: Effort;
     signal?: AbortSignal;
     onEvent?: (event: AgentLoopEvent) => void;
+    /** Earlier turns of a conversation, oldest first; `task` is the newest user message. */
+    history?: ConversationTurn[];
+    /** Server-side tools run by the model provider itself (web search and fetch). Providers without them ignore this. */
+    serverTools?: ServerTool[];
+    /** Emit "delta" events while text is generated. */
+    streamText?: boolean;
   }): Promise<AgentLoopResult>;
 }
+
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export type ServerTool = "web_search" | "web_fetch";
 
 export class LLMError extends Error {
   constructor(

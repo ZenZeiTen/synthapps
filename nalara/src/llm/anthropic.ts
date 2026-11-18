@@ -68,7 +68,10 @@ export interface AnthropicClientLike {
   beta: {
     messages: {
       create(params: MessageCreateParamsNonStreaming, options?: { signal?: AbortSignal }): PromiseLike<BetaMessage>;
-      stream(params: BetaMessageStreamParams, options?: { signal?: AbortSignal }): { finalMessage(): Promise<BetaMessage> };
+      stream(
+        params: BetaMessageStreamParams,
+        options?: { signal?: AbortSignal },
+      ): { finalMessage(): Promise<BetaMessage>; on?(event: "text", listener: (delta: string) => void): unknown };
     };
   };
 }
@@ -318,16 +321,20 @@ export function createAnthropicProvider(opts: AnthropicProviderOptions = {}): Ho
       mode: "create" | "stream",
       params: MessageCreateParamsNonStreaming | BetaMessageStreamParams,
       signal?: AbortSignal,
+      onDelta?: (text: string) => void,
     ): Promise<BetaMessage> {
       throwIfAborted(signal);
       const release = await acquireAll(hooks, signal);
       let message: BetaMessage;
       try {
         const api = getClient().beta.messages;
-        message =
-          mode === "stream"
-            ? await api.stream(params as BetaMessageStreamParams, { signal }).finalMessage()
-            : await api.create(params as MessageCreateParamsNonStreaming, { signal });
+        if (mode === "stream") {
+          const stream = api.stream(params as BetaMessageStreamParams, { signal });
+          if (onDelta && typeof stream.on === "function") stream.on("text", onDelta);
+          message = await stream.finalMessage();
+        } else {
+          message = await api.create(params as MessageCreateParamsNonStreaming, { signal });
+        }
       } catch (err) {
         const parseFailure =
           mode === "stream" && err instanceof Anthropic.AnthropicError && !(err instanceof Anthropic.APIError) && !signal?.aborted;
@@ -413,8 +420,15 @@ export function createAnthropicProvider(opts: AnthropicProviderOptions = {}): Ho
             input_schema: def.inputSchema as BetaTool.InputSchema,
             eager_input_streaming: true,
           }));
+        // Server tools (run by Anthropic): web search and fetch with dynamic filtering.
+        const serverTools = [...new Set(req.serverTools ?? [])].sort().map((t) =>
+          t === "web_search" ? { type: "web_search_20260209" as const, name: "web_search" as const } : { type: "web_fetch_20260209" as const, name: "web_fetch" as const },
+        );
         const system = `${req.system}\n\n${UNTRUSTED_DATA_NOTICE}`;
-        const messages: BetaMessageParam[] = [{ role: "user", content: req.task }];
+        const messages: BetaMessageParam[] = [
+          ...(req.history ?? []).filter((t) => t.text.trim()).map((t) => ({ role: t.role, content: t.text }) as BetaMessageParam),
+          { role: "user", content: req.task },
+        ];
         const usage = { inputTokens: 0, outputTokens: 0 };
         let turns = 0;
         let toolCalls = 0;
@@ -474,13 +488,14 @@ export function createAnthropicProvider(opts: AnthropicProviderOptions = {}): Ho
             output_config: { effort },
             // Automatic caching of the growing conversation, on top of the system breakpoint.
             cache_control: { type: "ephemeral" },
-            tools,
+            tools: [...tools, ...serverTools] as BetaMessageStreamParams["tools"],
             messages: [...messages],
           };
 
           let message: BetaMessage;
           try {
-            message = await request("stream", params, req.signal);
+            const onDelta = req.streamText && req.onEvent ? (delta: string) => req.onEvent?.({ type: "delta", text: delta }) : undefined;
+            message = await request("stream", params, req.signal, onDelta);
             jsonRetries = 0;
           } catch (err) {
             if (err instanceof ToolInputParseError) {

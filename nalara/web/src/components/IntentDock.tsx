@@ -8,6 +8,8 @@ interface Props {
   agentName: (id: string) => string;
   /** Resolves true when the intent was accepted (the bar then clears). */
   onSubmit: (text: string) => Promise<boolean>;
+  /** Sends the text to the assistant for a direct answer instead of starting agents. */
+  onAsk?: (text: string) => void;
   busy: boolean;
   disabled?: boolean;
   disabledReason?: string;
@@ -16,7 +18,7 @@ interface Props {
 const words = (s: string) => s.replace(/_/g, " ").toUpperCase();
 
 /** The intent bar at the bottom of the core: a live classification hint while typing, example intents otherwise. */
-export function IntentDock({ agentName, onSubmit, busy, disabled, disabledReason }: Props) {
+export function IntentDock({ agentName, onSubmit, onAsk, busy, disabled, disabledReason }: Props) {
   const [text, setText] = useState("");
   const [preview, setPreview] = useState<IntentPreview | null>(null);
   const [previewState, setPreviewState] = useState<"idle" | "loading" | "error">("idle");
@@ -89,6 +91,23 @@ export function IntentDock({ agentName, onSubmit, busy, disabled, disabledReason
           disabled={disabled}
           aria-describedby="nos-intent-hint"
         />
+        {onAsk ? (
+          <button
+            type="button"
+            className="dock-ask"
+            disabled={disabled || !typing}
+            aria-label="Ask for a direct answer"
+            title="Get a direct answer instead of starting agents"
+            onClick={() => {
+              const t = text.trim();
+              if (!t) return;
+              onAsk(t);
+              setText("");
+            }}
+          >
+            ASK
+          </button>
+        ) : null}
         <button type="submit" className="dock-submit" disabled={disabled || busy || !typing} aria-label="Submit intent">
           {busy ? "SENDING" : "INTENT"} <IconReturn size={12} />
         </button>

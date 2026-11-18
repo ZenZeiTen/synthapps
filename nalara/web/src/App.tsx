@@ -5,6 +5,7 @@ import { coreStatusLine, coreWord, deriveMood, fieldState, FINISHED_STATES, rest
 import { usePacedInstances, usePacer } from "./core/pacing";
 import { useDebouncedCallback, useGraph, useKernelEvents } from "./hooks";
 import type { AgentDefinition, AgentInstance, AgentState, ApprovalRequest, GraphNode, KernelEvent, KernelStatus, RadialAction, RadialResult, SearchHit, Workspace } from "./types";
+import { AssistantPanel } from "./components/AssistantPanel";
 import { ApprovalCard } from "./components/ApprovalCard";
 import { ClaudeNotice, type ClaudeNeeded } from "./components/ClaudeNotice";
 import { AgentsPanel, AppsPanel, FilesPanel, ProjectsPanel } from "./components/BrowsePanels";
@@ -28,7 +29,7 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { SidePanel } from "./components/SidePanel";
 import { Ticker } from "./components/Ticker";
 
-type PanelId = "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events" | "fleet" | "observatory";
+type PanelId = "assistant" | "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events" | "fleet" | "observatory";
 const ROOT_PANELS: PanelId[] = ["search", "files", "agents", "projects", "apps", "memory", "settings"];
 
 /** Panel and sheet widths (px) plus their 20 px margin; the stage centres the core in the space left between them. */
@@ -93,6 +94,9 @@ export function App() {
   /** An intent an offline kernel refused because it needs Claude. */
   const [claudeNeeded, setClaudeNeeded] = useState<ClaudeNeeded | null>(null);
   const [panel, setPanel] = useState<PanelId | null>(null);
+  /** A question handed from the intent bar to the assistant panel. */
+  const [askQuestion, setAskQuestion] = useState<string | null>(null);
+  const takeQuestion = useCallback(() => setAskQuestion(null), []);
   const [fieldOpen, setFieldOpen] = useState(false);
   const [fieldFocus, setFieldFocus] = useState<{ id: string; n: number } | null>(null);
   const [fileView, setFileView] = useState<{ path: string; line?: number } | null>(null);
@@ -499,7 +503,7 @@ export function App() {
   }, []);
 
   // ---- layout ------------------------------------------------------------------------------------------
-  const leftW = panel ? (panel === "settings" || panel === "observatory" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
+  const leftW = panel ? (panel === "settings" || panel === "observatory" || panel === "assistant" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
   const rightW = sheetWs ? SHEET_W + EDGE : 0;
   // Shrink the core when panels leave it less room than its orbit needs.
   const orbPx = Math.min(vp.h * 0.266, 300);
@@ -567,6 +571,8 @@ export function App() {
         killSwitch={<KillSwitch halted={halted} disabled={!status || offline} onStatus={setStatus} onToast={toast} />}
         claudeOffline={status?.mode === "offline"}
         onClaudeOffline={() => setPanel("settings")}
+        askOpen={panel === "assistant"}
+        onAsk={() => setPanel((p) => (p === "assistant" ? null : "assistant"))}
       />
 
       <main className={`stage${room < 720 ? " is-narrow" : ""}`} style={stageStyle} aria-label={`${BRAND} core`} aria-hidden={fieldOpen || undefined}>
@@ -596,12 +602,25 @@ export function App() {
         <IntentDock
           agentName={agentName}
           onSubmit={submitIntent}
+          onAsk={(q) => {
+            setAskQuestion(q);
+            setPanel("assistant");
+          }}
           busy={submitting}
           disabled={halted || offline}
           disabledReason={halted ? "Halted. Resume to state an intent" : offline ? `${BRAND} is offline` : undefined}
         />
       </main>
 
+      {panel === "assistant" ? (
+        <AssistantPanel
+          online={status?.mode === "claude"}
+          onClose={() => setPanel(null)}
+          onOpenSettings={() => setPanel("settings")}
+          question={askQuestion}
+          onQuestionTaken={takeQuestion}
+        />
+      ) : null}
       {panel === "search" ? <SearchPanel onClose={() => setPanel(null)} onOpenHit={onOpenHit} /> : null}
       {panel === "files" ? (
         <FilesPanel

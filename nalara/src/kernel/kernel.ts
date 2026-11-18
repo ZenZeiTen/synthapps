@@ -30,6 +30,7 @@ import { createMcpManager, type NeuralMcpManager } from "../tools/mcp";
 import { createToolRegistry } from "../tools/registry";
 import { createWorkspaceGenerator, outputDirFor } from "../workspace/generator";
 import { createAuditLog } from "./audit";
+import { createAssistant, type Assistant } from "../assistant/assistant";
 import { loadConfig, type ConfigOverrides } from "./config";
 import { openDatabase, type Database } from "./db";
 import { createActionJournal } from "./journal";
@@ -149,6 +150,8 @@ export interface NeuralKernel extends Kernel {
   readonly mcp: NeuralMcpManager;
   readonly index: SemanticIndexImpl;
   readonly radial: Radial;
+  /** Ask anything: direct answers from Claude with the user's files and memory as tools; an honest local fallback offline. */
+  readonly assistant: Assistant;
   /** Workflow files that failed validation at start. */
   readonly workflowErrors: string[];
   isHalted(): boolean;
@@ -523,6 +526,18 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
 
   // --- radial -----------------------------------------------------------------------------------
   let kernel!: NeuralKernel;
+  const assistant = createAssistant({
+    db,
+    llm,
+    tools,
+    index,
+    memory,
+    root,
+    principal: () => ({ ...human(), agentId: "assistant", chain: [`user:${config.userId}`, "assistant"] }),
+    isHalted: () => halted,
+    webTools: deps.env?.NALARA_WEB_TOOLS !== "0" && process.env.NALARA_WEB_TOOLS !== "0",
+  });
+
   const radial = createRadial({
     config,
     graph,
@@ -571,6 +586,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     audit,
     journal,
     radial,
+    assistant,
     get workflowErrors() {
       return [...workflowErrors];
     },

@@ -159,3 +159,9 @@ export const IconEvents = (p: IconProps) => (
     <path d="M3 12h4l2.5-6 5 12 2.5-6h4" />
   </Svg>
 );
+export const IconSpark = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3.5l1.9 5.6 5.6 1.9-5.6 1.9L12 18.5l-1.9-5.6L4.5 11l5.6-1.9z" />
+    <path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" />
+  </Svg>
+);
