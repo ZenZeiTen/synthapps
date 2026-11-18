@@ -30,7 +30,7 @@ type SyncConfig struct {
 	Static      http.Handler
 	OpenSignup  bool
 	InviteCode  string   // when set, signup needs this code
-	CORSOrigins []string // "*" or exact origins; empty means loopback origins only
+	CORSOrigins []string // "*" or exact origins; empty means the desktop and Android apps only
 	TrustProxy  bool     // use X-Forwarded-For for rate limiting
 	HTTPS       bool     // send HSTS
 	KeepHistory int
@@ -677,6 +677,10 @@ func (s *SyncServer) putVault(w http.ResponseWriter, u string, rev int64, vault 
 
 var loopbackOrigin = regexp.MustCompile(`^http://(127\.0\.0\.1|localhost)(:\d{1,5})?$`)
 
+// AndroidAppOrigin is the page origin of the Keyhold Android app (its files are
+// served from inside the app under this name; nothing is fetched from it).
+const AndroidAppOrigin = "https://appassets.androidplatform.net"
+
 // cors lets the desktop app (served from a loopback origin) sync with this
 // server. Requests are authorised with bearer tokens, never cookies.
 func (s *SyncServer) cors(next http.Handler) http.Handler {
@@ -700,7 +704,7 @@ func (s *SyncServer) cors(next http.Handler) http.Handler {
 
 func (s *SyncServer) originAllowed(o string) bool {
 	if len(s.c.CORSOrigins) == 0 {
-		return loopbackOrigin.MatchString(o)
+		return loopbackOrigin.MatchString(o) || o == AndroidAppOrigin
 	}
 	for _, a := range s.c.CORSOrigins {
 		if a == "*" || strings.EqualFold(a, o) {

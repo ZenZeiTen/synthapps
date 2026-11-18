@@ -106,7 +106,24 @@ export function askPassword(title, text, check, { ok = 'Continue' } = {}) {
   });
 }
 
+/** The Android app's bridge (null in a browser). */
+export const android = globalThis.KeyholdAndroid || null;
+
+/** Open a web page outside Keyhold (the browser, or the phone's browser in the Android app). */
+export function openUrl(url) {
+  if (android) return android.openUrl(url);
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+/** Copy text that is not a secret kept in the vault (the vault's own copies go through app.copy). */
+export function copyText(text) {
+  if (android) { android.copy(text); return Promise.resolve(); }
+  return navigator.clipboard.writeText(text);
+}
+
 export function download(name, text, type = 'application/json') {
+  // The Android app asks where to save, through the system's file picker.
+  if (android) return android.saveFile(name, type, text);
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = h('a', { href: url, download: name });
   document.body.append(a); a.click(); a.remove();

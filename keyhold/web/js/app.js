@@ -1,5 +1,5 @@
 // Keyhold app: start screens, unlock, and the main three-pane window.
-import { h, icon, iconBtn, clear, fill, toast, modal, confirmBox, askPassword, pickFile, timeAgo } from './ui.js';
+import { h, icon, iconBtn, clear, fill, toast, modal, confirmBox, askPassword, pickFile, timeAgo, openUrl, android } from './ui.js';
 import {
   createVault, openVault, openVaultDerived, openVaultWithRecovery, deriveFromPassword, deriveFromRecovery,
   decryptPayload, WrongPasswordError,
@@ -22,8 +22,10 @@ const state = {
 function pref(k, d) { try { return localStorage.getItem(k) || d; } catch { return d; } }
 function setPref(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
 const root = () => document.getElementById('root');
+/** Desktop app or device mode: the vault lives here, not on a server this page came from. */
+function isLocal() { return state.mode === 'desktop' || state.mode === 'device'; }
 export const app = {
-  state, renderAll, renderList, select, copy, lock, strength, startEdit, setFilter, currentHealth, checkNewPassword, visibleItems,
+  state, renderAll, renderList, isLocal, select, copy, lock, strength, startEdit, setFilter, currentHealth, checkNewPassword, visibleItems,
   chooseType, newFolder, clearClipboard, duplicate, trashItem, purgeOne, folderPaths,
   isSelected: (id) => (state.multi.size ? state.multi.has(id) : id === state.selected),
   exportItems: (items, label) => exportItems(app, items, label),
@@ -47,11 +49,23 @@ async function boot() {
   if (m) { sessionStorage.setItem('keyhold.token', m[1]); history.replaceState(null, '', location.pathname); }
   state.token = sessionStorage.getItem('keyhold.token');
   loadWords().then((w) => { state.dict = new Set(w); }).catch(() => {});
+  // Which kind of page is this? The desktop program and a sync server answer /api/mode
+  // (the Android app answers it too). Any other web host does not: then Keyhold runs on
+  // its own and keeps the vault in this browser ("device" mode).
   let mode;
-  try { mode = await fetch('/api/mode', { cache: 'no-store' }).then((r) => r.json()); }
-  catch { mode = { mode: 'server', offline: true }; }
+  try {
+    const r = await fetch('/api/mode', { cache: 'no-store' });
+    if (r.status === 404) mode = { mode: 'device' };
+    else if (!r.ok) throw new Error('server error');
+    else { mode = await r.json().catch(() => ({ mode: 'device' })); if (!mode || !mode.mode) mode = { mode: 'device' }; }
+  } catch {
+    // Offline: a page from a sync server opens its offline copy; anything else stays a device vault.
+    mode = { mode: pref('keyhold.mode', '') === 'device' ? 'device' : 'server', offline: true };
+  }
   state.mode = mode.mode;
+  state.platform = mode.platform || 'web';
   state.version = mode.version || '';
+  if (state.mode === 'device' || state.mode === 'server') setPref('keyhold.mode', state.mode);
   state.signup = mode.signup || 'closed';
   if (state.mode === 'desktop') {
     if (!state.token) return gateMessage('Open Keyhold from its shortcut', 'This page was opened without the key the Keyhold app gives its own window. Close it and start Keyhold again.');
@@ -60,11 +74,17 @@ async function boot() {
     state.store.heartbeat().catch(() => {});
     return desktopGate();
   }
-  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  if (state.platform !== 'android' && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
   if (!globalThis.crypto || !globalThis.crypto.subtle) {
-    return gateMessage('A secure connection is needed', 'Browsers only allow encryption on HTTPS pages. Open this server with https://.');
+    return gateMessage('A secure connection is needed', 'Browsers only allow encryption on HTTPS pages. Open this page with https://.');
+  }
+  if (state.mode === 'device') {
+    state.store = new BrowserStore('@device', { keep: 30 });
+    // Ask the browser not to clear this site's storage when space runs low.
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    return desktopGate();
   }
   gateSignIn();
 }
@@ -94,9 +114,9 @@ function gate(children, wide = false) {
 function gateMessage(title, text) { gate([h('h1', { text: title }), h('p', { class: 'lead', text })]); }
 
 function where() {
-  return state.mode === 'desktop'
-    ? h('div', { class: 'where' }, icon('device'), 'Stored encrypted on this computer')
-    : h('div', { class: 'where' }, icon('cloud'), 'Encrypted on this device before it reaches ', location.host);
+  if (state.mode === 'desktop') return h('div', { class: 'where' }, icon('device'), 'Stored encrypted on this computer');
+  if (state.mode === 'device') return h('div', { class: 'where' }, icon('device'), state.platform === 'android' ? 'Stored encrypted on this phone' : 'Stored encrypted in this browser');
+  return h('div', { class: 'where' }, icon('cloud'), 'Encrypted on this device before it reaches ', location.host);
 }
 
 function pwField(label, opts = {}) {
@@ -144,6 +164,10 @@ function gateSetup() {
   gate([
     h('h1', { text: 'Create your vault' }),
     h('p', { class: 'lead', text: 'One master password protects everything. Nobody, including Keyhold, can reset it, so pick one you will remember.' }),
+    state.mode === 'device' ? h('p', { class: 'notice', text: (state.platform === 'android'
+      ? 'The vault is kept in this app on this phone. Uninstalling the app deletes it,'
+      : 'The vault is kept in this browser on this device. Clearing the browser\'s site data deletes it,')
+      + ' so download an encrypted backup now and then (Settings › Backup), or connect a sync server (Settings › Sync).' }) : null,
     h('form', {
       onsubmit: async (e) => {
         e.preventDefault(); err.textContent = '';
@@ -392,7 +416,7 @@ function lock(reason = 'Locked', silent = false) {
   clearClipboard();
   if (silent) return;
   if (reason) toast(reason);
-  if (state.mode === 'desktop') desktopGate();
+  if (isLocal()) desktopGate();
   else { if (user) rememberUser(user); gateSignIn(); }
 }
 
@@ -402,13 +426,30 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.session && state.session.settings.lockOnHide) lock('Locked when the window was hidden');
 });
 addEventListener('focus', () => { if (clipPending) clearClipboard(); });
+// Called by the Android app.
+globalThis.keyholdResume = () => { if (clipPending) clearClipboard(); };
+/** The phone's back button: close what is open, step back from item to list; false lets Android leave the app. */
+globalThis.keyholdBack = () => {
+  const d = [...document.querySelectorAll('dialog[open]')].pop();
+  if (d) { d.dispatchEvent(new Event('cancel', { cancelable: true })); return true; }
+  if (document.querySelector('.menu')) { closeMenu(); return true; }
+  if (!state.session) return false;
+  if (state.editing) { state.editing = null; if (!state.selected) state.pane = 'list'; renderDetail(); renderPane(); return true; }
+  if (state.multi.size) { state.multi.clear(); showMulti(); return true; }
+  if (state.pane !== 'list') { state.pane = 'list'; renderPane(); return true; }
+  if (state.query || state.filter.kind !== 'all') { state.query = ''; els.q.value = ''; setFilter({ kind: 'all' }); return true; }
+  return false;
+};
 addEventListener('online', () => { if (state.session) state.session.sync().catch(() => {}); });
 
 async function copy(text, label = 'Copied', item = null) {
   if (!text) return;
   if (item && state.session) state.session.touch(item.id).catch(() => {});
-  try { await navigator.clipboard.writeText(text); }
-  catch {
+  try {
+    // The Android app marks it sensitive, so the keyboard and the system's clipboard preview hide it.
+    if (android) android.copy(text);
+    else await navigator.clipboard.writeText(text);
+  } catch {
     const ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = text; document.body.append(ta); ta.select();
     document.execCommand('copy'); ta.remove();
   }
@@ -422,6 +463,13 @@ async function copy(text, label = 'Copied', item = null) {
 async function clearClipboard(manual = false) {
   clearTimeout(clipTimer);
   if (manual !== true && !clipDirty && !clipPending) return;
+  if (android) {
+    // 'later' while the app is in the background: Android only lets the app in front touch the clipboard.
+    const r = android.clearClipboard();
+    clipPending = r === 'later'; clipDirty = clipPending;
+    if (manual === true) toast(clipPending ? 'The clipboard will be cleared when Keyhold is open again' : 'Clipboard cleared');
+    return;
+  }
   try { await navigator.clipboard.writeText(' '); clipPending = false; clipDirty = false; if (manual === true) toast('Clipboard cleared'); }
   catch { clipPending = true; if (manual === true) toast('The clipboard will be cleared when this window has focus'); }
 }
@@ -711,7 +759,7 @@ function doubleClick(it) {
   const pk = primaryKey(it.type);
   if (a === 'copyPassword' && pk && it.fields[pk]) copy(it.fields[pk], TYPES[it.type].fields.find((f) => f.key === pk).label, it);
   else if (a === 'copyUsername' && it.fields.username) copy(it.fields.username, 'Username', it);
-  else if (a === 'openUrl' && safeUrl(it.fields.url)) { window.open(safeUrl(it.fields.url), '_blank', 'noopener,noreferrer'); state.session.touch(it.id).catch(() => {}); }
+  else if (a === 'openUrl' && safeUrl(it.fields.url)) { openUrl(safeUrl(it.fields.url)); state.session.touch(it.id).catch(() => {}); }
   else if (a === 'edit') startEdit(it);
 }
 
@@ -991,7 +1039,7 @@ function fieldRow(it, f, v) {
     h('div', { class: 'fl' }, h('div', { class: 'lab' }, f.label, st), val),
     h('div', { class: 'tools' },
       secret ? iconBtn(shown ? 'eye-off' : 'eye', shown ? 'Hide' : 'Show', () => { shown ? state.revealed.delete(id) : state.revealed.add(id); renderDetail(); }) : null,
-      f.kind === 'url' && safeUrl(v) ? iconBtn('external', 'Open website', () => window.open(safeUrl(v), '_blank', 'noopener,noreferrer')) : null,
+      f.kind === 'url' && safeUrl(v) ? iconBtn('external', 'Open website', () => openUrl(safeUrl(v))) : null,
       f.restore ? iconBtn('history', 'Use this value again', f.restore) : null,
       f.copy ? iconBtn('copy', 'Copy ' + f.label.toLowerCase(), () => copy(v, f.label, it)) : null));
 }
@@ -1173,7 +1221,9 @@ function renderSync() {
   const st = s.remote ? s.status.state : 'local';
   const label = { local: 'On this device', idle: 'Sync', pending: 'Waiting to sync', syncing: 'Syncing…', synced: 'Synced', offline: 'Offline', error: 'Sync problem', 'needs-password': 'Sign in again' }[st] || st;
   els.sync.dataset.state = st;
-  els.sync.title = s.status.message || (st === 'local' ? 'Your vault is stored on this computer only. Add a sync server in Settings to use it on other devices.' : 'Click to sync now');
+  const here = state.mode === 'desktop' ? 'this computer' : state.platform === 'android' ? 'this phone' : 'this browser';
+  els.sync.title = s.status.message || (st === 'local' ? `Your vault is stored on ${here} only. Add a sync server in Settings to use it on other devices.` : 'Click to sync now');
+  els.sync.setAttribute('aria-label', label);
   els.sync.replaceChildren(icon(st === 'local' ? 'device' : st === 'offline' || st === 'error' ? 'cloud-off' : 'cloud'), h('span', { class: 'lbl', text: label }));
 }
 

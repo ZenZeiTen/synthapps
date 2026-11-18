@@ -2,7 +2,9 @@
 // driven in headless Chromium. Usage: node test/e2e.mjs [screenshot-dir]
 // Needs Go (to build) and Playwright with Chromium.
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { extname, normalize } from 'node:path';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,6 +45,39 @@ const errors = [];
 const [, deskURL] = await start(['desktop', '--no-browser', '--data', join(tmp, 'desk'), '--port', '47911'], /(http:\/\/127\.0\.0\.1:\d+\/#t=[\w-]+)/);
 await start(['serve', '--addr', '127.0.0.1:47912', '--data', join(tmp, 'srv'), '--open-signup'], /sync server on/);
 const SERVER = 'http://127.0.0.1:47912';
+
+// Any plain web host (here a tiny static server): no /api/mode, so the app runs in device mode.
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain' };
+const statik = createServer((req, res) => {
+  const path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([/\\])+/, '') || 'index.html';
+  const file = join(proj, 'web', path);
+  if (!file.startsWith(join(proj, 'web')) || !existsSync(file) || path.endsWith('/')) { res.writeHead(404); res.end('not found'); return; }
+  res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream' });
+  res.end(readFileSync(file));
+});
+await new Promise((r) => statik.listen(47913, '127.0.0.1', r));
+const STATIC = 'http://127.0.0.1:47913';
+process.on('exit', () => statik.close());
+
+/** Create a vault on the start screen and get past the recovery code. */
+async function createVault(p, { expectWhere }) {
+  await p.getByRole('heading', { name: 'Create your vault' }).waitFor();
+  if (expectWhere) await p.getByText(expectWhere).waitFor();
+  await p.getByLabel('Master password', { exact: true }).fill(MASTER);
+  await p.getByLabel('Type it again', { exact: true }).fill(MASTER);
+  await p.getByRole('button', { name: 'Create vault' }).click();
+  await p.getByRole('heading', { name: 'Save your recovery code' }).waitFor({ timeout: 30000 });
+  await p.getByLabel('I have stored this code safely', { exact: true }).check();
+  await p.getByRole('button', { name: 'Continue' }).click();
+  await p.getByText('Your vault is empty.').waitFor();
+}
+async function addNote(p, title) {
+  await p.getByRole('button', { name: 'New item', exact: true }).click();
+  await p.locator('dialog').getByRole('button', { name: 'Secure note', exact: true }).click();
+  await p.getByLabel('Name', { exact: true }).fill(title);
+  await p.getByRole('button', { name: 'Save', exact: true }).click();
+  await p.getByRole('heading', { name: title }).waitFor();
+}
 
 const browser = await chromium.launch();
 // East of UTC on purpose: dates must not slip a day there.
@@ -364,6 +399,139 @@ try {
   step('web app unlocks offline from its encrypted copy');
   await shot(page, '07-desktop-synced');
 
+  // ---- device mode: the web app on a plain web host, no Keyhold server behind it
+  const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const dev = await ctx3.newPage();
+  dev.on('pageerror', (e) => errors.push('device: ' + e.message));
+  dev.on('console', (m) => { if (m.type() === 'error') errors.push('device: ' + m.text()); });
+  await dev.goto(STATIC + '/');
+  await createVault(dev, { expectWhere: 'Stored encrypted in this browser' });
+  await dev.getByText(/kept in this browser on this device/).waitFor({ state: 'detached' });
+  await addNote(dev, 'Device note one');
+  await addNote(dev, 'Device note two');
+  await dev.reload();
+  await dev.getByRole('heading', { name: 'Unlock your vault' }).waitFor();
+  await dev.getByLabel('Master password', { exact: true }).fill(MASTER);
+  await dev.getByRole('button', { name: 'Unlock' }).click();
+  await dev.getByRole('option', { name: /Device note two/ }).waitFor({ timeout: 30000 });
+  step('device mode on a plain web host: vault kept in the browser, survives a reload');
+  assert.ok(await dev.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => !!r)), 'installable: service worker registered');
+  const man = await dev.evaluate(() => fetch('manifest.webmanifest').then((r) => r.json()));
+  for (const ic of man.icons) assert.equal((await dev.request.get(STATIC + '/' + ic.src)).status(), 200, ic.src);
+  assert.ok(man.icons.some((i) => i.sizes === '512x512' && i.purpose === 'maskable'));
+  step('installable web app: service worker, manifest with 192/512 and maskable icons');
+
+  // Automatic backups in the browser: delete a note, bring it back from an earlier version.
+  await dev.getByRole('option', { name: /Device note one/ }).click();
+  await dev.keyboard.press('Delete');
+  await dev.locator('dialog').getByRole('button', { name: 'Move to trash' }).click();
+  await dev.getByRole('button', { name: /^Trash/ }).click();
+  await dev.getByRole('option', { name: /Device note one/ }).click();
+  await dev.getByRole('button', { name: 'Delete for good' }).click();
+  await dev.locator('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
+  await dev.getByText('Trash is empty.').waitFor();
+  await dev.getByRole('button', { name: 'Settings' }).click();
+  await dev.getByRole('tab', { name: 'Backup' }).click();
+  await dev.getByRole('button', { name: 'Show automatic backups' }).click();
+  await dev.locator('dialog').getByRole('button', { name: 'Bring back items' }).first().waitFor();
+  const versions = await dev.locator('dialog table.table tr').count();
+  assert.ok(versions >= 4, 'earlier versions are listed: ' + versions);
+  await dev.locator('dialog').getByRole('button', { name: 'Bring back items' }).first().click(); // newest first: just before the delete
+  await dev.getByText(/Brought back 1 item/).waitFor();
+  await dev.keyboard.press('Escape');
+  await dev.getByRole('button', { name: /^All items/ }).click();
+  await dev.getByRole('option', { name: /Device note one/ }).waitFor();
+  step('automatic backups in the browser bring back an item deleted for good');
+
+  // A device vault can join the sync server (loopback pages are allowed without settings).
+  await dev.getByRole('button', { name: 'Settings' }).click();
+  await dev.getByRole('tab', { name: 'Sync' }).click();
+  await dev.getByLabel('Server address', { exact: true }).fill(SERVER);
+  await dev.getByLabel('Username', { exact: true }).fill('dee');
+  await dev.getByRole('button', { name: 'Create account with this vault' }).click();
+  await dev.getByRole('heading', { name: 'Your new recovery code' }).waitFor({ timeout: 30000 });
+  await dev.getByLabel('I have stored this code safely', { exact: true }).check();
+  await dev.getByRole('button', { name: 'Continue' }).click();
+  await dev.getByText('Synced with a Keyhold server').waitFor();
+  await dev.keyboard.press('Escape');
+  step('a device-mode vault syncs with a Keyhold server');
+  await ctx3.close();
+
+  // ---- the Android app's page, with a stand-in for the app's Java bridge
+  const ctx4 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await ctx4.route('**/api/mode', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"mode":"device","platform":"android","version":"test"}' }));
+  await ctx4.addInitScript(() => {
+    const b = window.__bridge = { copies: [], saved: [], opened: [], clip: null, focus: true };
+    window.KeyholdAndroid = {
+      copy: (t) => { b.copies.push(t); b.clip = t; },
+      clearClipboard: () => { if (!b.focus) return 'later'; if (b.clip == null) return 'other'; b.clip = null; return 'cleared'; },
+      saveFile: (name, type, content) => b.saved.push({ name, type, content }),
+      openUrl: (u) => b.opened.push(u),
+    };
+  });
+  const app = await ctx4.newPage();
+  app.on('pageerror', (e) => errors.push('android: ' + e.message));
+  await app.goto(STATIC + '/');
+  await app.getByRole('heading', { name: 'Create your vault' }).waitFor();
+  await app.getByText('Stored encrypted on this phone').waitFor();
+  await app.getByText(/Uninstalling the app deletes it/).waitFor();
+  await app.getByLabel('Master password', { exact: true }).fill(MASTER);
+  await app.getByLabel('Type it again', { exact: true }).fill(MASTER);
+  await app.getByRole('button', { name: 'Create vault' }).click();
+  await app.getByRole('heading', { name: 'Save your recovery code' }).waitFor({ timeout: 30000 });
+  await app.getByRole('button', { name: 'Save as file' }).click();
+  await app.getByRole('button', { name: 'Copy' }).click();
+  const b1 = await app.evaluate(() => window.__bridge);
+  assert.equal(b1.saved[0].name, 'keyhold-recovery-code.txt', 'files are saved through the app');
+  assert.match(b1.copies[0], /^([A-Z2-7]{4}-){7}[A-Z2-7]{4}$/, 'and copied through it');
+  await app.getByLabel('I have stored this code safely', { exact: true }).check();
+  await app.getByRole('button', { name: 'Continue' }).click();
+  await app.getByText('Your vault is empty.').waitFor();
+  assert.equal(await app.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => !!r)), false, 'no service worker inside the app');
+
+  await app.getByRole('button', { name: 'New item', exact: true }).click();
+  await app.locator('dialog').getByRole('button', { name: 'Login', exact: true }).click();
+  await app.getByLabel('Name', { exact: true }).fill('Bank');
+  await app.getByLabel('Password', { exact: true }).fill('Phone-Passw0rd-123!');
+  await app.getByLabel('Website', { exact: true }).fill('https://bank.example');
+  await app.getByRole('button', { name: 'Save', exact: true }).click();
+  await app.getByRole('heading', { name: 'Bank' }).waitFor();
+  await app.getByRole('button', { name: 'Copy password' }).click();
+  await app.getByRole('button', { name: 'Open website' }).click();
+  const b2 = await app.evaluate(() => window.__bridge);
+  assert.equal(b2.copies.at(-1), 'Phone-Passw0rd-123!');
+  assert.deepEqual(b2.opened, ['https://bank.example/']);
+  step('Android app page: files, clipboard and links go through the app');
+
+  // The clipboard is cleared now, or when the app is back in front.
+  await app.evaluate(() => { window.__bridge.focus = false; });
+  await app.getByRole('button', { name: 'Clear clipboard' }).click();
+  await app.getByText('The clipboard will be cleared when Keyhold is open again').waitFor();
+  assert.equal(await app.evaluate(() => window.__bridge.clip), 'Phone-Passw0rd-123!');
+  await app.evaluate(() => { window.__bridge.focus = true; window.keyholdResume(); });
+  assert.equal(await app.evaluate(() => window.__bridge.clip), null, 'cleared on return');
+  step('Android clipboard: cleared at once, or on return when the app was in the background');
+
+  // The back button: from the item to the list, then out of the app.
+  assert.equal(await app.evaluate(() => document.querySelector('.app').dataset.pane), 'detail');
+  assert.equal(await app.evaluate(() => window.keyholdBack()), true);
+  assert.equal(await app.evaluate(() => document.querySelector('.app').dataset.pane), 'list');
+  await app.getByRole('button', { name: 'Settings', exact: true }).click();
+  assert.equal(await app.evaluate(() => window.keyholdBack()), true, 'closes a dialog');
+  assert.equal(await app.locator('dialog').count(), 0);
+  assert.equal(await app.evaluate(() => window.keyholdBack()), false, 'nothing left: Android may leave the app');
+  step('Android back button closes dialogs and steps back before leaving');
+
+  await app.getByRole('button', { name: 'Settings', exact: true }).click();
+  await app.getByRole('tab', { name: 'Backup' }).click();
+  await app.getByRole('button', { name: 'Download encrypted backup' }).click();
+  const saved = (await app.evaluate(() => window.__bridge.saved)).at(-1);
+  assert.match(saved.name, /^keyhold-backup-\d{4}-\d{2}-\d{2}\.keyhold$/);
+  assert.equal(JSON.parse(saved.content).format, 'keyhold-vault');
+  assert.ok(!saved.content.includes('Phone-Passw0rd'), 'the backup is encrypted');
+  step('Android: encrypted backup saved through the system file picker');
+  await ctx4.close();
+
   const relevant = errors.filter((e) => !/Failed to load resource|ERR_INTERNET_DISCONNECTED|net::/.test(e));
   assert.deepEqual(relevant, [], 'no script errors or CSP violations');
   step('no script errors or CSP violations');
@@ -375,4 +543,5 @@ try {
 } finally {
   await browser.close();
   cleanup();
+  statik.close();
 }

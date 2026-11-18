@@ -1,7 +1,7 @@
 // Main-window tools modelled on Password Safe's interface: the entry context
 // menu, the status bar, the flat table view ("Flattened List"), "Display subset
 // of password", folder actions and the password policy editor.
-import { h, icon, iconBtn, fill, toast, modal, confirmBox } from './ui.js';
+import { h, icon, iconBtn, fill, toast, modal, confirmBox, openUrl } from './ui.js';
 import { TYPES, primaryKey, hostOf, safeUrl, parsePositions, cleanFolder, newItem, DEFAULT_POLICY, subtitle } from './model.js';
 import { generatePassword } from './generator.js';
 import { parseTotp, totpCode } from './totp.js';
@@ -72,8 +72,8 @@ export function itemMenu(app, it, x, y) {
     sec && sec.value ? { label: 'Show characters of ' + sec.label.toLowerCase() + '…', icon: 'eye', run: () => showSubset(app, it, sec) } : null,
     url ? { label: 'Copy website address', icon: 'copy', run: () => app.copy(it.fields.url, 'Website', it) } : null,
     it.fields.totp ? { label: 'Copy two-factor code', icon: 'clock', run: async () => { try { app.copy((await totpCode(parseTotp(it.fields.totp))).code, 'Code', it); } catch (e) { app.fail(e); } } } : null,
-    url ? { label: 'Open website', icon: 'external', run: () => { window.open(url, '_blank', 'noopener,noreferrer'); s.touch(it.id).catch(() => {}); } } : null,
-    url && sec && sec.value ? { label: 'Copy password and open website', icon: 'external', run: () => { app.copy(sec.value, sec.label, it); window.open(url, '_blank', 'noopener,noreferrer'); } } : null,
+    url ? { label: 'Open website', icon: 'external', run: () => { openUrl(url); s.touch(it.id).catch(() => {}); } } : null,
+    url && sec && sec.value ? { label: 'Copy password and open website', icon: 'external', run: () => { app.copy(sec.value, sec.label, it); openUrl(url); } } : null,
     '-',
     { label: 'Edit', icon: 'edit', hint: 'E', disabled: ro || it.protected, run: () => app.startEdit(it) },
     { label: 'Duplicate', icon: 'copy', disabled: ro, run: () => app.duplicate(it) },

@@ -1,30 +1,22 @@
 Keyhold is a password manager that encrypts everything on your device. It works offline, and can sync through a server you run.
 
-## New in 1.2.0
+## New in 1.3.0: Keyhold on your phone
 
-- **Search filters**: `type:card`, `folder:work`, `tag:bank`, `is:favorite`, `is:expired`, `has:totp`, `"exact phrase"`, `-word`.
-- **Select several items** (Ctrl+click, Shift+click, Ctrl+A) and move, tag, favorite, export or trash them together.
-- **Put an earlier password back** from an item's previous values.
-- **Import skips what you already have**, and Keyhold's own CSV export now imports back with cards, identities and Wi-Fi details intact.
-- **Trash can empty itself** after 7, 30 or 90 days (off by default). A note at unlock tells you when change reminders are overdue.
-- **Password health** also lists logins whose website address is plain `http://`.
+- **Android app** (`Keyhold-*.apk`). The vault is kept encrypted on the phone. Copied passwords are marked sensitive and cleared after use, screenshots are blocked, links open in your browser, and the back button works as you expect. It can sync with your Keyhold server.
+- **Installable web app** (`keyhold-web.zip`). Put it on any HTTPS web host, or use your sync server's address, and install it from the browser. Without a server it keeps the vault in that browser, with the last 30 versions as automatic backups, and works offline.
+- The sync server accepts the Android app without any setting.
 
-## Fixed
-
-- The change-reminder date moved one day earlier each time an item was edited, in time zones east of UTC.
-- Ctrl+C on a selected item replaced what you had copied with the item's password.
-- A sync or save in the background reset the edit form and lost what was being typed.
-- The health report did not show breach-check results or changes from other devices until something else changed.
-- Locking cleared the clipboard even when Keyhold had copied nothing.
-- "Sign in and merge" could leave the vault half switched to the account's keys when the server failed; a failed master-password change recorded a change date anyway.
-- Sync server: a sign-up interrupted half way blocked that username for ever. `keyhold serve` now finishes running requests when stopped.
-- Smaller fixes: the list of previous values closing when one was revealed, success messages after a failed folder change, a sync timer added at every unlock, saves that could wait for ever when browser storage was full.
+Uninstalling the app or clearing the browser's data deletes a vault kept there. Keep encrypted backups (Settings › Backup) or connect a sync server.
 
 ## Download
+
+**Android:** download `Keyhold-<version>.apk` on the phone and open it. Android asks once to allow installs from your browser or file manager.
 
 **Windows:** download `Keyhold.exe` and double-click it. No installer, no administrator rights. (`Keyhold-arm64.exe` for Windows on ARM; `keyhold.exe` is the command-line version for running a sync server.)
 
 **Linux and macOS:** `keyhold-linux-*` and `keyhold-macos-*`, same program.
+
+**Web app:** host the files in `keyhold-web.zip` on any HTTPS web server, open the address and choose Install app.
 
 Check downloads against `SHA256SUMS.txt`. The executables are not code-signed, so Windows SmartScreen may ask you to confirm the first time.
 
