@@ -26,7 +26,7 @@ import type { AssistantEvent, AssistantMessage, AssistantToolUse, Conversation }
 export type { AssistantEvent, AssistantMessage, AssistantToolUse, Conversation } from "./types";
 
 /** Tools the assistant may use; each call still passes the registry's policy and approvals. */
-export const ASSISTANT_TOOLS = ["fs.*", "search.*", "memory.*", "git.*", "files.*", "shell.*", "apps.*", "notes.*", "tasks.*", "mcp.*"];
+export const ASSISTANT_TOOLS = ["fs.*", "search.*", "memory.*", "files.*", "notes.*"];
 /** Conversation turns sent with each question (older ones are dropped). */
 export const HISTORY_TURNS = 24;
 const MAX_QUESTION_CHARS = 20_000;
