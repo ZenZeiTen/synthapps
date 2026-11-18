@@ -284,6 +284,8 @@ async function main() {
       await openRootMenu(page);
       await page.click('.radial-opt[data-action-id="files"]');
       await page.waitForSelector(".side-panel .tree", { timeout: 3000 });
+      await page.click('.side-panel .tree-dir:has-text("src")');
+      await page.click('.side-panel .tree-dir:has-text("combat")');
       await page.click('.side-panel .tree-btn:has-text("damage_calc.ts")');
       await page.waitForSelector(".viewer .code-line", { timeout: 5000 });
       await page.keyboard.press("Escape"); // viewer
@@ -298,6 +300,48 @@ async function main() {
       await page.waitForSelector(".toast", { timeout: 5000 });
       await page.screenshot({ path: join(SHOTS, "file-action.png") });
       return decodeURIComponent(new URL(req.url()).pathname);
+    });
+
+    await check("File manager: new folder and file, edit and save, rename, move to the trash and restore", async () => {
+      await openRootMenu(page);
+      await page.click('.radial-opt[data-action-id="files"]');
+      await page.waitForSelector(".side-panel .fx-list", { timeout: 3000 });
+      await page.click('.fx-tools button:has-text("New folder")');
+      await page.fill("#fx-edit-input", "letters");
+      await page.keyboard.press("Enter");
+      await page.click('.side-panel .tree-dir:has-text("letters")');
+      await page.waitForSelector('.fx-crumb:has-text("letters")', { timeout: 3000 });
+      await page.click('.fx-tools button:has-text("New file")');
+      await page.fill("#fx-edit-input", "hello.md");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector(".viewer .viewer-editor", { timeout: 5000 });
+      await page.fill(".viewer .viewer-editor", "# Hello\nWritten in Nalara.\n");
+      await page.keyboard.press("Control+s");
+      await page.waitForSelector('.viewer-state:has-text("Saved")', { timeout: 3000 });
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".viewer", { state: "detached", timeout: 3000 });
+      const saved = await (await fetch(`${BASE}/api/files/content?path=letters/hello.md`)).json();
+      assert(saved.content === "# Hello\nWritten in Nalara.\n", `saved: ${JSON.stringify(saved)}`);
+      await page.hover('.fx-row:has-text("hello.md")');
+      await page.click('button[aria-label="Rename hello.md"]');
+      await page.fill("#fx-edit-input", "greeting.md");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector('.fx-row:has-text("greeting.md")', { timeout: 3000 });
+      await page.hover('.fx-row:has-text("greeting.md")');
+      await page.click('button[aria-label="Move greeting.md to the trash"]');
+      await page.waitForSelector(".fx-list .fx-row", { state: "detached", timeout: 3000 });
+      await page.selectOption("#fx-place", "__trash__");
+      await page.waitForSelector('.fx-trash .fx-row:has-text("letters/greeting.md")', { timeout: 3000 });
+      await page.screenshot({ path: join(SHOTS, "files-trash.png") });
+      await page.click('.fx-trash .fx-row button:has-text("Restore")');
+      await page.waitForSelector(".fx-trash .fx-row", { state: "detached", timeout: 3000 });
+      await page.selectOption("#fx-place", "home");
+      await page.click('.side-panel .tree-dir:has-text("letters")');
+      await page.waitForSelector('.fx-row:has-text("greeting.md")', { timeout: 3000 });
+      await page.screenshot({ path: join(SHOTS, "files.png") });
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
+      return "letters/hello.md saved, renamed to greeting.md, trashed and restored";
     });
 
     await check("submitting an intent (INTENT button) calls POST /api/intents; the swarm orbits and the results sheet opens", async () => {

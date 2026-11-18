@@ -3,6 +3,10 @@
  * Mutating requests carry `X-Nalara-Client: 1`; errors surface as ApiError with the server's message.
  */
 import type {
+  FileEntry,
+  FileListing,
+  Place,
+  TrashItem,
   AssistantEvent,
   AssistantMessage,
   Conversation,
@@ -213,6 +217,26 @@ export const api = {
 
   events: (opts: { since?: number; limit?: number; correlationId?: string } = {}) =>
     request<KernelEvent[]>("GET", `/api/events${qs({ since: opts.since, limit: opts.limit, correlationId: opts.correlationId })}`),
+
+  places: () => request<{ places: Place[]; suggested: { name: string; path: string }[] }>("GET", "/api/places"),
+  addPlace: (path: string, name?: string) => request<Place>("POST", "/api/places", { path, ...(name ? { name } : {}) }),
+  removePlace: (id: string) => request<{ ok: true }>("DELETE", `/api/places/${enc(id)}`),
+  listFiles: (place: string, path: string, opts: { hidden?: boolean } = {}, signal?: AbortSignal) =>
+    request<FileListing>("GET", `/api/files/list${qs({ place, path, hidden: opts.hidden ? 1 : undefined })}`, undefined, signal),
+  readText: (place: string, path: string, signal?: AbortSignal) =>
+    request<{ path: string; content: string; kind: FileKind }>("GET", `/api/files/content${qs({ path, place: place === "home" ? undefined : place })}`, undefined, signal),
+  saveText: (place: string, path: string, content: string, mode: "create" | "overwrite" | "any" = "any") =>
+    request<FileEntry>("PUT", "/api/files/content", { place, path, content, mode }),
+  mkdir: (place: string, path: string) => request<FileEntry>("POST", "/api/files/mkdir", { place, path }),
+  moveFile: (place: string, from: string, to: string) => request<FileEntry>("POST", "/api/files/move", { place, from, to }),
+  copyFile: (place: string, from: string, to: string) => request<FileEntry>("POST", "/api/files/copy", { place, from, to }),
+  trashFile: (place: string, path: string) => request<TrashItem>("POST", "/api/files/trash", { place, path }),
+  openExternal: (place: string, path: string) => request<{ ok: true }>("POST", "/api/files/open", { place, path }),
+  rawUrl: (place: string, path: string) => `/api/files/raw${qs({ place, path })}`,
+  trash: () => request<TrashItem[]>("GET", "/api/trash"),
+  restore: (id: string) => request<FileEntry>("POST", `/api/trash/${enc(id)}/restore`),
+  purge: (id: string) => request<{ ok: true }>("DELETE", `/api/trash/${enc(id)}`),
+  emptyTrash: () => request<{ removed: number }>("DELETE", "/api/trash"),
 
   assistant: () => request<{ online: boolean; mode: "claude" | "offline"; model: string }>("GET", "/api/assistant"),
   conversations: () => request<Conversation[]>("GET", "/api/assistant/conversations"),

@@ -70,3 +70,4 @@ export interface ClaudeState {
 }
 
 export type { AssistantEvent, AssistantMessage, AssistantToolUse, Conversation } from "../../src/assistant/types";
+export type { FileEntry, FileListing, Place, TextFile, TrashItem } from "../../src/files/types";

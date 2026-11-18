@@ -31,6 +31,8 @@ import { createToolRegistry } from "../tools/registry";
 import { createWorkspaceGenerator, outputDirFor } from "../workspace/generator";
 import { createAuditLog } from "./audit";
 import { createAssistant, type Assistant } from "../assistant/assistant";
+import { createFileManager, type FileManager, type Opener } from "../files/manager";
+import { registerFileTools } from "../files/tools";
 import { loadConfig, type ConfigOverrides } from "./config";
 import { openDatabase, type Database } from "./db";
 import { createActionJournal } from "./journal";
@@ -142,6 +144,10 @@ export interface KernelDeps {
   resume?: boolean;
   /** Checks a Claude API key before it is saved (default: one Models API call). Tests pass a fake. */
   checkClaudeKey?: ClaudeKeyCheck;
+  /** Opens files in the system's default app (tests pass a fake). */
+  opener?: Opener;
+  /** Folders offered as one-click places in the file manager (tests pass their own). */
+  placeSuggestions?: () => { name: string; path: string }[];
 }
 
 /** The Kernel contract plus what the HTTP server and CLI need. */
@@ -152,6 +158,8 @@ export interface NeuralKernel extends Kernel {
   readonly radial: Radial;
   /** Ask anything: direct answers from Claude with the user's files and memory as tools; an honest local fallback offline. */
   readonly assistant: Assistant;
+  /** The user's files: places, list, read, save, folders, move, copy, trash and restore, open in the default app. */
+  readonly files: FileManager;
   /** Workflow files that failed validation at start. */
   readonly workflowErrors: string[];
   isHalted(): boolean;
@@ -249,6 +257,18 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     ...(config.deployCommand ? { deployCommand: config.deployCommand } : {}),
     ...(config.procTimeoutMs ? { procTimeoutMs: config.procTimeoutMs } : {}),
   });
+  const files = createFileManager({
+    db,
+    root,
+    dataDir,
+    bus,
+    audit,
+    index,
+    principal: () => human(),
+    ...(deps.opener ? { opener: deps.opener } : {}),
+    ...(deps.placeSuggestions ? { suggestions: deps.placeSuggestions } : {}),
+  });
+  registerFileTools(tools, files);
   const hashesFile = join(dataDir, "mcp-approved.json");
   const mcp = createMcpManager({ registry: tools, graph, bus, approvedHashes: readHashes(hashesFile) });
 
@@ -587,6 +607,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     journal,
     radial,
     assistant,
+    files,
     get workflowErrors() {
       return [...workflowErrors];
     },

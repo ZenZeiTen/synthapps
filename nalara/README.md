@@ -146,6 +146,7 @@ Nalara writes its database and outputs to `<root>/.nalara/`.
 | Filesystem by meaning (9) | Semantic search with concepts, recency, kind filters and graph relations |
 | Events (10) | Persistent event bus and the File Changed → Review → QA → Documentation trigger chain |
 | Ask Nalara (beyond the spec) | **Ask** in the top bar, or **ASK** in the intent bar: a conversation with Claude that answers directly and streams as it writes. It can read, search and (after your approval) write your files, use memory, git and connected MCP servers, and search the web. Conversations are kept. Offline it says that open questions need Claude and shows what a search of your files found |
+| Files (beyond the spec) | A file manager: the Nalara folder plus any folders you add (Documents, Desktop, a project...). Browse, create files and folders, edit and save text, rename, duplicate, move to a recoverable trash and restore, preview images, and open anything else in its own app (never programs or scripts). Paths are confined to their folder; every change is audited. The assistant gets the same abilities as `files.*` tools, behind approvals |
 | Fleets (beyond the spec) | Process tree per run, adversarial review (builders attacked by critics; only evidence-checked challenges block), an audited relay, fleet memory, fleet budgets, an Observatory and a work queue. See [ARCHITECTURE.md](ARCHITECTURE.md#fleets) and [docs/orc-gap-analysis.md](docs/orc-gap-analysis.md) |
 
 ## Safety

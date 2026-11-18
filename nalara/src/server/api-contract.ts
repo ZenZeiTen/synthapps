@@ -27,7 +27,23 @@
  * POST    /api/radial/:nodeId/:actionId          { input?: object }           RadialResult
  * GET     /api/search?q=&limit=&kind=            -                            SearchHit[]
  * GET     /api/concepts                          -                            ConceptInfo[]
- * GET     /api/files/content?path=               -                            { path, content, kind }
+ * GET     /api/files/content?path=[&place=]      -                            { path, content, kind } (other places: + place, size, mtimeMs)
+ * Places and paths below: `place` is a place id (default "home", the Nalara folder); paths are relative to it.
+ * GET     /api/places                            -                            { places: Place[], suggested: {name, path}[] }
+ * POST    /api/places                            { path, name? }              Place (an absolute folder path on this computer)
+ * DELETE  /api/places/:id                        -                            { ok: true } (the folder itself is untouched)
+ * GET     /api/files/list?place=&path=&hidden=   -                            FileListing (folders first)
+ * PUT     /api/files/content                     { place?, path, content, mode?: "create"|"overwrite"|"any" }  FileEntry
+ * POST    /api/files/mkdir                       { place?, path }             FileEntry
+ * POST    /api/files/move                        { place?, from, to }         FileEntry (rename or move; 409 if the target exists)
+ * POST    /api/files/copy                        { place?, from, to }         FileEntry
+ * POST    /api/files/trash                       { place?, path }             TrashItem (recoverable)
+ * POST    /api/files/open                        { place?, path }             { ok: true } (default app; 403 for programs and scripts)
+ * GET     /api/files/raw?place=&path=            -                            the file bytes, images and PDF only, CSP sandbox
+ * GET     /api/trash                             -                            TrashItem[] (newest first)
+ * POST    /api/trash/:id/restore                 -                            FileEntry (its old place, or "name (restored).ext")
+ * DELETE  /api/trash/:id                         -                            { ok: true } (deleted for good)
+ * DELETE  /api/trash                             -                            { removed: number } (empty the trash)
  * GET     /api/memory?category=&q=&limit=&includeProposed= - MemoryRecord[]  (includeProposed=true also returns proposed records)
  * POST    /api/memory                            { category, key, content, tags? } MemoryRecord
  * DELETE  /api/memory/:id                        -                            { ok: boolean }

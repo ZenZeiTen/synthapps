@@ -165,3 +165,37 @@ export const IconSpark = (p: IconProps) => (
     <path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" />
   </Svg>
 );
+export const IconPencil = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 013 3L8 18.5z" />
+    <path d="M13.5 7l3 3" />
+  </Svg>
+);
+export const IconTrash = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5" />
+    <path d="M10.5 11v5M13.5 11v5" />
+  </Svg>
+);
+export const IconExternal = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M13.5 4.5h6v6M19.5 4.5L11 13" />
+    <path d="M17.5 14v4.5a1 1 0 01-1 1h-11a1 1 0 01-1-1v-11a1 1 0 011-1H10" />
+  </Svg>
+);
+export const IconPlus = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Svg>
+);
+export const IconUp = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 19V6M6.5 11.5L12 6l5.5 5.5" />
+  </Svg>
+);
+export const IconCopy = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="1.5" />
+    <path d="M15.5 8.5V5.5a1 1 0 00-1-1h-9a1 1 0 00-1 1v9a1 1 0 001 1h3" />
+  </Svg>
+);

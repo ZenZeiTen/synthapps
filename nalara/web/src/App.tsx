@@ -8,10 +8,11 @@ import type { AgentDefinition, AgentInstance, AgentState, ApprovalRequest, Graph
 import { AssistantPanel } from "./components/AssistantPanel";
 import { ApprovalCard } from "./components/ApprovalCard";
 import { ClaudeNotice, type ClaudeNeeded } from "./components/ClaudeNotice";
-import { AgentsPanel, AppsPanel, FilesPanel, ProjectsPanel } from "./components/BrowsePanels";
+import { AgentsPanel, AppsPanel, ProjectsPanel } from "./components/BrowsePanels";
+import { FileExplorer } from "./components/FileExplorer";
 import { Canvas } from "./components/Canvas";
 import { EventLog } from "./components/EventLog";
-import { FileViewer } from "./components/FileViewer";
+import { FilePreview, FileViewer } from "./components/FileViewer";
 import { FleetPanel } from "./components/FleetPanel";
 import { Hud } from "./components/Hud";
 import { IconRefresh } from "./components/Icons";
@@ -99,7 +100,7 @@ export function App() {
   const takeQuestion = useCallback(() => setAskQuestion(null), []);
   const [fieldOpen, setFieldOpen] = useState(false);
   const [fieldFocus, setFieldFocus] = useState<{ id: string; n: number } | null>(null);
-  const [fileView, setFileView] = useState<{ path: string; line?: number } | null>(null);
+  const [fileView, setFileView] = useState<{ path: string; line?: number; place?: string; edit?: boolean } | null>(null);
   const [radial, setRadial] = useState<RadialTarget | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [lastLive, setLastLive] = useState<KernelEvent | null>(null);
@@ -338,7 +339,11 @@ export function App() {
   }, [paced, tick]);
 
   // ---- actions -----------------------------------------------------------------------------------------
-  const openFile = useCallback((path: string, line?: number) => setFileView({ path, line }), []);
+  const openFile = useCallback(
+    (path: string, line?: number, place?: string, edit?: boolean) => setFileView({ path, line, ...(place ? { place } : {}), ...(edit ? { edit } : {}) }),
+    [],
+  );
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
   const coreGeometry = useCallback(() => {
     const el = document.querySelector<HTMLElement>(".core-orb");
@@ -503,7 +508,7 @@ export function App() {
   }, []);
 
   // ---- layout ------------------------------------------------------------------------------------------
-  const leftW = panel ? (panel === "settings" || panel === "observatory" || panel === "assistant" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
+  const leftW = panel ? (panel === "settings" || panel === "observatory" || panel === "assistant" || panel === "files" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
   const rightW = sheetWs ? SHEET_W + EDGE : 0;
   // Shrink the core when panels leave it less room than its orbit needs.
   const orbPx = Math.min(vp.h * 0.266, 300);
@@ -623,15 +628,16 @@ export function App() {
       ) : null}
       {panel === "search" ? <SearchPanel onClose={() => setPanel(null)} onOpenHit={onOpenHit} /> : null}
       {panel === "files" ? (
-        <FilesPanel
-          graph={graph}
+        <FileExplorer
           onClose={() => setPanel(null)}
-          onOpen={(path) => openFile(path)}
+          onOpen={(path, place, edit) => openFile(path, undefined, place, edit)}
+          onPreview={(url, name) => setPreview({ url, name })}
           onActions={(path, nodeId) => {
             setPanel(null);
             setRadial({ nodeId, title: path.split("/").pop() ?? path, ...coreGeometry() });
           }}
           onField={() => showInField()}
+          onToast={toast}
         />
       ) : null}
       {panel === "agents" ? (
@@ -725,7 +731,8 @@ export function App() {
         ))}
       </div>
 
-      {fileView ? <FileViewer path={fileView.path} line={fileView.line} onClose={() => setFileView(null)} /> : null}
+      {fileView ? <FileViewer path={fileView.path} line={fileView.line} {...(fileView.place ? { place: fileView.place } : {})} edit={fileView.edit === true} onClose={() => setFileView(null)} /> : null}
+      {preview ? <FilePreview url={preview.url} name={preview.name} onClose={() => setPreview(null)} /> : null}
     </div>
   );
 }

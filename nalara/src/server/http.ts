@@ -64,7 +64,20 @@ export const API_FEATURES = [
   "claude-key",
   "kernel-restart",
   "assistant",
+  "file-manager",
 ];
+/** Files the UI may preview from disk (no SVG or HTML: they could run scripts). */
+const PREVIEW_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".ico": "image/x-icon",
+  ".avif": "image/avif",
+  ".pdf": "application/pdf",
+};
 /** How long a response is kept for replay under its Idempotency-Key. */
 export const IDEMPOTENCY_TTL_MS = 10 * 60_000;
 const IDEMPOTENCY_MAX_ENTRIES = 1000;
@@ -408,6 +421,27 @@ export function createHttpServer(kernel: NeuralKernel, opts: HttpServerOptions =
     res.on("close", cleanup);
   }
 
+  // --- file previews ------------------------------------------------------------------------------------
+
+  const placeOf = (body: Json): string | undefined => (typeof body.place === "string" && body.place ? body.place : undefined);
+
+  /** Images and PDFs only, sandboxed: a file from the user's disk never runs as a page of this origin. */
+  function serveRaw(res: ServerResponse, place: string | undefined, path: string): void {
+    const abs = kernel.files.resolveFile(place, path);
+    const type = PREVIEW_TYPES[extname(abs).toLowerCase()];
+    if (!type) throw new HttpError(415, "Only images and PDFs can be previewed", "unsupported_media");
+    const size = statSync(abs).size;
+    res.writeHead(200, {
+      "Content-Type": type,
+      "Content-Length": size,
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'",
+      "Content-Disposition": "inline",
+      "X-Content-Type-Options": "nosniff",
+    });
+    createReadStream(abs).pipe(res);
+  }
+
   // --- assistant (NDJSON stream) ------------------------------------------------------------------
 
   /** POST /api/assistant/ask streams one JSON event per line; closing the request stops the answer. */
@@ -603,7 +637,45 @@ export function createHttpServer(kernel: NeuralKernel, opts: HttpServerOptions =
         if (is("GET", 1)) return ok(kernel.index.concepts());
         break;
 
+      case "places":
+        if (is("GET", 1)) return ok({ places: kernel.files.places(), suggested: kernel.files.suggestedPlaces() });
+        if (is("POST", 1)) return ok(kernel.files.addPlace(text(body.path, "path"), typeof body.name === "string" && body.name.trim() ? body.name : undefined));
+        if (is("DELETE", 2)) {
+          if (!kernel.files.removePlace(b)) throw new HttpError(404, `No place "${b}"`);
+          return ok({ ok: true });
+        }
+        break;
+
+      case "trash":
+        if (is("GET", 1)) return ok(kernel.files.trashList());
+        if (is("DELETE", 1)) return ok({ removed: kernel.files.emptyTrash() });
+        if (is("POST", 3) && c === "restore") return ok(kernel.files.restore(b));
+        if (is("DELETE", 2)) {
+          if (!kernel.files.purge(b)) throw new HttpError(404, `No trash item "${b}"`);
+          return ok({ ok: true });
+        }
+        break;
+
       case "files":
+        if (is("GET", 2) && b === "list") return ok(kernel.files.list(q.get("place") ?? undefined, q.get("path") ?? "", { hidden: q.get("hidden") === "1" || q.get("hidden") === "true" }));
+        if (is("GET", 2) && b === "raw") return serveRaw(res, q.get("place") ?? undefined, text(q.get("path"), "path"));
+        if (is("PUT", 2) && b === "content") {
+          if (typeof body.content !== "string") throw new HttpError(400, "content must be a string");
+          const mode = body.mode === "create" || body.mode === "overwrite" ? body.mode : "any";
+          return ok(kernel.files.write(placeOf(body), text(body.path, "path"), body.content, { mode }));
+        }
+        if (is("POST", 2) && b === "mkdir") return ok(kernel.files.mkdir(placeOf(body), text(body.path, "path")));
+        if (is("POST", 2) && b === "move") return ok(kernel.files.move(placeOf(body), text(body.from, "from"), text(body.to, "to")));
+        if (is("POST", 2) && b === "copy") return ok(kernel.files.copy(placeOf(body), text(body.from, "from"), text(body.to, "to")));
+        if (is("POST", 2) && b === "trash") return ok(kernel.files.trash(placeOf(body), text(body.path, "path")));
+        if (is("POST", 2) && b === "open") {
+          await kernel.files.open(placeOf(body), typeof body.path === "string" ? body.path : "");
+          return ok({ ok: true });
+        }
+        if (is("GET", 2) && b === "content" && q.get("place") && q.get("place") !== "home") {
+          const f = kernel.files.read(q.get("place")!, text(q.get("path"), "path"));
+          return ok({ path: f.path, content: f.content, kind: f.kind, place: f.place, size: f.size, mtimeMs: f.mtimeMs });
+        }
         if (is("GET", 2) && b === "content") {
           const path = text(q.get("path"), "path");
           // Through the gateway as the human: root-confined, audited, and able to read workspace outputs.

@@ -761,6 +761,8 @@ interface MockConversation {
   messages: Record<string, unknown>[];
 }
 const conversations = new Map<string, MockConversation>();
+const mockDirs = new Set<string>();
+const mockTrash: { id: string; place: string; path: string; type: string; size: number; trashedAt: string; files: Record<string, string> }[] = [];
 
 const requestLog: { method: string; path: string; ts: string }[] = [];
 
@@ -980,6 +982,82 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   // --- search, files, concepts -------------------------------------------------------------------------------
   if (method === "GET" && a === "search") return send(res, 200, search(q.get("q") ?? "", Number(q.get("limit") ?? 20)));
   if (method === "GET" && a === "concepts") return send(res, 200, Object.entries(CONCEPTS).map(([id, c2]) => ({ id, name: c2.name, files: c2.files })));
+  // --- file manager over FILES (in memory) ---------------------------------------------------------------
+  if (method === "GET" && a === "places") return send(res, 200, { places: [{ id: "home", name: "Nalara", path: "/home/you/Nalara", builtin: true, exists: true }], suggested: [] });
+  if (a === "files" && b === "list" && method === "GET") {
+    const dir = (q.get("path") ?? "").replace(/^\/+|\/+$/g, "");
+    const prefix = dir ? `${dir}/` : "";
+    const all = [...Object.keys(FILES), ...[...mockDirs].map((d) => `${d}/`)];
+    if (dir && !all.some((p) => p.startsWith(prefix))) throw new HttpError(404, `The folder "${dir}" does not exist`);
+    const dirs = new Set<string>();
+    const files: string[] = [];
+    for (const p of all) {
+      if (!p.startsWith(prefix)) continue;
+      const rest = p.slice(prefix.length);
+      if (!rest) continue;
+      const slash = rest.indexOf("/");
+      if (slash >= 0) dirs.add(rest.slice(0, slash));
+      else files.push(rest);
+    }
+    const mtimeMs = Date.parse(at(0));
+    const entries = [
+      ...[...dirs].sort().map((name) => ({ name, path: prefix + name, place: "home", type: "dir", size: 0, mtimeMs, hidden: false })),
+      ...files.sort().map((name) => ({ name, path: prefix + name, place: "home", type: "file", size: FILES[prefix + name].length, mtimeMs, hidden: false, kind: kindOf(prefix + name) })),
+    ];
+    return send(res, 200, { place: "home", path: dir, parent: dir ? dir.split("/").slice(0, -1).join("/") : null, entries });
+  }
+  if (a === "files" && method === "PUT" && b === "content") {
+    const path = String(body.path ?? "");
+    if (body.mode === "create" && path in FILES) throw new HttpError(409, `"${path}" already exists`);
+    const created = !(path in FILES);
+    FILES[path] = String(body.content ?? "");
+    publish(created ? "file.created" : "file.updated", { path }, undefined, "files");
+    return send(res, 200, { name: path.split("/").pop(), path, place: "home", type: "file", size: FILES[path].length, mtimeMs: Date.now(), hidden: false, kind: kindOf(path) });
+  }
+  if (a === "files" && method === "POST" && b === "mkdir") {
+    mockDirs.add(String(body.path ?? ""));
+    return send(res, 200, { name: String(body.path).split("/").pop(), path: body.path, place: "home", type: "dir", size: 0, mtimeMs: Date.now(), hidden: false });
+  }
+  if (a === "files" && method === "POST" && (b === "move" || b === "copy")) {
+    const from = String(body.from ?? "");
+    const to = String(body.to ?? "");
+    if (to in FILES) throw new HttpError(409, `"${to}" already exists`);
+    const moved = Object.keys(FILES).filter((p) => p === from || p.startsWith(`${from}/`));
+    if (!moved.length) throw new HttpError(404, `"${from}" does not exist`);
+    for (const p of moved) {
+      FILES[to + p.slice(from.length)] = FILES[p];
+      if (b === "move") delete FILES[p];
+    }
+    return send(res, 200, { name: to.split("/").pop(), path: to, place: "home", type: moved.length === 1 && moved[0] === from ? "file" : "dir", size: 0, mtimeMs: Date.now(), hidden: false });
+  }
+  if (a === "files" && method === "POST" && b === "trash") {
+    const path = String(body.path ?? "");
+    const gone = Object.keys(FILES).filter((p) => p === path || p.startsWith(`${path}/`));
+    if (!gone.length) throw new HttpError(404, `"${path}" does not exist`);
+    const item = { id: `trash_${mockTrash.length + 1}`, place: "home", path, type: gone.length === 1 && gone[0] === path ? "file" : "dir", size: 0, trashedAt: now(), files: Object.fromEntries(gone.map((p) => [p, FILES[p]])) };
+    for (const p of gone) delete FILES[p];
+    mockTrash.unshift(item);
+    publish("file.deleted", { path }, undefined, "files");
+    const { files: _held, ...pub } = item;
+    return send(res, 200, pub);
+  }
+  if (a === "files" && method === "POST" && b === "open") return send(res, 200, { ok: true });
+  if (a === "trash") {
+    if (method === "GET" && !b) return send(res, 200, mockTrash.map(({ files: _f, ...t }) => t));
+    if (method === "POST" && b && c === "restore") {
+      const i = mockTrash.findIndex((t) => t.id === b);
+      if (i < 0) throw new HttpError(404, `No trash item "${b}"`);
+      const [item] = mockTrash.splice(i, 1);
+      Object.assign(FILES, item.files);
+      return send(res, 200, { name: item.path.split("/").pop(), path: item.path, place: "home", type: item.type, size: 0, mtimeMs: Date.now(), hidden: false });
+    }
+    if (method === "DELETE" && !b) {
+      const removed = mockTrash.length;
+      mockTrash.length = 0;
+      return send(res, 200, { removed });
+    }
+  }
+
   if (method === "GET" && a === "files" && b === "content") {
     const path = q.get("path") ?? "";
     if (!(path in FILES)) throw new HttpError(404, `No file ${path}`);

@@ -11,7 +11,7 @@
  * - prints PASS/FAIL per check, writes screenshots to test/e2e/screenshots/, exits 1 on any FAIL.
  */
 import { execFileSync } from "node:child_process";
-import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -575,6 +575,8 @@ async function main() {
     await check('f. Files panel: open damage.ts, then its actions; "Summarize" starts a run that orbits the core and finishes', async () => {
       await closeRadial(page);
       await openPanel(page, "files");
+      await page.locator(".side-panel .tree-dir").filter({ hasText: /^src$/ }).click();
+      await page.locator(".side-panel .tree-dir").filter({ hasText: /^combat$/ }).click();
       await page.locator(".side-panel .tree-btn:not(.tree-dir)").filter({ hasText: /^damage\.ts$/ }).click();
       await page.waitForSelector(".viewer .code-line", { timeout: 8000 });
       const viewerPath = (await page.textContent(".viewer .viewer-path"))?.trim();
@@ -775,6 +777,35 @@ async function main() {
       await shot(page, "13d-assistant.png");
       await closePanel(page);
       return `conversation ${convs[0].id}; answer starts "${answer.slice(0, 60)}"`;
+    });
+
+    // ---- i5 --------------------------------------------------------------------------------------------------
+    await check("i5. file manager on the real kernel: a new file typed and saved in the UI is on disk; the trash takes it and gives it back", async () => {
+      await closePanel(page);
+      await openPanel(page, "files");
+      await page.click('.fx-tools button:has-text("New file")');
+      await page.fill("#fx-edit-input", "e2e-note.md");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector(".viewer .viewer-editor", { timeout: 8000 });
+      await page.fill(".viewer .viewer-editor", "Saved from the e2e test.\n");
+      await page.keyboard.press("Control+s");
+      await page.waitForSelector('.viewer-state:has-text("Saved")', { timeout: 5000 });
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".viewer", { state: "detached", timeout: 3000 });
+      const onDisk = readFileSync(join(projectRoot, "e2e-note.md"), "utf8");
+      assert(onDisk === "Saved from the e2e test.\n", `on disk: ${JSON.stringify(onDisk)}`);
+      await page.hover('.fx-row:has-text("e2e-note.md")');
+      await page.click('button[aria-label="Move e2e-note.md to the trash"]');
+      await page.waitForSelector('.fx-row:has-text("e2e-note.md")', { state: "detached", timeout: 5000 });
+      assert(!existsSync(join(projectRoot, "e2e-note.md")), "the file is still on disk after Move to trash");
+      const trash = await api<{ id: string; path: string }[]>("GET", "/api/trash");
+      const item = trash.find((t) => t.path === "e2e-note.md");
+      assert(item, `not in the trash: ${JSON.stringify(trash)}`);
+      await api("POST", `/api/trash/${item.id}/restore`);
+      assert(existsSync(join(projectRoot, "e2e-note.md")), "restore did not bring the file back");
+      await shot(page, "13e-files.png");
+      await closePanel(page);
+      return `saved, trashed (${item.id}) and restored`;
     });
 
     // ---- j ---------------------------------------------------------------------------------------------------
