@@ -587,6 +587,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     root,
     principal: () => ({ ...human(), agentId: "assistant", chain: [`user:${config.userId}`, "assistant"] }),
     isHalted: () => halted,
+    redact: (t) => secrets.redact(t),
     webTools: deps.env?.NALARA_WEB_TOOLS !== "0" && process.env.NALARA_WEB_TOOLS !== "0",
   });
 
