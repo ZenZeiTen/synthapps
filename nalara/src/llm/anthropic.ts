@@ -1,7 +1,7 @@
 /**
  * Claude provider (LLMProvider) on @anthropic-ai/sdk.
  *
- * - Model "claude-opus-5" by default, adaptive thinking, `output_config.effort`.
+ * - Model "claude-opus-5-5" by default, adaptive thinking, `output_config.effort`.
  * - Server-side refusal fallbacks on by default: `client.beta.messages` with the
  *   `server-side-fallback-2026-07-01` beta and `fallbacks: "default"`.
  * - The agent loop is a manual, streaming tool-use loop (`stream().finalMessage()`), because every tool
@@ -45,7 +45,7 @@ import { acquireAll, reportUsage, type HookableProvider, type ModelCallHooks, ty
 // ajv is CommonJS; depending on the loader the class is the default export or its `.default`.
 const Ajv = ((AjvModule as unknown as { default?: typeof AjvModule }).default ?? AjvModule) as typeof AjvModule;
 
-export const DEFAULT_MODEL = "claude-opus-5";
+export const DEFAULT_MODEL = "claude-opus-5-5";
 export const DEFAULT_EFFORT: Effort = "high";
 export const SERVER_SIDE_FALLBACK_BETA = "server-side-fallback-2026-07-01";
 export const LOOP_MAX_TOKENS = 64_000;
@@ -78,6 +78,8 @@ export interface AnthropicProviderOptions {
   effort?: Effort;
   /** Defaults to `new Anthropic()`, created on first use (credentials from the environment or profile). */
   client?: AnthropicClientLike;
+  /** An API key for the default client, e.g. one the user saved in Nalara's settings. Ignored with `client`. */
+  apiKey?: string;
   /** Called after every model response with that response's usage. */
   onUsage?: (usage: ModelCallUsage) => void;
   /** Called after every request: "ok", or the failure class for the Governor's AIMD backpressure. */
@@ -85,6 +87,38 @@ export interface AnthropicProviderOptions {
   /** Server-side refusal fallbacks (`fallbacks: "default"`). Default true; turn off only where the beta is unavailable. */
   refusalFallbacks?: boolean;
 }
+
+export type ClaudeKeyCheck = (apiKey: string, model: string) => Promise<void>;
+
+/** Why a key check failed: "invalid" (Anthropic rejected the key), "model" (the key cannot use the model), "unreachable". */
+export class ClaudeKeyError extends Error {
+  constructor(
+    message: string,
+    readonly reason: "invalid" | "model" | "unreachable",
+  ) {
+    super(message);
+    this.name = "ClaudeKeyError";
+  }
+}
+
+/**
+ * Checks an API key with one free Models API call (`models.retrieve`), before Nalara stores it. Never logs the key.
+ * Throws ClaudeKeyError.
+ */
+export const checkClaudeKey: ClaudeKeyCheck = async (apiKey, model) => {
+  const client = new Anthropic({ apiKey, maxRetries: 0, timeout: 15_000 });
+  try {
+    await client.models.retrieve(model);
+  } catch (err) {
+    if (err instanceof Anthropic.AuthenticationError) throw new ClaudeKeyError("Anthropic did not accept this API key. Check that you copied the whole key.", "invalid");
+    if (err instanceof Anthropic.PermissionDeniedError || err instanceof Anthropic.NotFoundError) {
+      throw new ClaudeKeyError(`This key works, but it cannot use the model ${model}.`, "model");
+    }
+    if (err instanceof Anthropic.APIConnectionError) throw new ClaudeKeyError("Could not reach Anthropic to check the key. Check the internet connection and try again.", "unreachable");
+    if (err instanceof Anthropic.APIError) throw new ClaudeKeyError(`Anthropic could not check the key right now (HTTP ${err.status ?? "error"}). Try again in a minute.`, "unreachable");
+    throw err;
+  }
+};
 
 /** True when the SDK can find credentials: API key or auth token in the env, or a profile file on disk. Never reads the file. */
 export function hasClaudeCredentials(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -217,7 +251,7 @@ export function createAnthropicProvider(opts: AnthropicProviderOptions = {}): Ho
   const defaultEffort = opts.effort ?? DEFAULT_EFFORT;
   const fallbacksOn = opts.refusalFallbacks ?? true;
   let client = opts.client;
-  const getClient = (): AnthropicClientLike => (client ??= new Anthropic() as unknown as AnthropicClientLike);
+  const getClient = (): AnthropicClientLike => (client ??= new Anthropic(opts.apiKey ? { apiKey: opts.apiKey } : {}) as unknown as AnthropicClientLike);
 
   const ajv = new Ajv({ strict: false, allErrors: true, validateFormats: false });
   const validators = new WeakMap<object, ValidateFunction | null>();

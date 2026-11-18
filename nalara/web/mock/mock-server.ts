@@ -1123,6 +1123,12 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (method === "GET" && a === "governor") return send(res, 200, governor());
 
   // --- system interface, secrets, fleet telemetry (minimal mock) ------------------------------------------
+  if (a === "claude") {
+    // The mock is always offline; a key is never checked or stored.
+    if (method === "GET" && !b) return send(res, 200, { mode: "offline", model: "claude-opus-5-5", credentials: "none", canRestart: false });
+    if ((method === "PUT" || method === "DELETE") && b === "key") return send(res, 400, { error: "The mock kernel cannot use a Claude key", code: "claude_key_rejected" });
+  }
+  if (method === "POST" && a === "kernel" && b === "restart") return send(res, 501, { error: "The mock kernel cannot restart", code: "restart_unavailable" });
   if (method === "GET" && a === "version") return send(res, 200, { name: "nalara", version: "mock", apiVersion: 2, supportedApiVersions: [1, 2], features: [] });
   if (a === "secrets") {
     if (method === "GET" && !b) return send(res, 200, [...secrets.values()]);

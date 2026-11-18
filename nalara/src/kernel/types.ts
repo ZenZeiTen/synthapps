@@ -1137,7 +1137,7 @@ export interface NalaraConfig {
   dataDir: string;
   port: number;
   host: string;
-  /** Claude model id. Default "claude-opus-5". */
+  /** Claude model id. Default "claude-opus-5-5". */
   model: string;
   effort: Effort;
   /** Use Claude when credentials exist. Set false to force offline mode. */
@@ -1173,6 +1173,8 @@ export interface KernelStatus {
   projectName?: string;
   mode: "claude" | "offline";
   model: string;
+  /** Where the Claude credentials come from: the environment (or an `ant auth` profile), a key saved in Settings, or none. */
+  credentials: "environment" | "settings" | "none";
   startedAt: string;
   graph: { nodes: number; edges: number; byType: Record<string, number> };
   files: number;
@@ -1211,7 +1213,11 @@ export interface Kernel {
   stop(): Promise<void>;
   status(): KernelStatus;
   /** Intent -> workspace. With run (default true) the plan starts in the background; await `done` to wait for it. */
-  submitIntent(text: string, opts?: { run?: boolean }): Promise<{ workspace: Workspace; done: Promise<Workspace> }>;
+  /**
+   * Classifies, plans and (by default) runs an intent. With `offline: "refuse"`, an offline kernel throws
+   * NeedsClaudeError for intents only Claude can carry out (the UI and CLI use this; internal callers allow).
+   */
+  submitIntent(text: string, opts?: { run?: boolean; offline?: "refuse" | "allow" }): Promise<{ workspace: Workspace; done: Promise<Workspace> }>;
   runWorkspace(id: string): Promise<Workspace>;
   radialActions(nodeId: string | "root"): { kind: RadialKind; actions: RadialAction[] };
   radialAction(nodeId: string | "root", actionId: string, input?: Record<string, unknown>): Promise<RadialResult>;

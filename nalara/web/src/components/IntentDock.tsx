@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { BRAND, INTENT_CHIPS } from "../brand";
-import type { IntentClassification } from "../types";
+import type { IntentPreview } from "../types";
 import { IconReturn } from "./Icons";
 
 interface Props {
@@ -18,7 +18,7 @@ const words = (s: string) => s.replace(/_/g, " ").toUpperCase();
 /** The intent bar at the bottom of the core: a live classification hint while typing, example intents otherwise. */
 export function IntentDock({ agentName, onSubmit, busy, disabled, disabledReason }: Props) {
   const [text, setText] = useState("");
-  const [preview, setPreview] = useState<IntentClassification | null>(null);
+  const [preview, setPreview] = useState<IntentPreview | null>(null);
   const [previewState, setPreviewState] = useState<"idle" | "loading" | "error">("idle");
   const input = useRef<HTMLInputElement>(null);
 
@@ -60,7 +60,12 @@ export function IntentDock({ agentName, onSubmit, busy, disabled, disabledReason
   let hint = "";
   if (typing && text.trim().length >= 3) {
     if (preview) {
-      hint = [words(preview.intent), ...preview.required_agents.map((a) => agentName(a).toUpperCase()), `${preview.source === "claude" ? "CLAUDE" : "HEURISTIC"} ${Math.round(preview.confidence * 100)}%`].join(" · ");
+      hint = [
+        words(preview.intent),
+        ...preview.required_agents.map((a) => agentName(a).toUpperCase()),
+        `${preview.source === "claude" ? "CLAUDE" : "HEURISTIC"} ${Math.round(preview.confidence * 100)}%`,
+        ...(preview.needsClaude ? ["NEEDS CLAUDE (OFFLINE)"] : []),
+      ].join(" · ");
     } else if (previewState === "loading") hint = "CLASSIFYING...";
     else if (previewState === "error") hint = "PREVIEW UNAVAILABLE";
   }
@@ -89,7 +94,7 @@ export function IntentDock({ agentName, onSubmit, busy, disabled, disabledReason
         </button>
       </div>
       <div className="dock-under">
-        <p id="nos-intent-hint" className={`dock-hint${hint ? " on" : ""}`} aria-live="polite">
+        <p id="nos-intent-hint" className={`dock-hint${hint ? " on" : ""}${hint && preview?.needsClaude ? " needs-claude" : ""}`} aria-live="polite">
           {hint ? (
             <>
               <span className="sr-only">Classified as </span>

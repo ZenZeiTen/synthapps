@@ -27,7 +27,9 @@ function chromePath(): string {
     .filter((d) => /^chromium-\d+$/.test(d))
     .sort()
     .pop();
-  const p = dir ? join(base, dir, "chrome-linux", "chrome") : "";
+  // The stable link first; then the versioned folder (chrome-linux in older images, chrome-linux64 in newer ones).
+  const candidates = [join(base, "chromium"), ...(dir ? [join(base, dir, "chrome-linux", "chrome"), join(base, dir, "chrome-linux64", "chrome")] : [])];
+  const p = candidates.find((c) => existsSync(c)) ?? "";
   if (!p || !existsSync(p)) throw new Error("Chromium not found under /opt/pw-browsers");
   return p;
 }

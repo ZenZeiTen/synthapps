@@ -29,6 +29,9 @@ interface Props {
   fieldOpen: boolean;
   onToggleField: () => void;
   killSwitch: ReactNode;
+  /** No Claude: the agents are rule-based. The badge opens Settings, where a key can be added. */
+  claudeOffline?: boolean;
+  onClaudeOffline?: () => void;
 }
 
 const agents = (n: number) => `${n} ${n === 1 ? "AGENT" : "AGENTS"}`;
@@ -38,7 +41,7 @@ const agents = (n: number) => `${n} ${n === 1 ? "AGENT" : "AGENTS"}`;
  * "N AGENTS RESTING" counts system agents with no running instance; "FIELD <state> · M AGENTS" counts the agent
  * instances running now (summoned, active or collaborating), so it reads 0 when the core is idle.
  */
-export function Hud({ coreWord, resting, field, activeAgents, fieldOpen, onToggleField, killSwitch }: Props) {
+export function Hud({ coreWord, resting, field, activeAgents, fieldOpen, onToggleField, killSwitch, claudeOffline, onClaudeOffline }: Props) {
   const now = useMinuteClock();
   const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const left = [BRAND.toUpperCase(), `CORE ${coreWord}`, resting === null ? null : `${agents(resting)} RESTING`].filter(Boolean).join(" · ");
@@ -55,6 +58,16 @@ export function Hud({ coreWord, resting, field, activeAgents, fieldOpen, onToggl
           FIELD {field} · {agents(activeAgents)}
         </p>
         <div className="hud-controls">
+          {claudeOffline ? (
+            <button
+              type="button"
+              className="hud-btn btn-offline"
+              onClick={onClaudeOffline}
+              title="Nalara is running without Claude: its agents only scan and check files. Add a Claude API key to let it write, translate and answer."
+            >
+              Offline · Add Claude key
+            </button>
+          ) : null}
           <button type="button" className={`hud-btn btn-field${fieldOpen ? " on" : ""}`} aria-pressed={fieldOpen} onClick={onToggleField}>
             <IconField size={13} /> Field
           </button>

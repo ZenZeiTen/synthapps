@@ -16,7 +16,8 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright-core";
-import { createKernel, type NeuralKernel } from "../../src/kernel/kernel";
+import { CLAUDE_KEY_SECRET, createKernel, type NeuralKernel } from "../../src/kernel/kernel";
+import { ClaudeKeyError } from "../../src/llm/anthropic";
 import type { AgentDefinition, AgentInstance, ApprovalRequest, FleetTree, GraphNode, MemoryRecord, Observatory, SecretInfo, ToolPolicy } from "../../src/kernel/types";
 import { createHttpServer, type NeuralHttpServer } from "../../src/server/http";
 import { BRAND, INTENT_CHIPS } from "../../web/src/brand";
@@ -35,6 +36,8 @@ const SHOTS = join(HERE, "screenshots");
 const DOCS_SHOTS = join(ROOT, "docs", "screenshots");
 const DOCS = process.env.NALARA_DOCS_SHOTS === "1";
 const VIEWPORT = { width: 1886, height: 901 };
+const E2E_CLAUDE_KEY = "sk-ant-e2e-accepted-0123456789";
+const EXPECTED_API_ERRORS = ["POST /api/intents -> 422", "PUT /api/claude/key -> 400"];
 
 // ---------------------------------------------------------------------------------------------------------------
 // Harness
@@ -69,7 +72,9 @@ function chromePath(): string {
     .filter((d) => /^chromium-\d+$/.test(d))
     .sort()
     .pop();
-  const p = dir ? join(base, dir, "chrome-linux", "chrome") : "";
+  // The stable link first; then the versioned folder (chrome-linux in older images, chrome-linux64 in newer ones).
+  const candidates = [join(base, "chromium"), ...(dir ? [join(base, dir, "chrome-linux", "chrome"), join(base, dir, "chrome-linux64", "chrome")] : [])];
+  const p = candidates.find((c) => existsSync(c)) ?? "";
   if (!p || !existsSync(p)) throw new Error("Chromium not found under /opt/pw-browsers/chromium-*/chrome-linux/chrome");
   return p;
 }
@@ -197,7 +202,8 @@ async function main() {
   try {
     kernel = createKernel(
       { root: projectRoot, port: 0, host: "127.0.0.1", useClaude: false, toolPolicy: { mode: "ask" }, watch: true, triggers: true },
-      { llm: null, env: {} },
+      // The key check is a stand-in: e2e never calls Anthropic. One key is accepted.
+      { llm: null, env: {}, checkClaudeKey: async (key) => { if (key !== E2E_CLAUDE_KEY) throw new ClaudeKeyError("Anthropic did not accept this API key.", "invalid"); } },
     );
     await kernel.start();
     http = createHttpServer(kernel, { staticDir: WEB_DIST });
@@ -234,6 +240,9 @@ async function main() {
     const isProxyNotice = (t: string) => /agent[- ]?proxy|__agentproxy|blocked by (the )?(sandbox|proxy)/i.test(t) || /(googleapis|gstatic|google)\.com/i.test(t);
     page.on("console", (m) => {
       if (m.type() !== "error") return;
+      // The browser logs every 4xx as "Failed to load resource"; the refusals in EXPECTED_API_ERRORS are on purpose.
+      const at = m.location().url ? new URL(m.location().url).pathname : "";
+      if (/^Failed to load resource/.test(m.text()) && EXPECTED_API_ERRORS.some((e) => e.split(" ")[1] === at)) return;
       (isProxyNotice(m.text()) ? ignoredConsole : consoleErrors).push(m.text());
     });
     page.on("pageerror", (e) => consoleErrors.push(`pageerror: ${e.message}`));
@@ -242,7 +251,9 @@ async function main() {
     const aborted: string[] = [];
     page.on("response", (r) => {
       const u = new URL(r.url());
-      if (u.pathname.startsWith("/api/") && r.status() >= 400) apiFailures.push(`${r.request().method()} ${u.pathname} -> ${r.status()}`);
+      const line = `${r.request().method()} ${u.pathname} -> ${r.status()}`;
+      // Refusals some checks cause on purpose (an intent that needs Claude, a rejected key) are expected, not failures.
+      if (u.pathname.startsWith("/api/") && r.status() >= 400 && !EXPECTED_API_ERRORS.includes(line)) apiFailures.push(line);
     });
     page.on("requestfailed", (r) => {
       const u = new URL(r.url());
@@ -695,6 +706,57 @@ async function main() {
       await shot(page, "13b-observatory.png");
       await closePanel(page);
       return `secret saved and deleted, value never echoed; observatory ${labels} fleet(s), ${obs.totals.agents} agent run(s)`;
+    });
+
+    // ---- i3 --------------------------------------------------------------------------------------------------
+    await check("i3. offline honesty: the HUD says offline; an intent that needs Claude is held with a notice, runs only when asked; Settings checks and saves a Claude key", async () => {
+      await closePanel(page);
+      const badge = page.locator(".hud .btn-offline");
+      await badge.waitFor({ timeout: 5000 });
+      const before = (await api<{ id: string }[]>("GET", "/api/workspaces")).length;
+      const text = "Write a marketing email for my translation agency";
+      await page.fill("#nos-intent", text);
+      await page.waitForFunction(() => /NEEDS CLAUDE/.test(document.querySelector("#nos-intent-hint")?.textContent ?? ""), undefined, { timeout: 5000 });
+      const hint = ((await page.textContent("#nos-intent-hint")) ?? "").trim();
+      assert(/WRITING/.test(hint), `hint "${hint}" does not classify the email as writing`);
+      await page.press("#nos-intent", "Enter");
+      const notice = page.locator(".claude-notice");
+      await notice.waitFor({ timeout: 5000 });
+      const body = ((await notice.textContent()) ?? "").trim();
+      assert(/needs Claude/.test(body) && body.includes(text), `notice: "${body}"`);
+      assert((await api<{ id: string }[]>("GET", "/api/workspaces")).length === before, "a refused intent created a workspace");
+      await page.waitForTimeout(700); // the card rises in over 0.45 s
+      await shot(page, "05b-needs-claude.png");
+      await notice.locator("button:has-text('Run offline checks anyway')").click();
+      await notice.waitFor({ state: "detached", timeout: 5000 });
+      const after = await until("the offline workspace", async () => {
+        const list = await api<{ id: string; intent: string }[]>("GET", "/api/workspaces");
+        return list.length === before + 1 ? list.find((w) => w.intent === "writing") : undefined;
+      }, 5000);
+      assert(after, "no writing workspace after Run offline checks anyway");
+      // Let the offline run finish, so the checks after this one start from a settled core.
+      await until("the offline writing run to finish", async () => {
+        const w = (await api<{ id: string; status: string }[]>("GET", "/api/workspaces")).find((x) => x.id === after.id);
+        return w && (w.status === "completed" || w.status === "failed") ? w.status : undefined;
+      }, 20000);
+
+      await badge.click();
+      const claude = page.locator('.side-panel section[aria-label="Claude"]');
+      // The section loads its state after it opens.
+      await claude.locator('.badge:has-text("Offline")').waitFor({ timeout: 5000 });
+      await claude.locator('input[type="password"]').fill("sk-ant-wrong");
+      await claude.locator('button[type="submit"]').click();
+      await toastsAfter(page, 0, /did not accept this API key/);
+      assert(!kernel!.secrets.has(CLAUDE_KEY_SECRET), "a rejected key was stored");
+      await claude.locator('input[type="password"]').fill(E2E_CLAUDE_KEY);
+      await claude.locator('button[type="submit"]').click();
+      await claude.locator('[role="status"]:has-text("Key checked and saved")').waitFor({ timeout: 5000 });
+      assert(kernel!.secrets.has(CLAUDE_KEY_SECRET), "the accepted key was not stored");
+      assert(!(await page.content()).includes(E2E_CLAUDE_KEY), "the page still holds the key after saving");
+      await shot(page, "13c-claude-key.png");
+      await api("DELETE", "/api/claude/key");
+      await closePanel(page);
+      return `hint "${hint}"; refused without a workspace, then ran offline as ${after.id}; wrong key rejected, accepted key stored (restart asked of the user here)`;
     });
 
     // ---- j ---------------------------------------------------------------------------------------------------

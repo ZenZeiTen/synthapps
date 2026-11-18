@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import { BRAND } from "./brand";
 import { coreStatusLine, coreWord, deriveMood, fieldState, FINISHED_STATES, restingSystemAgents, RUNNING_STATES, type MoodInput } from "./core/model";
 import { usePacedInstances, usePacer } from "./core/pacing";
 import { useDebouncedCallback, useGraph, useKernelEvents } from "./hooks";
 import type { AgentDefinition, AgentInstance, AgentState, ApprovalRequest, GraphNode, KernelEvent, KernelStatus, RadialAction, RadialResult, SearchHit, Workspace } from "./types";
 import { ApprovalCard } from "./components/ApprovalCard";
+import { ClaudeNotice, type ClaudeNeeded } from "./components/ClaudeNotice";
 import { AgentsPanel, AppsPanel, FilesPanel, ProjectsPanel } from "./components/BrowsePanels";
 import { Canvas } from "./components/Canvas";
 import { EventLog } from "./components/EventLog";
@@ -89,6 +90,8 @@ export function App() {
   /** The workspace whose process tree the Fleet panel shows. */
   const [fleetWs, setFleetWs] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /** An intent an offline kernel refused because it needs Claude. */
+  const [claudeNeeded, setClaudeNeeded] = useState<ClaudeNeeded | null>(null);
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [fieldOpen, setFieldOpen] = useState(false);
   const [fieldFocus, setFieldFocus] = useState<{ id: string; n: number } | null>(null);
@@ -374,16 +377,22 @@ export function App() {
   }, []);
 
   const submitIntent = useCallback(
-    async (text: string) => {
+    async (text: string, offlineAnyway = false) => {
       setSubmitting(true);
       setRadial(null);
       try {
-        const { workspace } = await api.submitIntent(text, true);
+        const { workspace } = await api.submitIntent(text, true, offlineAnyway);
+        setClaudeNeeded(null);
         setWorkspaces((list) => [...(list ?? []).filter((w) => w.id !== workspace.id), workspace]);
         setSheetWs(null);
         setFocusWs(workspace.id);
         return true;
       } catch (err) {
+        if (err instanceof ApiError && err.code === "needs_claude") {
+          // Not an error: the intent is kept in the notice, with the ways on.
+          setClaudeNeeded({ text, message: err.message });
+          return true;
+        }
         toast(`Intent failed: ${(err as Error).message}`, "error");
         return false;
       } finally {
@@ -392,6 +401,36 @@ export function App() {
     },
     [toast],
   );
+
+  /**
+   * Restarts the kernel in place (after a Claude key is saved) and waits for the new one. Resolves false when this
+   * Nalara cannot restart itself (no supervisor): the user then restarts it.
+   */
+  const restartNalara = useCallback(async (): Promise<boolean> => {
+    const before = (await api.status()).startedAt;
+    try {
+      await api.restart();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "restart_unavailable") return false;
+      throw err;
+    }
+    const t0 = Date.now();
+    while (Date.now() - t0 < 60_000) {
+      await new Promise((r) => setTimeout(r, 700));
+      try {
+        const st = await api.status();
+        if (st.startedAt !== before) {
+          setStatus(st);
+          reconnect();
+          loadAll();
+          return true;
+        }
+      } catch {
+        // still restarting
+      }
+    }
+    throw new Error("Nalara did not come back after restarting. Close it and start it again.");
+  }, [reconnect, loadAll]);
 
   const onClientAction = useCallback(
     (action: RadialAction, target: RadialTarget) => {
@@ -526,6 +565,8 @@ export function App() {
           setFieldOpen((f) => !f);
         }}
         killSwitch={<KillSwitch halted={halted} disabled={!status || offline} onStatus={setStatus} onToast={toast} />}
+        claudeOffline={status?.mode === "offline"}
+        onClaudeOffline={() => setPanel("settings")}
       />
 
       <main className={`stage${room < 720 ? " is-narrow" : ""}`} style={stageStyle} aria-label={`${BRAND} core`} aria-hidden={fieldOpen || undefined}>
@@ -540,6 +581,18 @@ export function App() {
           action={coreAction}
         />
         <ApprovalCard approvals={approvals} onResolved={(a) => setApprovals((list) => list.filter((x) => x.id !== a.id))} onToast={toast} />
+        {approvals.length ? null : (
+          <ClaudeNotice
+            notice={claudeNeeded}
+            busy={submitting}
+            onAddKey={() => {
+              setClaudeNeeded(null);
+              setPanel("settings");
+            }}
+            onRunOffline={(text) => void submitIntent(text, true)}
+            onDismiss={() => setClaudeNeeded(null)}
+          />
+        )}
         <IntentDock
           agentName={agentName}
           onSubmit={submitIntent}
@@ -597,6 +650,7 @@ export function App() {
           onStatusChanged={() => void loadStatus()}
           onOpenEvents={() => setPanel("events")}
           onOpenObservatory={() => setPanel("observatory")}
+          onRestart={restartNalara}
         />
       ) : null}
       {panel === "observatory" ? <ObservatoryPanel agentName={agentName} onOpenFleet={openFleet} onEvent={onEvent} onClose={() => setPanel(null)} /> : null}

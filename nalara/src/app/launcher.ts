@@ -25,6 +25,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { createKernel, type NeuralKernel } from "../kernel/kernel";
 import { createHttpServer, type NeuralHttpServer } from "../server/http";
+import { trustSystemCertificates } from "../kernel/trust";
 import { packDir, unpackOnce, unpackTo, type FileBundle } from "./bundle";
 
 export const DEFAULT_APP_PORT = 7437;
@@ -319,22 +320,51 @@ async function run(o: LaunchOptions): Promise<"running" | "done"> {
 
   const created = prepareHome(o.root, o.sample, () => loadBundle("sample"));
   if (!process.stdout.isTTY) logTo(join(o.root, ".nalara", "app.log"));
-  const kernel = startKernel(o);
-  await kernel.start();
-  const ui = unpackOnce(loadBundle("ui"), join(kernel.config.dataDir, "app-ui"));
-  const http = createHttpServer(kernel, { staticDir: ui });
-  let url: string;
-  try {
-    url = await listen(http, o.port);
-  } catch (err) {
-    await kernel.stop();
-    throw new LaunchError(`Could not start the server: ${(err as Error).message}`);
-  }
+  let kernel!: NeuralKernel;
+  let http!: NeuralHttpServer;
+  let restarting = false;
+  let idleSince = Date.now();
+  const modeLine = () => {
+    const st = kernel.status();
+    return st.mode === "claude" ? `Claude (${st.model})` : "offline: rule-based agents only (add a Claude API key in Settings > Claude)";
+  };
+  // POST /api/kernel/restart (sent after a Claude key is saved): a new kernel on the same port; windows reconnect.
+  const restart = async () => {
+    if (restarting) return;
+    restarting = true;
+    console.log("Restarting Nalara; running plans resume.");
+    try {
+      const port = Number(new URL(http.url() ?? `http://127.0.0.1:${o.port}`).port) || o.port;
+      await http.close();
+      await kernel.stop();
+      await boot(port);
+      console.log(`  Mode:        ${modeLine()}`);
+    } catch (err) {
+      console.error(`Nalara could not restart: ${(err as Error).message}`);
+      process.exit(1);
+    } finally {
+      idleSince = Date.now();
+      restarting = false;
+    }
+  };
+  const boot = async (port: number): Promise<string> => {
+    kernel = startKernel(o);
+    await kernel.start();
+    const ui = unpackOnce(loadBundle("ui"), join(kernel.config.dataDir, "app-ui"));
+    http = createHttpServer(kernel, { staticDir: ui, onRestart: () => void restart() });
+    try {
+      return await listen(http, port);
+    } catch (err) {
+      await kernel.stop();
+      throw new LaunchError(`Could not start the server: ${(err as Error).message}`);
+    }
+  };
+  const url = await boot(o.port);
 
   const s = kernel.status();
   console.log(`Nalara ${s.version}`);
   console.log(`  Home folder: ${s.root}${created ? " (created, with a sample project)" : ""}`);
-  console.log(`  Mode:        ${s.mode === "claude" ? `Claude (${s.model})` : "offline: rule-based agents (set ANTHROPIC_API_KEY to use Claude)"}`);
+  console.log(`  Mode:        ${modeLine()}`);
   console.log(`  Address:     ${url}`);
 
   let stopping = false;
@@ -361,9 +391,9 @@ async function run(o: LaunchOptions): Promise<"running" | "done"> {
   if (o.stay) return "running";
   // Quit once every window has been closed for IDLE_QUIT_MS. Until the first window connects, wait (up to 5 minutes).
   let sawWindow = false;
-  let idleSince = Date.now();
   const started = Date.now();
   setInterval(() => {
+    if (restarting) return;
     if (http.liveClients() > 0) {
       sawWindow = true;
       idleSince = Date.now();
@@ -435,6 +465,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number | undef
     console.log(HELP);
     return 0;
   }
+  // Before any network use: reach Claude wherever the browser can (offices that inspect TLS).
+  trustSystemCertificates();
   try {
     if (o.check) {
       await check(o);

@@ -61,6 +61,8 @@ export const API_FEATURES = [
   "secrets",
   "idempotency-keys",
   "structured-errors",
+  "claude-key",
+  "kernel-restart",
 ];
 /** How long a response is kept for replay under its Idempotency-Key. */
 export const IDEMPOTENCY_TTL_MS = 10 * 60_000;
@@ -121,6 +123,8 @@ export function codeFor(err: unknown, status: number): string {
   if (name === "KernelHaltedError") return "kernel_halted";
   if (name === "SecretError") return "invalid_secret";
   if (name === "ConfigError") return "invalid_config";
+  if (name === "NeedsClaudeError") return "needs_claude";
+  if (name === "ClaudeKeyRejectedError") return status >= 500 ? "claude_unreachable" : "claude_key_rejected";
   return STATUS_CODES[status] ?? (status >= 500 ? "internal_error" : "request_failed");
 }
 
@@ -242,7 +246,17 @@ interface IdempotentEntry {
   result: Promise<{ status: number; body: unknown } | undefined>;
 }
 
-export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: string; now?: () => number } = {}): NeuralHttpServer {
+export interface HttpServerOptions {
+  staticDir?: string;
+  now?: () => number;
+  /**
+   * Restarts the kernel in this process (the desktop app and `nalara serve` provide it). Without it
+   * POST /api/kernel/restart answers 501, and the UI asks the user to restart Nalara themselves.
+   */
+  onRestart?: () => void;
+}
+
+export function createHttpServer(kernel: NeuralKernel, opts: HttpServerOptions = {}): NeuralHttpServer {
   const staticRoot = opts.staticDir && existsSync(opts.staticDir) ? realpathSync(opts.staticDir) : undefined;
   const sseClients = new Set<ServerResponse>();
   let boundHost = kernel.config.host;
@@ -488,10 +502,11 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
 
       case "intents":
         if (is("POST", 1)) {
-          const { workspace } = await kernel.submitIntent(text(body.text, "text"), { run: body.run !== false });
+          // Offline, intents only Claude can carry out are refused unless the user asks for the offline checks.
+          const { workspace } = await kernel.submitIntent(text(body.text, "text"), { run: body.run !== false, offline: body.offlineAnyway === true ? "allow" : "refuse" });
           return ok({ workspace });
         }
-        if (is("POST", 2) && b === "classify") return ok(await kernel.intents.classify(text(body.text, "text")));
+        if (is("POST", 2) && b === "classify") return ok(await kernel.classifyIntent(text(body.text, "text")));
         break;
 
       case "workspaces": {
@@ -675,6 +690,25 @@ export function createHttpServer(kernel: NeuralKernel, opts: { staticDir?: strin
           kernel.resume();
           return ok(kernel.status());
         }
+        if (is("POST", 2) && b === "restart") {
+          if (!opts.onRestart) throw new HttpError(501, "This Nalara cannot restart itself: close it and start it again.", "restart_unavailable");
+          const restart = opts.onRestart;
+          // Answer first; the restart closes this server.
+          res.once("finish", () => setTimeout(restart, 50));
+          return ok({ restarting: true });
+        }
+        break;
+
+      case "claude":
+        if (is("GET", 1)) {
+          const st = kernel.status();
+          return ok({ mode: st.mode, model: st.model, credentials: st.credentials, canRestart: Boolean(opts.onRestart) });
+        }
+        if (is("PUT", 2) && b === "key") {
+          const result = await kernel.setClaudeKey(text(body.key, "key"));
+          return ok({ ...result, canRestart: Boolean(opts.onRestart) });
+        }
+        if (is("DELETE", 2) && b === "key") return ok({ ok: kernel.deleteClaudeKey(), canRestart: Boolean(opts.onRestart) });
         break;
 
       case "audit":

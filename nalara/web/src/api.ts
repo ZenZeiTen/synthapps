@@ -4,6 +4,8 @@
  */
 import type {
   AgentDefinition,
+  ClaudeState,
+  IntentPreview,
   AgentInstance,
   AgentPerformance,
   ApprovalRequest,
@@ -12,7 +14,6 @@ import type {
   FileKind,
   GovernorSnapshot,
   GraphSlice,
-  IntentClassification,
   JournalEntry,
   KernelEvent,
   KernelStatus,
@@ -119,9 +120,11 @@ export const api = {
     ),
   node: (id: string) => request<NodeDetail>("GET", `/api/nodes/${enc(id)}`),
 
-  submitIntent: (text: string, run = true) => request<{ workspace: Workspace }>("POST", "/api/intents", { text, run }),
+  /** `offlineAnyway`: run the offline checks even when the intent needs Claude (otherwise 422 needs_claude). */
+  submitIntent: (text: string, run = true, offlineAnyway = false) =>
+    request<{ workspace: Workspace }>("POST", "/api/intents", { text, run, ...(offlineAnyway ? { offlineAnyway: true } : {}) }),
   classifyIntent: (text: string, signal?: AbortSignal) =>
-    request<IntentClassification>("POST", "/api/intents/classify", { text }, signal),
+    request<IntentPreview>("POST", "/api/intents/classify", { text }, signal),
 
   workspaces: () => request<Workspace[]>("GET", "/api/workspaces"),
   workspace: (id: string, signal?: AbortSignal) => request<WorkspaceDetail>("GET", `/api/workspaces/${enc(id)}`, undefined, signal),
@@ -182,6 +185,12 @@ export const api = {
   runWorkflow: (id: string) => request<{ started: true }>("POST", `/api/workflows/${enc(id)}/run`),
 
   halt: (reason: string) => request<KernelStatus>("POST", "/api/kernel/halt", { reason }),
+  /** 501 restart_unavailable when this Nalara has no supervisor (then the user restarts it). */
+  restart: () => request<{ restarting: true }>("POST", "/api/kernel/restart", {}),
+  claude: () => request<ClaudeState>("GET", "/api/claude"),
+  /** Checks the key with Anthropic first: 400 claude_key_rejected, 502 claude_unreachable. */
+  setClaudeKey: (key: string) => request<{ saved: true; replaced: boolean; canRestart: boolean }>("PUT", "/api/claude/key", { key }),
+  deleteClaudeKey: () => request<{ ok: boolean; canRestart: boolean }>("DELETE", "/api/claude/key"),
   resume: () => request<KernelStatus>("POST", "/api/kernel/resume"),
 
   audit: (opts: { since?: number; limit?: number } = {}) =>

@@ -33,6 +33,11 @@ export interface IntentClass {
   memory: MemoryCategory[];
   /** Priority when the text has no priority cue. */
   defaultPriority?: "high";
+  /**
+   * The outcome the user asks for needs Claude (writing, translating, implementing). Offline, the rule-based agents
+   * can only inventory and check files, so the kernel says so instead of running them, unless the user asks it to.
+   */
+  needsClaude?: true;
   plan: PlanTemplateStep[];
 }
 
@@ -92,6 +97,7 @@ export const INTENT_CATALOG: IntentClass[] = [
   },
   {
     intent: "feature_build",
+    needsClaude: true,
     label: "Feature build",
     description: "Plan, design, implement, test and document a new feature.",
     keywords: {
@@ -124,6 +130,7 @@ export const INTENT_CATALOG: IntentClass[] = [
   },
   {
     intent: "website_localization",
+    needsClaude: true,
     label: "Website localization",
     description: "Adapt a website or app to another locale: voice, translation, localization QA and SEO.",
     keywords: {
@@ -158,6 +165,7 @@ export const INTENT_CATALOG: IntentClass[] = [
   },
   {
     intent: "legal_translation",
+    needsClaude: true,
     label: "Legal translation",
     description: "Translate a contract or other legal document with a glossary of defined terms and a QA pass.",
     keywords: {
@@ -186,6 +194,7 @@ export const INTENT_CATALOG: IntentClass[] = [
   },
   {
     intent: "document_translation",
+    needsClaude: true,
     label: "Translation",
     description: "Translate a document or text that is neither legal nor a website.",
     keywords: { translate: 3, translation: 3, language: 1 },
@@ -201,6 +210,7 @@ export const INTENT_CATALOG: IntentClass[] = [
   },
   {
     intent: "bug_fix",
+    needsClaude: true,
     label: "Bug fix",
     description: "Find the cause of a defect, fix it and verify the fix with tests.",
     keywords: {
@@ -237,6 +247,7 @@ export const INTENT_CATALOG: IntentClass[] = [
   },
   {
     intent: "documentation",
+    needsClaude: true,
     label: "Documentation",
     description: "Write or update documentation for code or a feature.",
     keywords: {
@@ -416,7 +427,47 @@ export const INTENT_CATALOG: IntentClass[] = [
     ],
   },
   {
+    intent: "writing",
+    needsClaude: true,
+    label: "Writing",
+    description: "Write new text: an email, letter, post, article, story or other copy.",
+    keywords: {
+      write: 2.5,
+      draft: 3,
+      compose: 3,
+      email: 2.5,
+      letter: 2.5,
+      "cover letter": 3,
+      essay: 3,
+      article: 2.5,
+      blog: 2.5,
+      post: 1.5,
+      poem: 3,
+      story: 2.5,
+      caption: 2.5,
+      slogan: 3,
+      tagline: 3,
+      copy: 1.5,
+      copywriting: 3,
+      marketing: 1,
+      newsletter: 2.5,
+      announcement: 2,
+      speech: 2.5,
+      proposal: 2,
+    },
+    agents: ["researcher", "writer"],
+    requiredTools: ["filesystem", "search"],
+    tools: [...READ_TOOLS, "fs.write_output"],
+    resources: ["Output Folder"],
+    memory: ["preference", "project_history"],
+    plan: [
+      { id: "s1", agent: "researcher", task: "Collect the facts, names and preferences the text needs: {text}", dependsOn: [] },
+      { id: "s2", agent: "writer", task: "Write it: {text}", dependsOn: ["s1"] },
+    ],
+  },
+  {
     intent: "summarize",
+    needsClaude: true,
     label: "Summary",
     description: "Summarize files, documents or a topic.",
     keywords: {
@@ -445,6 +496,7 @@ export const INTENT_CATALOG: IntentClass[] = [
   },
   {
     intent: FALLBACK_INTENT,
+    needsClaude: true,
     label: "General task",
     description: "Anything else: collect context, then plan the work.",
     keywords: {},

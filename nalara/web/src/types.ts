@@ -57,3 +57,14 @@ export type { GraphSlice, NodeDetail, RadialMenu, WorkspaceDetail } from "../../
 
 import type { Governor } from "../../src/kernel/types";
 export type GovernorSnapshot = ReturnType<Governor["snapshot"]>;
+
+/** POST /api/intents/classify: the classification, its label, and whether an offline kernel would refuse it. */
+export type IntentPreview = import("../../src/kernel/types").IntentClassification & { label: string; needsClaude: boolean };
+
+/** GET /api/claude. */
+export interface ClaudeState {
+  mode: "claude" | "offline";
+  model: string;
+  credentials: "environment" | "settings" | "none";
+  canRestart: boolean;
+}

@@ -17,6 +17,9 @@ export interface AgentOutputEntry {
 /** Lower-severity findings kept after ranking; high and critical findings are never dropped. */
 export const MAX_MERGED_FINDINGS = 200;
 const MAX_SUMMARY_CHARS = 300;
+/** The same finding (title and severity) at this many locations or more is reported once, with the count. */
+export const GROUP_REPEATS_AT = 3;
+const GROUP_LOCATIONS_SHOWN = 6;
 
 export const RESOLUTION_RULE = "Higher severity wins";
 
@@ -43,6 +46,38 @@ interface Merged {
 
 function isNoIssues(f: Finding): boolean {
   return f.severity === "info" && NO_ISSUES.test(`${f.title} ${f.detail}`);
+}
+
+/**
+ * One finding repeated at many locations (a glossary check flagging every occurrence of a word, say) becomes a
+ * single entry: the first location stays the link, the count goes in the title, more locations in the detail.
+ */
+export function groupRepeats(findings: Finding[]): Finding[] {
+  const groups = new Map<string, Finding[]>();
+  for (const f of findings) {
+    const key = `${f.severity}|${normalizeTitle(f.title)}`;
+    groups.set(key, [...(groups.get(key) ?? []), f]);
+  }
+  const out: Finding[] = [];
+  for (const group of groups.values()) {
+    const located = group.filter((f) => f.file);
+    if (located.length < GROUP_REPEATS_AT) {
+      out.push(...group);
+      continue;
+    }
+    const [first, ...others] = located;
+    const where = (f: Finding) => `${f.file}${f.line ? `:${f.line}` : ""}`;
+    const files = new Set(located.map((f) => f.file));
+    const shown = others.slice(0, GROUP_LOCATIONS_SHOWN).map(where).join(", ");
+    const more = others.length - Math.min(others.length, GROUP_LOCATIONS_SHOWN);
+    out.push({
+      ...first,
+      title: `${first.title} (${located.length} places in ${files.size} file(s))`,
+      detail: `${first.detail} Also at ${shown}${more ? ` and ${more} more` : ""}.`.trim(),
+    });
+    out.push(...group.filter((f) => !f.file));
+  }
+  return out;
 }
 
 /** Pure merge: de-duplicate, rank, detect conflicts and summarize. */
@@ -118,11 +153,12 @@ export function mergeOutputs(workspace: Pick<Workspace, "id"> & Partial<Workspac
     }
   }
 
-  const ranked = [...merged.values()]
-    .map((m) => ({
+  const ranked = groupRepeats(
+    [...merged.values()].map((m) => ({
       ...m.finding,
       detail: m.agents.size > 1 ? `${m.finding.detail} (reported by ${[...m.agents.keys()].join(", ")})` : m.finding.detail,
-    }))
+    })),
+  )
     .concat(quality)
     .sort((a, b) => severityRank(a.severity) - severityRank(b.severity) || (a.file ?? "~").localeCompare(b.file ?? "~") || (a.line ?? 0) - (b.line ?? 0));
   const severe = ranked.filter((f) => f.severity === "critical" || f.severity === "high");

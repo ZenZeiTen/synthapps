@@ -16,11 +16,12 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { loadConfig, type ConfigOverrides } from "./kernel/config";
-import { createKernel, type NeuralKernel, type Observatory, type WorkQueue } from "./kernel/kernel";
+import { createKernel, NeedsClaudeError, type NeuralKernel, type Observatory, type WorkQueue } from "./kernel/kernel";
 import { createSecretStore, type SecretInfo } from "./kernel/secrets";
 import type { FleetTree } from "./fleet/store";
 import type { AgentDefinition, ApprovalRequest, FleetNode, KernelStatus, SearchHit, StepReview, ToolPolicy, Workspace } from "./kernel/types";
-import { createHttpServer } from "./server/http";
+import { createHttpServer, type NeuralHttpServer } from "./server/http";
+import { trustSystemCertificates } from "./kernel/trust";
 
 const WEB_DIST = fileURLToPath(new URL("../web/dist", import.meta.url));
 
@@ -52,6 +53,7 @@ Options:
   --port N                HTTP port (default 7437, or NALARA_PORT)
   --host HOST             Bind address (loopback only unless NALARA_ALLOW_REMOTE=1)
   --offline               Do not use Claude even when credentials exist
+  --offline-anyway        intent: run the offline checks even when the intent needs Claude
   --policy MODE           Tool policy: ask (default), auto or readonly
   --no-watch              Do not watch the root for file changes
   --no-triggers           Disable the File Changed -> Review -> QA -> Docs trigger chain
@@ -325,19 +327,42 @@ async function secretCommand(parsed: Parsed): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function serve(flags: Parsed["flags"]): Promise<void> {
-  const kernel = createKernel(overridesFrom(flags));
-  await kernel.start();
+  trustSystemCertificates();
   const staticDir = existsSync(WEB_DIST) ? WEB_DIST : undefined;
-  const http = createHttpServer(kernel, { ...(staticDir ? { staticDir } : {}) });
-  let url: string;
-  try {
-    ({ url } = await http.listen());
-  } catch (err) {
-    await kernel.stop();
-    throw new CliError(`Could not listen on ${kernel.config.host}:${kernel.config.port}: ${err instanceof Error ? err.message : String(err)}`);
-  }
+  let kernel!: NeuralKernel;
+  let http!: NeuralHttpServer;
+  let restarting = false;
+  // A restart (POST /api/kernel/restart, e.g. after a Claude key is saved) builds a new kernel on the same port.
+  const restart = async () => {
+    if (restarting) return;
+    restarting = true;
+    console.log("\nRestarting Nalara (running plans resume)...");
+    try {
+      await http.close();
+      await kernel.stop();
+      await boot();
+    } catch (err) {
+      console.error(`restart failed: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    } finally {
+      restarting = false;
+    }
+  };
+  const boot = async (): Promise<string> => {
+    kernel = createKernel(overridesFrom(flags));
+    await kernel.start();
+    http = createHttpServer(kernel, { ...(staticDir ? { staticDir } : {}), onRestart: () => void restart() });
+    try {
+      const { url } = await http.listen();
+      console.log(`Nalara ${kernel.status().version} is running at ${url} (${kernel.status().mode})`);
+      return url;
+    } catch (err) {
+      await kernel.stop();
+      throw new CliError(`Could not listen on ${kernel.config.host}:${kernel.config.port}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+  const url = await boot();
   const s = kernel.status();
-  console.log(`Nalara ${s.version} is running at ${url}`);
   console.log(`  root:   ${s.root}${s.projectName ? ` (${s.projectName})` : ""}`);
   console.log(`  mode:   ${s.mode === "claude" ? `Claude (${s.model})` : "offline (no Claude credentials or --offline): heuristic intents and rule-based agents"}`);
   console.log(`  model:  ${s.model}`);
@@ -393,7 +418,19 @@ async function intent(parsed: Parsed): Promise<void> {
     });
     try {
       const classification = await kernel.intents.classify(text);
-      const { workspace, done } = await kernel.submitIntent(text, { run: wait });
+      let started: Awaited<ReturnType<NeuralKernel["submitIntent"]>>;
+      try {
+        started = await kernel.submitIntent(text, { run: wait, offline: parsed.flags["offline-anyway"] ? "allow" : "refuse" });
+      } catch (err) {
+        if (err instanceof NeedsClaudeError) {
+          throw new CliError(
+            `"${err.label}" needs Claude, and Nalara is offline: its agents can only scan and check files. ` +
+              "Set ANTHROPIC_API_KEY (or: nalara secret set ANTHROPIC_API_KEY), or add --offline-anyway to run the offline checks.",
+          );
+        }
+        throw err;
+      }
+      const { workspace, done } = started;
       console.log(executionTemplate(workspace, (id) => agentName(kernel, id), { confidence: classification.confidence, source: classification.source }));
       if (kernel.llm === null) console.log("\n(offline mode: heuristic intent engine and rule-based agents)");
       if (!wait) {

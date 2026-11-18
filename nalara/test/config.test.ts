@@ -24,7 +24,7 @@ describe("loadConfig", () => {
     expect(c.dataDir).toBe(path.join(root, ".nalara"));
     expect(c.host).toBe("127.0.0.1");
     expect(c.port).toBe(7437);
-    expect(c.model).toBe("claude-opus-5");
+    expect(c.model).toBe("claude-opus-5-5");
     expect(c.effort).toBe("high");
     expect(c.useClaude).toBe(true);
     expect(c.toolPolicy).toEqual({ mode: "ask" });
