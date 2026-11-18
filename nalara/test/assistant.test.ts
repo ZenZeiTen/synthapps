@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import type { BetaMessage } from "@anthropic-ai/sdk/resources/beta/messages/messages";
@@ -40,11 +41,11 @@ async function boot(llm: LLMProvider | null) {
 const scripted = (agent: ScriptedProviderOptions["agent"]) => createScriptedProvider({ agent });
 
 describe("assistant tools", () => {
-  it("covers files, search, memory and notes, and leaves commands, apps, tasks, git, MCP and deploys out", () => {
-    for (const name of ["fs.read_file", "fs.write_file", "search.semantic", "memory.recall", "files.list", "files.write", "notes.create"]) {
+  it("covers files, search, memory, notes, tasks and git reads, and leaves commands, apps, git writes, MCP and deploys out", () => {
+    for (const name of ["fs.read_file", "fs.write_file", "search.semantic", "memory.recall", "files.list", "files.write", "notes.create", "tasks.add", "tasks.delete", "git.status", "git.log", "git.diff"]) {
       expect(matchAny(name, ASSISTANT_TOOLS, { dots: true }), name).toBe(true);
     }
-    for (const name of ["shell.run", "apps.launch", "apps.list", "tasks.add", "git.status", "mcp.github.create_issue", "proc.deploy", "proc.run_tests"]) {
+    for (const name of ["shell.run", "apps.launch", "apps.list", "git.commit", "git.push", "mcp.github.create_issue", "proc.deploy", "proc.run_tests"]) {
       expect(matchAny(name, ASSISTANT_TOOLS, { dots: true }), name).toBe(false);
     }
   });
@@ -228,6 +229,35 @@ describe("what the assistant sends and shows", () => {
     expect(scrub("db password: hunter22 ok")).toBe("db password: [redacted] ok");
     expect(scrub("my-saved-value", (t) => t.replace("my-saved-value", "[secret:X]"))).toBe("[secret:X]");
     expect(scrub("src/combat/damage.ts")).toBe("src/combat/damage.ts");
+  });
+
+  it("masks secrets in git log and diff results before they reach the model, but not in file reads", async () => {
+    const llm = createScriptedProvider({
+      agent: [{ toolCalls: [{ name: "git.log" }, { name: "git.diff" }, { name: "fs.read_file", input: { path: "config.env" } }] }, { text: "ok" }],
+    });
+    const { kernel, root } = await boot(llm);
+    kernel.setSecret("DB_PASS", "saved-db-pass-4455");
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: root, stdio: "pipe" });
+    git("init", "-q");
+    git("-c", "user.email=t@example.com", "-c", "user.name=T", "add", "-A");
+    git("-c", "user.email=t@example.com", "-c", "user.name=T", "commit", "-qm", "Rotate key ghp_abcdefghijklmnopqrstuvwxyz12");
+    writeFileSync(path.join(root, "config.env"), "DB=saved-db-pass-4455\n");
+    git("add", "config.env");
+    git("-c", "user.email=t@example.com", "-c", "user.name=T", "commit", "-qm", "config");
+    writeFileSync(path.join(root, "config.env"), "DB=saved-db-pass-4455\napi_key=live-value-778899\n");
+    await kernel.assistant.ask("What changed recently?");
+    const log = llm.toolLog.find((t) => t.name === "git.log")!.result;
+    const diff = llm.toolLog.find((t) => t.name === "git.diff")!.result;
+    const read = llm.toolLog.find((t) => t.name === "fs.read_file")!.result;
+    expect(log.ok).toBe(true);
+    expect(log.content).toContain("Rotate key [redacted]");
+    expect(log.content).not.toContain("ghp_");
+    expect(diff.ok).toBe(true);
+    expect(diff.content).toContain("api_key=[redacted]");
+    expect(diff.content).toContain("[secret:DB_PASS]");
+    expect(diff.content).not.toMatch(/live-value-778899|saved-db-pass-4455/);
+    // A file read stays exact, so Ask can edit a file without overwriting real values with masks.
+    expect(read.content).toContain("api_key=live-value-778899");
   });
 
   it("puts memories in as quoted data, scrubbed, and keeps their instructions inert", async () => {

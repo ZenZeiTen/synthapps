@@ -25,8 +25,12 @@ import type { AssistantEvent, AssistantMessage, AssistantToolUse, Conversation }
 
 export type { AssistantEvent, AssistantMessage, AssistantToolUse, Conversation } from "./types";
 
-/** Tools the assistant may use; each call still passes the registry's policy and approvals. */
-export const ASSISTANT_TOOLS = ["fs.*", "search.*", "memory.*", "files.*", "notes.*"];
+/**
+ * Tools the assistant may use; each call still passes the registry's policy and approvals.
+ * No shell, app launching or MCP: those stay in Terminal, Start and agent runs. Git is
+ * listed by name so only the read-only tools are offered.
+ */
+export const ASSISTANT_TOOLS = ["fs.*", "search.*", "memory.*", "files.*", "notes.*", "tasks.*", "git.status", "git.log", "git.diff"];
 /** Conversation turns sent with each question (older ones are dropped). */
 export const HISTORY_TURNS = 24;
 const MAX_QUESTION_CHARS = 20_000;
@@ -113,9 +117,9 @@ export function assistantSystemPrompt(opts: { root: string; date: Date; memories
   const lines = [
     "You are Nalara, the AI at the centre of the user's desktop. You answer questions directly and do work for the user.",
     `It is ${localTime(opts.date)} on the user's computer. The user's Nalara home folder is ${opts.root}; file tools take paths relative to it.`,
-    "Notes are Markdown files in the Notes folder.",
+    "Notes are Markdown files in the Notes folder; tasks and reminders are in tasks.* (give due times with the user's UTC offset).",
     "Answer in the user's language. Be direct and concise: lead with the answer, then the details that matter. Use Markdown (short paragraphs, lists, code blocks) where it helps.",
-    "Use your tools when the question is about the user's files, notes, projects or memory, or when you need to act. Read before you change. Say what you changed, with paths.",
+    "Use your tools when the question is about the user's files, notes, tasks, projects or memory, or when you need to act. Read before you change. Say what you changed, with paths.",
     "Some tools change things and wait for the user's approval in Nalara; if one is denied, say so and stop that line of work rather than retrying.",
     opts.web
       ? "You can search and read the web for current facts; cite the sources you rely on."
@@ -255,7 +259,14 @@ export function createAssistant(deps: AssistantDeps): Assistant {
         streamText: true,
         maxTurns: 16,
         ...(opts.signal ? { signal: opts.signal } : {}),
-        callTool: (name, input) => tools.call(name, input, { principal: deps.principal(), ...(opts.signal ? { signal: opts.signal } : {}) }),
+        callTool: async (name, input) => {
+          const result = await tools.call(name, input, { principal: deps.principal(), ...(opts.signal ? { signal: opts.signal } : {}) });
+          // Git history and diffs can hold secrets that were committed and later removed; mask them before
+          // they reach the model. File reads are not masked, so a file read and written back stays intact.
+          if (!name.startsWith("git.")) return result;
+          const { data: _data, ...rest } = result;
+          return { ...rest, content: scrub(result.content, redact), ...(result.error ? { error: scrub(result.error, redact) } : {}) };
+        },
         onEvent: (ev) => {
           if (ev.type === "delta" && ev.text) emit({ type: "delta", text: ev.text });
           else if (ev.type === "text" && ev.text !== undefined) {
