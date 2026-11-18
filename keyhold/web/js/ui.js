@@ -120,6 +120,7 @@ export function pickFile(accept) {
       const f = inp.files[0]; inp.remove();
       resolve(f ? { name: f.name, text: await f.text() } : null);
     });
+    inp.addEventListener('cancel', () => { inp.remove(); resolve(null); });
     document.body.append(inp); inp.click();
   });
 }

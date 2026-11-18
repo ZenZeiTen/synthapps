@@ -55,8 +55,11 @@ export class BrowserStore {
       const r = indexedDB.open('keyhold', 1);
       r.onupgradeneeded = () => r.result.createObjectStore('vaults');
       r.onsuccess = () => resolve(r.result);
-      r.onerror = () => reject(r.error);
+      r.onerror = () => reject(r.error || new Error('This browser does not allow storage for this page'));
+      r.onblocked = () => reject(new Error('Close other Keyhold tabs and try again'));
     });
+    // A failed open must not be remembered: the next try may succeed.
+    BrowserStore._db.catch(() => { BrowserStore._db = null; });
     return BrowserStore._db;
   }
   async tx(mode, fn) {
@@ -68,10 +71,11 @@ export class BrowserStore {
       Promise.resolve(fn(st)).then((v) => { out = v; });
       t.oncomplete = () => resolve(out);
       t.onerror = () => reject(t.error);
+      t.onabort = () => reject(t.error || new Error('The browser could not read its saved copy'));
     });
   }
   async load() {
-    return this.tx('readonly', (st) => new Promise((res) => { const g = st.get(this.key); g.onsuccess = () => res(g.result || null); }));
+    return this.tx('readonly', (st) => new Promise((res, rej) => { const g = st.get(this.key); g.onsuccess = () => res(g.result || null); g.onerror = () => rej(g.error); }));
   }
   async save(rev, vault, meta) {
     const db = await BrowserStore.open();
@@ -89,11 +93,13 @@ export class BrowserStore {
       };
       t.oncomplete = () => resolve({ rev: next.rev });
       t.onerror = () => reject(t.error);
+      // A full disk aborts the transaction; without this the save would wait for ever.
+      t.onabort = () => reject(t.error || new Error('The browser could not save (storage may be full)'));
     });
   }
   async remove() {
     const db = await BrowserStore.open();
-    return new Promise((res) => { const t = db.transaction('vaults', 'readwrite'); t.objectStore('vaults').delete(this.key); t.oncomplete = res; });
+    return new Promise((res, rej) => { const t = db.transaction('vaults', 'readwrite'); t.objectStore('vaults').delete(this.key); t.oncomplete = res; t.onerror = t.onabort = () => rej(t.error); });
   }
 }
 
@@ -119,7 +125,7 @@ export class RemoteClient {
   static check(base) {
     let u;
     try { u = new URL(base); } catch { throw new Error('Enter the full server address, for example https://vault.example.com'); }
-    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]';
     if (u.protocol !== 'https:' && !(u.protocol === 'http:' && local)) throw new Error('The sync server must use https://');
     return u.origin + u.pathname.replace(/\/+$/, '');
   }

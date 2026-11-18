@@ -1,6 +1,6 @@
 // Bring entries in from Password Safe (XML or text export) and from CSV files
 // written by other password managers and browsers; write CSV back out.
-import { newItem, cleanFolder, TYPES } from './model.js';
+import { newItem, cleanFolder, hostOf, TYPES } from './model.js';
 
 // ---------- a small, strict XML reader (no DTDs, no external entities) ----------
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
@@ -38,13 +38,14 @@ export function parseXML(src) {
       i = j + 1;
       if (tag[0] === '/') {
         const name = tag.slice(1).trim();
-        const n = stack.pop();
+        const n = stack.length > 1 ? stack.pop() : null;
         if (!n || n.name !== name) throw new Error('Mismatched tag </' + name + '>');
         continue;
       }
       const selfClose = tag.endsWith('/');
       if (selfClose) tag = tag.slice(0, -1);
       const m = tag.match(/^([^\s]+)/);
+      if (!m) throw new Error('Bad XML');
       const node = { name: m[1], attrs: {}, children: [], text: '' };
       for (const a of tag.slice(m[1].length).matchAll(/([^\s=]+)\s*=\s*("([^"]*)"|'([^']*)')/g)) node.attrs[a[1]] = decodeEntities(a[3] ?? a[4]);
       top().children.push(node);
@@ -165,7 +166,28 @@ const COLS = {
   type: ['type'],
   tags: ['tags'],
   favorite: ['favorite', 'fav'],
+  fields: ['fields'],
 };
+
+/**
+ * Keyhold's own CSV keeps everything that has no column of its own in a
+ * "fields" cell, one "name: value" per line. Read it back: names of the
+ * item type's fields return to those fields, the rest become extra fields.
+ */
+function readFieldsCell(type, cell) {
+  const fields = {}, custom = [];
+  const def = TYPES[type];
+  let last = null;
+  for (const line of String(cell || '').split(/\r?\n/)) {
+    const m = line.match(/^([^:]{1,80}): ?(.*)$/);
+    if (!m) { if (last) last.value += '\n' + line; continue; } // a value that spans lines
+    const f = def.fields.find((x) => x.key === m[1]);
+    last = { name: m[1], value: m[2], field: f };
+    (f ? (fields[f.key] = last) : custom.push(last));
+  }
+  for (const k of Object.keys(fields)) fields[k] = fields[k].value;
+  return { fields, custom: custom.map((c) => ({ name: c.name, value: c.value, hidden: true })) }; // hidden: the export does not say which were secret
+}
 
 /** Import CSV (Bitwarden, Chrome, Edge, Firefox, 1Password, KeePass, LastPass, Keyhold, Password Safe text export). */
 export function importCSV(text) {
@@ -187,10 +209,15 @@ export function importCSV(text) {
     }
     let type = g('type').trim().toLowerCase();
     if (!TYPES[type]) type = g('password') || g('username') || g('url') ? 'login' : 'note';
+    const extra = col.fields >= 0 ? readFieldsCell(type, g('fields')) : { fields: {}, custom: [] };
+    const own = type === 'login' ? { username: g('username'), password: g('password'), url: g('url'), email: g('email'), totp: g('totp') } : {};
+    for (const k of Object.keys(own)) if (!own[k]) delete own[k];
+    // Wi-Fi passwords and identity emails sit in the shared columns of a Keyhold export.
+    if (type !== 'login') for (const k of ['password', 'email']) if (g(k) && TYPES[type].fields.some((f) => f.key === k)) own[k] = g(k);
     const it = newItem(type, {
-      title: title || g('url') || 'Untitled', folder: folder.replace(/\\/g, '/'),
+      title: title || hostOf(g('url')) || g('url') || 'Untitled', folder: folder.replace(/\\/g, '/'),
       tags: g('tags') ? g('tags').split(/[;,]/) : [], favorite: /^(1|true|yes)$/i.test(g('favorite').trim()),
-      fields: type === 'login' ? { username: g('username'), password: g('password'), url: g('url'), email: g('email'), totp: g('totp') } : {},
+      fields: { ...extra.fields, ...own }, custom: extra.custom,
       notes: pwsText ? g('notes').replace(/»/g, '\n') : g('notes'),
     });
     items.push(it);

@@ -339,3 +339,154 @@ test('read-only sessions refuse changes but still record last use', async () => 
   assert.ok(s.payload.items[it.id].accessedAt);
   assert.equal(s.payload.items[it.id].title, 'A');
 });
+
+// ---------- 1.2: fixes and features ----------
+test('search filters: type, folder, tag, is, has, phrases and exclusions', () => {
+  const past = new Date(Date.now() - 864e5).toISOString();
+  const items = [
+    M.newItem('login', { title: 'Work mail', folder: 'Work/Mail', tags: ['Office'], favorite: true, fields: { username: 'amy', password: 'hunter2', url: 'https://mail.example', totp: 'JBSWY3DPEHPK3PXP' } }),
+    M.newItem('card', { title: 'Visa gold', folder: 'Money', fields: { number: '4111111111111111' }, notes: 'travel card', expiresAt: past }),
+    M.newItem('note', { title: 'Door code draft', folder: 'Home', notes: 'two words here' }),
+    M.newItem('login', { title: 'Old forum', tags: ['old'], fields: { username: 'amy', password: 'x' }, history: [{ value: 'w', changedAt: past }] }),
+  ];
+  const names = (q) => M.search(items, q).map((i) => i.title).sort();
+  assert.deepEqual(names('type:card'), ['Visa gold']);
+  assert.deepEqual(names('type:logins'), ['Old forum', 'Work mail']);
+  assert.deepEqual(names('folder:work'), ['Work mail']);
+  assert.deepEqual(names('folder:mail'), ['Work mail'], 'a nested folder is found by its own name');
+  assert.deepEqual(names('tag:office amy'), ['Work mail']);
+  assert.deepEqual(names('amy -tag:old'), ['Work mail']);
+  assert.deepEqual(names('is:favorite'), ['Work mail']);
+  assert.deepEqual(names('is:expired'), ['Visa gold']);
+  assert.deepEqual(names('has:totp'), ['Work mail']);
+  assert.deepEqual(names('has:history'), ['Old forum']);
+  assert.deepEqual(names('has:notes -draft'), ['Visa gold']);
+  assert.deepEqual(names('"two words"'), ['Door code draft']);
+  assert.deepEqual(names('words two'), ['Door code draft'], 'plain words still match in any order');
+  assert.deepEqual(names('https://mail.example'), ['Work mail'], 'a web address is text, not a filter');
+  assert.equal(names('tag:').length, 4, 'a filter still being typed hides nothing');
+  assert.deepEqual(names('hunter2'), [], 'secrets are never searched');
+  assert.deepEqual(names('type:card is:favorite'), []);
+  assert.deepEqual(M.applyFilter(items, { query: 'has:totp', type: 'login' }).map((i) => i.title), ['Work mail'], 'saved filters understand them too');
+});
+
+test('merge gives the same result in either order, also when settings tie', () => {
+  const a = M.emptyPayload(), b = M.emptyPayload();
+  a.settings = { ...a.settings, theme: 'dark', folders: ['B', 'A'], updatedAt: '2025-01-01T00:00:00.000Z' };
+  b.settings = { ...b.settings, theme: 'light', folders: ['C'], updatedAt: '2025-01-01T00:00:00.000Z' };
+  a.settings.vault = b.settings.vault;
+  const ab = M.mergePayloads(a, b), ba = M.mergePayloads(b, a);
+  assert.equal(M.stableStringify(ab), M.stableStringify(ba));
+  assert.deepEqual(ab.settings.folders, ['A', 'B', 'C']);
+  assert.deepEqual(a.settings.folders, ['B', 'A'], 'inputs are not changed');
+  const byTime = M.sortItems([M.newItem('note', { title: 'x', updatedAt: '2025-01-01T00:00:00.000Z' }), M.newItem('note', { title: 'y', updatedAt: '2025-01-01T00:00:00.000Z' })], 'updated');
+  assert.deepEqual(byTime.map((i) => i.title), ['x', 'y'], 'equal times keep their order');
+});
+
+test('import skips entries already in the vault; Keyhold CSV brings every item type back', () => {
+  const vault = [
+    M.newItem('card', { title: 'Visa', folder: 'Money', fields: { cardholder: 'Amy A', number: '4111 1111 1111 1111', expiry: '12/29', cvv: '123' }, custom: [{ name: 'Limit', value: '5000', hidden: false }] }),
+    M.newItem('wifi', { title: 'Home', fields: { ssid: 'HomeNet', password: 'wifi-pass', security: 'WPA3' } }),
+    M.newItem('identity', { title: 'Me', fields: { fullName: 'Amy A', email: 'amy@example.com', address: '1 Road\nTown' } }),
+    M.newItem('login', { title: 'Mail', fields: { username: 'amy', password: 'pw', url: 'https://mail.example' }, notes: 'n' }),
+  ];
+  const back = I.importCSV(I.exportCSV(vault));
+  assert.equal(back.length, 4);
+  const card = back.find((i) => i.type === 'card');
+  assert.deepEqual(card.fields, vault[0].fields, 'card details survive the round trip');
+  assert.deepEqual(card.custom.map((c) => [c.name, c.value]), [['Limit', '5000']]);
+  assert.equal(back.find((i) => i.type === 'wifi').fields.password, 'wifi-pass');
+  assert.equal(back.find((i) => i.type === 'wifi').fields.ssid, 'HomeNet');
+  assert.equal(back.find((i) => i.type === 'identity').fields.address, '1 Road\nTown', 'values over several lines stay whole');
+  assert.equal(back.find((i) => i.type === 'identity').fields.email, 'amy@example.com');
+
+  // Importing the same file again adds nothing; one changed entry is added.
+  let r = M.dedupeImport(vault.filter((i) => i.type !== 'card'), back);
+  assert.deepEqual(r.fresh.map((i) => i.title), ['Visa']);
+  assert.equal(r.duplicates.length, 3);
+  const changed = I.importCSV('name,url,username,password\nMail,https://mail.example,amy,OTHER\nMail,https://mail.example,amy,OTHER\n');
+  r = M.dedupeImport(vault, changed);
+  assert.equal(r.fresh.length, 1, 'a different password is a different entry; a repeat inside the file is not');
+  assert.equal(r.duplicates.length, 1);
+  assert.equal(M.dedupeImport([{ ...vault[3], deletedAt: M.now() }], I.importCSV(I.exportCSV([vault[3]]))).fresh.length, 1, 'items in the trash do not count');
+  assert.equal(I.importCSV('url,username,password\nhttps://www.example.org/login,bob,pw\n')[0].title, 'www.example.org', 'no name column: the site name is used');
+  assert.throws(() => I.parseXML('</a>'), /Mismatched/);
+});
+
+test('reminder dates keep their calendar day; old trash is found; a restored password leaves the history', () => {
+  const d = new Date(2026, 11, 1); // local midnight, as the date field stores it
+  assert.equal(M.localDay(d.toISOString()), '2026-12-01');
+  assert.equal(M.localDay('nonsense'), '');
+  const at = Date.parse('2026-06-30T00:00:00Z');
+  const items = [
+    M.newItem('note', { title: 'old', deletedAt: '2026-05-01T00:00:00Z' }),
+    M.newItem('note', { title: 'recent', deletedAt: '2026-06-20T00:00:00Z' }),
+    M.newItem('note', { title: 'live' }),
+  ];
+  assert.deepEqual(M.staleTrash(items, 30, at), [items[0].id]);
+  assert.deepEqual(M.staleTrash(items, 0, at), [], '0 keeps the trash until it is emptied by hand');
+  let it = M.newItem('login', { title: 'x', fields: { password: 'one' } });
+  it = M.applyEdit(it, { ...it, fields: { password: 'two' } });
+  it = M.applyEdit(it, { ...it, fields: { password: 'one' } });
+  assert.deepEqual(it.history.map((h) => h.value), ['two'], 'the value in use is not also listed as a previous value');
+  const odd = M.normalizeItem({ title: 't', tags: 'not-a-list', history: [null, { value: 5 }, { value: 'ok', changedAt: 'x' }], custom: [null, { name: 'a' }] });
+  assert.deepEqual([odd.tags, odd.history.length, odd.custom.length], [[], 1, 1], 'badly shaped data is cleaned, not fatal');
+  const rep = M.healthReport([M.newItem('login', { title: 'plain', fields: { password: 'Xk9$mQ2!vR7#pL4@wZ', url: 'http://shop.example' } }),
+    M.newItem('login', { title: 'router', fields: { password: 'Xk9$mQ2!vR7#pL4@wY', url: 'http://192.168.1.1' } })], (pw) => G.estimateStrength(pw));
+  assert.deepEqual(rep.insecure.map((e) => e.item.title), ['plain'], 'http sites are listed, devices on the home network are not');
+});
+
+test('session: locked vaults refuse work; trash clean-up; failed account sign-in and password change leave the vault as it was', async () => {
+  const local = new MemoryStore();
+  const { envelope, keys } = await C.createVault('local password', M.emptyPayload(), FAST);
+  const s = new Session({ envelope, keys, payload: M.emptyPayload(), local });
+  const keep = M.newItem('login', { title: 'Mine', fields: { password: 'p' } });
+  await s.upsert(keep);
+  await s.addItems([M.newItem('note', { title: 'gone', deletedAt: '2020-01-01T00:00:00.000Z' }), M.newItem('note', { title: 'fresh', deletedAt: M.now() })]);
+  assert.equal(await s.purgeStaleTrash(30), 1);
+  assert.deepEqual(s.items().map((i) => i.title).sort(), ['Mine', 'fresh']);
+  assert.equal(Object.keys(s.payload.purged).length, 1, 'removed on every device');
+
+  // A sync account whose server accepts sign-in but fails to store the merged vault.
+  // Sign-in derives keys with the app's real minimum, so this account uses 100,000 rounds.
+  const acct = await C.createVault('account password', M.emptyPayload(), { iterations: 100000 });
+  const realFetch = globalThis.fetch;
+  let failPut = true, stored = acct.envelope, rev = 1;
+  globalThis.fetch = async (url, o = {}) => {
+    const path = new URL(url).pathname, body = o.body ? JSON.parse(o.body) : null;
+    const json = (status, data) => ({ ok: status < 300, status, json: async () => data });
+    if (path === '/api/v1/prelogin') return json(200, { kdf: stored.kdf });
+    if (path === '/api/v1/login') return body.authKey === acct.keys.authKey ? json(200, { token: 'tok' }) : json(401, { error: 'wrong_credentials' });
+    if (path === '/api/v1/vault' && o.method === 'PUT') { if (failPut) return json(500, { error: 'write_failed', message: 'Could not save.' }); stored = body.vault; return json(200, { rev: ++rev }); }
+    if (path === '/api/v1/vault') return json(200, { rev, vault: stored });
+    if (path === '/api/v1/account/keys') return json(500, { error: 'write_failed', message: 'Could not save.' });
+    return json(404, {});
+  };
+  try {
+    const oldKeys = s.keys, before = M.stableStringify(s.payload);
+    await assert.rejects(s.signInToAccount('http://localhost:9', 'amy', 'account password'), /Could not save/);
+    assert.equal(s.keys, oldKeys, 'still on its own keys');
+    assert.equal(s.remote, null);
+    assert.equal(M.stableStringify(s.payload), before);
+    await s.upsert({ ...keep, title: 'Mine, edited' });
+    assert.equal((await C.openVault(local.rec.vault, 'local password', fast)).payload.items[keep.id].title, 'Mine, edited', 'the old password still opens it');
+
+    failPut = false;
+    await s.signInToAccount('http://localhost:9', 'amy', 'account password');
+    assert.equal(s.username, 'amy');
+    assert.ok((await C.openVault(local.rec.vault, 'account password')).payload.items[keep.id], 'now under the account password, items merged');
+    assert.equal(s.settings.sync.username, 'amy');
+
+    // The server refuses the new keys: the old password must keep working everywhere.
+    const changedAt = s.settings.vault.passwordChangedAt;
+    await assert.rejects(s.changePassword('another password', { iterations: 100000 }), /Could not save/);
+    assert.equal(s.settings.vault.passwordChangedAt, changedAt, 'nothing recorded for a change that did not happen');
+    await s.upsert({ ...s.payload.items[keep.id], title: 'After failed change' });
+    assert.ok(await C.openVault(local.rec.vault, 'account password'));
+  } finally { globalThis.fetch = realFetch; }
+
+  clearTimeout(s.syncTimer);
+  s.lock();
+  await assert.rejects(s.upsert(keep), /locked/);
+  await s.sync();
+});

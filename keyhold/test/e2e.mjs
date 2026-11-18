@@ -45,7 +45,8 @@ await start(['serve', '--addr', '127.0.0.1:47912', '--data', join(tmp, 'srv'), '
 const SERVER = 'http://127.0.0.1:47912';
 
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+// East of UTC on purpose: dates must not slip a day there.
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, timezoneId: 'Asia/Jakarta' });
 await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: deskURL.split('/#')[0] });
 const page = await ctx.newPage();
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -222,6 +223,88 @@ try {
   await page.keyboard.press('Escape');
   step('export to Password Safe XML');
 
+  // ---- 1.2: importing the same file again adds nothing
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('tab', { name: 'Backup' }).click();
+  const chooser2 = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import a file…' }).click();
+  await (await chooser2).setFiles(xmlPath);
+  await page.getByText(/Nothing new: all 2 entries/).waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /^All items/ }).click();
+  assert.equal(await page.locator('.row').count(), 5, 'no duplicates after a second import');
+  step('a second import of the same file is skipped');
+
+  // ---- search filters
+  await page.locator('#q').fill('type:card');
+  assert.deepEqual(await page.locator('.row .t').allTextContents(), ['Visa']);
+  await page.locator('#q').fill('folder:banking -"bank 2"');
+  assert.deepEqual(await page.locator('.row .t').allTextContents(), ['Old Bank']);
+  await page.locator('#q').fill('has:totp');
+  assert.deepEqual(await page.locator('.row .t').allTextContents(), ['Example Mail']);
+  await page.locator('#q').fill('');
+  step('search filters (type:, folder:, has:, phrases, exclusions)');
+
+  // ---- Ctrl+C belongs to the browser; plain C copies the password
+  await page.getByRole('option', { name: /Example Mail/ }).click();
+  await page.evaluate(() => navigator.clipboard.writeText('keep me'));
+  await page.keyboard.press('Control+c');
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'keep me', 'Ctrl+C must not put the password on the clipboard');
+  await page.keyboard.press('c');
+  await page.waitForFunction((want) => navigator.clipboard.readText().then((t) => t === want), pw);
+  step('Ctrl+C leaves the clipboard alone; C copies the password');
+
+  // ---- the reminder date keeps its day (this browser is in UTC+7)
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('Reminder to change it on', { exact: true }).fill('2031-05-20');
+  await page.getByLabel('Password', { exact: true }).fill('Second-Passw0rd-For-Mail!');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByText('Expires ' + new Date(2031, 4, 20).toLocaleDateString()).waitFor();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  assert.equal(await page.getByLabel('Reminder to change it on', { exact: true }).inputValue(), '2031-05-20', 'date shown again as it was entered');
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  step('change reminder keeps its date east of UTC');
+
+  // ---- previous values: stay open while revealing, and can be used again
+  await page.locator('details.hist summary').click();
+  await page.locator('details.hist').getByRole('button', { name: 'Show' }).click();
+  assert.equal(await page.locator('details.hist[open]').count(), 1, 'the list of previous values stays open');
+  assert.equal(await page.locator('details.hist .val.secret').textContent(), pw);
+  await page.locator('details.hist').getByRole('button', { name: 'Use this value again' }).click();
+  await page.locator('dialog').getByRole('button', { name: 'Use it' }).click();
+  await page.getByText('Earlier value is in use again').waitFor();
+  await page.keyboard.press('c');
+  await page.waitForFunction((want) => navigator.clipboard.readText().then((t) => t === want), pw);
+  assert.equal(await page.locator('details.hist .frow').count(), 1, 'the replaced password is the one previous value');
+  step('an earlier password can be put back');
+
+  // ---- select several items and act on them together
+  await page.getByRole('option', { name: /Old Bank 2/ }).click();
+  await page.getByRole('option', { name: /^Old Bank(?! 2)/ }).click({ modifiers: ['Control'] });
+  await page.getByRole('heading', { name: '2 items selected' }).waitFor();
+  assert.equal(await page.locator('.row.sel').count(), 2);
+  await shot(page, '09-multi-select');
+  await page.locator('.bulk-actions').getByRole('button', { name: 'Add a tag…' }).click();
+  await page.getByLabel('Tag', { exact: true }).fill('legacy');
+  await page.locator('dialog').getByRole('button', { name: 'OK' }).click();
+  await page.getByText('Tagged 2 item(s)').waitFor();
+  await page.locator('.bulk-actions').getByRole('button', { name: 'Move to trash' }).click();
+  await page.locator('dialog').getByRole('button', { name: 'Move to trash' }).click();
+  await page.getByText('2 item(s) moved to trash').waitFor();
+  assert.equal(await page.locator('.row').count(), 3);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.getByRole('option', { name: /Old Bank 2/ }).waitFor();
+  await page.locator('#q').fill('tag:legacy');
+  assert.equal(await page.locator('.row').count(), 2, 'both got the tag');
+  await page.locator('#q').fill('');
+  await page.locator('.list-head h2').click();
+  await page.keyboard.press('Control+a');
+  await page.getByRole('heading', { name: '5 items selected' }).waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('heading', { name: '5 items selected' }).waitFor({ state: 'detached' });
+  step('multi-select with Ctrl+click and Ctrl+A; tag, trash and undo for several items');
+
   // ---- connect to the sync server
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('tab', { name: 'Sync' }).click();
@@ -259,11 +342,16 @@ try {
   await web.waitForFunction(() => document.querySelector('.sync-pill')?.dataset.state === 'synced', null, { timeout: 15000 });
   step('second device signs in on the web, sees the items, adds one');
 
-  // ---- desktop picks up the change
-  await page.getByRole('button', { name: /Synced|Sync/ }).first().click();
+  // ---- desktop picks up the change, without disturbing an edit in progress
   await page.getByRole('button', { name: /All items/ }).click();
+  await page.getByRole('option', { name: /Visa/ }).click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('Name on card', { exact: true }).fill('typed but not saved yet');
+  await page.getByRole('button', { name: /Synced|Sync/ }).first().click();
   await page.getByRole('option', { name: /Home Wi-Fi/ }).waitFor({ timeout: 15000 });
-  step('desktop syncs the item added on the phone');
+  assert.equal(await page.getByLabel('Name on card', { exact: true }).inputValue(), 'typed but not saved yet', 'a sync must not reset the edit form');
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  step('desktop syncs the item added on the phone; the open edit form keeps its text');
 
   // ---- offline: the web app still opens from this browser's copy
   await web.reload();

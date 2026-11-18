@@ -3,7 +3,7 @@ import {
   encryptPayload, decryptPayload, openVault, openVaultDerived, deriveFromPassword,
   changePassword as rewrapPassword, resetRecovery, removeRecovery, WrongPasswordError,
 } from './crypto.js';
-import { normalizePayload, mergePayloads, stableStringify, applyEdit, now } from './model.js';
+import { normalizePayload, mergePayloads, stableStringify, applyEdit, staleTrash, now } from './model.js';
 import { ConflictError, RemoteError, OfflineError, RemoteClient } from './storage.js';
 
 export class ReadOnlyError extends Error {
@@ -60,9 +60,9 @@ export class Session {
   get settings() { return this.payload.settings; }
 
   // ---------- saving ----------
-  async sealChecked(payload = this.payload) {
-    const env = await encryptPayload(this.envelope, this.keys.dataKey, payload);
-    const back = await decryptPayload(env, this.keys.dataKey);
+  async sealChecked(payload = this.payload, envelope = this.envelope, dataKey = this.keys.dataKey) {
+    const env = await encryptPayload(envelope, dataKey, payload);
+    const back = await decryptPayload(env, dataKey);
     if (stableStringify(back) !== stableStringify(payload)) throw new Error('Encryption self-check failed. Nothing was saved.');
     return env;
   }
@@ -94,8 +94,10 @@ export class Session {
 
   /** Change contents with fn(payload), save, then sync. */
   change(fn, { allowReadOnly = false } = {}) {
+    if (!this.payload) return Promise.reject(new Error('The vault is locked.'));
     if (this.readOnly && !allowReadOnly) return Promise.reject(new ReadOnlyError());
     return this.serial(async () => {
+      if (!this.payload) throw new Error('The vault is locked.'); // locked while waiting in the queue
       const before = structuredClone(this.payload);
       fn(this.payload);
       try { await this.saveLocal(); }
@@ -113,6 +115,12 @@ export class Session {
     return this.change((p) => { const it = p.items[id]; if (it) p.items[id] = { ...it, ...patch, updatedAt: now() }; });
   }
   trash(id) { return this.patchItem(id, { deletedAt: now() }); }
+  /** Empty the trash of items deleted more than `days` ago. Returns how many were removed. */
+  async purgeStaleTrash(days) {
+    const ids = staleTrash(this.items(), days);
+    if (ids.length) await this.purge(ids);
+    return ids.length;
+  }
   /** Record when a secret was last used, without counting it as an edit. Allowed in read-only mode. */
   touch(id) {
     if (!this.settings.trackAccess) return Promise.resolve();
@@ -147,8 +155,9 @@ export class Session {
 
   /** Bring this copy and the server's copy together. Safe to call any time. */
   sync() {
-    if (!this.remote) return Promise.resolve();
+    if (!this.remote || !this.payload) return Promise.resolve();
     return this.serial(async () => {
+      if (!this.remote || !this.payload) return;
       this.setStatus('syncing');
       try {
         await this.syncOnce();
@@ -219,20 +228,21 @@ export class Session {
     return this.serial(async () => {
       const { envelope, authKey } = await rewrapPassword(this.envelope, this.keys, newPassword, opts);
       const t = now();
-      this.payload.settings = { ...this.payload.settings, vault: { ...this.payload.settings.vault, passwordChangedAt: t }, updatedAt: t };
-      const sealed = await encryptPayload(envelope, this.keys.dataKey, this.payload);
+      // Work on a copy: if the server cannot be reached, nothing here has changed.
+      let next = { ...this.payload, settings: { ...this.payload.settings, vault: { ...this.payload.settings.vault, passwordChangedAt: t }, updatedAt: t } };
       if (this.remote) {
         await this.ensureLogin();
         const cur = await this.remote.getVault();
         const theirs = await decryptPayload(cur.vault, this.keys.dataKey);
-        this.payload = mergePayloads(this.payload, theirs);
-        const env2 = await encryptPayload(envelope, this.keys.dataKey, this.payload);
+        next = mergePayloads(next, theirs);
+        const env2 = await this.sealChecked(next, envelope);
         const res = await this.remote.setKeys({ authKey, kdf: envelope.kdf, rev: cur.rev, vault: env2 });
         this.meta.remoteRev = res.rev;
         this.envelope = env2;
       } else {
-        this.envelope = sealed;
+        this.envelope = await this.sealChecked(next, envelope);
       }
+      this.payload = next;
       this.keys.authKey = authKey;
       this.authKind = 'password';
       await this.saveLocal();
@@ -256,7 +266,7 @@ export class Session {
       await this.ensureLogin();
       const cur = await this.remote.getVault();
       this.payload = mergePayloads(this.payload, await decryptPayload(cur.vault, this.keys.dataKey));
-      const env = await encryptPayload(envelope, this.keys.dataKey, this.payload);
+      const env = await this.sealChecked(this.payload, envelope);
       const res = await this.remote.setKeys({ ...extra, rev: cur.rev, vault: env });
       this.meta.remoteRev = res.rev;
       this.envelope = env;
@@ -264,6 +274,7 @@ export class Session {
       this.envelope = envelope;
     }
     await this.saveLocal();
+    this.emit('changed');
   }
 
   // ---------- desktop: link to a sync server ----------
@@ -304,16 +315,19 @@ export class Session {
       const opened = await openVaultDerived(r.vault, derived);
       const merged = mergePayloads(this.payload, opened.payload);
       merged.settings = { ...merged.settings, sync: { url: remote.base, username: u }, updatedAt: now() };
+      // Send the merged vault first. Only when the server has it does this
+      // vault switch to the account's keys, so a failure leaves it as it was.
+      const env = await this.sealChecked(merged, r.vault, opened.keys.dataKey);
+      let res;
+      try { res = await remote.putVault(r.rev, env); }
+      catch (e) { opened.keys.lock(); throw e instanceof ConflictError ? new Error('The vault on the server changed just now. Try again.') : e; }
       this.keys.lock();
       this.keys = opened.keys;
       this.authKind = 'password';
-      this.envelope = r.vault;
+      this.envelope = env;
       this.payload = merged;
       this.remote = remote;
       this.username = u;
-      const env = await this.sealChecked();
-      const res = await remote.putVault(r.rev, env);
-      this.envelope = env;
       this.meta.remoteRev = res.rev;
       await this.saveLocal();
       this.setStatus('synced');
