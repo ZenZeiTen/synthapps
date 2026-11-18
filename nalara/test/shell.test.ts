@@ -124,20 +124,13 @@ describe.skipIf(isWin)("terminal", () => {
     expect(r.output).not.toContain("tok-1234567890");
   });
 
-  it("shell.run from the assistant waits for the user's approval", async () => {
-    const llm = createScriptedProvider({ agent: [{ toolCalls: [{ name: "shell.run", input: { command: "echo from-assistant" } }] }, { text: "Done." }] });
+  it("shell.run is not offered to the assistant, and needs approval when called", async () => {
+    const llm = createScriptedProvider({ agent: [{ text: "I can't run commands; open Terminal for that." }] });
     const { kernel } = await boot(llm);
-    const pending = kernel.assistant.ask("Run echo");
-    let approval;
-    for (let i = 0; i < 50 && !approval; i++) {
-      await new Promise((r) => setTimeout(r, 20));
-      approval = kernel.tools.approvals("pending")[0];
-    }
-    expect(approval?.tool).toBe("shell.run");
-    expect(approval?.detail).toBe("echo from-assistant");
-    kernel.resolveApproval(approval!.id, true);
-    const answer = await pending;
-    expect(answer.tools).toEqual([{ tool: "shell.run", detail: "echo from-assistant", ok: true }]);
+    await kernel.assistant.ask("Run echo");
+    const req = llm.calls.find((c) => c.method === "runAgentLoop")!.req as { tools: { name: string }[] };
+    expect(req.tools.map((t) => t.name).filter((n) => n.startsWith("shell."))).toEqual([]);
+    expect(kernel.tools.list().find((t) => t.name === "shell.run")).toMatchObject({ reversibility: "irreversible" });
   });
 
   it("streams over HTTP as NDJSON", async () => {
@@ -180,13 +173,12 @@ describe("launcher", () => {
     expect(kernel.audit.list({ limit: 5000 }).filter((e) => e.kind === "app").map((e) => e.subject)).toEqual(["Writer"]);
   });
 
-  it("apps.launch from the assistant needs approval; apps.list does not", async () => {
-    const llm = createScriptedProvider({
-      agent: [{ toolCalls: [{ name: "apps.list", input: { query: "calc" } }] }, { text: "Found it." }],
-    });
+  it("apps.* is not offered to the assistant; apps.launch is irreversible", async () => {
+    const llm = createScriptedProvider({ agent: [{ text: "Open Start to see your apps." }] });
     const { kernel } = await boot(llm);
-    const answer = await kernel.assistant.ask("Do I have a calculator?");
-    expect(answer.tools).toEqual([{ tool: "apps.list", detail: "calc", ok: true }]);
+    await kernel.assistant.ask("Do I have a calculator?");
+    const req = llm.calls.find((c) => c.method === "runAgentLoop")!.req as { tools: { name: string }[] };
+    expect(req.tools.map((t) => t.name).filter((n) => n.startsWith("apps."))).toEqual([]);
     const def = kernel.tools.list().find((t) => t.name === "apps.launch");
     expect(def).toMatchObject({ action: "execute", reversibility: "irreversible" });
   });
