@@ -4,8 +4,8 @@ import {
   createVault, openVault, openVaultDerived, openVaultWithRecovery, deriveFromPassword, deriveFromRecovery,
   decryptPayload, WrongPasswordError,
 } from './crypto.js';
-import { TYPES, emptyPayload, newItem, subtitle, search, sortItems, folderTree, safeUrl, primaryKey, hostOf, cleanFolder, mergePayloads, healthReport, applyFilter, daysFromNow, now } from './model.js';
-import { itemMenu, folderMenu, menuAt, renderTable, renderStatus, tickStatus, sortByColumn, closeMenu, popupMenu } from './workbench.js';
+import { TYPES, emptyPayload, newItem, subtitle, search, sortItems, folderTree, safeUrl, primaryKey, hostOf, cleanFolder, mergePayloads, healthReport, applyFilter, daysFromNow, localDay, now } from './model.js';
+import { itemMenu, folderMenu, menuAt, renderTable, renderStatus, tickStatus, sortByColumn, closeMenu, popupMenu, moveToFolder } from './workbench.js';
 import { DesktopStore, BrowserStore, RemoteClient, OfflineError, RemoteError } from './storage.js';
 import { Session, NeedsPasswordError } from './session.js';
 import { estimateStrength, loadWords } from './generator.js';
@@ -17,6 +17,7 @@ const state = {
   filter: { kind: 'all' }, selected: null, editing: null, query: '', sort: 'title', pane: 'list',
   revealed: new Set(), dict: null, totp: [], lastActive: Date.now(),
   view: pref('keyhold.view', 'list'), tableSort: { key: 'title', dir: 1 }, collapsed: new Set(), openedAt: Date.now(), openReadOnly: false,
+  multi: new Set(), anchor: null, histOpen: false,
 };
 function pref(k, d) { try { return localStorage.getItem(k) || d; } catch { return d; } }
 function setPref(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
@@ -24,6 +25,7 @@ const root = () => document.getElementById('root');
 export const app = {
   state, renderAll, renderList, select, copy, lock, strength, startEdit, setFilter, currentHealth, checkNewPassword, visibleItems,
   chooseType, newFolder, clearClipboard, duplicate, trashItem, purgeOne, folderPaths,
+  isSelected: (id) => (state.multi.size ? state.multi.has(id) : id === state.selected),
   exportItems: (items, label) => exportItems(app, items, label),
   fail: (e) => toast(e && e.message ? e.message : String(e), { error: true }),
 };
@@ -49,6 +51,7 @@ async function boot() {
   try { mode = await fetch('/api/mode', { cache: 'no-store' }).then((r) => r.json()); }
   catch { mode = { mode: 'server', offline: true }; }
   state.mode = mode.mode;
+  state.version = mode.version || '';
   state.signup = mode.signup || 'closed';
   if (state.mode === 'desktop') {
     if (!state.token) return gateMessage('Open Keyhold from its shortcut', 'This page was opened without the key the Keyhold app gives its own window. Close it and start Keyhold again.');
@@ -375,15 +378,16 @@ function gateServerRecovery() {
 }
 
 // ---------- locking ----------
-let clipTimer = null, clipPending = false, autoLockTimer = null, totpTimer = null;
+let clipTimer = null, clipPending = false, clipDirty = false, autoLockTimer = null, totpTimer = null, syncTimer = null;
 
 function lock(reason = 'Locked', silent = false) {
   const s = state.session;
   if (!s) return;
   const user = s.username;
   s.lock();
-  state.session = null; state.editing = null; state.selected = null; state.revealed.clear(); state.totp = [];
-  clearInterval(autoLockTimer); clearInterval(totpTimer);
+  state.session = null; state.editing = null; state.selected = null; state.revealed.clear(); state.totp = []; state.multi.clear();
+  clearInterval(autoLockTimer); clearInterval(totpTimer); clearInterval(syncTimer);
+  closeMenu();
   document.querySelectorAll('dialog').forEach((d) => d.remove());
   clearClipboard();
   if (silent) return;
@@ -408,14 +412,17 @@ async function copy(text, label = 'Copied', item = null) {
     const ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = text; document.body.append(ta); ta.select();
     document.execCommand('copy'); ta.remove();
   }
+  clipDirty = true;
   const secs = state.session ? state.session.settings.clipboardSeconds : 30;
   toast(secs ? `${label} copied · clipboard clears in ${secs} s` : `${label} copied`);
   clearTimeout(clipTimer);
   if (secs) clipTimer = setTimeout(clearClipboard, secs * 1000);
 }
+/** Wipes the clipboard, but on its own only when Keyhold put something there: locking must not eat what you copied elsewhere. */
 async function clearClipboard(manual = false) {
   clearTimeout(clipTimer);
-  try { await navigator.clipboard.writeText(' '); clipPending = false; if (manual === true) toast('Clipboard cleared'); }
+  if (manual !== true && !clipDirty && !clipPending) return;
+  try { await navigator.clipboard.writeText(' '); clipPending = false; clipDirty = false; if (manual === true) toast('Clipboard cleared'); }
   catch { clipPending = true; if (manual === true) toast('The clipboard will be cleared when this window has focus'); }
 }
 
@@ -430,8 +437,10 @@ function enterApp(s) {
   state.collapsed = new Set();
   if (s.settings.initialTree === 'collapsed') for (const f of folderPaths(s)) if (f.includes('/')) state.collapsed.add(f.split('/').slice(0, -1).join('/'));
   applyTheme(s.settings.theme);
+  state.multi.clear(); state.anchor = null; state.histOpen = false;
+  healthCache = { key: '', report: null };
   s.on((what) => {
-    if (what === 'changed') renderAll();
+    if (what === 'changed') { healthCache.key = ''; renderAll(); }
     if (what === 'status') renderSync();
   });
   buildShell();
@@ -441,14 +450,30 @@ function enterApp(s) {
     if (m > 0 && Date.now() - state.lastActive > m * 60000) lock('Locked after ' + m + ' minutes without activity');
   }, 5000);
   totpTimer = setInterval(() => { tickTotp(); tickStatus(app, els.status); }, 1000);
-  setInterval(() => { if (state.session && state.session.remote) state.session.sync().catch(() => {}); }, 5 * 60000);
+  clearInterval(syncTimer);
+  syncTimer = setInterval(() => { if (state.session && state.session.remote) state.session.sync().catch(() => {}); }, 5 * 60000);
+  afterUnlock(s);
+}
+
+/** Housekeeping once the vault is open: old trash goes, overdue reminders are mentioned. */
+async function afterUnlock(s) {
+  const days = s.settings.trashKeepDays;
+  if (!s.readOnly && days > 0) {
+    const n = await s.purgeStaleTrash(days).catch(() => 0);
+    if (n) toast(`${n} item(s) deleted from the trash after ${days} days there`);
+  }
+  if (state.session !== s) return;
+  const due = liveItems().filter((i) => i.expiresAt && Date.parse(i.expiresAt) < Date.now()).length;
+  if (due) toast(`${due} item(s) are past their change reminder`, { ms: 8000, action: { label: 'Show', fn: () => { state.query = 'is:expired'; els.q.value = state.query; setFilter({ kind: 'all' }); } } });
 }
 
 let els = {};
+let healthCache = { key: '', report: null };
 function buildShell() {
   document.title = 'Keyhold';
-  const q = h('input', { class: 'input', id: 'q', type: 'search', placeholder: 'Search', autocomplete: 'off', 'aria-label': 'Search the vault', value: state.query });
-  q.addEventListener('input', () => { state.query = q.value; state.pane = 'list'; renderList(); renderPane(); });
+  const q = h('input', { class: 'input', id: 'q', type: 'search', placeholder: 'Search', autocomplete: 'off', 'aria-label': 'Search the vault', value: state.query,
+    title: 'Search names, usernames, websites, folders, tags and notes.\nFilters: type:card  folder:work  tag:bank  is:favorite  is:expired  has:totp\n"two words" for a phrase, -word to leave out' });
+  q.addEventListener('input', () => { state.query = q.value; state.pane = 'list'; state.multi.clear(); renderList(); renderDetail(); renderPane(); renderStatus(app, els.status); });
   els = {
     q,
     sidebar: h('nav', { class: 'sidebar', 'aria-label': 'Sections' }),
@@ -546,7 +571,7 @@ async function saveCurrentView() {
 }
 
 function setFilter(f) {
-  state.filter = f; state.editing = null;
+  state.filter = f; state.editing = null; state.multi.clear();
   state.pane = 'list';
   const vis = visibleItems();
   if (!vis.find((i) => i.id === state.selected)) state.selected = null;
@@ -590,7 +615,6 @@ function navLink(label, ic, filt, count, { badge, depth = 0, before = null, afte
   badge ? h('span', { class: 'badge', text: badge }) : count != null ? h('span', { class: 'n', text: count }) : null, after);
 }
 
-let healthCache = { key: '', report: null };
 export function currentHealth() {
   const items = liveItems();
   const key = items.length + ':' + items.reduce((m, i) => (i.updatedAt > m ? i.updatedAt : m), '') + ':' + !!state.dict;
@@ -670,7 +694,12 @@ function tileFor(it) {
 
 function rowEvents(it) {
   return {
-    oncontextmenu: (e) => { e.preventDefault(); if (state.selected !== it.id) select(it.id, true); itemMenu(app, it, e.clientX, e.clientY); },
+    oncontextmenu: (e) => {
+      e.preventDefault();
+      if (state.multi.size > 1 && state.multi.has(it.id)) return popupMenu(e.clientX, e.clientY, bulkActions().map((a) => (a === '-' ? a : { label: a.label, icon: a.icon, danger: a.danger, disabled: a.disabled, run: a.run })), state.multi.size + ' items');
+      if (state.selected !== it.id) select(it.id, true);
+      itemMenu(app, it, e.clientX, e.clientY);
+    },
     ondblclick: () => doubleClick(it),
   };
 }
@@ -690,8 +719,15 @@ function renderList() {
   els.listTitle.textContent = filterTitle();
   els.saveView.hidden = !(state.query || ['type', 'folder', 'tag', 'fav', 'expiring'].includes(state.filter.kind)) || state.session.readOnly;
   const items = visibleItems();
+  if (state.multi.size) {
+    // Items that left the view (trashed, filtered out) leave the selection too.
+    const vis = new Set(items.map((i) => i.id));
+    for (const id of [...state.multi]) if (!vis.has(id)) state.multi.delete(id);
+    if (state.multi.size === 1) { [state.selected] = state.multi; state.multi.clear(); }
+  }
   const list = clear(els.list);
   list.classList.toggle('as-table', state.view === 'table');
+  list.setAttribute('aria-multiselectable', 'true');
   if (state.filter.kind === 'health' && !state.query) {
     list.append(h('div', { class: 'empty' }, icon('shield'), h('div', { text: 'The report is on the right.' })));
     return;
@@ -709,7 +745,7 @@ function renderList() {
   }
   if (state.view === 'table') {
     list.append(renderTable(app, items, { onRow: (it, tr) => {
-      tr.addEventListener('click', () => select(it.id));
+      tr.addEventListener('click', (e) => rowClick(e, it));
       tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') select(it.id); });
       const ev = rowEvents(it);
       tr.addEventListener('contextmenu', ev.oncontextmenu); tr.addEventListener('dblclick', ev.ondblclick);
@@ -720,18 +756,115 @@ function renderList() {
   const showUser = state.session.settings.showUsername;
   for (const it of items) {
     list.append(h('div', {
-      class: 'row' + (it.id === state.selected ? ' sel' : ''), role: 'option', tabindex: '0', 'aria-selected': String(it.id === state.selected),
+      class: 'row' + (app.isSelected(it.id) ? ' sel' : ''), role: 'option', tabindex: '0', 'aria-selected': String(app.isSelected(it.id)),
       title: state.session.settings.notesTooltip && it.notes ? it.notes.slice(0, 300) : null,
-      dataset: { id: it.id }, onclick: () => select(it.id), onkeydown: (e) => { if (e.key === 'Enter') select(it.id); }, ...rowEvents(it),
+      dataset: { id: it.id }, onclick: (e) => rowClick(e, it), onkeydown: (e) => { if (e.key === 'Enter') select(it.id); }, ...rowEvents(it),
     }, tileFor(it), h('div', { class: 'txt' }, h('div', { class: 't', text: it.title }), h('div', { class: 's', text: (showUser && subtitle(it)) || TYPES[it.type].label })),
     it.protected ? h('span', { class: 'prot', title: 'Protected' }, icon('lock')) : null,
     it.favorite ? h('span', { class: 'fav', title: 'Favorite' }, icon('star')) : null));
   }
 }
 
+/** Click picks one item; Ctrl/Cmd+click adds or removes one; Shift+click takes the range. */
+function rowClick(e, it) {
+  const items = displayedItems();
+  const from = state.anchor || state.selected;
+  if (e.shiftKey && from && from !== it.id) {
+    const a = items.findIndex((x) => x.id === from), b = items.findIndex((x) => x.id === it.id);
+    if (a >= 0 && b >= 0) { state.multi = new Set(items.slice(Math.min(a, b), Math.max(a, b) + 1).map((x) => x.id)); return showMulti(); }
+  }
+  if (e.ctrlKey || e.metaKey) {
+    if (!state.multi.size && state.selected) state.multi.add(state.selected);
+    state.multi.has(it.id) ? state.multi.delete(it.id) : state.multi.add(it.id);
+    state.anchor = it.id;
+    if (state.multi.size === 1) { const [only] = state.multi; return select(only, true); }
+    return showMulti();
+  }
+  select(it.id);
+}
+
+function showMulti() {
+  closeMenu();
+  state.editing = null; state.revealed.clear();
+  if (state.multi.size) state.selected = null;
+  renderList(); renderDetail(); renderStatus(app, els.status);
+}
+
+function selectAll() {
+  const items = displayedItems();
+  if (items.length < 2) return;
+  state.multi = new Set(items.map((i) => i.id));
+  state.anchor = items[0].id;
+  showMulti();
+}
+
+function chosen() { return [...state.multi].map((id) => state.session.payload.items[id]).filter(Boolean); }
+
+/** What can be done with several selected items at once. */
+function bulkActions() {
+  const s = state.session, ro = s.readOnly, items = chosen();
+  const free = items.filter((i) => !i.protected);
+  const stamp = (patch) => { const t = now(); return s.change((p) => { for (const it of free) if (p.items[it.id]) p.items[it.id] = { ...p.items[it.id], ...patch(p.items[it.id], t), updatedAt: t }; }); };
+  const skipped = items.length - free.length;
+  const note = skipped ? ` (${skipped} protected item(s) left alone)` : '';
+  if (state.filter.kind === 'trash') return [
+    { label: 'Restore', icon: 'history', disabled: ro, run: () => stamp(() => ({ deletedAt: null })).then(() => toast(`${free.length} item(s) restored`)).catch(app.fail) },
+    { label: 'Delete for good…', icon: 'trash', danger: true, disabled: ro, run: async () => {
+      if (!(await confirmBox('Delete for good?', `${items.length} item(s) will be removed from every device.`, { ok: 'Delete', danger: true }))) return;
+      s.purge(items.map((i) => i.id)).then(() => toast(`${items.length} item(s) deleted`)).catch(app.fail);
+    } },
+  ];
+  const allFav = items.every((i) => i.favorite);
+  return [
+    { label: 'Move to folder…', icon: 'folder', disabled: ro || !free.length, run: () => moveToFolder(app, free) },
+    { label: 'Add a tag…', icon: 'tag', disabled: ro || !free.length, run: async () => {
+      const tag = await askText('Add a tag', `Added to ${free.length} item(s).`, 'Tag');
+      if (tag) stamp((it) => ({ tags: [...new Set([...it.tags, tag])].slice(0, 30) })).then(() => toast(`Tagged ${free.length} item(s)` + note)).catch(app.fail);
+    } },
+    { label: allFav ? 'Remove from favorites' : 'Add to favorites', icon: 'star', disabled: ro || !free.length, run: () => stamp(() => ({ favorite: !allFav })).catch(app.fail) },
+    { label: 'Export…', icon: 'download', run: () => app.exportItems(items, 'selection') },
+    '-',
+    { label: 'Move to trash', icon: 'trash', danger: true, disabled: ro || !free.length, run: async () => {
+      if (state.session.settings.confirmTrash && !(await confirmBox('Move to trash?', `${free.length} item(s) go to the trash${note}. You can restore them from there.`, { ok: 'Move to trash' }))) return;
+      const ids = free.map((i) => i.id);
+      try { await stamp((it, t) => ({ deletedAt: t })); } catch (e) { return app.fail(e); }
+      toast(`${ids.length} item(s) moved to trash` + note, { action: { label: 'Undo', fn: () => { const t = now(); s.change((p) => { for (const id of ids) if (p.items[id]) p.items[id] = { ...p.items[id], deletedAt: null, updatedAt: t }; }).catch(app.fail); } } });
+    } },
+  ];
+}
+
+function askText(title, text, label) {
+  return modal((close) => {
+    const input = h('input', { class: 'input', autofocus: true, 'aria-label': label });
+    const done = () => close(input.value.trim());
+    return {
+      title,
+      body: h('form', { onsubmit: (e) => { e.preventDefault(); done(); } }, text ? h('p', { class: 'muted', text }) : null, h('label', { class: 'field' }, h('span', { text: label }), input)),
+      foot: [h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Cancel'), h('button', { class: 'btn primary', type: 'button', onclick: done }, 'OK')],
+    };
+  });
+}
+
+function bulkPanel() {
+  const items = chosen();
+  return h('article', { class: 'detail bulk' },
+    h('div', { class: 'd-head' },
+      iconBtn('back', 'Back to list', () => { state.pane = 'list'; renderPane(); }, { class: 'mob' }),
+      h('div', { class: 'tile' }, icon('all')),
+      h('div', { class: 'grow' }, h('h1', { text: `${items.length} items selected` }),
+        h('div', { class: 'meta', text: 'Ctrl+click adds or removes one, Shift+click takes a range, Ctrl+A takes everything shown.' }))),
+    h('div', { class: 'card bulk-actions' }, bulkActions().filter((a) => a !== '-').map((a) =>
+      h('button', { class: 'btn' + (a.danger ? ' danger' : ''), type: 'button', disabled: a.disabled, onclick: a.run }, icon(a.icon), a.label)),
+    h('button', { class: 'btn ghost', type: 'button', onclick: () => { state.multi.clear(); showMulti(); } }, icon('x'), 'Clear selection')),
+    h('div', { class: 'card' }, items.slice(0, 200).map((it) => h('div', { class: 'frow' }, h('div', { class: 'fl' },
+      h('div', { class: 'val', text: it.title }), h('div', { class: 'lab', text: [TYPES[it.type].label, it.folder].filter(Boolean).join(' · ') })),
+    it.protected ? h('span', { class: 'prot', title: 'Protected' }, icon('lock')) : null))));
+}
+
 function select(id, keepPane = false) {
   closeMenu();
-  state.selected = id; state.editing = null; state.revealed.clear();
+  if (id !== state.selected) state.histOpen = false;
+  state.selected = id; state.editing = null; state.revealed.clear(); state.multi.clear(); state.anchor = id;
   if (state.filter.kind === 'health') state.filter = { kind: 'all' };
   if (!keepPane) state.pane = 'detail';
   renderList(); renderDetail(); renderPane(); renderSidebar(); renderStatus(app, els.status);
@@ -771,9 +904,12 @@ async function emptyTrash() {
 
 // ---------- detail ----------
 function renderDetail() {
+  // An open edit form stays as it is: a background save or sync must not wipe what is being typed.
+  if (state.editing && state.editing.el && state.editing.el.isConnected) return;
   state.totp = [];
   const pane = clear(els.detail);
-  if (state.editing) return pane.append(editForm());
+  if (state.editing) { state.editing.el = editForm(); return pane.append(state.editing.el); }
+  if (state.multi.size > 1) return pane.append(bulkPanel());
   if (state.filter.kind === 'health' && !state.query) return pane.append(renderHealth(app));
   const it = state.selected && state.session.payload.items[state.selected];
   if (!it) {
@@ -819,8 +955,9 @@ function renderDetail() {
     it.breach && it.breach.count ? h('p', { class: 'notice', text: `This password appears in ${it.breach.count.toLocaleString()} known data breaches. Change it.` }) : null,
     rows.length ? h('div', { class: 'card' }, rows) : null,
     it.notes ? h('div', { class: 'card' }, h('h3', { text: 'Notes' }), h('div', { class: 'notes', text: it.notes })) : null,
-    it.history.length ? h('div', { class: 'card' }, h('details', { class: 'hist' }, h('summary', { text: `Previous values (${it.history.length})` }),
-      it.history.map((hh, i) => fieldRow(it, { key: 'hist:' + i, label: new Date(hh.changedAt).toLocaleString() + (hh.note ? ' · ' + hh.note : ''), kind: 'secret', copy: true }, hh.value)))) : null,
+    it.history.length ? h('div', { class: 'card' }, h('details', { class: 'hist', open: state.histOpen, ontoggle: (e) => { state.histOpen = e.target.open; } }, h('summary', { text: `Previous values (${it.history.length})` }),
+      it.history.map((hh, i) => fieldRow(it, { key: 'hist:' + i, label: new Date(hh.changedAt).toLocaleString() + (hh.note ? ' · ' + hh.note : ''), kind: 'secret', copy: true,
+        restore: trashMode || ro || it.protected ? null : () => useOldValue(it, hh.value) }, hh.value)))) : null,
     h('div', { class: 'foot-meta' }, h('span', { text: 'Created ' + new Date(it.createdAt).toLocaleString() }), h('span', { text: 'Changed ' + timeAgo(it.updatedAt) }),
       primaryKey(it.type) && it.fields[primaryKey(it.type)] ? h('span', { text: 'Secret set ' + timeAgo(it.passwordChangedAt) }) : null,
       it.accessedAt ? h('span', { text: 'Last used ' + timeAgo(it.accessedAt) }) : null,
@@ -855,7 +992,19 @@ function fieldRow(it, f, v) {
     h('div', { class: 'tools' },
       secret ? iconBtn(shown ? 'eye-off' : 'eye', shown ? 'Hide' : 'Show', () => { shown ? state.revealed.delete(id) : state.revealed.add(id); renderDetail(); }) : null,
       f.kind === 'url' && safeUrl(v) ? iconBtn('external', 'Open website', () => window.open(safeUrl(v), '_blank', 'noopener,noreferrer')) : null,
+      f.restore ? iconBtn('history', 'Use this value again', f.restore) : null,
       f.copy ? iconBtn('copy', 'Copy ' + f.label.toLowerCase(), () => copy(v, f.label, it)) : null));
+}
+
+/** Put an earlier password back; the one it replaces goes into the history. */
+async function useOldValue(it, value) {
+  const pk = primaryKey(it.type);
+  if (!pk) return;
+  const label = TYPES[it.type].fields.find((f) => f.key === pk).label.toLowerCase();
+  if (!(await confirmBox('Use this earlier value again?', `The current ${label} of "${it.title}" moves to the previous values.`, { ok: 'Use it' }))) return;
+  const cur = state.session.payload.items[it.id];
+  if (!cur) return;
+  state.session.upsert({ ...cur, fields: { ...cur.fields, [pk]: value } }).then(() => toast('Earlier value is in use again')).catch(app.fail);
 }
 
 async function tickTotp() {
@@ -949,7 +1098,7 @@ function editForm() {
   const folder = h('input', { class: 'input', value: draft.folder, list: 'folders-dl', placeholder: 'None', 'aria-label': 'Folder' });
   const tags = h('input', { class: 'input', value: draft.tags.join(', '), placeholder: 'Comma separated', 'aria-label': 'Tags' });
   const notes = h('textarea', { class: 'input', 'aria-label': 'Notes' }); notes.value = draft.notes;
-  const expires = h('input', { class: 'input', type: 'date', value: draft.expiresAt ? draft.expiresAt.slice(0, 10) : '' });
+  const expires = h('input', { class: 'input', type: 'date', value: draft.expiresAt ? localDay(draft.expiresAt) : '', 'aria-label': 'Reminder to change it on' });
   const favorite = h('input', { type: 'checkbox', checked: draft.favorite });
   const customBox = h('div');
   const custom = draft.custom.map((c) => ({ ...c }));
@@ -1046,11 +1195,21 @@ document.addEventListener('keydown', (e) => {
   if (document.querySelector('dialog[open]')) return;
   const tag = document.activeElement && document.activeElement.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-    if (e.key === 'Escape' && document.activeElement === els.q) { els.q.value = ''; state.query = ''; els.q.blur(); renderList(); renderDetail(); }
+    if (e.key === 'Escape' && document.activeElement === els.q) { els.q.value = ''; state.query = ''; els.q.blur(); renderList(); renderDetail(); renderStatus(app, els.status); }
     if (e.key === 'ArrowDown' && document.activeElement === els.q) { e.preventDefault(); moveSel(1); }
     return;
   }
   if (state.editing) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) {
+    // Ctrl+C, Ctrl+N and the like belong to the browser; only Ctrl+A is ours.
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'a') { e.preventDefault(); selectAll(); }
+    return;
+  }
+  if (e.key === 'Escape' && state.multi.size) { state.multi.clear(); showMulti(); return; }
+  if (state.multi.size > 1) {
+    if (e.key === 'Delete') { const a = bulkActions().find((x) => x.danger && !x.disabled); if (a) a.run(); }
+    if (e.key !== '/' && e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  }
   if (e.key === '/') { e.preventDefault(); els.q.focus(); els.q.select(); }
   else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); chooseType(); }
   else if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); moveSel(1); }

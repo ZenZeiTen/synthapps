@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -70,7 +71,26 @@ func Open(dir string, keep int) (*Store, error) {
 	if err := os.MkdirAll(filepath.Join(dir, "backups"), 0o700); err != nil {
 		return nil, err
 	}
+	removeStaleTemp(dir)
+	removeStaleTemp(filepath.Join(dir, "backups"))
 	return &Store{dir: dir, keep: keep}, nil
+}
+
+// removeStaleTemp deletes temporary files a crash left behind. Only files
+// older than an hour go, so a save in progress in another process is safe.
+func removeStaleTemp(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), ".tmp-") {
+			continue
+		}
+		if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > time.Hour {
+			os.Remove(filepath.Join(dir, e.Name()))
+		}
+	}
 }
 
 // Dir returns the store folder.
@@ -183,7 +203,7 @@ func (s *Store) Save(expectedRev int64, vault, meta json.RawMessage) (*Record, e
 	return rec, nil
 }
 
-var backupName = regexp.MustCompile(`^vault-r(\d{8})-(\d{8}T\d{6}Z)\.keyhold$`)
+var backupName = regexp.MustCompile(`^vault-r(\d{8,18})-(\d{8}T\d{6}Z)\.keyhold$`)
 
 // Backups lists kept versions, newest first.
 func (s *Store) Backups() ([]BackupInfo, error) {
@@ -198,7 +218,7 @@ func (s *Store) Backups() ([]BackupInfo, error) {
 			continue
 		}
 		var rev int64
-		fmt.Sscan(strings.TrimLeft(m[1], "0"), &rev)
+		rev, _ = strconv.ParseInt(m[1], 10, 64)
 		t, _ := time.Parse("20060102T150405Z", m[2])
 		info, err := e.Info()
 		if err != nil {

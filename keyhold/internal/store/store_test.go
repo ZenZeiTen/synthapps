@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func vault(n int) json.RawMessage {
@@ -106,5 +107,44 @@ func TestConcurrentSavesNeverLoseAWrite(t *testing.T) {
 	wg.Wait()
 	if ok != 1 {
 		t.Fatalf("exactly one writer should win, got %d", ok)
+	}
+}
+
+func TestBackupsBeyondEightDigitsAndStaleTempFiles(t *testing.T) {
+	dir := t.TempDir()
+	s, _ := Open(dir, 2)
+	// Revisions past 99,999,999 make longer file names; they must still be listed and pruned.
+	for _, name := range []string{"vault-r100000001-20260101T000000Z.keyhold", "vault-r100000002-20260101T000001Z.keyhold", "vault-r00000007-20250101T000000Z.keyhold"} {
+		rec, _ := json.Marshal(Record{Rev: 1, Vault: vault(1)})
+		if err := os.WriteFile(filepath.Join(dir, "backups", name), rec, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	list, err := s.Backups()
+	if err != nil || len(list) != 3 || list[0].Rev != 100000002 || list[2].Rev != 7 {
+		t.Fatalf("unexpected backups %+v %v", list, err)
+	}
+	if _, err := s.ReadBackup(list[0].Name); err != nil {
+		t.Fatalf("long backup name refused: %v", err)
+	}
+	s.prune()
+	if list, _ = s.Backups(); len(list) != 2 || list[1].Rev != 100000001 {
+		t.Fatalf("prune kept the wrong versions: %+v", list)
+	}
+
+	// Temporary files from a crash are removed when old, kept when a save may be in progress.
+	old, fresh := filepath.Join(dir, ".tmp-old"), filepath.Join(dir, ".tmp-fresh")
+	os.WriteFile(old, []byte("x"), 0o600)
+	os.WriteFile(fresh, []byte("x"), 0o600)
+	past := time.Now().Add(-2 * time.Hour)
+	os.Chtimes(old, past, past)
+	if _, err := Open(dir, 2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(old); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("stale temporary file kept")
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Errorf("recent temporary file removed")
 	}
 }

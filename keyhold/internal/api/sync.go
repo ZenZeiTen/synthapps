@@ -410,8 +410,15 @@ func (s *SyncServer) Handler() http.Handler {
 		}
 		unlock := s.lockUser(u)
 		defer unlock()
-		if _, err := s.loadAccount(u); err == nil {
+		if _, err := s.loadAccount(u); err == nil || !errors.Is(err, os.ErrNotExist) {
+			// Also when the account file exists but cannot be read: never write over it.
 			writeErr(w, 409, "taken", "That username is already in use.")
+			return
+		}
+		// A sign-up that stopped half way (vault written, account not) must not
+		// block the name for ever: with no account file, nothing here is in use.
+		if err := os.RemoveAll(s.userDir(u)); err != nil {
+			writeErr(w, 500, "write_failed", "Could not create the account.")
 			return
 		}
 		a := &account{Username: u, KDF: in.KDF, Salt: newSalt(), CreatedAt: time.Now().UTC(), KeysChanged: time.Now().UTC()}
@@ -438,6 +445,7 @@ func (s *SyncServer) Handler() http.Handler {
 			return
 		}
 		if err := s.saveAccount(a); err != nil {
+			os.RemoveAll(s.userDir(u))
 			writeErr(w, 500, "write_failed", "Could not create the account.")
 			return
 		}
@@ -569,8 +577,12 @@ func (s *SyncServer) Handler() http.Handler {
 			writeJSON(w, 409, map[string]any{"error": "conflict", "rev": ce.Current})
 			return
 		}
-		if err != nil {
+		if errors.Is(err, store.ErrInvalid) {
 			writeErr(w, 400, "bad_vault", "The vault data is not valid.")
+			return
+		}
+		if err != nil {
+			writeErr(w, 500, "write_failed", "Could not save.")
 			return
 		}
 		next.KeysChanged = time.Now().UTC()
