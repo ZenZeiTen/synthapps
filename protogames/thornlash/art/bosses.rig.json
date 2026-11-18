@@ -1,0 +1,479 @@
+{
+ "pivot": [
+  48,
+  40
+ ],
+ "frames": {
+  "0": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "1": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "2": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "3": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "4": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "5": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "6": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "7": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "8": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "9": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "10": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "11": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "12": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "13": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "14": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "15": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "16": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "17": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "18": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "19": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "20": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "21": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "22": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "23": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "24": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "25": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "26": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "27": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "28": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "29": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "30": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "31": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "32": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "33": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "34": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "35": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "36": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "37": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "38": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "39": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "40": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "41": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "42": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "43": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "44": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "45": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "46": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "47": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "48": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "49": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "50": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "51": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "52": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "53": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "54": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "55": {
+   "pivot": [
+    48,
+    40
+   ]
+  },
+  "56": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "57": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "58": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "59": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "60": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "61": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "62": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "63": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "64": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "65": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "66": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "67": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "68": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "69": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "70": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "71": {
+   "pivot": [
+    48,
+    63
+   ]
+  },
+  "72": {
+   "pivot": [
+    48,
+    63
+   ]
+  }
+ },
+ "loops": {
+  "boss_nightwing_sleep": true,
+  "boss_nightwing_rise": true,
+  "boss_nightwing_glide": true,
+  "boss_nightwing_perch": true,
+  "boss_nightwing_swoop": true,
+  "boss_nightwing_dying": true,
+  "boss_wyrm_arc": true,
+  "boss_wyrm_dying": true,
+  "boss_warden_sleep": true,
+  "boss_warden_walk": true,
+  "boss_warden_slam": false,
+  "boss_warden_dying": true,
+  "boss_chainmaster_sleep": true,
+  "boss_chainmaster_walk": true,
+  "boss_chainmaster_throw": false,
+  "boss_chainmaster_leap": true,
+  "boss_chainmaster_stomp": true,
+  "boss_chainmaster_dying": true,
+  "boss_horologist_sleep": true,
+  "boss_horologist_hover": true,
+  "boss_horologist_blink": true,
+  "boss_horologist_dying": true,
+  "boss_margrave_intro": true,
+  "boss_margrave_stand": true,
+  "boss_margrave_fade": false,
+  "boss_margrave_dying": true,
+  "boss_beast_transform": false,
+  "boss_beast_stand": true,
+  "boss_beast_breathe": true,
+  "boss_beast_leap": true,
+  "boss_beast_dying": true
+ }
+}

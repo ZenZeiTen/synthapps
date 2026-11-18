@@ -1,0 +1,34 @@
+{
+ "tracks": {
+  "crowmere": {
+   "file": "crowmere.wav",
+   "title": "Crowmere Hill",
+   "seconds": 27.429
+  },
+  "tiptoe": {
+   "file": "tiptoe.wav",
+   "title": "Tiptoe",
+   "seconds": 34.286
+  },
+  "below": {
+   "file": "below.wav",
+   "title": "Down Below",
+   "seconds": 24.0
+  },
+  "delivery": {
+   "file": "delivery.wav",
+   "title": "Delivery Complete",
+   "seconds": 16.0
+  }
+ },
+ "title": "crowmere",
+ "ending": "delivery",
+ "rooms": {
+  "gate": "crowmere",
+  "hall": "tiptoe",
+  "library": "tiptoe",
+  "kitchen": "tiptoe",
+  "bedroom": "tiptoe",
+  "cellar": "below"
+ }
+}

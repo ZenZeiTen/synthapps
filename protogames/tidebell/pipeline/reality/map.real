@@ -1,0 +1,19 @@
+# Tidebell map: the Saltmarch from above, six islands around the Maw.
+# The islands sit where the map screen draws its markers (main.gd draw_map).
+camera { position: [0, 60, 0.01], look_at: [0, 0, 0], up: [0, 0, -1], fov: 20, aperture: 0, exposure_compensation: -0.8 }
+sky { sun_elevation: 55, sun_azimuth: 200, haze: 1.0 }
+film { vignette: 0.8, saturation: 1.1, bloom: 0.02 }
+render { resolution: [320, 224], samples: 48, bounces: 4 }
+
+plane { position: [0, 0, 0], material: water { color: #1c4a70 } }
+disk { position: [0, 0.02, 0], radius: 2.4, material: matte { color: #0a1424 } }
+torus { position: [0, 0.03, 0], radius: 2.6, tube: 0.12, material: matte { color: #2a5a80 } }
+torus { position: [0, 0.03, 0], radius: 3.3, tube: 0.08, material: matte { color: #3a6a90 } }
+
+let land = matte { color: #3f6a34, pattern: noise, color2: #6a5a3a, pattern_scale: 2 }
+rock { position: [-6.8, -0.3, 2.9], radius: 1.4, seed: 1, scale: [1.3, 0.3, 1.0], material: land }
+rock { position: [-4.1, -0.3, -2.4], radius: 1.3, seed: 2, scale: [1.2, 0.3, 1.1], material: land }
+rock { position: [0.0, -0.3, -3.8], radius: 1.4, seed: 3, scale: [1.4, 0.3, 0.9], material: land }
+rock { position: [4.8, -0.3, -2.8], radius: 1.5, seed: 4, scale: [1.0, 0.45, 1.2], material: land }
+rock { position: [7.0, -0.3, 2.1], radius: 1.3, seed: 5, scale: [1.2, 0.3, 1.1], material: land }
+rock { position: [0.6, -0.3, 4.4], radius: 1.4, seed: 6, scale: [1.6, 0.3, 0.9], material: land }

@@ -1,0 +1,49 @@
+name: The Vale
+theme: map
+music: map
+stage: 0
+overworld: yes
+intro: The Vale path
+map:
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTRR
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTRR
+TT,,,',,;,;,',TT,,,,,,,;,,,,,RR,,,,';,,WW,,,RRRR
+TT,TTTTTT,,,,,TT,TTTTTTT,,,,'RRRRRRRRR,WW,Y,RRRR
+TT,TTTTTT,,,,,TT,TTTTTTT,,,,,RRRRRRRRR'WW,,6RRRR
+TT,TTTTTT,,,,,TT,TTTTTTT,,,;,RRRRRRRRR,WW,,pRRRR
+TT,TTTTTT,,,,,TT,TTTTTTT,,,,,RRRRRRRRR,WW,,p,,RR
+TT,TTTTTT;,,,,TT,TTTTTTT,,,,,RR,,,,;,,;WW,,p,,RR
+TT,,,,,,,,,,,,TT,TTTTTTT,,,,,RR,',',,,,WW,,p,,RR
+TT,,,,,,,,,,,;TT;,,,',,,,,;,,RR,,,,,,,,WWRRXRRRR
+TT,,',,,,,,,,,TT;,,,,,,,,;,;,RR,,,,,,,,WWRRpRRRR
+TT,,;,',,,,,,,TT,,,,,,,,,,,,;RR,,,;,,,;WW,,p,,RR
+TT,,,,,,,,;,,,TT,,,,,,,,,,,;,RR,,,4,,;,WW,,p,,RR
+TT',,,,,,,,,,,TT,,,,,;',,,,,,RR,,,p,;,,WW,,p,,RR
+TT,,,,,,,,,,,;TT,,,,,,;,,,,,,RR,,,p,,;,WW,,p,,RR
+TT,,,,,,,,,;,,TT,;,,,,,,,,,,,RR,,,p,,,,WW,,p,,RR
+TT,,,,,,,,',,,TT,,,,,,,,,;;,,RR;,,p,,,,WW,,p,,RR
+TT,,;,,,,,,,,,TT,,,,pppppppppGpppppppppGppppppRR
+TT,,,,,,,,,,,,TT,,,,2,,,,;',,RR,,,p,,;,WW,,p,,RR
+TT,,,,,,,,;,,,TT,;,,p;;',,,,,RR,,,p,;,,WW;,p,,RR
+TT,,,,,,,,,pppGpppppp';,,,,,,RR,,,p,,,,WW,,p,,RR
+TT,U,,U,,,,p,,TT,,,,,,;,,,,,,RR,,,p,,,,WW,,p,,RR
+TT;,,,,,O,'1,,TT,,,,,,,,TTTT,RR,;,3,,,,WW,,5,,RR
+TT,,,,,,,,,p,,TT,;,,,,,,TTTT,RR,,,,,,,;WW;,,,,RR
+TT,,@ppppppp,,TT,,,,,,,,TTTT,RR;:::::::WW,,,,,RR
+TT,,',P,,,,,,,TT,,;,,,,,TTTT,RR,,WWWWW,WW,,,,,RR
+TT,Q,,,,,,,;;,TT,,,,,;;,TTTT,RR,,WWWWW,WW,;,,,RR
+TT,,,,,,;,,,;,TT,,,,,,,,,,;,,RR,,WWWWW,WW,,,,,RR
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTRR
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTRR
+end
+legend:
+@ start level=127
+P signpost text=sign_vale_1
+1 checkpt level=1 to=hollow
+2 checkpt level=2 to=mines
+3 checkpt level=3 to=aqueduct
+4 checkpt level=4 to=canopy
+5 checkpt level=5 to=foundry
+6 checkpt level=6 to=spire
+G gate
+X gate need=sigils

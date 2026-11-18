@@ -18,6 +18,7 @@ A curated ecosystem of innovative applications, automation tools, and developer 
 | [keyhold](keyhold/) | Keyhold: a password manager for Windows, Linux and macOS that encrypts everything on the device, with structured item types (logins, cards, identities, bank accounts, Wi-Fi, API and SSH keys, notes), a password health report, recovery codes and automatic backups; works offline and syncs through a self-hosted, zero-knowledge server with a phone-friendly web app. Single-file Windows app, no installer |
 | [retroglot](retroglot/) | Play retro games from the DOS era to the PlayStation, Nintendo DS and PSP era, as a Windows app or in the browser, with a game library, save states and live on-screen translation by Claude: dialogue boxes are covered by their translation, with auto-translate, a glossary and an exportable script |
 | [vitalis](vitalis/) | Vitalis: a private health tracker for blood pressure, heart rate, blood glucose and uric acid, with trend charts, plain-language insights, questions and lab tests to raise with a doctor, and a PDF report; an offline PWA and an Android app |
+| [protogames](protogames/) | ProtoGames: a collection of game prototypes, gameplay experiments and development frameworks, including an EGA-style parser adventure, a first-person party dungeon crawler, side-scrolling platformers and sword games, and a 90s-anime-style poker battle |
 
 ## Claude Code plugins
 
