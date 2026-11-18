@@ -147,6 +147,27 @@ async function main() {
       assert(status.startsWith("HOLDING"), `core status "${status}"`);
       return `${left} | ${status} | ${((await page.textContent(".hud-field")) ?? "").trim()}`;
     });
+
+    await check("the core breathes and glows: orb, glow, rim and halo pulse together, light turns inside; reduced motion keeps a soft glow", async () => {
+      const running = () =>
+        page.evaluate(() => {
+          const orb = document.querySelector(".orb-breath");
+          if (!orb) return [];
+          const anims = [orb, document.querySelector(".core-halo")].flatMap((el) => (el ? el.getAnimations({ subtree: true }) : []));
+          return anims
+            .filter((a) => a.playState === "running" && a.effect?.getComputedTiming().iterations === Infinity)
+            .map((a) => `${(a as CSSAnimation).animationName}${(a.effect as KeyframeEffect | null)?.pseudoElement ?? ""}`);
+        });
+      const normal = await running();
+      for (const name of ["breathe", "glow", "flow", "halo", "rim::after"]) assert(normal.includes(name), `"${name}" is not running: ${normal.join(", ")}`);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.waitForTimeout(200);
+      const reduced = await running();
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      for (const name of ["glow-soft", "halo-soft"]) assert(reduced.includes(name), `with reduced motion "${name}" is not running: ${reduced.join(", ")}`);
+      assert(!reduced.some((n) => n === "breathe" || n === "flow"), `reduced motion still swells or turns: ${reduced.join(", ")}`);
+      return `${normal.length} looping animations (${[...new Set(normal)].join(", ")}); reduced motion: ${[...new Set(reduced)].join(", ")}`;
+    });
     await page.screenshot({ path: join(SHOTS, "core.png") });
 
     await check("the Field view renders nodes of each type", async () => {

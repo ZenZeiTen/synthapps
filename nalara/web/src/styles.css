@@ -271,6 +271,39 @@ p {
   visibility: hidden;
 }
 
+/*
+ * One tempo per mood for everything that breathes (orb, glow, rim, halo), and a slower one for the light turning
+ * inside the orb. Calm at rest, quicker while thinking, quickest while agents work.
+ */
+.core-anchor {
+  --breath: 4.6s;
+  --flow: 26s;
+}
+.mood-settled .core-anchor,
+.core-anchor.mood-settled {
+  --breath: 6s;
+  --flow: 34s;
+}
+.mood-thinking .core-anchor,
+.core-anchor.mood-thinking {
+  --breath: 2.2s;
+  --flow: 11s;
+}
+.mood-active .core-anchor,
+.core-anchor.mood-active {
+  --breath: 1.5s;
+  --flow: 7s;
+}
+.mood-approval .core-anchor,
+.core-anchor.mood-approval {
+  --breath: 3s;
+  --flow: 18s;
+}
+.mood-halted .core-anchor,
+.core-anchor.mood-halted {
+  --breath: 7s;
+  --flow: 48s;
+}
 .core-anchor {
   position: absolute;
   left: 50%;
@@ -308,7 +341,7 @@ p {
     rgba(12, 15, 23, 0.55) 78%,
     rgba(8, 9, 15, 0) 100%
   );
-  animation: halo 5s ease-in-out infinite;
+  animation: halo var(--breath) ease-in-out infinite;
   transition: opacity 0.8s;
 }
 .core-halo::before,
@@ -336,12 +369,7 @@ p {
   filter: grayscale(1);
   animation: none;
 }
-.mood-thinking .core-halo {
-  animation-duration: 2.2s;
-}
-.mood-active .core-halo {
-  animation-duration: 1.5s;
-}
+
 
 /* The orb. The button keeps a still box (clicks and focus); .orb-breath inside it breathes. */
 .core-orb {
@@ -363,7 +391,7 @@ p {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  animation: breathe 5s ease-in-out infinite;
+  animation: breathe var(--breath) ease-in-out infinite;
   transition: filter 0.8s;
   box-shadow:
     0 0 22px rgba(90, 170, 255, 0.28),
@@ -378,6 +406,63 @@ p {
   box-shadow: 0 0 10px rgba(94, 214, 226, 0.25);
   transition: border-color 0.8s;
   pointer-events: none;
+  animation: rim var(--breath) ease-in-out infinite;
+}
+/* The light around the orb: it swells and brightens with each breath. */
+.orb-glow {
+  position: absolute;
+  inset: -24%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(120, 200, 255, 0.5) 52%,
+    rgba(96, 140, 255, 0.26) 68%,
+    rgba(86, 96, 240, 0.1) 84%,
+    rgba(80, 90, 240, 0) 100%
+  );
+  animation: glow var(--breath) ease-in-out infinite;
+  transition: opacity 0.8s;
+}
+.mood-approval .orb-glow {
+  background: radial-gradient(circle closest-side, rgba(255, 196, 120, 0.5) 52%, rgba(240, 150, 70, 0.26) 68%, rgba(220, 120, 60, 0) 100%);
+}
+.mood-halted .orb-glow {
+  background: radial-gradient(circle closest-side, rgba(230, 90, 70, 0.4) 52%, rgba(170, 40, 40, 0.2) 70%, rgba(120, 20, 30, 0) 100%);
+}
+.mood-offline .orb-glow {
+  animation: none;
+  opacity: 0;
+}
+/* Light moving inside the orb: two soft currents turning in opposite directions. */
+.orb-flow {
+  background: conic-gradient(
+    from 0deg,
+    rgba(170, 240, 255, 0) 0deg,
+    rgba(170, 240, 255, 0.32) 50deg,
+    rgba(170, 240, 255, 0) 110deg,
+    rgba(150, 130, 255, 0.28) 190deg,
+    rgba(150, 130, 255, 0) 250deg,
+    rgba(120, 225, 255, 0.26) 310deg,
+    rgba(120, 225, 255, 0) 360deg
+  );
+  mix-blend-mode: screen;
+  opacity: 0.6;
+  animation: flow var(--flow) linear infinite;
+}
+.orb-flow-2 {
+  background: radial-gradient(circle at 70% 66%, rgba(186, 160, 255, 0.42) 0%, rgba(150, 130, 255, 0.16) 22%, rgba(150, 130, 255, 0) 44%);
+  opacity: 0.75;
+  animation-direction: reverse;
+  animation-duration: calc(var(--flow) * 0.7);
+}
+.mood-halted .orb-flow,
+.mood-offline .orb-flow {
+  opacity: 0.12;
+}
+.mood-offline .orb-flow,
+.mood-offline .orb-breath::after {
+  animation: none;
 }
 .orb-layer {
   position: absolute;
@@ -432,30 +517,23 @@ p {
   border-color: rgba(200, 70, 60, 0.55);
 }
 .mood-halted .orb-breath {
-  animation-duration: 7s;
   box-shadow:
     0 0 22px rgba(200, 60, 40, 0.25),
     0 0 70px rgba(150, 30, 30, 0.2);
 }
 .mood-approval .orb-breath {
-  animation-duration: 3s;
   box-shadow:
     0 0 26px rgba(255, 180, 90, 0.35),
     0 0 80px rgba(240, 150, 60, 0.22);
 }
 .mood-thinking .orb-breath {
   animation-name: breathe-bright;
-  animation-duration: 2.2s;
 }
 .mood-active .orb-breath {
   animation-name: breathe-bright;
-  animation-duration: 1.5s;
   box-shadow:
     0 0 30px rgba(110, 200, 255, 0.4),
     0 0 90px rgba(90, 130, 255, 0.3);
-}
-.mood-settled .orb-breath {
-  animation-duration: 7s;
 }
 .mood-offline .orb-breath {
   animation: none;
@@ -470,26 +548,74 @@ p {
   0%,
   100% {
     transform: scale(1);
+    filter: brightness(0.97);
   }
   50% {
-    transform: scale(1.028);
+    transform: scale(1.05);
+    filter: brightness(1.13) saturate(1.06);
   }
 }
 @keyframes breathe-bright {
   0%,
   100% {
-    transform: scale(1);
+    transform: scale(1.01);
     filter: brightness(1.06) saturate(1.05);
   }
   50% {
-    transform: scale(1.04);
-    filter: brightness(1.22) saturate(1.12);
+    transform: scale(1.065);
+    filter: brightness(1.28) saturate(1.14);
+  }
+}
+@keyframes glow {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.09);
+  }
+}
+@keyframes rim {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes flow {
+  to {
+    transform: rotate(360deg);
   }
 }
 @keyframes halo {
   0%,
   100% {
-    opacity: 0.82;
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+}
+/* Reduced motion keeps a soft pulse of light (no swelling, no turning): the sign that the core is alive. */
+@keyframes glow-soft {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+@keyframes halo-soft {
+  0%,
+  100% {
+    opacity: 0.72;
   }
   50% {
     opacity: 1;
@@ -2716,5 +2842,20 @@ li > .tree-btn {
     animation-iteration-count: 1 !important;
     animation-delay: 0ms !important;
     transition-duration: 0.001ms !important;
+  }
+  /* The core still glows and pulses gently (light only, nothing moves), slower than the normal breath. */
+  .orb-glow {
+    animation: glow-soft calc(var(--breath) * 1.4) ease-in-out infinite !important;
+  }
+  .core-halo {
+    animation: halo-soft calc(var(--breath) * 1.4) ease-in-out infinite !important;
+  }
+  .orb-breath::after {
+    animation: rim calc(var(--breath) * 1.4) ease-in-out infinite !important;
+  }
+  .mood-offline .orb-glow,
+  .mood-offline .core-halo,
+  .mood-offline .orb-breath::after {
+    animation: none !important;
   }
 }
