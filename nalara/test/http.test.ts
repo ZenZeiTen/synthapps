@@ -7,7 +7,7 @@ import { createKernel, type NeuralKernel } from "../src/kernel/kernel";
 import { createHttpServer, type NeuralHttpServer } from "../src/server/http";
 import type { ApprovalRequest, KernelEvent, Workspace } from "../src/kernel/types";
 
-const DEMO = path.resolve(__dirname, "../demo/breath-of-fire-iv-remake");
+const DEMO = path.resolve(__dirname, "../demo/lantern-road");
 let root: string;
 let staticDir: string;
 let kernel: NeuralKernel;
@@ -85,7 +85,7 @@ describe("HTTP API: contract shapes", () => {
     const r = await get("/api/status");
     expect(r.status).toBe(200);
     expect(r.headers["content-type"]).toMatch(/application\/json/);
-    expect(r.json).toMatchObject({ version: expect.any(String), root, mode: "offline", halted: false, toolPolicy: "ask", projectName: "Breath of Fire IV Remake" });
+    expect(r.json).toMatchObject({ version: expect.any(String), root, mode: "offline", halted: false, toolPolicy: "ask", projectName: "Lantern Road" });
     expect(r.json.graph).toMatchObject({ nodes: expect.any(Number), edges: expect.any(Number), byType: expect.any(Object) });
     expect(r.json.agents).toMatchObject({ catalog: expect.any(Number), running: expect.any(Number) });
     expect(r.json.workspaces).toMatchObject({ total: expect.any(Number), running: expect.any(Number) });
@@ -226,7 +226,7 @@ describe("HTTP API: contract shapes", () => {
     expect(tools.json.map((t: { name: string }) => t.name)).toContain("fs.read_file");
     expect((await get("/api/tools?action=execute")).json.every((t: { action: string }) => t.action === "execute")).toBe(true);
     const call = await post("/api/tools/fs.read_file/call", { input: { path: "README.md" } });
-    expect(call.json).toMatchObject({ ok: true, content: expect.stringContaining("Breath of Fire") });
+    expect(call.json).toMatchObject({ ok: true, content: expect.stringContaining("Lantern Road") });
     expect((await post("/api/tools/nope/call", { input: {} })).status).toBe(404);
 
     // An approval-gated call from the human: the HTTP call waits while the approval is pending.

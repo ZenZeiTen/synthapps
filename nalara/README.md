@@ -76,7 +76,7 @@ Requires Node.js 22.13 or newer.
 cd nalara
 npm install
 npm run build                      # builds the Nalara UI into web/dist
-npm start -- --root demo/breath-of-fire-iv-remake
+npm start -- --root demo/lantern-road
 ```
 
 On Windows PowerShell 5.1, which does not accept `&&`, run the steps one per
@@ -86,7 +86,7 @@ line, with a backslash in the path:
 cd nalara
 npm install
 npm run build
-npm start -- --root demo\breath-of-fire-iv-remake
+npm start -- --root demo\lantern-road
 ```
 
 Windows is supported in the code (paths, file watching, killing a command's
@@ -115,8 +115,8 @@ instead. The default model is `claude-opus-5-5` (`NALARA_MODEL` to change).
 From the terminal:
 
 ```bash
-npm run cli -- intent "Review inventory module" --root demo/breath-of-fire-iv-remake --wait
-npm run cli -- search "latest damage calculations" --root demo/breath-of-fire-iv-remake
+npm run cli -- intent "Review inventory module" --root demo/lantern-road --wait
+npm run cli -- search "latest damage calculations" --root demo/lantern-road
 npm run cli -- approvals          # on a running server
 npm run cli -- approve <id>
 npm run cli -- halt "stop everything"
@@ -197,7 +197,7 @@ would run yourself.
 - `src/`: the kernel. Contracts in `src/kernel/types.ts`, HTTP API in
   `src/server/api-contract.ts`.
 - `web/`: the UI (the Neural Core), plus a mock kernel and smoke test in `web/mock/`.
-- `demo/breath-of-fire-iv-remake/`: a small original game project to try it on.
+- `demo/lantern-road/`: a small original game project to try it on.
 - `schemas/`: JSON Schemas for intents, graph nodes and agents.
 - `design/`: the earlier Claude Design canvas artboards (they render inside the
   Claude Design canvas only). The current UI follows

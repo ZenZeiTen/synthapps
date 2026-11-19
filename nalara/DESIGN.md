@@ -166,7 +166,7 @@ Obsidian's graph view, Miro and Vision Pro.
 
 | Node type | Shape | Example |
 |---|---|---|
-| Project | ○ circle | Breath of Fire IV Remake |
+| Project | ○ circle | Lantern Road |
 | File | □ square | `battle_system.ts` |
 | Agent | ◇ diamond | Lead Architect |
 | MCP server | ⬢ hexagon | GitHub, PostgreSQL, Notion |

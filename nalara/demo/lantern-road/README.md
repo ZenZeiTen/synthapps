@@ -1,6 +1,6 @@
-# Breath of Fire IV Remake
+# Lantern Road
 
-A small, fan-made turn-based RPG prototype. It is the sample project that
+A small, original turn-based RPG prototype. It is the sample project that
 Nalara demos against: code, design documents, tests, a marketing website and
 a services contract, all in one place.
 

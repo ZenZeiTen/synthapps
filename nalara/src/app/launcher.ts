@@ -31,7 +31,7 @@ import { packDir, unpackOnce, unpackTo, type FileBundle } from "./bundle";
 export const DEFAULT_APP_PORT = 7437;
 /** How long Nalara keeps running after its last window closed (a reload reconnects well within this). */
 export const IDLE_QUIT_MS = 20_000;
-const SAMPLE_FOLDER = "breath-of-fire-iv-remake";
+const SAMPLE_FOLDER = "lantern-road";
 
 export interface LaunchOptions {
   root: string;

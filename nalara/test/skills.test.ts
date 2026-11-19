@@ -67,7 +67,7 @@ function ctxFor(agentId: string, task: string, files: Record<string, string>, op
   return { ctx, ...gw };
 }
 
-// Demo-like project content (a small RPG remake).
+// Demo-like project content (a small RPG).
 const DAMAGE_TS = [
   'import { rollCritical } from "./random.ts";', // 1
   "", // 2

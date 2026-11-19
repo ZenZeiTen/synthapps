@@ -12,7 +12,7 @@ import { createScriptedProvider, type ScriptedProviderOptions } from "../src/llm
 import { createHttpServer, type NeuralHttpServer } from "../src/server/http";
 import type { AgentLoopEvent, LLMProvider } from "../src/kernel/types";
 
-const DEMO = path.resolve(__dirname, "../demo/breath-of-fire-iv-remake");
+const DEMO = path.resolve(__dirname, "../demo/lantern-road");
 const temps: string[] = [];
 const kernels: NeuralKernel[] = [];
 const servers: NeuralHttpServer[] = [];
@@ -71,7 +71,7 @@ describe("assistant with Claude (scripted)", () => {
   it("answers with tools through the registry, streams events, and sends the conversation as history", async () => {
     const llm = createScriptedProvider({
       agent: [
-        [{ text: "Let me read it.", toolCalls: [{ name: "fs.read_file", input: { path: "README.md" } }] }, { text: "The README describes the remake." }],
+        [{ text: "Let me read it.", toolCalls: [{ name: "fs.read_file", input: { path: "README.md" } }] }, { text: "The README describes the game." }],
         [{ text: "You asked about the README." }],
       ],
     });
@@ -79,7 +79,7 @@ describe("assistant with Claude (scripted)", () => {
     expect(kernel.assistant.online).toBe(true);
     const events: AssistantEvent[] = [];
     const first = await kernel.assistant.ask("What is in the README?", { onEvent: (e) => events.push(e) });
-    expect(first.text).toBe("Let me read it.\n\nThe README describes the remake.");
+    expect(first.text).toBe("Let me read it.\n\nThe README describes the game.");
     expect(first.tools).toEqual([{ tool: "fs.read_file", detail: "README.md", ok: true }]);
     expect(events.map((e) => e.type)).toEqual(["start", "turn_text", "tool", "tool_result", "turn_text", "done"]);
 

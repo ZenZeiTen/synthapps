@@ -9,7 +9,7 @@ import { createKernel, type NeuralKernel } from "../src/kernel/kernel";
 import { createScriptedProvider, type ScriptedTurn } from "../src/llm/scripted";
 import type { AgentFinishedData, AgentInstance, ApprovalRequest, KernelEvent, Workspace } from "../src/kernel/types";
 
-const DEMO = path.resolve(__dirname, "../demo/breath-of-fire-iv-remake");
+const DEMO = path.resolve(__dirname, "../demo/lantern-road");
 const temps: string[] = [];
 
 function demoCopy(): string {
@@ -65,7 +65,7 @@ describe("kernel: the four spec intents offline", () => {
     const s = kernel.status();
     expect(s.mode).toBe("offline");
     expect(s.root).toBe(root);
-    expect(s.projectName).toBe("Breath of Fire IV Remake");
+    expect(s.projectName).toBe("Lantern Road");
     expect(s.files).toBeGreaterThan(10);
     expect(s.agents.catalog).toBe(kernel.orchestrator.catalog().length);
     expect(s.toolPolicy).toBe("ask");

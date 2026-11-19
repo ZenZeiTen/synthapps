@@ -93,8 +93,8 @@ function link(source: string, target: string, kind: EdgeKind, emit = false): Gra
   return e;
 }
 
-const PROJECT_ID = "project:breath-of-fire-iv-remake";
-upsertNode(PROJECT_ID, "project", PROJECT_NAME, { root: "/projects/bof4-remake" });
+const PROJECT_ID = "project:lantern-road";
+upsertNode(PROJECT_ID, "project", PROJECT_NAME, { root: "/projects/lantern-road" });
 
 const folders = new Set<string>();
 for (const path of Object.keys(FILES)) {
@@ -703,7 +703,7 @@ function status(): KernelStatus {
   const running = [...instances.values()].filter((i) => i.state === "active" || i.state === "collaborating").length;
   return {
     version: "0.1.0-mock",
-    root: "/projects/bof4-remake",
+    root: "/projects/lantern-road",
     mode: "offline",
     model: "claude-opus-5",
     startedAt: at(0),
@@ -1332,7 +1332,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
         await wait(150);
         publish("tool.called", { name: "fs.read_file", path: "README.md" }, undefined, "tools");
         line({ type: "tool_result", tool: "fs.read_file", ok: true });
-        const full = "The **README** describes a remake of a classic RPG:\n\n- combat in `src/combat/`\n- an inventory module\n- localized dialogue";
+        const full = "The **README** describes an original turn-based RPG:\n\n- combat in `src/combat/`\n- an inventory module\n- localized dialogue";
         for (const word of full.split(/(?<= )/)) {
           line({ type: "delta", text: word });
           await wait(35);

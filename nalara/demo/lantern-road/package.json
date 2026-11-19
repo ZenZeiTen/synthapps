@@ -1,0 +1,13 @@
+{
+  "name": "lantern-road",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Original demo game project used as the Nalara sample workspace.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.ts"
+  }
+}

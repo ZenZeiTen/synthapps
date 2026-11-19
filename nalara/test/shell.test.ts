@@ -8,7 +8,7 @@ import { createScriptedProvider } from "../src/llm/scripted";
 import { createHttpServer, type NeuralHttpServer } from "../src/server/http";
 import { parseCd, stripAnsi, type TerminalEvent } from "../src/shell/terminal";
 
-const DEMO = path.resolve(__dirname, "../demo/breath-of-fire-iv-remake");
+const DEMO = path.resolve(__dirname, "../demo/lantern-road");
 const temps: string[] = [];
 const kernels: NeuralKernel[] = [];
 const servers: NeuralHttpServer[] = [];
