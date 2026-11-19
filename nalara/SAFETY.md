@@ -101,11 +101,15 @@ URLs with a user name or password; local names (`localhost`, `*.local`,
 `*.internal`); any host that resolves to a loopback, private, link-local,
 carrier-grade NAT, multicast or reserved address (the connection goes to the
 address that was checked, and every redirect is checked again, at most 5);
-URLs that carry a saved secret or a key, token or password; and binary files.
+URLs that carry a saved secret or a key, token or password; URLs over 512
+characters or with an unbroken encoded-looking value (base64, hex) over 48
+characters in the path or query; and binary files. The `#fragment` is dropped.
 It reads at most 2 MB in 15 s. Page text is untrusted data for the model.
 Agents running on Claude also get Claude's web search (`web.search` in their
 tool list). The remaining risk is a prompt-injected agent sending data it has
-read to a site in a URL; the secret check narrows this but cannot rule it out.
+read to a site in a URL, a little at a time; these checks and the agents' tool
+budgets narrow it but cannot rule it out. Every call and its URL is in the
+audit ledger.
 To turn web access off, add the deny glob `web.*` (Settings → Tool policy) or
 start Nalara with `NALARA_WEB_TOOLS=0`. `web.fetch` connects directly: it does
 not go through an HTTP proxy.

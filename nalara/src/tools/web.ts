@@ -3,8 +3,10 @@
  * cookies, no credentials, nothing stored), so it also runs in the readonly ("safe") tool policy.
  *
  * Guards:
- * - http and https only; no user:password in the URL; no URL that carries a saved secret or secret-looking text
- *   (a prompt-injected agent could otherwise send data out in a query string).
+ * - http and https only; no user:password in the URL; no URL that carries a saved secret or secret-looking text.
+ * - Less room to carry data out: at most 512 characters, no long encoded-looking runs (base64, hex, tokens) in the
+ *   path or query, and the #fragment is dropped. This narrows, but cannot rule out, a prompt-injected agent putting
+ *   what it read into a URL; agent tool budgets bound how often it can try.
  * - No local or private network: every address a host resolves to must be public, the connection goes to the
  *   checked address (no DNS rebinding), and each redirect (at most 5) is checked the same way.
  * - Text only (HTML, plain text, JSON, XML, Markdown); at most 2 MB read; 15 s timeout.
@@ -21,6 +23,10 @@ export const WEB_FETCH_MAX_BYTES = 2 * 1024 * 1024;
 export const WEB_FETCH_MAX_REDIRECTS = 5;
 export const WEB_FETCH_DEFAULT_CHARS = 20_000;
 export const WEB_FETCH_MAX_CHARS = 100_000;
+/** Longest URL fetched. Ordinary page addresses fit easily; long ones are a way to carry data out. */
+export const WEB_FETCH_MAX_URL = 512;
+/** Longest unbroken run of letters, digits and +/=% (base64, hex, tokens) allowed in one path segment or query value. */
+export const WEB_FETCH_MAX_OPAQUE = 48;
 
 /** Key and token shapes; the same families the assistant masks. */
 const SECRET_SHAPES =
@@ -92,7 +98,7 @@ export interface WebPage {
 /** Throws WebFetchError when a URL may not be fetched. Returns the parsed URL. */
 export function checkUrl(raw: string, opts: Pick<WebFetchOptions, "redact" | "isBlocked"> = {}): URL {
   if (typeof raw !== "string" || !raw.trim()) throw new WebFetchError("A URL is required");
-  if (raw.length > 2048) throw new WebFetchError("The URL is too long (over 2048 characters)");
+  if (raw.trim().length > WEB_FETCH_MAX_URL) throw new WebFetchError(`The URL is too long (over ${WEB_FETCH_MAX_URL} characters); long URLs can carry data out, so they are not fetched`);
   let url: URL;
   try {
     url = new URL(raw.trim());
@@ -107,9 +113,17 @@ export function checkUrl(raw: string, opts: Pick<WebFetchOptions, "redact" | "is
     throw new WebFetchError(`${host} is a local address; only public web addresses can be fetched`);
   }
   if (isIP(host) && (opts.isBlocked ?? isBlockedAddress)(host)) throw new WebFetchError(`${host} is a local or private address; only public web addresses can be fetched`);
+  // The fragment never reaches the server; drop it so it cannot matter.
+  url.hash = "";
   const decoded = safeDecode(url.href);
   if (SECRET_SHAPES.test(decoded) || SECRET_PARAMS.test(decoded) || (opts.redact && opts.redact(decoded) !== decoded)) {
     throw new WebFetchError("The URL contains a key, token or saved secret; it was not fetched");
+  }
+  const parts = [...url.pathname.split("/"), ...[...url.searchParams].flatMap(([k, v]) => [k, v])].map(safeDecode);
+  // Unbroken runs only: slugs and titles ("how-to-…", "List_of_…") have separators, encoded data usually does not.
+  const opaque = new RegExp(`[A-Za-z0-9+/=%]{${WEB_FETCH_MAX_OPAQUE + 1},}`);
+  if (parts.some((p) => opaque.test(p))) {
+    throw new WebFetchError(`The URL contains a long encoded-looking value (over ${WEB_FETCH_MAX_OPAQUE} characters); such values can carry data out, so it was not fetched`);
   }
   return url;
 }

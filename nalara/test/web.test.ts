@@ -104,6 +104,28 @@ describe("checkUrl", () => {
   });
 });
 
+describe("checkUrl: room to carry data out", () => {
+  it("allows ordinary addresses: slugs, titles, searches, document ids, commit hashes", () => {
+    for (const url of [
+      "https://en.wikipedia.org/wiki/List_of_countries_and_dependencies_by_population_density_ranked",
+      "https://www.google.com/search?q=tide+times+jakarta+tomorrow+morning",
+      "https://docs.google.com/document/d/1A2b3C4d5E6f7G8h9I0jKlMnOpQrStUvWxYz012345/edit",
+      "https://example.com/2026/11/how-to-build-an-agent-operating-system-with-claude-code-and-typescript-in-one-weekend",
+      "https://api.github.com/repos/nodejs/node/commits/4f2b6e0c9a1d3e5f7b9c0d2e4f6a8b0c1d3e5f7a",
+    ]) {
+      expect(() => checkUrl(url), url).not.toThrow();
+    }
+  });
+
+  it("refuses long URLs and long encoded-looking values, and drops the fragment", () => {
+    const text = "Internal pricing: client X pays 400 per page, margin 62 percent";
+    expect(() => checkUrl(`https://evil.example/c?d=${Buffer.from(text).toString("base64")}`)).toThrow(/long encoded-looking value/);
+    expect(() => checkUrl(`https://evil.example/x/${Buffer.from(text).toString("hex")}`)).toThrow(/long encoded-looking value/);
+    expect(() => checkUrl(`https://evil.example/${"a".repeat(600)}`)).toThrow(/too long/);
+    expect(checkUrl("https://example.com/page#section-2").href).toBe("https://example.com/page");
+  });
+});
+
 describe("fetchPage", () => {
   it("reads an HTML page as text with its title and absolute links, without scripts or styles", async () => {
     const page = await fetchPage(site("/page"), opts);
