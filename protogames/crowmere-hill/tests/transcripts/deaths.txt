@@ -1,0 +1,312 @@
+# Every death in the game, each from a fresh start. After dying, further commands
+# must produce nothing (the UI owns restore/restart).
+#
+# 1. The gravestones
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> dig grave
+You're not close enough.
+> go to graves
+[walk to graves]
+> dig grave
+[died] You scoop away a handful of wet earth. A bony hand shoots up, grabs your wrist, and pulls you down to meet the neighbors. They're very welcoming. Permanently.
+> look
+#
+# 2. The suit of armor
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> go to doormat
+[walk to doormat]
+> move mat
+You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are.
+> take key
+You pick up the brass key. It's cold, and heavier than it looks.
+[score +5 = 5]
+> go to door
+[walk to door]
+> unlock door
+The brass key turns with a heavy clunk. The door is unlocked.
+[score +5 = 10]
+[sound clunk]
+> open door
+You push the door. It swings inward with a long, slow creak, as if it's been waiting all night to make that noise.
+[sound creak]
+> go in
+[walk x_front_door]
+[room hall]
+BOOM! The front door slams shut behind you. You try the handle. It won't budge. Well. The only way out is through.
+[sound slam]
+A grand entrance hall gone badly to seed. A staircase climbs into darkness, its banister draped in cobwebs, and a suit of armor stands guard at the bottom. From a gilded frame, a portrait of a stern old woman glares at everyone. A tall grandfather clock leans against the wall. Doorways lead west and east. The front door behind you is shut tight.
+> take axe
+You're not close enough.
+> go to armor
+[walk to armor]
+> take axe
+[died] You reach for the axe. The armor, it turns out, is extremely against that. Clank. Swish. Oh dear.
+> inventory
+#
+# 3. The library shelves
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> go to doormat
+[walk to doormat]
+> lift doormat
+You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are.
+> take brass key
+You pick up the brass key. It's cold, and heavier than it looks.
+[score +5 = 5]
+> go to door
+[walk to door]
+> use key on door
+The brass key turns with a heavy clunk. The door is unlocked.
+[score +5 = 10]
+[sound clunk]
+> push door
+You push the door. It swings inward with a long, slow creak, as if it's been waiting all night to make that noise.
+[sound creak]
+> enter house
+[walk x_front_door]
+[room hall]
+BOOM! The front door slams shut behind you. You try the handle. It won't budge. Well. The only way out is through.
+[sound slam]
+A grand entrance hall gone badly to seed. A staircase climbs into darkness, its banister draped in cobwebs, and a suit of armor stands guard at the bottom. From a gilded frame, a portrait of a stern old woman glares at everyone. A tall grandfather clock leans against the wall. Doorways lead west and east. The front door behind you is shut tight.
+> west
+[walk x_hall_west]
+[room library]
+Shelves of crumbling books climb all the way to the ceiling, and a cold fireplace yawns in one wall. In a high-backed armchair sits a skeleton, reading a book. It must be a real page-turner; he's been at it for about a hundred years. An old writing desk stands beneath the window. A doorway leads back east to the hall.
+> go to shelves
+[walk to shelves]
+> climb bookshelf
+[died] You climb the bookshelf for a better look at the top row. The bookshelf decides it would rather be a floor. You are buried under several tons of literature. Critics call your ending flat.
+#
+# 4. The stew
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> go to doormat
+[walk to doormat]
+> look under mat
+You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are.
+> get key
+You pick up the brass key. It's cold, and heavier than it looks.
+[score +5 = 5]
+> go to door
+[walk to door]
+> open door with key
+The brass key turns with a heavy clunk. The door is unlocked.
+[score +5 = 10]
+[sound clunk]
+> open door
+You push the door. It swings inward with a long, slow creak, as if it's been waiting all night to make that noise.
+[sound creak]
+> north
+[walk x_front_door]
+[room hall]
+BOOM! The front door slams shut behind you. You try the handle. It won't budge. Well. The only way out is through.
+[sound slam]
+A grand entrance hall gone badly to seed. A staircase climbs into darkness, its banister draped in cobwebs, and a suit of armor stands guard at the bottom. From a gilded frame, a portrait of a stern old woman glares at everyone. A tall grandfather clock leans against the wall. Doorways lead west and east. The front door behind you is shut tight.
+> east
+[walk x_hall_east]
+[room kitchen]
+A cavernous kitchen that hasn't seen a health inspector since before health inspectors were invented. Something green bubbles in a cauldron on the old iron stove. A lone candle stands on the chopping table. A narrow pantry door stands in the corner. A wooden trapdoor with an iron ring is set into the floor, and a cold draft whistles up through its cracks. The hall is back to the west.
+> taste stew
+You're not close enough.
+> go to stove
+[walk to stove]
+> eat the stew
+[died] You take a sip. It tastes like chicken, specifically a chicken that was very angry about something. Your stomach files a formal complaint, then leaves. So do you.
+#
+# 5. The trapdoor, without a light
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> go to doormat
+[walk to doormat]
+> look under mat
+You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are.
+> take key
+You pick up the brass key. It's cold, and heavier than it looks.
+[score +5 = 5]
+> go to door
+[walk to door]
+> unlock door
+The brass key turns with a heavy clunk. The door is unlocked.
+[score +5 = 10]
+[sound clunk]
+> open door
+You push the door. It swings inward with a long, slow creak, as if it's been waiting all night to make that noise.
+[sound creak]
+> n
+[walk x_front_door]
+[room hall]
+BOOM! The front door slams shut behind you. You try the handle. It won't budge. Well. The only way out is through.
+[sound slam]
+A grand entrance hall gone badly to seed. A staircase climbs into darkness, its banister draped in cobwebs, and a suit of armor stands guard at the bottom. From a gilded frame, a portrait of a stern old woman glares at everyone. A tall grandfather clock leans against the wall. Doorways lead west and east. The front door behind you is shut tight.
+> e
+[walk x_hall_east]
+[room kitchen]
+A cavernous kitchen that hasn't seen a health inspector since before health inspectors were invented. Something green bubbles in a cauldron on the old iron stove. A lone candle stands on the chopping table. A narrow pantry door stands in the corner. A wooden trapdoor with an iron ring is set into the floor, and a cold draft whistles up through its cracks. The hall is back to the west.
+> go down
+The trapdoor is closed.
+> go to trapdoor
+[walk to trapdoor]
+> open trapdoor
+You heave the trapdoor open. Stone steps lead down into total darkness. From somewhere below comes a small, familiar whimper. Crumpet!
+[sound creak]
+> go down
+[walk x_trapdoor]
+[died] You start down the steps in pitch darkness. The first step is fine. The second step is fine. There is no third step. Something at the bottom was delighted by this arrangement.
+#
+# 6. Under the bed
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> go to doormat
+[walk to doormat]
+> look under mat
+You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are.
+> take key
+You pick up the brass key. It's cold, and heavier than it looks.
+[score +5 = 5]
+> go to door
+[walk to door]
+> unlock door
+The brass key turns with a heavy clunk. The door is unlocked.
+[score +5 = 10]
+[sound clunk]
+> open door
+You push the door. It swings inward with a long, slow creak, as if it's been waiting all night to make that noise.
+[sound creak]
+> n
+[walk x_front_door]
+[room hall]
+BOOM! The front door slams shut behind you. You try the handle. It won't budge. Well. The only way out is through.
+[sound slam]
+A grand entrance hall gone badly to seed. A staircase climbs into darkness, its banister draped in cobwebs, and a suit of armor stands guard at the bottom. From a gilded frame, a portrait of a stern old woman glares at everyone. A tall grandfather clock leans against the wall. Doorways lead west and east. The front door behind you is shut tight.
+> up
+[walk x_hall_up]
+[room bedroom]
+A musty bedroom at the top of the stairs. A four-poster bed sags beneath a moth-eaten canopy, a tall wardrobe looms in the corner, and a rocking chair rocks gently all by itself. Rain lashes the big window. On the ledge outside, a fat black crow sits on a nest of twigs, glaring at you. Something small and red lies on the floor. The stairs lead back down.
+> look at bed
+A four-poster bed under a moth-eaten canopy. The mattress sags in the middle. Something underneath it is breathing.
+> go to bed
+[walk to bed]
+> look under bed
+[died] You kneel and peek under the bed. Two yellow eyes blink back at you. A long, hairy arm scoops you under. It's surprisingly cozy down there. You never come out.
+#
+# 7. The bedroom window (needs the crow gone first)
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> go to doormat
+[walk to doormat]
+> look under mat
+You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are.
+> take key
+You pick up the brass key. It's cold, and heavier than it looks.
+[score +5 = 5]
+> go to door
+[walk to door]
+> unlock door
+The brass key turns with a heavy clunk. The door is unlocked.
+[score +5 = 10]
+[sound clunk]
+> open door
+You push the door. It swings inward with a long, slow creak, as if it's been waiting all night to make that noise.
+[sound creak]
+> n
+[walk x_front_door]
+[room hall]
+BOOM! The front door slams shut behind you. You try the handle. It won't budge. Well. The only way out is through.
+[sound slam]
+A grand entrance hall gone badly to seed. A staircase climbs into darkness, its banister draped in cobwebs, and a suit of armor stands guard at the bottom. From a gilded frame, a portrait of a stern old woman glares at everyone. A tall grandfather clock leans against the wall. Doorways lead west and east. The front door behind you is shut tight.
+> w
+[walk x_hall_west]
+[room library]
+Shelves of crumbling books climb all the way to the ceiling, and a cold fireplace yawns in one wall. In a high-backed armchair sits a skeleton, reading a book. It must be a real page-turner; he's been at it for about a hundred years. An old writing desk stands beneath the window. A doorway leads back east to the hall.
+> go to desk
+[walk to desk]
+> open desk
+The drawer sticks, then shoots open. Inside lies a small silver whistle.
+> take whistle
+You pick up the silver whistle. Engraved on the side: FOR DOGS. HUMANS WILL HEAR NOTHING.
+[score +5 = 15]
+> e
+[walk x_library_east]
+[room hall]
+> u
+[walk x_hall_up]
+[room bedroom]
+A musty bedroom at the top of the stairs. A four-poster bed sags beneath a moth-eaten canopy, a tall wardrobe looms in the corner, and a rocking chair rocks gently all by itself. Rain lashes the big window. On the ledge outside, a fat black crow sits on a nest of twigs, glaring at you. Something small and red lies on the floor. The stairs lead back down.
+> jump out window
+The window is closed. That's probably for the best.
+> go to window
+[walk to window]
+> blow whistle
+You blow the silver whistle. You can't hear a thing, but the crow certainly can. It screeches, flaps, and flees into the storm, leaving its nest behind.
+[score +5 = 20]
+[sound whistle]
+> open window
+You heave the window open. Rain blows in over the sill. The crow's nest sits on the ledge, within reach.
+> jump out window
+[died] You climb out onto the ledge for a better look around. The ledge is slippery. The ground is not. Gravity, as usual, has the final word.
+#
+# 8. NOT WINE
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> go to doormat
+[walk to doormat]
+> look under mat
+You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are.
+> take key
+You pick up the brass key. It's cold, and heavier than it looks.
+[score +5 = 5]
+> go to door
+[walk to door]
+> unlock door
+The brass key turns with a heavy clunk. The door is unlocked.
+[score +5 = 10]
+[sound clunk]
+> open door
+You push the door. It swings inward with a long, slow creak, as if it's been waiting all night to make that noise.
+[sound creak]
+> n
+[walk x_front_door]
+[room hall]
+BOOM! The front door slams shut behind you. You try the handle. It won't budge. Well. The only way out is through.
+[sound slam]
+A grand entrance hall gone badly to seed. A staircase climbs into darkness, its banister draped in cobwebs, and a suit of armor stands guard at the bottom. From a gilded frame, a portrait of a stern old woman glares at everyone. A tall grandfather clock leans against the wall. Doorways lead west and east. The front door behind you is shut tight.
+> go to clock
+[walk to clock]
+> open clock
+You open the little glass door in the clock's case. Tucked behind the pendulum is a box of matches. Somebody's emergency supplies.
+[sound creak]
+> take matches
+You pocket the box of matches. Rattle, rattle.
+[score +5 = 15]
+> e
+[walk x_hall_east]
+[room kitchen]
+A cavernous kitchen that hasn't seen a health inspector since before health inspectors were invented. Something green bubbles in a cauldron on the old iron stove. A lone candle stands on the chopping table. A narrow pantry door stands in the corner. A wooden trapdoor with an iron ring is set into the floor, and a cold draft whistles up through its cracks. The hall is back to the west.
+> go to table
+[walk to table]
+> take candle
+You take the candle. It's a stubby little thing, but it will do.
+[score +5 = 20]
+> light it
+You strike a match and light the candle. A small, brave flame pushes back the dark.
+[score +5 = 25]
+[sound match]
+> go to trapdoor
+[walk to trapdoor]
+> open trapdoor
+You heave the trapdoor open. Stone steps lead down into total darkness. From somewhere below comes a small, familiar whimper. Crumpet!
+[sound creak]
+> d
+[walk x_trapdoor]
+[score +5 = 30]
+[room cellar]
+A damp stone cellar. Your candle throws jittery shadows across racks of dusty bottles and old barrels. In the far wall, a small iron door sits at the top of a heap of coal: a coal chute! Behind a stack of crates, two worried eyes glint in the candlelight. Stone steps lead back up to the kitchen.
+> read bottle
+NOT WINE. Underlined twice.
+> go to racks
+[walk to racks]
+> drink bottle
+[died] The label said NOT WINE. You should have listened. On the bright side, you can see ghosts now. On the less bright side, you are one.
+> score

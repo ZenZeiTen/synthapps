@@ -1,0 +1,36 @@
+{
+ "frames": [
+  {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 56,
+    "h": 56
+   },
+   "duration": 400
+  },
+  {
+   "frame": {
+    "x": 56,
+    "y": 0,
+    "w": 56,
+    "h": 56
+   },
+   "duration": 400
+  }
+ ],
+ "meta": {
+  "size": {
+   "w": 112,
+   "h": 56
+  },
+  "frameTags": [
+   {
+    "name": "idle",
+    "from": 0,
+    "to": 1,
+    "direction": "forward"
+   }
+  ]
+ }
+}

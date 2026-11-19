@@ -1,0 +1,36 @@
+{
+ "_doc": "Dialogue graphs. A node has text and choices; a choice may carry 'if' (conditions, all must hold) and 'do' (script ops, same language as level scripts), then 'goto' a node or 'end'. %n is replaced by the speaking character's name.",
+ "tamsin": {
+  "name": "Tamsin", "portrait": "tamsin", "start": "hello",
+  "nodes": {
+   "hello": {"text": "A lantern swings up. \"Customers! Down here! Tamsin, peddler, at your service. The robbers paid well for rope and lamp oil, and then the cold came up the stairs and I stopped wanting to leave.\"",
+             "choices": [
+               {"text": "Show us your wares.", "do": [{"op": "shop", "id": "tamsin"}], "goto": "end"},
+               {"text": "The robbers came this way?", "goto": "robbers"},
+               {"text": "What is below us?", "goto": "below"},
+               {"text": "Farewell.", "goto": "end"}]},
+   "robbers": {"text": "\"Five of them, with a stone wrapped in a sack like a baby. They went through the plate crypt. The old gate there only stays up while something heavy sits on the plate, and they left one of their own lying on it. The ooze has been dragging him off a bone at a time. Mind the rats.\"",
+             "choices": [{"text": "Anything else?", "goto": "hello"}]},
+   "below": {"text": "\"The Cistern. Water, and the lights that walk on it. Robbers took a girl down with them, a lock-picker. I heard her swearing through the floor for a day, then nothing.\"",
+             "choices": [{"text": "Anything else?", "goto": "hello"}]}
+  }
+ },
+ "maren": {
+  "name": "Maren", "portrait": "maren", "start": "hello",
+  "nodes": {
+   "hello": {"text": "The woman in the cell squints at your torch. \"You are not them. Good. They left me here to watch the stair and forgot the watching needs feeding.\"",
+             "if_flag": "maren_free", "else": "caged",
+             "choices": [
+               {"text": "Come with us. We are after the Sealstone.", "if": {"party_lt": 6}, "do": [{"op": "join", "id": "maren"}, {"op": "flag", "set": "maren_joined"}], "goto": "joined"},
+               {"text": "Where did they go?", "goto": "where"},
+               {"text": "Stay safe.", "goto": "end"}]},
+   "caged": {"text": "\"The lever for this cage is in the guard room, across the channel. Do not ask me how I know which lever. I know levers.\"",
+             "choices": [{"text": "We will find it.", "goto": "end"}]},
+   "where": {"text": "\"Down, to the Gate Hall. They thought the stone would buy their way past something called the Warden. It did not. I heard it take them.\"",
+             "choices": [{"text": "Then come with us.", "if": {"party_lt": 6}, "do": [{"op": "join", "id": "maren"}, {"op": "flag", "set": "maren_joined"}], "goto": "joined"},
+                         {"text": "Stay safe.", "goto": "end"}]},
+   "joined": {"text": "Maren steps out and rolls her shoulders. \"My knives went down with them. I will want them back.\"",
+             "choices": [{"text": "Onward.", "goto": "end"}]}
+  }
+ }
+}

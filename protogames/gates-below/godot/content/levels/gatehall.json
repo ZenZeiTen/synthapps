@@ -1,0 +1,364 @@
+{
+ "_doc": "Map: doubled grid. Cells sit at odd (x,y) text positions, edges between them at even ones; corners are ignored. Cell chars: '.' floor, '~' water, '^' pit, '*' teleport, '_' pressure plate, '<' '>' stairs, A-Z/a-z/0-9 named floor (anchors). Edge chars: '.' open, '#' '|' '-' '+' wall, 'D' door, 'G' portcullis (see-through), 'S' secret wall (walk-through illusion). Faces are addressed 'ANCHOR.DIR' or 'x,y.DIR' (DIR = N E S W). Corners: 0 NW, 1 NE, 2 SE, 3 SW.",
+ "id": "gatehall",
+ "name": "The Gate Hall",
+ "depth": 3,
+ "music": "gatehall",
+ "fog": "0d0b14",
+ "ambient": 0.22,
+ "tex": {
+  "wall": "wall_crypt",
+  "floor": "floor_flag",
+  "ceil": "ceiling_stone"
+ },
+ "regions": [
+  {
+   "cells": [
+    1,
+    3,
+    3,
+    7
+   ],
+   "wall": "wall_cave",
+   "floor": "floor_dirt"
+  },
+  {
+   "cells": [
+    4,
+    8,
+    11,
+    10
+   ],
+   "wall": "wall_moss"
+  }
+ ],
+ "map": [
+  "###########################",
+  "###F....###..N.E###########",
+  "###.....###.....###########",
+  "#<.A....................###",
+  "###.....###.....#######.###",
+  "###P....###W.U..#######.###",
+  "#####.#########.#######.###",
+  "#####.#########V#######.###",
+  "#####.#########G#######.###",
+  "###B....###.........###J###",
+  "###.....###.........###.###",
+  "###.....###........Z###.###",
+  "###.....###.........###.###",
+  "###..O..###....X....###.###",
+  "###.....###.........###D###",
+  "###....C###.........###K###",
+  "#######################.###",
+  "###################L....###",
+  "###################.....###",
+  "#########Q...T.......H..###",
+  "#####################D#####",
+  "#####################R#####",
+  "###########################"
+ ],
+ "start": [
+  "A",
+  "E"
+ ],
+ "on_start": [
+  {
+   "op": "once",
+   "key": "l3_intro"
+  },
+  {
+   "op": "msg",
+   "text": "Frost furs the walls. The air hums like a struck bell."
+  }
+ ],
+ "faces": {
+  "F.N": {
+   "fountain": true
+  },
+  "N.N": {
+   "switch": "lever",
+   "on_touch": [
+    {
+     "op": "if",
+     "cond": {
+      "switches": [
+       "N.N",
+       "E.E",
+       "U.S",
+       "W.W"
+      ]
+     },
+     "then": [
+      {
+       "op": "door",
+       "face": "V.S",
+       "do": "open"
+      },
+      {
+       "op": "msg",
+       "text": "Four hands at rest. Somewhere below, a great gate grinds upward."
+      }
+     ],
+     "else": [
+      {
+       "op": "door",
+       "face": "V.S",
+       "do": "close"
+      }
+     ]
+    }
+   ]
+  },
+  "E.E": {
+   "switch": "lever",
+   "on_touch": [
+    {
+     "op": "if",
+     "cond": {
+      "switches": [
+       "N.N",
+       "E.E",
+       "U.S",
+       "W.W"
+      ]
+     },
+     "then": [
+      {
+       "op": "door",
+       "face": "V.S",
+       "do": "open"
+      },
+      {
+       "op": "msg",
+       "text": "Four hands at rest. Somewhere below, a great gate grinds upward."
+      }
+     ],
+     "else": [
+      {
+       "op": "door",
+       "face": "V.S",
+       "do": "close"
+      }
+     ]
+    }
+   ]
+  },
+  "U.S": {
+   "switch": "lever",
+   "on_touch": [
+    {
+     "op": "if",
+     "cond": {
+      "switches": [
+       "N.N",
+       "E.E",
+       "U.S",
+       "W.W"
+      ]
+     },
+     "then": [
+      {
+       "op": "door",
+       "face": "V.S",
+       "do": "open"
+      },
+      {
+       "op": "msg",
+       "text": "Four hands at rest. Somewhere below, a great gate grinds upward."
+      }
+     ],
+     "else": [
+      {
+       "op": "door",
+       "face": "V.S",
+       "do": "close"
+      }
+     ]
+    }
+   ]
+  },
+  "W.W": {
+   "switch": "lever",
+   "on_touch": [
+    {
+     "op": "if",
+     "cond": {
+      "switches": [
+       "N.N",
+       "E.E",
+       "U.S",
+       "W.W"
+      ]
+     },
+     "then": [
+      {
+       "op": "door",
+       "face": "V.S",
+       "do": "open"
+      },
+      {
+       "op": "msg",
+       "text": "Four hands at rest. Somewhere below, a great gate grinds upward."
+      }
+     ],
+     "else": [
+      {
+       "op": "door",
+       "face": "V.S",
+       "do": "close"
+      }
+     ]
+    }
+   ]
+  },
+  "Z.E": {
+   "decal": "gate",
+   "niche": [],
+   "on_niche": [
+    {
+     "op": "if",
+     "cond": {
+      "niche_has": "sealstone",
+      "face": "Z.E"
+     },
+     "then": [
+      {
+       "op": "book",
+       "entry": "ending"
+      },
+      {
+       "op": "msg",
+       "text": "The Sealstone slides home. The Gate is shut."
+      },
+      {
+       "op": "end_game"
+      }
+     ]
+    }
+   ]
+  },
+  "R.S": {
+   "decal": "banner"
+  },
+  "2,0.N": {
+   "decal": "torch"
+  },
+  "7,7.S": {
+   "decal": "torch"
+  },
+  "6,4.N": {
+   "decal": "banner"
+  },
+  "L.N": {
+   "decal": "torch"
+  },
+  "J.E": {
+   "decal": "torch"
+  },
+  "10,9.S": {
+   "lock": "bone"
+  }
+ },
+ "cells": {
+  "<": {
+   "to": {
+    "level": "cistern",
+    "at": "8,7",
+    "dir": "N"
+   }
+  }
+ },
+ "items": [
+  {
+   "at": [
+    "P",
+    0
+   ],
+   "id": "note_hands"
+  },
+  {
+   "at": [
+    "C",
+    1
+   ],
+   "id": "rune_spark"
+  },
+  {
+   "at": [
+    "R",
+    0
+   ],
+   "id": "rune_return"
+  },
+  {
+   "at": [
+    "R",
+    2
+   ],
+   "id": "amulet"
+  },
+  {
+   "at": [
+    "Q",
+    1
+   ],
+   "id": "potion_red"
+  },
+  {
+   "at": [
+    "K",
+    0
+   ],
+   "id": "potion_blue"
+  },
+  {
+   "at": [
+    "B",
+    2
+   ],
+   "id": "ring_ember"
+  },
+  {
+   "at": [
+    "T",
+    3
+   ],
+   "id": "bread"
+  }
+ ],
+ "monsters": [
+  {
+   "id": "bones",
+   "at": "O",
+   "dir": "N",
+   "drops": [
+    "key_bone"
+   ]
+  },
+  {
+   "id": "bones",
+   "at": "B",
+   "dir": "S"
+  },
+  {
+   "id": "ghoul",
+   "at": "H",
+   "dir": "N"
+  },
+  {
+   "id": "ghoul",
+   "at": "J",
+   "dir": "N"
+  },
+  {
+   "id": "wisp",
+   "at": "T",
+   "dir": "W"
+  },
+  {
+   "id": "warden",
+   "at": "X",
+   "dir": "N"
+  }
+ ]
+}

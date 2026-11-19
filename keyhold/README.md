@@ -142,12 +142,16 @@ password replaced by a newer edit from another device is kept in that item's his
 |---|---|
 | `Keyhold.exe` | Windows (64-bit Intel/AMD): the app, no console window |
 | `Keyhold-arm64.exe` | Windows on ARM |
-| `keyhold.exe` | Windows command line (`keyhold serve`, `keyhold version`) |
+| `keyhold-cli.exe` | Windows command line (`keyhold-cli serve`, `keyhold-cli version`) |
 | `keyhold-linux-amd64`, `keyhold-linux-arm64` | Linux desktop or server |
 | `keyhold-macos-arm64`, `keyhold-macos-amd64` | macOS |
 
 GitHub Actions also builds the Android app (`Keyhold.apk`) and the web app (`keyhold-web.zip`)
-on every change, and publishes everything as a release for each `keyhold-v*` tag.
+on every change. To publish everything as a release: raise `version` in `main.go`, merge to
+`main`, then on GitHub open **Actions › keyhold › Run workflow**, keep the branch `main`, tick
+**Publish a release** and run it. It creates release `keyhold-v<version>` (and its tag) on that
+commit, and refuses if that version was already released. Pushing a `keyhold-v<version>` tag
+does the same.
 
 ### The Android app
 

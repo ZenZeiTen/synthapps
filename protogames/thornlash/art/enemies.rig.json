@@ -1,0 +1,33 @@
+{
+ "pivot": [
+  24,
+  47
+ ],
+ "frames": {},
+ "loops": {
+  "ghoul_rise": false,
+  "ghoul_walk": true,
+  "bat_idle": true,
+  "bat_fly": true,
+  "wisp_idle": true,
+  "drowned_walk": true,
+  "drowned_leap": true,
+  "drowned_spit": true,
+  "knight_walk": true,
+  "axeknight_walk": true,
+  "axeknight_throw": false,
+  "skel_walk": true,
+  "skel_down": true,
+  "redskel_walk": true,
+  "redskel_down": true,
+  "warg_idle": true,
+  "warg_leap": true,
+  "warg_run": true,
+  "raven_idle": true,
+  "raven_dive": true,
+  "imp_wait": true,
+  "imp_hop": true,
+  "ghost_drift": true,
+  "pillar_idle": true
+ }
+}

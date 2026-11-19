@@ -1,0 +1,25 @@
+# Tidebell title: a bronze bell on a driftwood frame, on a rocky islet at golden hour.
+camera { position: [0.6, 1.1, 7.2], look_at: [0, 1.6, 0], lens: 35mm, aperture: f/8 }
+sky { sun_elevation: 7, sun_azimuth: 235, haze: 1.8 }
+film { bloom: 0.05, vignette: 0.6, saturation: 1.15 }
+render { resolution: [320, 224], samples: 48, bounces: 5 }
+
+plane { position: [0, 0, 0], material: water { color: #1d3c5a } }
+rock { position: [0, -0.9, 0], radius: 2.4, roughness: 0.4, seed: 3, scale: [1.6, 0.6, 1.0], material: matte { color: #5a5048 } }
+rock { position: [2.6, -0.3, 0.8], radius: 0.8, seed: 7, material: matte { color: #4a4440 } }
+rock { position: [-2.8, -0.2, -0.5], radius: 0.9, seed: 11, material: matte { color: #4f4740 } }
+
+let wood = matte { color: #6b4a2e, pattern: wood, color2: #4a3220 }
+cylinder { position: [-1.0, 1.8, 0], radius: 0.09, height: 2.8, material: wood }
+cylinder { position: [1.0, 1.8, 0], radius: 0.09, height: 2.8, material: wood }
+box { position: [0, 3.2, 0], size: [2.4, 0.16, 0.16], material: wood }
+
+let bronze = metal { color: #c8962c, roughness: 0.3 }
+group {
+  position: [0, 2.05, 0]
+  rotate: [0, 0, 6]
+  sphere { position: [0, 0.62, 0], radius: 0.36, material: bronze }
+  cylinder { position: [0, 0.1, 0], radius: 0.4, height: 0.55, material: bronze }
+  torus { position: [0, 0.1, 0], radius: 0.45, tube: 0.07, material: bronze }
+  cylinder { position: [0, 1.06, 0], radius: 0.03, height: 0.3, material: wood }
+}

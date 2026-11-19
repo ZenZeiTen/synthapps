@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tidebell</title>
+<meta name="description" content="Tidebell: an original sword game on the rules of The Pirates of Dark Water (Genesis, 1994). Keyboard or gamepad.">
+<style>
+  html, body { margin: 0; height: 100%; background: #000014; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #screen { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+  #loading { color: #ffe680; font: 16px monospace; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/build/three.module.js",
+               "three/addons/": "./vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div id="loading">Loading Tidebell...</div>
+<script type="module">
+  import { App } from './src/view/app.js';
+  const app = new App(document.body);
+  window.tidebell = app;
+  app.start().catch((e) => { console.error('START FAILED', e); document.body.textContent = 'Tidebell could not start: ' + e; });
+</script>
+</body>
+</html>

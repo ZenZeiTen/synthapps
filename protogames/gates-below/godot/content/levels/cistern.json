@@ -1,0 +1,312 @@
+{
+ "_doc": "Map: doubled grid. Cells sit at odd (x,y) text positions, edges between them at even ones; corners are ignored. Cell chars: '.' floor, '~' water, '^' pit, '*' teleport, '_' pressure plate, '<' '>' stairs, A-Z/a-z/0-9 named floor (anchors). Edge chars: '.' open, '#' '|' '-' '+' wall, 'D' door, 'G' portcullis (see-through), 'S' secret wall (walk-through illusion). Faces are addressed 'ANCHOR.DIR' or 'x,y.DIR' (DIR = N E S W). Corners: 0 NW, 1 NE, 2 SE, 3 SW.",
+ "id": "cistern",
+ "name": "The Cistern",
+ "depth": 2,
+ "music": "cistern",
+ "fog": "141e3c",
+ "ambient": 0.26,
+ "tex": {
+  "wall": "wall_moss",
+  "floor": "floor_flag",
+  "ceil": "ceiling_stone"
+ },
+ "regions": [
+  {
+   "cells": [
+    8,
+    4,
+    12,
+    7
+   ],
+   "wall": "wall_stone"
+  },
+  {
+   "cells": [
+    6,
+    7,
+    7,
+    9
+   ],
+   "wall": "wall_crypt"
+  }
+ ],
+ "map": [
+  "###########################",
+  "###F....###############...#",
+  "###.....###############...#",
+  "#<.A.......*...*...*...B.L#",
+  "###.....###############...#",
+  "###.....###############...#",
+  "#####.#################...#",
+  "#####~#############M###...#",
+  "#####.#############G###.###",
+  "#####~###########..N......#",
+  "#####.###########.........#",
+  "#####~###########....H....#",
+  "#####.###########.........#",
+  "#####~###########Y........#",
+  "#####.###########D#######.#",
+  "###.....#####...#.#######W#",
+  "###.....#####...#.#########",
+  "###C.R...~.~...I#>#########",
+  "###.....#####...###########",
+  "###..V..#####^..###########",
+  "###########################"
+ ],
+ "start": [
+  "A",
+  "E"
+ ],
+ "on_start": [
+  {
+   "op": "once",
+   "key": "l2_intro"
+  },
+  {
+   "op": "msg",
+   "text": "Water drips everywhere. Something pale drifts above the channel."
+  }
+ ],
+ "faces": {
+  "F.N": {
+   "fountain": true
+  },
+  "V.S": {
+   "switch": "lever",
+   "on_touch": [
+    {
+     "op": "teleports",
+     "cells": [
+      "5,1",
+      "7,1",
+      "9,1"
+     ],
+     "do": "switch_off"
+    },
+    {
+     "op": "if",
+     "cond": {
+      "switch": "V.S"
+     },
+     "then": [
+      {
+       "op": "msg",
+       "text": "Far off, the rushing of water slows and stops."
+      }
+     ],
+     "else": [
+      {
+       "op": "msg",
+       "text": "Water begins to rush again in the east."
+      }
+     ]
+    }
+   ]
+  },
+  "L.E": {
+   "switch": "lever",
+   "on_touch": [
+    {
+     "op": "door",
+     "face": "M.S",
+     "do": "switch"
+    },
+    {
+     "op": "flag",
+     "set": "maren_free",
+     "switch": "L.E"
+    }
+   ]
+  },
+  "Y.S": {
+   "lock": "gold"
+  },
+  "1,7.W": {
+   "decal": "plaque",
+   "on_touch": [
+    {
+     "op": "msg",
+     "text": "A drowned chapel. Its lever once governed the three pools of passage."
+    }
+   ]
+  },
+  "11,0.N": {
+   "decal": "torch"
+  },
+  "10,6.S": {
+   "decal": "banner"
+  },
+  "I.E": {
+   "decal": "torch"
+  },
+  "2,0.N": {
+   "decal": "torch"
+  }
+ },
+ "cells": {
+  "5,1": {
+   "teleport": {
+    "at": "A",
+    "dir": "E"
+   },
+   "on_enter": [
+    {
+     "op": "msg",
+     "text": "The pool pulls you under and spits you out on the landing."
+    }
+   ]
+  },
+  "7,1": {
+   "teleport": {
+    "at": "A",
+    "dir": "E"
+   },
+   "on_enter": [
+    {
+     "op": "msg",
+     "text": "The pool pulls you under and spits you out on the landing."
+    }
+   ]
+  },
+  "9,1": {
+   "teleport": {
+    "at": "A",
+    "dir": "E"
+   },
+   "on_enter": [
+    {
+     "op": "msg",
+     "text": "The pool pulls you under and spits you out on the landing."
+    }
+   ]
+  },
+  "<": {
+   "to": {
+    "level": "cellars",
+    "at": "10,5",
+    "dir": "W"
+   }
+  },
+  ">": {
+   "to": {
+    "level": "gatehall",
+    "at": "A",
+    "dir": "E"
+   }
+  },
+  "^": {
+   "to": {
+    "level": "gatehall",
+    "at": "Q",
+    "dir": "E"
+   }
+  }
+ },
+ "items": [
+  {
+   "at": [
+    "A",
+    3
+   ],
+   "id": "note_cistern"
+  },
+  {
+   "at": [
+    "R",
+    0
+   ],
+   "id": "rune_rime"
+  },
+  {
+   "at": [
+    "I",
+    1
+   ],
+   "id": "rune_sight"
+  },
+  {
+   "at": [
+    "W",
+    0
+   ],
+   "id": "key_gold"
+  },
+  {
+   "at": [
+    "W",
+    2
+   ],
+   "id": "gem"
+  },
+  {
+   "at": [
+    "B",
+    2
+   ],
+   "id": "potion_red"
+  },
+  {
+   "at": [
+    "12,0",
+    1
+   ],
+   "id": "arrows",
+   "amount": 12
+  },
+  {
+   "at": [
+    "H",
+    3
+   ],
+   "id": "coins",
+   "amount": 25
+  },
+  {
+   "at": [
+    "7,9",
+    2
+   ],
+   "id": "boots"
+  },
+  {
+   "at": [
+    "C",
+    1
+   ],
+   "id": "mail"
+  }
+ ],
+ "monsters": [
+  {
+   "id": "bones",
+   "at": "C",
+   "dir": "E"
+  },
+  {
+   "id": "bones",
+   "at": "B",
+   "dir": "W"
+  },
+  {
+   "id": "wisp",
+   "at": "W",
+   "dir": "N"
+  },
+  {
+   "id": "bones",
+   "at": "H",
+   "dir": "W"
+  },
+  {
+   "id": "rat",
+   "at": "6,7",
+   "dir": "S"
+  },
+  {
+   "id": "maren",
+   "at": "M",
+   "dir": "S"
+  }
+ ]
+}

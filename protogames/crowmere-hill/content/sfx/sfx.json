@@ -1,0 +1,14 @@
+{
+ "score": "score.wav",
+ "death": "death.wav",
+ "win": "win.wav",
+ "slam": "slam.wav",
+ "knock": "knock.wav",
+ "clunk": "clunk.wav",
+ "creak": "creak.wav",
+ "match": "match.wav",
+ "whistle": "whistle.wav",
+ "caw": "caw.wav",
+ "bark": "bark.wav",
+ "thunder": "thunder.wav"
+}

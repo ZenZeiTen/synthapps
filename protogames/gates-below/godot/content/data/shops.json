@@ -1,0 +1,6 @@
+{
+ "tamsin": {"name": "Tamsin's Pack", "factor": 25, "stock": [
+   {"id": "potion_red", "count": 4}, {"id": "potion_blue", "count": 3}, {"id": "potion_green", "count": 3},
+   {"id": "bread", "count": 6}, {"id": "arrows", "count": 40}, {"id": "helm", "count": 1},
+   {"id": "sword", "count": 1}, {"id": "boots", "count": 1}]}
+}

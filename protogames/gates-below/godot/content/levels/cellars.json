@@ -1,0 +1,280 @@
+{
+ "_doc": "Map: doubled grid. Cells sit at odd (x,y) text positions, edges between them at even ones; corners are ignored. Cell chars: '.' floor, '~' water, '^' pit, '*' teleport, '_' pressure plate, '<' '>' stairs, A-Z/a-z/0-9 named floor (anchors). Edge chars: '.' open, '#' '|' '-' '+' wall, 'D' door, 'G' portcullis (see-through), 'S' secret wall (walk-through illusion). Faces are addressed 'ANCHOR.DIR' or 'x,y.DIR' (DIR = N E S W). Corners: 0 NW, 1 NE, 2 SE, 3 SW.",
+ "id": "cellars",
+ "name": "The Cellar Vaults",
+ "depth": 1,
+ "music": "cellars",
+ "fog": "1c1726",
+ "ambient": 0.3,
+ "tex": {
+  "wall": "wall_stone",
+  "floor": "floor_flag",
+  "ceil": "ceiling_beams"
+ },
+ "regions": [
+  {
+   "cells": [
+    0,
+    6,
+    2,
+    8
+   ],
+   "floor": "floor_dirt",
+   "wall": "wall_cave"
+  },
+  {
+   "cells": [
+    8,
+    4,
+    11,
+    6
+   ],
+   "wall": "wall_crypt",
+   "ceil": "ceiling_stone"
+  },
+  {
+   "cells": [
+    3,
+    4,
+    3,
+    4
+   ],
+   "wall": "wall_moss"
+  }
+ ],
+ "map": [
+  "#########################",
+  "#.....#########..K..#####",
+  "#.....#########.....#####",
+  "#B.A.ED....M.....R..#####",
+  "#.....#####D###.....#####",
+  "#.....###F....#.....#####",
+  "###G#####.....###########",
+  "###.#####..T..###########",
+  "###.#####################",
+  "###U###C#########Q....###",
+  "###.###S#########.....###",
+  "###....H...V...LD.._.PG>#",
+  "###.#############.....###",
+  "#.....###########O....###",
+  "#.....###################",
+  "#..N..###################",
+  "#.....###################",
+  "#.....###################",
+  "#########################"
+ ],
+ "start": [
+  "A",
+  "E"
+ ],
+ "on_start": [
+  {
+   "op": "once",
+   "key": "l1_intro"
+  },
+  {
+   "op": "book",
+   "entry": "intro"
+  },
+  {
+   "op": "msg",
+   "text": "The cellar door bangs shut above you. Cold air rises from below."
+  }
+ ],
+ "faces": {
+  "B.W": {
+   "switch": "lever",
+   "on_touch": [
+    {
+     "op": "door",
+     "face": "1,2.S",
+     "do": "switch"
+    },
+    {
+     "op": "msg",
+     "text": "Chains rattle somewhere to the south."
+    }
+   ]
+  },
+  "1,0.N": {
+   "decal": "torch"
+  },
+  "0,0.W": {
+   "decal": "banner"
+  },
+  "K.N": {
+   "niche": [
+    "key_iron"
+   ]
+  },
+  "L.E": {
+   "lock": "iron"
+  },
+  "F.W": {
+   "fountain": true
+  },
+  "T.S": {
+   "decal": "torch"
+  },
+  "Q.N": {
+   "decal": "plaque",
+   "on_touch": [
+    {
+     "op": "msg",
+     "text": "Carved above the plate: WHAT RESTS HERE HOLDS THE WAY."
+    }
+   ]
+  },
+  "10,4.E": {
+   "decal": "torch"
+  },
+  "0,7.W": {
+   "decal": "torch"
+  }
+ },
+ "cells": {
+  "9,5": {
+   "on_press": [
+    {
+     "op": "door",
+     "face": "P.E",
+     "do": "open"
+    }
+   ],
+   "on_release": [
+    {
+     "op": "door",
+     "face": "P.E",
+     "do": "close"
+    }
+   ]
+  },
+  ">": {
+   "to": {
+    "level": "cistern",
+    "at": "A",
+    "dir": "E"
+   }
+  }
+ },
+ "items": [
+  {
+   "at": [
+    "A",
+    1
+   ],
+   "id": "note_start"
+  },
+  {
+   "at": [
+    "R",
+    0
+   ],
+   "id": "bread"
+  },
+  {
+   "at": [
+    "R",
+    1
+   ],
+   "id": "potion_red"
+  },
+  {
+   "at": [
+    "8,2",
+    2
+   ],
+   "id": "axe"
+  },
+  {
+   "at": [
+    "C",
+    0
+   ],
+   "id": "rune_ember"
+  },
+  {
+   "at": [
+    "C",
+    2
+   ],
+   "id": "coins",
+   "amount": 20
+  },
+  {
+   "at": [
+    "N",
+    0
+   ],
+   "id": "note_robber"
+  },
+  {
+   "at": [
+    "N",
+    2
+   ],
+   "id": "coins",
+   "amount": 15
+  },
+  {
+   "at": [
+    "0,8",
+    3
+   ],
+   "id": "potion_green"
+  },
+  {
+   "at": [
+    "Q",
+    1
+   ],
+   "id": "bone"
+  },
+  {
+   "at": [
+    "Q",
+    2
+   ],
+   "id": "bone"
+  },
+  {
+   "at": [
+    "10,6",
+    0
+   ],
+   "id": "helm"
+  }
+ ],
+ "monsters": [
+  {
+   "id": "rat",
+   "at": "R",
+   "dir": "S"
+  },
+  {
+   "id": "rat",
+   "at": "R",
+   "dir": "W"
+  },
+  {
+   "id": "rat",
+   "at": "V",
+   "dir": "W"
+  },
+  {
+   "id": "rat",
+   "at": "2,8",
+   "dir": "N"
+  },
+  {
+   "id": "ooze",
+   "at": "O",
+   "dir": "N"
+  },
+  {
+   "id": "tamsin",
+   "at": "T",
+   "dir": "N"
+  }
+ ]
+}

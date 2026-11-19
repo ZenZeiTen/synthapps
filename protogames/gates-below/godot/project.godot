@@ -1,0 +1,30 @@
+; Engine configuration file.
+; Gates Below -- a dungeon crawler on the mechanics of Gates of Skeldal (1998).
+; Godot 4.7. Content is read at runtime from res://content (the pipeline writes it).
+
+config_version=5
+
+[application]
+
+config/name="Gates Below"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7")
+boot_splash/use_filter=false
+boot_splash/bg_color=Color(0.05, 0.043, 0.078, 1)
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="viewport"
+window/stretch/aspect="keep"
+window/stretch/scale_mode="integer"
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+anti_aliasing/quality/msaa_3d=0
