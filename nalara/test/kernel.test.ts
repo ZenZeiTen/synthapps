@@ -82,8 +82,10 @@ describe("kernel: the four spec intents offline", () => {
     const ws = await runIntent("Review inventory module");
     expect(ws.intent).toBe("engineering_review");
     expect(ws.status).toBe("completed");
-    expect(ws.report?.artifactPath).toBe(`${ws.outputDir}/report.md`);
+    // The user's copy is in the visible Reports folder; the agents' scratch copy stays in the output folder.
+    expect(ws.report?.artifactPath).toMatch(/^Reports\/\d{4}-\d\d-\d\d \d{4} Engineering review \(ws_[a-z0-9]+\)\.md$/);
     expect(existsSync(path.join(root, ws.report!.artifactPath!))).toBe(true);
+    expect(existsSync(path.join(root, `${ws.outputDir}/report.md`))).toBe(true);
     expect(readFileSync(path.join(root, ws.report!.artifactPath!), "utf8")).toMatch(/Engineering review|Review inventory module/);
     const titles = ws.report!.findings.map((f) => f.title);
     expect(titles.some((t) => /TODO/.test(t))).toBe(true);

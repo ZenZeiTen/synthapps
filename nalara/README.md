@@ -141,7 +141,7 @@ Nalara writes its database and outputs to `<root>/.nalara/`.
 | Neural Canvas (4) | The Neural Core UI, live over server-sent events; the knowledge graph as a React Flow "Field" view |
 | Radial OS (5) | Root, agent, file, project, workspace, MCP and workflow menus with the spec's actions |
 | Agents (6) | 27 agents in four groups, each following `schemas/agent.schema.json`, with rule-based offline skills |
-| Intent-based execution (7) | The four spec examples produce the workspaces the spec describes |
+| Intent-based execution (7) | The four spec examples produce the workspaces the spec describes. When a run finishes, its results open in a panel, and its report is saved as Markdown in the `Reports` folder of your Nalara home (in every tool policy, also `readonly`) |
 | MCP (8) | Stdio and HTTP servers; tools discovered at run time and classed read / write / search / execute |
 | Filesystem by meaning (9) | Semantic search with concepts, recency, kind filters and graph relations |
 | Events (10) | Persistent event bus and the File Changed → Review → QA → Documentation trigger chain |
@@ -176,6 +176,10 @@ register are in [SAFETY.md](SAFETY.md).
   `nalara secret set`) and are referenced as `${secret:NAME}`. Agents never see
   them, and stored values are removed from tool results, events, the audit
   ledger and API responses.
+- **Web:** agents can read public web pages with `web.fetch` (and Claude's web
+  search when online), also in the `readonly` policy. Local and private network
+  addresses, URLs carrying secrets and binary files are refused. Deny `web.*`
+  in Settings, or set `NALARA_WEB_TOOLS=0`, to turn it off.
 - **Network:** the server binds to 127.0.0.1 and has no authentication. Do not
   expose it.
 

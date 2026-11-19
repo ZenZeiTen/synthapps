@@ -364,7 +364,7 @@ void wsLocal;
     outputs: [i1, i2, i3].map((i) => ({ agentId: i.agentId, instanceId: i.instanceId, output: i.output! })),
     conflicts: [{ topic: "Stack overflow", agents: ["code_reviewer", "systems_architect"], resolution: "Route overflow to the storage chest, as the design doc says." }],
     findings: [...f2.findings, ...f1.findings, ...f3.findings],
-    artifactPath: ".nalara/outputs/ws_review/report.md",
+    artifactPath: "Reports/2026-01-01 0900 Engineering review (ws_review).md",
   };
   upsertNode(wsReview.nodeId, "workspace", wsReview.label, { status: "completed" });
   upsertNode("output:.nalara/outputs/ws_review/report.md", "output", "report.md", { path: ".nalara/outputs/ws_review/report.md" });

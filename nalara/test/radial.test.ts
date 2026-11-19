@@ -131,7 +131,7 @@ describe("file actions", () => {
     const titles = ws.report!.findings.map((f) => f.title);
     expect(titles).toContain("Use of `any`");
     expect(titles.some((t) => /TODO/.test(t))).toBe(true);
-    expect(ws.report?.artifactPath).toBe(`${ws.outputDir}/report.md`);
+    expect(ws.report?.artifactPath).toMatch(/^Reports\/.+ \(ws_[a-z0-9]+\)\.md$/);
   });
 
   it("attach_agent defaults to the code reviewer, or links and runs the chosen agent", async () => {
