@@ -107,7 +107,7 @@ describe("home folder", () => {
       return { "README.md": Buffer.from("# sample").toString("base64") };
     };
     expect(prepareHome(root, true, sample)).toBe(true);
-    expect(readFileSync(path.join(root, "breath-of-fire-iv-remake", "README.md"), "utf8")).toBe("# sample");
+    expect(readFileSync(path.join(root, "lantern-road", "README.md"), "utf8")).toBe("# sample");
     expect(prepareHome(root, true, sample)).toBe(false);
     expect(calls).toBe(1);
     const bare = path.join(tmp(), "Bare");

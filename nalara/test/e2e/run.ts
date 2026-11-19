@@ -5,7 +5,7 @@
  *   NALARA_DOCS_SHOTS=1 npm run test:e2e    also refreshes docs/screenshots/core-*.png (256-colour, see png.ts)
  *
  * - builds the UI (vite) when web/dist is missing or older than web/src;
- * - copies demo/breath-of-fire-iv-remake to a fresh temp dir (without .nalara);
+ * - copies demo/lantern-road to a fresh temp dir (without .nalara);
  * - starts createKernel + createHttpServer in-process on a free port: offline, policy "ask", watch and triggers on;
  * - drives headless Chromium (playwright-core, /opt/pw-browsers) at 1886x901 (the design reference's size);
  * - prints PASS/FAIL per check, writes screenshots to test/e2e/screenshots/, exits 1 on any FAIL.
@@ -31,7 +31,7 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const ROOT = join(HERE, "..", "..");
 const WEB_DIST = join(ROOT, "web", "dist");
 const WEB_SRC = join(ROOT, "web", "src");
-const DEMO = join(ROOT, "demo", "breath-of-fire-iv-remake");
+const DEMO = join(ROOT, "demo", "lantern-road");
 const SHOTS = join(HERE, "screenshots");
 const DOCS_SHOTS = join(ROOT, "docs", "screenshots");
 const DOCS = process.env.NALARA_DOCS_SHOTS === "1";
@@ -196,7 +196,7 @@ async function main() {
   const built = ensureUiBuilt();
 
   const tmp = mkdtempSync(join(tmpdir(), "nalara-e2e-"));
-  const projectRoot = join(tmp, "breath-of-fire-iv-remake");
+  const projectRoot = join(tmp, "lantern-road");
   cpSync(DEMO, projectRoot, {
     recursive: true,
     filter: (src) => !relative(DEMO, src).split(/[\\/]/).includes(".nalara") && !relative(DEMO, src).split(/[\\/]/).includes("node_modules"),
@@ -369,6 +369,8 @@ async function main() {
       // The review swarm below goes straight to an approval; photograph a working swarm with another intent first.
       await page.fill("#nos-intent", "Localize this website to Indonesian");
       await page.press("#nos-intent", "Enter");
+      // Offline, this intent needs Claude: the notice offers to run the offline checks anyway.
+      await page.click(".claude-notice .claude-notice-actions .btn:not(.btn-primary)", { timeout: 5000 });
       await page.waitForFunction(
         () => document.querySelector(".core-status")?.textContent?.startsWith("ACTIVE") && document.querySelectorAll(".satellite:not(.leaving)").length >= 2,
         undefined,

@@ -1,7 +1,7 @@
 # Services Agreement
 
 This Services Agreement (the "Agreement") is made on 1 July 2026 between
-**Remake Demo Team**, an unincorporated volunteer group (the "Client"), and
+**Lantern Road Team**, an unincorporated volunteer group (the "Client"), and
 **Pixel Harbor Studio**, a sole proprietorship (the "Contractor"). The Client
 and the Contractor are each a "Party" and together the "Parties".
 

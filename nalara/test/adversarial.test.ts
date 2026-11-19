@@ -6,7 +6,7 @@ import { createKernel, type NeuralKernel } from "../src/kernel/kernel";
 import { createScriptedProvider, type AgentLoopRequest, type ScriptedTurn } from "../src/llm/scripted";
 import type { Finding, StepReview, Workspace } from "../src/kernel/types";
 
-const DEMO = path.resolve(__dirname, "../demo/breath-of-fire-iv-remake");
+const DEMO = path.resolve(__dirname, "../demo/lantern-road");
 const temps: string[] = [];
 const kernels: NeuralKernel[] = [];
 

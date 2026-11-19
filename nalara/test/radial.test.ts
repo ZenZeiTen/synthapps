@@ -6,7 +6,7 @@ import { createKernel, type NeuralKernel } from "../src/kernel/kernel";
 import { RadialError } from "../src/kernel/radial";
 import type { AgentInstance, ApprovalRequest, KernelEvent, Workspace } from "../src/kernel/types";
 
-const DEMO = path.resolve(__dirname, "../demo/breath-of-fire-iv-remake");
+const DEMO = path.resolve(__dirname, "../demo/lantern-road");
 let root: string;
 let kernel: NeuralKernel;
 
@@ -261,7 +261,7 @@ describe("project, workspace, mcp and workflow actions", () => {
     expect((list.data as { tools: { name: string }[] }).tools.map((t) => t.name)).toEqual(expect.arrayContaining(["fs.read_file", "fs.list_files"]));
     const read = await kernel.radialAction("mcp:builtin-fs", "read", { tool: "fs.read_file", input: { path: "README.md" } });
     expect(read.ok).toBe(true);
-    expect(read.message).toMatch(/Breath of Fire/);
+    expect(read.message).toMatch(/Lantern Road/);
     await expect(kernel.radialAction("mcp:builtin-fs", "read", { tool: "fs.write_file" })).rejects.toMatchObject({ status: 400 });
 
     const approval = nextApproval("fs.write_file");

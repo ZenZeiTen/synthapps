@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createSemanticIndex, detectKind, stem, type SemanticIndexImpl } from "../src/search/index";
 import type { EdgeKind, EdgeQuery, GraphEdge, GraphNode, KnowledgeGraph, NodeQuery, NodeType } from "../src/kernel/types";
 
-const DEMO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../demo/breath-of-fire-iv-remake");
+const DEMO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../demo/lantern-road");
 
 /** Map-backed KnowledgeGraph, so these tests do not depend on the SQLite graph store. */
 export function createFakeGraph(): KnowledgeGraph & { nodes: Map<string, GraphNode>; edgeList: GraphEdge[] } {
@@ -178,8 +178,8 @@ describe("semantic index over the demo project", () => {
   });
 
   it("writes project, folder and file nodes with contains edges", () => {
-    const project = graph.getNode("project:breath-of-fire-iv-remake");
-    expect(project?.name).toBe("Breath of Fire IV Remake");
+    const project = graph.getNode("project:lantern-road");
+    expect(project?.name).toBe("Lantern Road");
     const file = graph.getNode("file:src/combat/damage.ts");
     expect(file?.type).toBe("file");
     expect(file?.props).toMatchObject({ path: "src/combat/damage.ts", kind: "code" });
@@ -187,8 +187,8 @@ describe("semantic index over the demo project", () => {
     const contains = (s: string, t: string) => graph.edges({ nodeId: s, direction: "out", kind: "contains" }).some((e) => e.target === t);
     expect(contains("folder:src/combat", "file:src/combat/damage.ts")).toBe(true);
     expect(contains("folder:src", "folder:src/combat")).toBe(true);
-    expect(contains("project:breath-of-fire-iv-remake", "folder:src")).toBe(true);
-    expect(contains("project:breath-of-fire-iv-remake", "file:README.md")).toBe(true);
+    expect(contains("project:lantern-road", "folder:src")).toBe(true);
+    expect(contains("project:lantern-road", "file:README.md")).toBe(true);
   });
 
   it("creates import and reference edges", () => {
@@ -212,7 +212,7 @@ describe("semantic index over the demo project", () => {
   });
 
   it("reads files inside the root and rejects escapes", async () => {
-    expect(await index.readFile("README.md")).toMatch(/Breath of Fire IV Remake/);
+    expect(await index.readFile("README.md")).toMatch(/Lantern Road/);
     expect(await index.readFile("./src/../src/party/party.ts").catch((e: Error) => e.message)).toMatch(/\.\./);
     await expect(index.readFile("../outside.txt")).rejects.toThrow();
     await expect(index.readFile("/etc/passwd")).rejects.toThrow(/relative/);

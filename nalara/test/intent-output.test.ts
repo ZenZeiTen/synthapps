@@ -13,7 +13,7 @@ import { LLMError, type KernelEvent, type TriggerAction, type Workspace } from "
 import { createScriptedProvider } from "../src/llm/scripted";
 import { reportFileName } from "../src/workspace/reports";
 
-const DEMO = path.resolve(__dirname, "../demo/breath-of-fire-iv-remake");
+const DEMO = path.resolve(__dirname, "../demo/lantern-road");
 const temps: string[] = [];
 const kernels: NeuralKernel[] = [];
 
