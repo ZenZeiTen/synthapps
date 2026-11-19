@@ -78,6 +78,7 @@ call, tool call and memory write passes one of two gates.
 | `fs.write_file` (project files; never `.git`, `.nalara` or `nalara.config.json`, also through symlinks) | write | compensable (journaled) | tenant | **approval** | yes |
 | `proc.run_tests` (runs project code) | execute | irreversible | tenant | **approval** | **approval** |
 | `proc.deploy` | execute | irreversible | external | **approval** | **approval** |
+| `web.fetch` (GET one public http(s) page as text; see below) | read | reversible | external | yes | yes |
 | MCP tool with `readOnlyHint: true` | read | reversible | external | yes | yes |
 | any other MCP tool | write/execute | irreversible | external | **approval** | **approval** |
 
@@ -89,6 +90,30 @@ the exact command, working directory, environment rule and time limit.
 everything; allow globs can pre-approve a tool (for example
 `proc.run_tests` in a trusted repo) and that choice is written to the audit
 ledger.
+
+A tool can also declare that a call cannot do anything (a precheck): the gateway
+fails such a call after the policy checks and before any approval, so nobody is
+asked to approve, say, `proc.run_tests` in a project that has no test command.
+
+**Web access.** `web.fetch` is a read, so it also runs in `readonly` mode. It
+sends GET only, with no cookies or credentials, and refuses: other schemes;
+URLs with a user name or password; local names (`localhost`, `*.local`,
+`*.internal`); any host that resolves to a loopback, private, link-local,
+carrier-grade NAT, multicast or reserved address (the connection goes to the
+address that was checked, and every redirect is checked again, at most 5);
+URLs that carry a saved secret or a key, token or password; and binary files.
+It reads at most 2 MB in 15 s. Page text is untrusted data for the model.
+Agents running on Claude also get Claude's web search (`web.search` in their
+tool list). The remaining risk is a prompt-injected agent sending data it has
+read to a site in a URL; the secret check narrows this but cannot rule it out.
+To turn web access off, add the deny glob `web.*` (Settings → Tool policy) or
+start Nalara with `NALARA_WEB_TOOLS=0`. `web.fetch` connects directly: it does
+not go through an HTTP proxy.
+
+**Reports.** When a run finishes, the kernel saves its report as Markdown in
+the `Reports` folder of the Nalara home, in every policy mode (it is the
+output the user asked for, written by the platform, not by an agent). Files in
+`Reports/` never start trigger rules.
 
 ## 5. Delegation gate
 

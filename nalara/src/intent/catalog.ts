@@ -43,7 +43,7 @@ export interface IntentClass {
 
 export const FALLBACK_INTENT = "general_task";
 
-const READ_TOOLS = ["fs.list_files", "fs.read_file", "fs.search_text", "search.*", "memory.recall"];
+const READ_TOOLS = ["fs.list_files", "fs.read_file", "fs.search_text", "search.*", "memory.recall", "web.fetch", "web.search"];
 
 /** Capability name -> tool-name globs. Unknown capabilities are treated as MCP server names. */
 export const CAPABILITY_TOOLS: Record<string, string[]> = {
@@ -51,6 +51,7 @@ export const CAPABILITY_TOOLS: Record<string, string[]> = {
   git: ["git.*"],
   search: ["search.*", "fs.search_text"],
   memory: ["memory.*"],
+  web: ["web.fetch", "web.search"],
   tests: ["proc.run_tests"],
   deploy: ["proc.deploy"],
 };

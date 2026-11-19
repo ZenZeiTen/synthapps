@@ -29,6 +29,7 @@ import { registerBuiltinTools } from "../tools/builtin";
 import { createMcpManager, type NeuralMcpManager } from "../tools/mcp";
 import { createToolRegistry } from "../tools/registry";
 import { createWorkspaceGenerator, outputDirFor } from "../workspace/generator";
+import { saveReport } from "../workspace/reports";
 import { createAuditLog } from "./audit";
 import { createAssistant, type Assistant } from "../assistant/assistant";
 import { createFileManager, type FileManager, type Opener } from "../files/manager";
@@ -252,6 +253,8 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
       return verdict?.exceeded ? verdict.reason : undefined;
     },
   });
+  // Internet access for agents and Ask: on unless NALARA_WEB_TOOLS=0.
+  const webEnabled = deps.env?.NALARA_WEB_TOOLS !== "0" && process.env.NALARA_WEB_TOOLS !== "0";
   const tools = createToolRegistry({
     bus,
     audit,
@@ -271,6 +274,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     ...(config.testCommand ? { testCommand: config.testCommand } : {}),
     ...(config.deployCommand ? { deployCommand: config.deployCommand } : {}),
     ...(config.procTimeoutMs ? { procTimeoutMs: config.procTimeoutMs } : {}),
+    web: webEnabled ? { redact: (t) => secrets.redact(t) } : false,
   });
   const files = createFileManager({
     db,
@@ -359,6 +363,8 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     relay,
     adversarial: config.adversarial,
     checkEvidence: createEvidenceChecker(root),
+    saveReport: (ws, report) => saveReport(root, ws, report),
+    webSearch: webEnabled,
   });
 
   const intents = createIntentEngine({
@@ -588,7 +594,7 @@ export function createKernel(configOverrides: ConfigOverrides = {}, deps: Kernel
     principal: () => ({ ...human(), agentId: "assistant", chain: [`user:${config.userId}`, "assistant"] }),
     isHalted: () => halted,
     redact: (t) => secrets.redact(t),
-    webTools: deps.env?.NALARA_WEB_TOOLS !== "0" && process.env.NALARA_WEB_TOOLS !== "0",
+    webTools: webEnabled,
   });
 
   const radial = createRadial({

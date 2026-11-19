@@ -1,4 +1,5 @@
 import { matchGlob } from "../kernel/glob";
+import { REPORTS_DIR } from "../workspace/reports-dir";
 import type { EventBus, KernelEvent, TriggerAction, TriggerEngine, TriggerExecutor, TriggerRule, Unsubscribe } from "../kernel/types";
 
 const CODE_GLOB = "**/*.{ts,tsx,js,jsx,mjs,cjs,py,go,rs,java,cs,rb,php}";
@@ -41,10 +42,13 @@ export const DEFAULT_TRIGGER_RULES: TriggerRule[] = [
   },
 ];
 
-/** Paths the platform itself writes (outputs, database) or that are vendored never trigger rules. */
+/**
+ * Paths the platform itself writes (outputs, database, the Reports folder of finished runs) or that are vendored
+ * never trigger rules: a saved report must not start another run.
+ */
 function ignoredPath(path: string): boolean {
   const p = path.split("\\").join("/").replace(/^\.\//, "");
-  return p === ".nalara" || p.startsWith(".nalara/") || /(^|\/)node_modules(\/|$)/.test(p);
+  return p === ".nalara" || p.startsWith(".nalara/") || p === REPORTS_DIR || p.startsWith(`${REPORTS_DIR}/`) || /(^|\/)node_modules(\/|$)/.test(p);
 }
 
 /** Event data is untrusted (agent summaries may contain injected text): one line, no backticks, bounded. */

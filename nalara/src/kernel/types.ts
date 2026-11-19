@@ -514,8 +514,17 @@ export interface McpServerStatus {
 }
 
 export interface ToolRegistry {
-  /** `preview` describes a concrete call for the approval prompt (for tools whose input does not show what will run). */
-  register(def: ToolDefinition, handler: ToolHandler, opts?: { preview?: (input: Record<string, unknown>) => string }): void;
+  /**
+   * `preview` describes a concrete call for the approval prompt (for tools whose input does not show what will run).
+   * `precheck` returns a reason when a call cannot do anything (e.g. no test command): the gateway then fails the
+   * call after its policy checks but before asking for approval, so nobody approves a call that would do nothing.
+   * It gets the raw input (not yet schema-checked) and must not have side effects.
+   */
+  register(
+    def: ToolDefinition,
+    handler: ToolHandler,
+    opts?: { preview?: (input: Record<string, unknown>) => string; precheck?: (input: Record<string, unknown>) => string | undefined },
+  ): void;
   unregister(name: string): boolean;
   get(name: string): ToolDefinition | undefined;
   /** `names` accepts globs ("fs.*"). */
@@ -523,7 +532,8 @@ export interface ToolRegistry {
   /**
    * The single enforcement point for tool use. In order: kernel halted? -> tool disabled? -> principal present and
    * depth within limit? -> tool within the principal's scope (agent tool globs) -> deny/allow rules -> policy mode and
-   * reversibility (may wait for approval) -> input schema -> replay fence -> governor charge -> handler -> audit.
+   * reversibility -> precheck (a call that cannot do anything fails here, unapproved) -> approval if needed -> input
+   * schema -> replay fence -> governor charge -> handler -> audit.
    * Emits tool.called and tool.result. Never throws for tool failures; returns ok:false.
    * Schema rejections are audited as "denied" (reason "invalid input"); handler failures as "error".
    */

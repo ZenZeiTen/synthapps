@@ -84,6 +84,7 @@ interface Entry {
   handler: ToolHandler;
   validate: ValidateFunction;
   preview?: (input: Record<string, unknown>) => string;
+  precheck?: (input: Record<string, unknown>) => string | undefined;
 }
 
 interface PendingApproval {
@@ -236,14 +237,24 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
         needsApproval = def.reversibility === "irreversible";
       }
     }
-    // (g) human approval
+    // (g) a call that cannot do anything fails here, before anyone is asked to approve it
+    if (entry.precheck) {
+      let reason: string | undefined;
+      try {
+        reason = entry.precheck(args);
+      } catch (err) {
+        reason = `precheck failed: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      if (reason) return finish({ ok: false, content: reason, error: reason }, "error", { reason, via: "precheck" });
+    }
+    // (h) human approval
     if (needsApproval) {
       const request = await waitForApproval(entry, args, principal, ctx.signal);
       if (request.status !== "approved") return deny(`approval ${request.status}`, { approvalId: request.id });
       via = "approval";
       record(principal, name, "allowed", { via: "approval", approvalId: request.id });
     }
-    // (h) input schema
+    // (i) input schema
     if (!entry.validate(args)) {
       const errors = ajv.errorsText(entry.validate.errors, { dataVar: "input" });
       return finish({ ok: false, content: `Invalid input for ${name}: ${errors}`, error: `invalid input: ${errors}` }, "denied", {
@@ -251,7 +262,7 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
         errors: entry.validate.errors,
       });
     }
-    // (i) replay fence for irreversible calls
+    // (j) replay fence for irreversible calls
     const fenceKey = def.reversibility === "irreversible" && ctx.idempotencyKey ? `${name}\u0000${ctx.idempotencyKey}` : undefined;
     if (fenceKey) {
       const first = executed.get(fenceKey) ?? fromAudit(name, ctx.idempotencyKey!);
@@ -264,7 +275,7 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
         );
       }
     }
-    // (j) budget
+    // (k) budget
     if (principal.instanceId && governor) {
       const charged = governor.charge(principal.instanceId, { toolCalls: 1, toolKey: `${name}:${stableStringify(args)}` });
       if (charged.exceeded) return deny(`budget exceeded: ${charged.reason}`);
@@ -272,7 +283,7 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
     // Halt may have happened while waiting for approval.
     if (halted && !isPureRead(def)) return deny("kernel is halted: only read tools may run");
 
-    // (k) run
+    // (l) run
     const run = runHandler(entry, args, ctx);
     if (fenceKey) executed.set(fenceKey, run);
     const result = await run;
@@ -343,7 +354,13 @@ export function createToolRegistry(opts: ToolRegistryOptions): ToolRegistry {
       } catch (err) {
         throw new Error(`Tool "${def.name}": invalid inputSchema: ${err instanceof Error ? err.message : String(err)}`);
       }
-      tools.set(def.name, { def: { ...def, hash: toolHash(def) }, handler, validate, ...(registerOpts?.preview ? { preview: registerOpts.preview } : {}) });
+      tools.set(def.name, {
+        def: { ...def, hash: toolHash(def) },
+        handler,
+        validate,
+        ...(registerOpts?.preview ? { preview: registerOpts.preview } : {}),
+        ...(registerOpts?.precheck ? { precheck: registerOpts.precheck } : {}),
+      });
     },
     unregister(name) {
       return tools.delete(name);

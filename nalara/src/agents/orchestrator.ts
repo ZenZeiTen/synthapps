@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import type { EvidenceResult } from "../fleet/evidence";
 import { RelayBudgetError, type Relay, type RelaySendInput } from "../fleet/relay";
 import type { FleetStore } from "../fleet/store";
+import { matchAny } from "../kernel/glob";
 import { newId, nowIso } from "../kernel/ids";
 import { stableStringify } from "../tools/registry";
 import type {
@@ -55,6 +56,7 @@ import type {
   Verdict,
   Workspace,
 } from "../kernel/types";
+import { LLMError } from "../kernel/types";
 import { AGENT_CATALOG, findAgent } from "./catalog";
 import { applyReviews, mergeOutputs, writeReport, type AgentOutputEntry } from "./commander";
 import { runOfflineSkill } from "./skills/index";
@@ -118,6 +120,13 @@ export interface OrchestratorOptions {
   adversarial?: AdversarialConfig;
   /** Platform evidence check for critic findings. Without it no citation counts as verified, so nothing blocks. */
   checkEvidence?: (finding: Finding) => Promise<EvidenceResult>;
+  /**
+   * Saves the finished report where the user can open it and returns its root-relative path, which becomes the
+   * report's artifactPath. Called for every finished run, whatever the tool policy. Provided by the kernel.
+   */
+  saveReport?: (ws: Workspace, report: CommanderReport) => string;
+  /** Claude's web search for agents whose tools include "web.search". Off when omitted. */
+  webSearch?: boolean;
 }
 
 export interface SpawnOptions {
@@ -596,16 +605,29 @@ export function createOrchestrator(opts: OrchestratorOptions): NeuralOrchestrato
         log("warn", `agent event handling failed: ${errorMessage(err)}`, { instanceId: inst.instanceId });
       }
     };
-    const result = await provider.runAgentLoop({
-      system: buildSystemPrompt(def, ctx),
-      task: ctx.task,
-      tools: tools.list({ names: def.tools }),
-      callTool,
-      maxTurns: inst.budget.maxTurns,
-      ...(opts.effort ? { effort: opts.effort } : {}),
-      signal,
-      onEvent,
-    });
+    // Web search runs on Claude's side (a read, like web.fetch), for agents granted "web.search".
+    const search = opts.webSearch === true && matchAny("web.search", def.tools, { dots: true });
+    const loop = (withSearch: boolean) =>
+      provider.runAgentLoop({
+        system: buildSystemPrompt(def, ctx),
+        task: ctx.task,
+        tools: tools.list({ names: def.tools }),
+        ...(withSearch ? { serverTools: ["web_search" as const] } : {}),
+        callTool,
+        maxTurns: inst.budget.maxTurns,
+        ...(opts.effort ? { effort: opts.effort } : {}),
+        signal,
+        onEvent,
+      });
+    let result;
+    try {
+      result = await loop(search);
+    } catch (err) {
+      // An organization can turn web search off; work without it rather than fail the agent.
+      if (!(search && err instanceof LLMError && err.kind === "api" && /web_search/i.test(err.message))) throw err;
+      log("warn", `web search unavailable for ${inst.agentId}; continuing without it: ${errorMessage(err)}`);
+      result = await loop(false);
+    }
     if (!metered) {
       const verdict = governor.charge(inst.instanceId, { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens });
       if (verdict.exceeded) throw new Error(`budget exceeded: ${verdict.reason}`);
@@ -1131,7 +1153,16 @@ export function createOrchestrator(opts: OrchestratorOptions): NeuralOrchestrato
 
     const failed = plan.filter((s) => states.get(s.id) !== "done");
     const error = failed.length ? failed.map((s) => `${s.id} (${s.agent}): ${failures.get(s.id) ?? states.get(s.id)}`).join("; ") : undefined;
-    const final: Workspace = { ...ws, status: failed.length ? "failed" : "completed", completedAt: nowIso(), report, ...(error ? { error } : {}) };
+    const status: Workspace["status"] = failed.length ? "failed" : "completed";
+    // The user's copy of the report: saved by the kernel, so it exists even when the policy keeps agents from writing.
+    if (opts.saveReport) {
+      try {
+        report = { ...report, artifactPath: opts.saveReport({ ...ws, status, ...(error ? { error } : {}) }, report) };
+      } catch (err) {
+        log("warn", `could not save the report of ${ws.id}: ${errorMessage(err)}`);
+      }
+    }
+    const final: Workspace = { ...ws, status, completedAt: nowIso(), report, ...(error ? { error } : {}) };
     await save(final);
     if (failed.length) publish("workspace.failed", { workspace: final, report, error }, undefined, final.id);
     else publish("workspace.completed", { workspace: final, report }, undefined, final.id);

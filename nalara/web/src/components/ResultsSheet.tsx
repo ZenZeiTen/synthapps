@@ -215,6 +215,14 @@ export function ResultsSheet(props: Props) {
               {ws.report ? (
                 <>
                   <p className="sheet-summary">{ws.report.summary}</p>
+                  {ws.report.artifactPath ? (
+                    <p className="sheet-saved small muted">
+                      Saved as{" "}
+                      <button type="button" className="link-btn mono" onClick={() => props.onOpenFile(ws.report!.artifactPath!)}>
+                        {ws.report.artifactPath}
+                      </button>
+                    </p>
+                  ) : null}
                   <h3 className="sheet-sub">Findings {findings.length ? `(${findings.length})` : ""}</h3>
                   {findings.length ? (
                     <ol className="findings">

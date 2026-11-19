@@ -1347,6 +1347,11 @@ p {
   color: var(--text-2);
   white-space: pre-wrap;
 }
+
+.sheet-saved {
+  margin: -4px 0 12px;
+  overflow-wrap: anywhere;
+}
 .sheet-actions {
   display: flex;
   flex-wrap: wrap;

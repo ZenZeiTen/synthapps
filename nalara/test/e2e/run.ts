@@ -516,7 +516,8 @@ async function main() {
       await shot(page, "07-results.png", "core-results.png");
       const link = page.locator(".results-sheet .report-link");
       const reportPath = ((await link.locator(".mono").textContent()) ?? "").trim();
-      assert(reportPath.endsWith("report.md"), `report link path "${reportPath}"`);
+      // The user's copy, in the visible Reports folder of the Nalara home.
+      assert(/^Reports\/.+\.md$/.test(reportPath), `report link path "${reportPath}"`);
       await link.click();
       await page.waitForSelector(".viewer .code-line", { timeout: 8000 });
       const viewerPath = (await page.textContent(".viewer .viewer-path"))?.trim();
