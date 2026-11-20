@@ -5,7 +5,8 @@ import type { AgentDefinition } from "../kernel/types";
  * `offlineSkill` names the rule-based skill in src/agents/skills used when Claude is not configured.
  */
 
-const READ = ["fs.list_files", "fs.read_file", "fs.search_text", "search.semantic", "memory.recall"];
+/** Reads, including the public web: web.fetch (a gateway tool) and web.search (Claude's web search, when online). */
+const READ = ["fs.list_files", "fs.read_file", "fs.search_text", "search.semantic", "memory.recall", "web.fetch", "web.search"];
 const GIT_READ = ["git.status", "git.log", "git.diff"];
 /** Writes into the workspace output folder: a scratch area, reversible. */
 const WRITE = ["fs.write_output"];

@@ -1,0 +1,27 @@
+{
+  "chip_spin": {
+    "frame_w": 24,
+    "frame_h": 24,
+    "frames": 8
+  },
+  "chips": {
+    "frame_w": 20,
+    "frame_h": 20,
+    "frames": 5
+  },
+  "star_spin": {
+    "frame_w": 24,
+    "frame_h": 24,
+    "frames": 8
+  },
+  "trophy": {
+    "frame_w": 64,
+    "frame_h": 64,
+    "frames": 1
+  },
+  "coin_burst": {
+    "frame_w": 32,
+    "frame_h": 32,
+    "frames": 6
+  }
+}

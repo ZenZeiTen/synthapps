@@ -1,11 +1,11 @@
-/** Canned project files for the mock kernel: the "Breath of Fire IV Remake" demo project. */
-export const PROJECT_NAME = "Breath of Fire IV Remake";
+/** Canned project files for the mock kernel: the "Lantern Road" demo project. */
+export const PROJECT_NAME = "Lantern Road";
 
 export const FILES: Record<string, string> = {
-  "README.md": `# Breath of Fire IV Remake
+  "README.md": `# Lantern Road
 
-A fan remake of the 2000 JRPG in TypeScript. Turn-based combat with combos,
-a dragon transformation system, a field map with merchants and an inventory
+An original turn-based RPG in TypeScript. Turn-based combat with combos,
+party swapping from a reserve, a field map with merchants and an inventory
 shared across the party.
 
 - \`src/combat\`: battle loop, damage formulas, status effects
@@ -14,7 +14,7 @@ shared across the party.
 - \`docs/design\`: design notes
 `,
   "package.json": `{
-  "name": "bof4-remake",
+  "name": "lantern-road",
   "version": "0.4.0",
   "type": "module",
   "scripts": { "test": "vitest run", "build": "tsc -p ." }
@@ -244,7 +244,7 @@ Damage calculations live in \`src/combat/damage_calc.ts\` (formula v0.4).
 
 Every town has at least one merchant. Merchants sell at a markup and buy back
 at half price (\`src/inventory/merchant_shop.ts\`). The Wyndia merchant stocks
-herbs and ammonia; the Fou-lu route merchants stock wisdom seeds.
+herbs and ammonia; the northern route merchants stock wisdom seeds.
 
 Open question: should merchant markup scale with the party's reputation?
 `,
@@ -266,8 +266,8 @@ Distributor,Distributor,keep
 Effective Date,Tanggal Efektif,defined term
 `,
   "site/index.html": `<!doctype html>
-<html lang="en"><head><title>Breath of Fire IV Remake</title></head>
-<body><h1>Become the dragon.</h1><p>A remake of the classic JRPG. Coming 2027.</p></body></html>
+<html lang="en"><head><title>Lantern Road</title></head>
+<body><h1>Find the caravan.</h1><p>An original turn-based RPG. Coming 2027.</p></body></html>
 `,
   ".nalara/outputs/ws_review/report.md": `# Engineering review: inventory module
 

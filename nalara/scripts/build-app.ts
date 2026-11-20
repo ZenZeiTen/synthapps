@@ -120,7 +120,7 @@ async function main() {
   });
 
   writeFileSync(join(WORK, "ui.json"), JSON.stringify(packDir(join(ROOT, "web", "dist"))));
-  writeFileSync(join(WORK, "sample.json"), JSON.stringify(packDir(join(ROOT, "demo", "breath-of-fire-iv-remake"))));
+  writeFileSync(join(WORK, "sample.json"), JSON.stringify(packDir(join(ROOT, "demo", "lantern-road"))));
   const blob = join(WORK, "sea-prep.blob");
   writeFileSync(
     join(WORK, "sea-config.json"),

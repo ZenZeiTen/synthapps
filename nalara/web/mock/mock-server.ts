@@ -93,8 +93,8 @@ function link(source: string, target: string, kind: EdgeKind, emit = false): Gra
   return e;
 }
 
-const PROJECT_ID = "project:breath-of-fire-iv-remake";
-upsertNode(PROJECT_ID, "project", PROJECT_NAME, { root: "/projects/bof4-remake" });
+const PROJECT_ID = "project:lantern-road";
+upsertNode(PROJECT_ID, "project", PROJECT_NAME, { root: "/projects/lantern-road" });
 
 const folders = new Set<string>();
 for (const path of Object.keys(FILES)) {
@@ -364,7 +364,7 @@ void wsLocal;
     outputs: [i1, i2, i3].map((i) => ({ agentId: i.agentId, instanceId: i.instanceId, output: i.output! })),
     conflicts: [{ topic: "Stack overflow", agents: ["code_reviewer", "systems_architect"], resolution: "Route overflow to the storage chest, as the design doc says." }],
     findings: [...f2.findings, ...f1.findings, ...f3.findings],
-    artifactPath: ".nalara/outputs/ws_review/report.md",
+    artifactPath: "Reports/2026-01-01 0900 Engineering review (ws_review).md",
   };
   upsertNode(wsReview.nodeId, "workspace", wsReview.label, { status: "completed" });
   upsertNode("output:.nalara/outputs/ws_review/report.md", "output", "report.md", { path: ".nalara/outputs/ws_review/report.md" });
@@ -703,7 +703,7 @@ function status(): KernelStatus {
   const running = [...instances.values()].filter((i) => i.state === "active" || i.state === "collaborating").length;
   return {
     version: "0.1.0-mock",
-    root: "/projects/bof4-remake",
+    root: "/projects/lantern-road",
     mode: "offline",
     model: "claude-opus-5",
     startedAt: at(0),
@@ -752,6 +752,18 @@ const interval = setInterval(() => {
 
 // ---------------------------------------------------------------------------------------------------------
 // HTTP
+
+interface MockConversation {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: Record<string, unknown>[];
+}
+const conversations = new Map<string, MockConversation>();
+const mockDirs = new Set<string>();
+const mockTasks: { id: string; title: string; notes: string; due: string | null; done: boolean; createdAt: string; updatedAt: string; completedAt: string | null; reminded: boolean }[] = [];
+const mockTrash: { id: string; place: string; path: string; type: string; size: number; trashedAt: string; files: Record<string, string> }[] = [];
 
 const requestLog: { method: string; path: string; ts: string }[] = [];
 
@@ -971,6 +983,84 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   // --- search, files, concepts -------------------------------------------------------------------------------
   if (method === "GET" && a === "search") return send(res, 200, search(q.get("q") ?? "", Number(q.get("limit") ?? 20)));
   if (method === "GET" && a === "concepts") return send(res, 200, Object.entries(CONCEPTS).map(([id, c2]) => ({ id, name: c2.name, files: c2.files })));
+  // --- file manager over FILES (in memory) ---------------------------------------------------------------
+  if (method === "GET" && a === "places") return send(res, 200, { places: [{ id: "home", name: "Nalara", path: "/home/you/Nalara", builtin: true, exists: true }], suggested: [] });
+  if (a === "files" && b === "list" && method === "GET") {
+    const dir = (q.get("path") ?? "").replace(/^\/+|\/+$/g, "");
+    const prefix = dir ? `${dir}/` : "";
+    const all = [...Object.keys(FILES), ...[...mockDirs].map((d) => `${d}/`)];
+    if (dir && !all.some((p) => p.startsWith(prefix))) throw new HttpError(404, `The folder "${dir}" does not exist`);
+    const dirs = new Set<string>();
+    const files: string[] = [];
+    for (const p of all) {
+      if (!p.startsWith(prefix)) continue;
+      const rest = p.slice(prefix.length);
+      if (!rest) continue;
+      const slash = rest.indexOf("/");
+      if (slash >= 0) dirs.add(rest.slice(0, slash));
+      else files.push(rest);
+    }
+    const mtimeMs = Date.parse(at(0));
+    const entries = [
+      ...[...dirs].sort().map((name) => ({ name, path: prefix + name, place: "home", type: "dir", size: 0, mtimeMs, hidden: false })),
+      ...files.sort().map((name) => ({ name, path: prefix + name, place: "home", type: "file", size: FILES[prefix + name].length, mtimeMs, hidden: false, kind: kindOf(prefix + name) })),
+    ];
+    return send(res, 200, { place: "home", path: dir, parent: dir ? dir.split("/").slice(0, -1).join("/") : null, entries });
+  }
+  if (a === "files" && method === "PUT" && b === "content") {
+    const path = String(body.path ?? "");
+    if (body.mode === "create" && path in FILES) throw new HttpError(409, `"${path}" already exists`);
+    const created = !(path in FILES);
+    FILES[path] = String(body.content ?? "");
+    publish(created ? "file.created" : "file.updated", { path }, undefined, "files");
+    return send(res, 200, { name: path.split("/").pop(), path, place: "home", type: "file", size: FILES[path].length, mtimeMs: Date.now(), hidden: false, kind: kindOf(path) });
+  }
+  if (a === "files" && method === "POST" && b === "mkdir") {
+    const dirPath = String(body.path ?? "");
+    if (mockDirs.has(dirPath) || Object.keys(FILES).some((f) => f.startsWith(`${dirPath}/`))) throw new HttpError(409, `"${dirPath}" already exists`);
+    mockDirs.add(dirPath);
+    return send(res, 200, { name: String(body.path).split("/").pop(), path: body.path, place: "home", type: "dir", size: 0, mtimeMs: Date.now(), hidden: false });
+  }
+  if (a === "files" && method === "POST" && (b === "move" || b === "copy")) {
+    const from = String(body.from ?? "");
+    const to = String(body.to ?? "");
+    if (to in FILES) throw new HttpError(409, `"${to}" already exists`);
+    const moved = Object.keys(FILES).filter((p) => p === from || p.startsWith(`${from}/`));
+    if (!moved.length) throw new HttpError(404, `"${from}" does not exist`);
+    for (const p of moved) {
+      FILES[to + p.slice(from.length)] = FILES[p];
+      if (b === "move") delete FILES[p];
+    }
+    return send(res, 200, { name: to.split("/").pop(), path: to, place: "home", type: moved.length === 1 && moved[0] === from ? "file" : "dir", size: 0, mtimeMs: Date.now(), hidden: false });
+  }
+  if (a === "files" && method === "POST" && b === "trash") {
+    const path = String(body.path ?? "");
+    const gone = Object.keys(FILES).filter((p) => p === path || p.startsWith(`${path}/`));
+    if (!gone.length) throw new HttpError(404, `"${path}" does not exist`);
+    const item = { id: `trash_${mockTrash.length + 1}`, place: "home", path, type: gone.length === 1 && gone[0] === path ? "file" : "dir", size: 0, trashedAt: now(), files: Object.fromEntries(gone.map((p) => [p, FILES[p]])) };
+    for (const p of gone) delete FILES[p];
+    mockTrash.unshift(item);
+    publish("file.deleted", { path }, undefined, "files");
+    const { files: _held, ...pub } = item;
+    return send(res, 200, pub);
+  }
+  if (a === "files" && method === "POST" && b === "open") return send(res, 200, { ok: true });
+  if (a === "trash") {
+    if (method === "GET" && !b) return send(res, 200, mockTrash.map(({ files: _f, ...t }) => t));
+    if (method === "POST" && b && c === "restore") {
+      const i = mockTrash.findIndex((t) => t.id === b);
+      if (i < 0) throw new HttpError(404, `No trash item "${b}"`);
+      const [item] = mockTrash.splice(i, 1);
+      Object.assign(FILES, item.files);
+      return send(res, 200, { name: item.path.split("/").pop(), path: item.path, place: "home", type: item.type, size: 0, mtimeMs: Date.now(), hidden: false });
+    }
+    if (method === "DELETE" && !b) {
+      const removed = mockTrash.length;
+      mockTrash.length = 0;
+      return send(res, 200, { removed });
+    }
+  }
+
   if (method === "GET" && a === "files" && b === "content") {
     const path = q.get("path") ?? "";
     if (!(path in FILES)) throw new HttpError(404, `No file ${path}`);
@@ -1123,6 +1213,147 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (method === "GET" && a === "governor") return send(res, 200, governor());
 
   // --- system interface, secrets, fleet telemetry (minimal mock) ------------------------------------------
+  if (a === "claude") {
+    // The mock is always offline; a key is never checked or stored.
+    if (method === "GET" && !b) return send(res, 200, { mode: "offline", model: "claude-opus-5-5", credentials: "none", canRestart: false });
+    if ((method === "PUT" || method === "DELETE") && b === "key") return send(res, 400, { error: "The mock kernel cannot use a Claude key", code: "claude_key_rejected" });
+  }
+  // --- tasks (in memory); a task added already due fires its reminder at once --------------------------------
+  if (a === "tasks") {
+    if (method === "GET" && !b) return send(res, 200, [...mockTasks].sort((x, y) => Number(x.done) - Number(y.done) || String(x.due ?? "~").localeCompare(String(y.due ?? "~"))));
+    if (method === "POST" && !b) {
+      const title = String(body.title ?? "").trim();
+      if (!title) throw new HttpError(400, "title is required");
+      const ts = now();
+      const due = typeof body.due === "string" && body.due ? new Date(body.due).toISOString() : null;
+      const task = { id: `task_${mockTasks.length + 1}`, title, notes: "", due, done: false, createdAt: ts, updatedAt: ts, completedAt: null as string | null, reminded: false };
+      mockTasks.push(task);
+      if (due && Date.parse(due) <= Date.now()) {
+        task.reminded = true;
+        publish("reminder.due", { taskId: task.id, title, due }, undefined, "tasks");
+      }
+      return send(res, 200, task);
+    }
+    const task = mockTasks.find((t) => t.id === b);
+    if (b && !task) throw new HttpError(404, `No task "${b}"`);
+    if (method === "PUT" && task) {
+      if (typeof body.done === "boolean") {
+        task.done = body.done;
+        task.completedAt = body.done ? now() : null;
+      }
+      if (typeof body.title === "string") task.title = body.title;
+      if (typeof body.due === "string" || body.due === null) task.due = body.due ? new Date(body.due as string).toISOString() : null;
+      task.updatedAt = now();
+      return send(res, 200, task);
+    }
+    if (method === "DELETE" && task) {
+      mockTasks.splice(mockTasks.indexOf(task), 1);
+      return send(res, 200, { ok: true });
+    }
+  }
+
+  // --- terminal and launcher: a tiny simulated shell and a fixed app list --------------------------------
+  if (a === "terminal") {
+    if (method === "GET" && !b) return send(res, 200, { shell: "bash", home: "/home/you/Nalara", running: [] });
+    if (method === "POST" && b === "run") {
+      const command = String(body.command ?? "").trim();
+      if (!command) throw new HttpError(400, "command is required");
+      let cwd = typeof body.cwd === "string" && body.cwd ? body.cwd : "/home/you/Nalara";
+      const id = `cmd_${Math.random().toString(36).slice(2, 8)}`;
+      res.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" });
+      const line = (ev: unknown) => res.write(`${JSON.stringify(ev)}\n`);
+      line({ type: "start", id, cwd, shell: "bash" });
+      let code = 0;
+      const cd = /^cd(?:\s+(.+))?$/.exec(command);
+      if (cd) cwd = cd[1] ? `${cwd}/${cd[1]}` : "/home/you/Nalara";
+      else if (command.startsWith("echo ")) line({ type: "output", stream: "stdout", text: `${command.slice(5)}\n` });
+      else if (command === "pwd") line({ type: "output", stream: "stdout", text: `${cwd}\n` });
+      else if (command === "ls") line({ type: "output", stream: "stdout", text: "README.md\nsrc\ndocs\n" });
+      else {
+        line({ type: "output", stream: "stderr", text: `bash: ${command.split(" ")[0]}: command not found\n` });
+        code = 127;
+      }
+      line({ type: "exit", id, exitCode: code, signal: null, cwd });
+      res.end();
+      return;
+    }
+  }
+  if (a === "launcher") {
+    const apps = [
+      { id: "app_calc", name: "Calculator", source: "applications", comment: "Do arithmetic" },
+      { id: "app_files", name: "Files", source: "applications", comment: "Browse the file system" },
+      { id: "app_writer", name: "Writer", source: "applications", comment: "Write documents" },
+    ];
+    if (method === "GET" && !b) {
+      const term = (q.get("q") ?? "").toLowerCase();
+      return send(res, 200, apps.filter((x) => !term || x.name.toLowerCase().includes(term)));
+    }
+    if (method === "POST" && b === "refresh") return send(res, 200, apps);
+    if (method === "POST" && b === "launch") {
+      const app = apps.find((x) => x.id === body.id);
+      if (!app) throw new HttpError(404, `No installed app "${String(body.id)}"`);
+      return send(res, 200, app);
+    }
+  }
+
+  // --- assistant: offline answers like the real kernel; a question containing "stream" plays a scripted Claude
+  // answer (tool use, streamed text) so the UI's streaming path can be exercised.
+  if (a === "assistant") {
+    if (method === "GET" && !b) return send(res, 200, { online: false, mode: "offline", model: "claude-opus-5-5" });
+    if (method === "GET" && b === "conversations" && !c) return send(res, 200, [...conversations.values()].map((x) => ({ id: x.id, title: x.title, createdAt: x.createdAt, updatedAt: x.updatedAt, messages: x.messages.length })).reverse());
+    if (method === "GET" && b === "conversations" && c) {
+      const conv = conversations.get(c);
+      if (!conv) throw new HttpError(404, `No conversation "${c}"`);
+      return send(res, 200, conv.messages);
+    }
+    if (method === "DELETE" && b === "conversations" && c) {
+      if (!conversations.delete(c)) throw new HttpError(404, `No conversation "${c}"`);
+      return send(res, 200, { ok: true });
+    }
+    if (method === "POST" && b === "ask") {
+      const text = typeof body.text === "string" ? body.text.trim() : "";
+      if (!text) throw new HttpError(400, "text is required");
+      let conv = typeof body.conversationId === "string" ? conversations.get(body.conversationId) : undefined;
+      if (body.conversationId && !conv) throw new HttpError(404, `No conversation "${String(body.conversationId)}"`);
+      const ts = now();
+      if (!conv) {
+        conv = { id: `conv_${conversations.size + 1}`, title: text.slice(0, 60), createdAt: ts, updatedAt: ts, messages: [] };
+        conversations.set(conv.id, conv);
+      }
+      const userMessage = { id: `msg_${Math.random().toString(36).slice(2, 10)}`, conversationId: conv.id, role: "user", text, ts };
+      conv.messages.push(userMessage);
+      res.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" });
+      const line = (ev: unknown) => res.write(`${JSON.stringify(ev)}\n`);
+      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      line({ type: "start", conversationId: conv.id, userMessage });
+      let answer: Record<string, unknown>;
+      if (/stream/i.test(text)) {
+        line({ type: "tool", tool: "fs.read_file", detail: "README.md" });
+        await wait(150);
+        publish("tool.called", { name: "fs.read_file", path: "README.md" }, undefined, "tools");
+        line({ type: "tool_result", tool: "fs.read_file", ok: true });
+        const full = "The **README** describes an original turn-based RPG:\n\n- combat in `src/combat/`\n- an inventory module\n- localized dialogue";
+        for (const word of full.split(/(?<= )/)) {
+          line({ type: "delta", text: word });
+          await wait(35);
+        }
+        line({ type: "turn_text", text: full });
+        answer = { text: full, tools: [{ tool: "fs.read_file", detail: "README.md", ok: true }] };
+      } else {
+        answer = {
+          text: "I'm offline, so I can't answer open questions or write for you yet. Add a Claude API key in **Settings → Claude** and ask again.\n\nMeanwhile, this is what a search of your files found:\n\n- `src/combat/damage_calc.ts:12`: export function calculateDamage(attacker, defender)",
+          offline: true,
+        };
+      }
+      const message = { id: `msg_${Math.random().toString(36).slice(2, 10)}`, conversationId: conv.id, role: "assistant", ts: now(), ...answer };
+      conv.messages.push(message as (typeof conv.messages)[number]);
+      conv.updatedAt = now();
+      line({ type: "done", message });
+      res.end();
+      return;
+    }
+  }
+  if (method === "POST" && a === "kernel" && b === "restart") return send(res, 501, { error: "The mock kernel cannot restart", code: "restart_unavailable" });
   if (method === "GET" && a === "version") return send(res, 200, { name: "nalara", version: "mock", apiVersion: 2, supportedApiVersions: [1, 2], features: [] });
   if (a === "secrets") {
     if (method === "GET" && !b) return send(res, 200, [...secrets.values()]);

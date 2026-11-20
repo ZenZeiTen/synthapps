@@ -27,7 +27,9 @@ function chromePath(): string {
     .filter((d) => /^chromium-\d+$/.test(d))
     .sort()
     .pop();
-  const p = dir ? join(base, dir, "chrome-linux", "chrome") : "";
+  // The stable link first; then the versioned folder (chrome-linux in older images, chrome-linux64 in newer ones).
+  const candidates = [join(base, "chromium"), ...(dir ? [join(base, dir, "chrome-linux", "chrome"), join(base, dir, "chrome-linux64", "chrome")] : [])];
+  const p = candidates.find((c) => existsSync(c)) ?? "";
   if (!p || !existsSync(p)) throw new Error("Chromium not found under /opt/pw-browsers");
   return p;
 }
@@ -145,7 +147,77 @@ async function main() {
       assert(status.startsWith("HOLDING"), `core status "${status}"`);
       return `${left} | ${status} | ${((await page.textContent(".hud-field")) ?? "").trim()}`;
     });
+
+    await check("the core breathes and glows: orb, glow, rim and halo pulse together, light turns inside; reduced motion keeps a soft glow", async () => {
+      const running = () =>
+        page.evaluate(() => {
+          const orb = document.querySelector(".orb-breath");
+          if (!orb) return [];
+          const anims = [orb, document.querySelector(".core-halo")].flatMap((el) => (el ? el.getAnimations({ subtree: true }) : []));
+          return anims
+            .filter((a) => a.playState === "running" && a.effect?.getComputedTiming().iterations === Infinity)
+            .map((a) => `${(a as CSSAnimation).animationName}${(a.effect as KeyframeEffect | null)?.pseudoElement ?? ""}`);
+        });
+      const normal = await running();
+      for (const name of ["breathe", "glow", "flow", "halo", "rim::after"]) assert(normal.includes(name), `"${name}" is not running: ${normal.join(", ")}`);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.waitForTimeout(200);
+      const reduced = await running();
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      for (const name of ["glow-soft", "halo-soft"]) assert(reduced.includes(name), `with reduced motion "${name}" is not running: ${reduced.join(", ")}`);
+      assert(!reduced.some((n) => n === "breathe" || n === "flow"), `reduced motion still swells or turns: ${reduced.join(", ")}`);
+      return `${normal.length} looping animations (${[...new Set(normal)].join(", ")}); reduced motion: ${[...new Set(reduced)].join(", ")}`;
+    });
     await page.screenshot({ path: join(SHOTS, "core.png") });
+
+    await check("the neurons around the core react to live kernel events: tool calls spark, agents ripple, file changes light constellations", async () => {
+      const read = () => page.evaluate(() => {
+        const c = document.querySelector<HTMLCanvasElement>("canvas.scene");
+        return { pulses: Number(c?.dataset.pulses ?? 0), kinds: c?.dataset.pulseKinds ?? "" };
+      });
+      const end = Date.now() + 15000;
+      let got = await read();
+      while (Date.now() < end && !["spark", "ripple", "star"].every((k) => got.kinds.includes(`${k}:`))) {
+        await page.waitForTimeout(300);
+        got = await read();
+      }
+      for (const k of ["spark", "ripple", "star"]) assert(got.kinds.includes(`${k}:`), `no "${k}" pulse yet: ${got.kinds || "none"}`);
+      // A replayed history burst on connect must not fire: only the live ticks (one every 1.5 s) do.
+      assert(got.pulses < 30, `too many pulses (${got.pulses}): history replay is firing`);
+      // The canvas changes between frames while a pulse plays.
+      const frame = () => page.evaluate(() => document.querySelector<HTMLCanvasElement>("canvas.scene")!.toDataURL().length);
+      const a = await frame();
+      await page.waitForTimeout(250);
+      const b = await frame();
+      assert(a !== b, "the scene canvas did not change between frames");
+      return `${got.pulses} pulses (${got.kinds})`;
+    });
+    await page.screenshot({ path: join(SHOTS, "core-neurons.png") });
+
+    await check("Ask: the intent bar's ASK hands the question to the assistant, which streams an answer with its tool use and keeps the conversation", async () => {
+      await page.fill("#nos-intent", "Please stream the README summary");
+      await page.click(".dock-ask");
+      await page.waitForSelector(".as-msg.as-user", { timeout: 5000 });
+      await page.waitForSelector(".as-msg.as-bot.is-live", { timeout: 5000 });
+      await page.waitForSelector(".as-msg.as-bot:not(.is-live) strong", { timeout: 10000 });
+      const bot = (await page.textContent(".as-msg.as-bot:not(.is-live)")) ?? "";
+      assert(bot.includes("README") && bot.includes("src/combat/"), `answer: ${bot}`);
+      const chip = ((await page.textContent(".as-tool")) ?? "").trim();
+      assert(chip.includes("Read") && chip.includes("README.md"), `tool chip: ${chip}`);
+      assert((await page.inputValue("#nos-intent")) === "", "the intent bar did not clear");
+      // A second, offline-style answer in the same conversation, asked from the panel itself.
+      await page.fill("#as-input", "Where is the damage code?");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector(".as-tag", { timeout: 5000 });
+      const options = await page.$$eval("#as-history option", (els) => els.map((e) => e.textContent ?? ""));
+      assert(options.some((o) => o.startsWith("Please stream")), `history: ${options.join(" | ")}`);
+      const count = await page.$$eval(".as-msg", (els) => els.length);
+      assert(count === 4, `${count} messages in the conversation`);
+      await page.screenshot({ path: join(SHOTS, "assistant.png") });
+      await page.click(".btn-ask");
+      await page.waitForSelector(".as-list", { state: "detached", timeout: 3000 });
+      return `${count} messages; chip "${chip}"`;
+    });
 
     await check("the Field view renders nodes of each type", async () => {
       await page.click(".btn-field");
@@ -212,6 +284,8 @@ async function main() {
       await openRootMenu(page);
       await page.click('.radial-opt[data-action-id="files"]');
       await page.waitForSelector(".side-panel .tree", { timeout: 3000 });
+      await page.click('.side-panel .tree-dir:has-text("src")');
+      await page.click('.side-panel .tree-dir:has-text("combat")');
       await page.click('.side-panel .tree-btn:has-text("damage_calc.ts")');
       await page.waitForSelector(".viewer .code-line", { timeout: 5000 });
       await page.keyboard.press("Escape"); // viewer
@@ -226,6 +300,133 @@ async function main() {
       await page.waitForSelector(".toast", { timeout: 5000 });
       await page.screenshot({ path: join(SHOTS, "file-action.png") });
       return decodeURIComponent(new URL(req.url()).pathname);
+    });
+
+    await check("Start: Nalara's apps and the computer's programs; the Terminal runs commands, follows cd and shows errors", async () => {
+      await page.click(".hud .btn-launch");
+      await page.waitForSelector(".launch-tile", { timeout: 3000 });
+      const tiles = await page.$$eval(".launch-tile .launch-name", (els) => els.map((e) => e.textContent ?? ""));
+      assert(["Ask", "Files", "Terminal"].every((t) => tiles.includes(t)), `tiles: ${tiles.join(", ")}`);
+      await page.waitForSelector(".launch-row", { timeout: 3000 });
+      await page.fill("#launch-q", "calc");
+      const rows = await page.$$eval(".launch-row .launch-row-name", (els) => els.map((e) => e.textContent ?? ""));
+      assert(rows.join(",") === "Calculator", `filtered: ${rows.join(", ")}`);
+      const [req] = await Promise.all([
+        page.waitForRequest((r) => r.method() === "POST" && new URL(r.url()).pathname === "/api/launcher/launch", { timeout: 3000 }),
+        page.click('.launch-row:has-text("Calculator")'),
+      ]);
+      assert((req.postDataJSON() as { id: string }).id === "app_calc", "wrong app id");
+      await page.waitForSelector('.toast:has-text("Starting Calculator")', { timeout: 3000 });
+      await page.fill("#launch-q", "");
+      await page.click('.launch-tile[data-app="terminal"]');
+      await page.waitForSelector("#term-line", { timeout: 3000 });
+      await page.fill("#term-line", "echo hello from nalara");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector('.term-text:has-text("hello from nalara")', { timeout: 3000 });
+      await page.fill("#term-line", "cd src");
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => (document.querySelector(".term-input .term-prompt")?.textContent ?? "").includes("src"), undefined, { timeout: 3000 });
+      await page.fill("#term-line", "frobnicate");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector('.term-status:has-text("exit code 127")', { timeout: 3000 });
+      // History: up arrow brings back the last command.
+      await page.keyboard.press("ArrowUp");
+      assert((await page.inputValue("#term-line")) === "frobnicate", "history did not recall the last command");
+      await page.screenshot({ path: join(SHOTS, "terminal.png") });
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
+      return `${tiles.length} Nalara apps; launched Calculator; terminal ran 3 commands`;
+    });
+
+    await check("Notes, Tasks and Text editor: a note saves as you type; a due task reminds and completes; a new document opens in the editor", async () => {
+      await page.click(".hud .btn-launch");
+      await page.click('.launch-tile[data-app="notes"]');
+      await page.waitForSelector('.note-list-bar button:has-text("New note")', { timeout: 3000 });
+      await page.click('.note-list-bar button:has-text("New note")');
+      await page.waitForSelector(".note-editor", { timeout: 3000 });
+      await page.fill(".note-editor", "# Groceries\n\n- [ ] milk\n- [x] bread\n");
+      await page.waitForSelector('.note-state:has-text("Saved")', { timeout: 5000 });
+      await page.click('.note-bar button:has-text("Preview")');
+      await page.waitForSelector(".note-preview li.md-task", { timeout: 3000 });
+      await page.fill("#note-title", "Groceries");
+      await page.keyboard.press("Enter");
+      await page.waitForFunction(() => (document.querySelector(".side-panel-sub")?.textContent ?? "").includes("Notes/Groceries.md"), undefined, { timeout: 3000 });
+      await page.click('.note-bar button:has-text("All notes")');
+      await page.waitForSelector('.note-item:has-text("Groceries")', { timeout: 3000 });
+      const saved = (await (await fetch(`${BASE}/api/files/content?path=Notes/Groceries.md`)).json()) as { content: string };
+      assert(saved.content.includes("- [x] bread"), `note on disk: ${JSON.stringify(saved)}`);
+
+      await page.click(".hud .btn-launch");
+      await page.click('.launch-tile[data-app="tasks"]');
+      await page.waitForSelector("#task-title", { timeout: 3000 });
+      await page.fill("#task-title", "Call the client");
+      const past = new Date(Date.now() - 60_000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      await page.fill("#task-due", `${past.getFullYear()}-${pad(past.getMonth() + 1)}-${pad(past.getDate())}T${pad(past.getHours())}:${pad(past.getMinutes())}`);
+      await page.click('.task-add button:has-text("Add")');
+      await page.waitForSelector('.toast:has-text("Reminder: Call the client")', { timeout: 5000 });
+      await page.waitForSelector('.task-overdue .task-row:has-text("Call the client")', { timeout: 3000 });
+      await page.fill("#task-title", "Read the contract");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector('.task-someday .task-row:has-text("Read the contract")', { timeout: 3000 });
+      await page.click('input[aria-label="Complete Call the client"]');
+      await page.waitForSelector('.task-done-toggle:has-text("done (1)")', { timeout: 3000 });
+      await page.screenshot({ path: join(SHOTS, "tasks.png") });
+
+      await page.click(".hud .btn-launch");
+      await page.click('.launch-tile[data-app="editor"]');
+      await page.fill("#ed-name", "letter.txt");
+      await page.click('.ed-new button:has-text("Create")');
+      await page.waitForSelector(".viewer .viewer-editor", { timeout: 3000 });
+      const title = ((await page.textContent(".viewer .viewer-path")) ?? "").trim();
+      assert(title === "Documents/letter.txt", `editor opened ${title}`);
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".viewer", { state: "detached", timeout: 3000 });
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
+      return "Notes/Groceries.md saved and renamed; reminder shown; task done; Documents/letter.txt opened in the editor";
+    });
+
+    await check("File manager: new folder and file, edit and save, rename, move to the trash and restore", async () => {
+      await openRootMenu(page);
+      await page.click('.radial-opt[data-action-id="files"]');
+      await page.waitForSelector(".side-panel .fx-list", { timeout: 3000 });
+      await page.click('.fx-tools button:has-text("New folder")');
+      await page.fill("#fx-edit-input", "letters");
+      await page.keyboard.press("Enter");
+      await page.click('.side-panel .tree-dir:has-text("letters")');
+      await page.waitForSelector('.fx-crumb:has-text("letters")', { timeout: 3000 });
+      await page.click('.fx-tools button:has-text("New file")');
+      await page.fill("#fx-edit-input", "hello.md");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector(".viewer .viewer-editor", { timeout: 5000 });
+      await page.fill(".viewer .viewer-editor", "# Hello\nWritten in Nalara.\n");
+      await page.keyboard.press("Control+s");
+      await page.waitForSelector('.viewer-state:has-text("Saved")', { timeout: 3000 });
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".viewer", { state: "detached", timeout: 3000 });
+      const saved = await (await fetch(`${BASE}/api/files/content?path=letters/hello.md`)).json();
+      assert(saved.content === "# Hello\nWritten in Nalara.\n", `saved: ${JSON.stringify(saved)}`);
+      await page.hover('.fx-row:has-text("hello.md")');
+      await page.click('button[aria-label="Rename hello.md"]');
+      await page.fill("#fx-edit-input", "greeting.md");
+      await page.keyboard.press("Enter");
+      await page.waitForSelector('.fx-row:has-text("greeting.md")', { timeout: 3000 });
+      await page.hover('.fx-row:has-text("greeting.md")');
+      await page.click('button[aria-label="Move greeting.md to the trash"]');
+      await page.waitForSelector(".fx-list .fx-row", { state: "detached", timeout: 3000 });
+      await page.selectOption("#fx-place", "__trash__");
+      await page.waitForSelector('.fx-trash .fx-row:has-text("letters/greeting.md")', { timeout: 3000 });
+      await page.screenshot({ path: join(SHOTS, "files-trash.png") });
+      await page.click('.fx-trash .fx-row button:has-text("Restore")');
+      await page.waitForSelector(".fx-trash .fx-row", { state: "detached", timeout: 3000 });
+      await page.selectOption("#fx-place", "home");
+      await page.click('.side-panel .tree-dir:has-text("letters")');
+      await page.waitForSelector('.fx-row:has-text("greeting.md")', { timeout: 3000 });
+      await page.screenshot({ path: join(SHOTS, "files.png") });
+      await page.keyboard.press("Escape");
+      await page.waitForSelector(".side-panel", { state: "detached", timeout: 3000 });
+      return "letters/hello.md saved, renamed to greeting.md, trashed and restored";
     });
 
     await check("submitting an intent (INTENT button) calls POST /api/intents; the swarm orbits and the results sheet opens", async () => {

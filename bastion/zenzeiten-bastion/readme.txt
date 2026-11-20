@@ -3,7 +3,7 @@ Contributors: zenzeiten
 Tags: security, firewall, brute force, ip blocking, backup
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -23,6 +23,8 @@ Every request from a visitor is checked against 18 attack signatures before your
 = Real-time attack monitoring =
 
 * A live attack feed in the dashboard that updates every few seconds without reloading the page.
+* Each address in the feed shows who it belongs to: the network's owner and its country.
+* An Action column says what Bastion did: Blocked, Allow (a successful administrator login) or Logged.
 * Attacks per hour for the last 24 hours, headline counters, and the top attacking IP addresses.
 * A searchable attack log with filters by event type, severity and IP address.
 * Email alerts when addresses are blocked (batched, at most one email every 15 minutes), when a new administrator account appears, and when a backup or restore fails.
@@ -63,6 +65,8 @@ Search crawlers and AI agents say who they are in their user-agent, and anyone c
 = Outside services =
 
 To check crawlers, the plugin downloads the public address lists that Google (developers.google.com), Microsoft (www.bing.com), OpenAI (openai.com), Anthropic (claude.com) and Perplexity (www.perplexity.com) publish for their crawlers. It does this once a day and sends nothing about your site or your visitors. Set the Agents mode to Off to stop these downloads.
+
+To show who an address belongs to, the plugin looks up the addresses in the live feed while you have the live monitor open. It asks Team Cymru's IP-to-network service (cymru.com) through your server's DNS and, if that gives nothing, the address registries through rdap.org. Only the address is sent. Untick "Show who each address belongs to in the live feed" in Settings to stop these lookups.
 
 == Installation ==
 
@@ -118,7 +122,22 @@ They are off until you tick Traps in Bastion > Settings > Agents. Bastion then a
 
 If your site is behind Cloudflare and "This site is behind Cloudflare" is not ticked, Bastion sees Cloudflare's address in place of each visitor's. Open Bastion > Settings and look at "Your address as Bastion sees it". If it is not your own address, tick the box and save. Until you do, Bastion keeps automatic blocks of Cloudflare addresses to one hour.
 
+= The live feed shows no owner or country for an address =
+
+The lookup found nothing, your server cannot make DNS lookups, or the address is a private one. Bastion asks again after six hours. Run `wp bastion network <address>` to see what a lookup returns.
+
+= What do "Block this IP" and the Action column mean? =
+
+"Block this IP" is a link that opens the form to block that address; it does not mean the address is blocked. The Action column says what Bastion did: Blocked (the request was refused or the address was blocked), Allow (a successful administrator login) or Logged (the event was only recorded). Your own address is marked "(your address)" and has no block link.
+
 == Changelog ==
+
+= 1.2.0 =
+* New: the live feed shows each address's network owner and country. Lookups run only while the live monitor is open, and can be switched off in Settings.
+* New: an Action column in the live feed says Blocked, Allow or Logged. The attack log uses the same words.
+* Changed: the link next to an address now reads "Block this IP". Your own address is marked "(your address)" and has no block link.
+* New: `wp bastion network <address>` shows an address's owner and country.
+* No database change. Settings, log, blocks and backups are kept.
 
 = 1.1.0 =
 * New: crawler and AI agent checks. A visitor that claims to be Googlebot, Bingbot, GPTBot, ClaudeBot, PerplexityBot or another known agent is checked against the address list its owner publishes. Starts in Log only mode.

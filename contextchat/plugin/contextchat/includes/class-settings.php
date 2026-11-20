@@ -100,6 +100,13 @@ class ContextChat_Settings {
 			'analytics'        => true,
 			'datalayer'        => true,
 			'retention_days'   => 180,
+			// SI (ContextChat 2.0). The API key is not stored here; see ContextChat_SI_Secrets.
+			'si_routing'         => 'auto',
+			'si_model_worker'    => ContextChat_SI::DEFAULT_WORKER,
+			'si_model_executor'  => ContextChat_SI::DEFAULT_EXECUTOR,
+			'si_effort'          => 'low',
+			'si_max_tokens'      => 1024,
+			'si_daily_cap_cents' => 1000,
 		);
 	}
 
@@ -218,7 +225,55 @@ class ContextChat_Settings {
 		$out['datalayer']      = self::bool( $input, 'datalayer' );
 		$out['retention_days'] = self::int( $input, 'retention_days', 7, 3650, $d['retention_days'] );
 
+		$out['si_routing']         = self::choice( $input, 'si_routing', ContextChat_SI_Router::MODES, $d['si_routing'] );
+		$out['si_model_worker']    = self::model( $input, 'si_model_worker', $d['si_model_worker'] );
+		$out['si_model_executor']  = self::model( $input, 'si_model_executor', $d['si_model_executor'] );
+		$out['si_effort']          = self::choice( $input, 'si_effort', ContextChat_SI::EFFORTS, $d['si_effort'] );
+		$out['si_max_tokens']      = self::int( $input, 'si_max_tokens', 256, 4096, $d['si_max_tokens'] );
+		// The form sends dollars; already-clean settings carry cents (WordPress can sanitize twice).
+		$out['si_daily_cap_cents'] = array_key_exists( 'si_daily_cap_usd', $input )
+			? self::cents( $input, 'si_daily_cap_usd', $d['si_daily_cap_cents'] )
+			: self::int( $input, 'si_daily_cap_cents', 10, 100000, $d['si_daily_cap_cents'] );
+
+		self::save_api_key( $input );
+
 		return $out;
+	}
+
+	/**
+	 * Store or remove the API key when the settings form sent one. The key goes to its own
+	 * encrypted option and never into the settings array.
+	 *
+	 * @param array $input Raw input.
+	 */
+	private static function save_api_key( array $input ) {
+		$key = trim( (string) self::val( $input, 'si_api_key', '' ) );
+		// A new key typed together with "remove" replaces the old one.
+		if ( '' === $key && self::bool( $input, 'si_api_key_remove' ) ) {
+			ContextChat_SI_Secrets::clear();
+			self::notice( 'contextchat_si_key_removed', __( 'The stored API key was removed.', 'contextchat' ), 'updated' );
+			return;
+		}
+		if ( '' === $key ) {
+			return;
+		}
+		$saved = ContextChat_SI_Secrets::save( $key );
+		if ( is_wp_error( $saved ) ) {
+			self::notice( $saved->get_error_code(), $saved->get_error_message(), 'error' );
+		}
+	}
+
+	/**
+	 * A settings-screen message, when the settings API is loaded.
+	 *
+	 * @param string $code    Code.
+	 * @param string $message Message.
+	 * @param string $type    error or updated.
+	 */
+	private static function notice( $code, $message, $type ) {
+		if ( function_exists( 'add_settings_error' ) ) {
+			add_settings_error( self::OPTION, $code, $message, $type );
+		}
 	}
 
 	/**
@@ -363,6 +418,35 @@ class ContextChat_Settings {
 			return $default;
 		}
 		return mb_substr( sanitize_textarea_field( (string) $arr[ $key ] ), 0, 1000 );
+	}
+
+	/**
+	 * Claude model ID such as claude-haiku-5-5.
+	 *
+	 * @param array  $arr     Source.
+	 * @param string $key     Key.
+	 * @param string $default Fallback.
+	 * @return string
+	 */
+	private static function model( $arr, $key, $default ) {
+		$v = strtolower( trim( (string) self::val( $arr, $key, $default ) ) );
+		return preg_match( '/^[a-z0-9][a-z0-9.\-]{2,63}$/', $v ) ? $v : $default;
+	}
+
+	/**
+	 * A US dollar amount typed with a dot or comma, as whole cents between $0.10 and $1,000.
+	 *
+	 * @param array  $arr     Source.
+	 * @param string $key     Key holding dollars.
+	 * @param int    $default Fallback in cents.
+	 * @return int
+	 */
+	private static function cents( $arr, $key, $default ) {
+		$v = str_replace( ',', '.', trim( (string) self::val( $arr, $key, '' ) ) );
+		if ( ! is_numeric( $v ) ) {
+			return $default;
+		}
+		return max( 10, min( 100000, (int) round( (float) $v * 100 ) ) );
 	}
 
 	/**

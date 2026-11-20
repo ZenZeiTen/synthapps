@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -247,6 +249,16 @@ func TestSyncCORSAndHeaders(t *testing.T) {
 	if rr.Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatalf("foreign origin allowed")
 	}
+	// The Android app syncs from its own page origin, allowed without any setting.
+	rr, _ = do(t, h, "OPTIONS", "/api/v1/vault", "", "", "Origin", AndroidAppOrigin, "Access-Control-Request-Method", "PUT")
+	if rr.Code != 204 || rr.Header().Get("Access-Control-Allow-Origin") != AndroidAppOrigin {
+		t.Fatalf("Android app preflight: %d %v", rr.Code, rr.Header())
+	}
+	// An explicit list replaces the defaults.
+	only := syncSrv(t, SyncConfig{OpenSignup: true, CORSOrigins: []string{"https://vault.example"}})
+	if rr, _ := do(t, only, "OPTIONS", "/api/v1/vault", "", "", "Origin", AndroidAppOrigin); rr.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("Android origin allowed despite an explicit list")
+	}
 	rr, _ = do(t, h, "GET", "/", "", "")
 	if rr.Header().Get("Strict-Transport-Security") == "" || rr.Header().Get("X-Frame-Options") != "DENY" {
 		t.Fatalf("headers: %v", rr.Header())
@@ -269,5 +281,44 @@ func TestRateLimit(t *testing.T) {
 	}
 	if last != 429 {
 		t.Fatalf("no rate limit: %d", last)
+	}
+}
+
+// A sign-up that stopped after writing the vault (crash, full disk) must not
+// block the username for ever, and a damaged account file must never be replaced.
+func TestSignupRecoversFromHalfDoneRegistration(t *testing.T) {
+	cfg := SyncConfig{OpenSignup: true, DataDir: t.TempDir(), Static: static(t), Logger: log.New(io.Discard, "", 0)}
+	s, err := NewSync(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := s.Handler()
+	st, err := s.vaultStore("amy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Save(0, json.RawMessage(testVault), nil); err != nil {
+		t.Fatal(err)
+	}
+	b := `{"username":"amy","authKey":"` + key() + `","kdf":` + testKDF + `,"vault":` + testVault + `}`
+	rr, m := do(t, h, "POST", "/api/v1/register", "", b)
+	if rr.Code != 201 || m["rev"].(float64) != 1 {
+		t.Fatalf("leftover vault folder blocked sign-up: %d %s", rr.Code, rr.Body)
+	}
+	if rr, _ := do(t, h, "POST", "/api/v1/register", "", b); rr.Code != 409 {
+		t.Fatalf("existing account replaced: %d", rr.Code)
+	}
+	// An account file that cannot be read still counts as an account.
+	if err := os.MkdirAll(s.userDir("bob"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(s.userDir("bob"), "account.json"), []byte("{damaged"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if rr, _ := do(t, h, "POST", "/api/v1/register", "", strings.Replace(b, `"amy"`, `"bob"`, 1)); rr.Code != 409 {
+		t.Fatalf("damaged account was written over: %d", rr.Code)
+	}
+	if _, err := os.Stat(filepath.Join(s.userDir("bob"), "account.json")); err != nil {
+		t.Fatalf("damaged account file removed: %v", err)
 	}
 }

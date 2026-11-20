@@ -1,0 +1,8 @@
+# CODEOWNERS
+# lang-forge is distributed as a Claude skill, so changes to the skill file and
+# its integrity files need the owner's review. (Moved here from lang-forge/.github,
+# where GitHub does not read it, with paths fixed for this repository.)
+
+/lang-forge/lang-forge/SKILL.md   @ZenZeiTen
+/lang-forge/checksums.sha256      @ZenZeiTen
+/lang-forge/SECURITY.md           @ZenZeiTen

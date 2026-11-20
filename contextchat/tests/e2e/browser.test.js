@@ -4,11 +4,50 @@ const test = require( 'node:test' );
 const assert = require( 'node:assert/strict' );
 const path = require( 'node:path' );
 const { execFileSync } = require( 'node:child_process' );
+const http = require( 'node:http' );
 const { chromium } = require( 'playwright' );
 
 const BASE = process.env.CTXC_BASE || 'http://127.0.0.1:8899';
 const SITE = process.env.CTXC_SITE;
 const SHOTS = process.env.CTXC_SHOTS || '';
+
+function option( action, name, value ) {
+	const args = [ path.join( __dirname, 'option.php' ), SITE, action, name ];
+	if ( value !== undefined ) {
+		args.push( JSON.stringify( value ) );
+	}
+	const out = execFileSync( 'php', args ).toString().trim();
+	return action === 'get' ? JSON.parse( out ) : null;
+}
+
+// A stand-in for the Claude Messages API. It records each request and answers as the model
+// that was asked for, so the tests can see which model ContextChat routed to.
+const MOCK_KEY = 'sk-ant-api03-e2eTestKey-0123456789abcdef';
+const mockRequests = [];
+let mockServer;
+function startMock() {
+	mockServer = http.createServer( ( req, res ) => {
+		let raw = '';
+		req.on( 'data', ( chunk ) => ( raw += chunk ) );
+		req.on( 'end', () => {
+			const body = JSON.parse( raw || '{}' );
+			mockRequests.push( { headers: req.headers, body } );
+			res.setHeader( 'content-type', 'application/json' );
+			if ( req.headers[ 'x-api-key' ] !== MOCK_KEY ) {
+				res.statusCode = 401;
+				res.end( JSON.stringify( { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } } ) );
+				return;
+			}
+			const name = body.model.includes( 'sonnet' ) ? 'Sonnet' : 'Haiku';
+			res.end( JSON.stringify( {
+				id: 'msg_test', type: 'message', role: 'assistant', model: body.model, stop_reason: 'end_turn',
+				content: [ { type: 'thinking', thinking: '' }, { type: 'text', text: 'Halo dari ' + name + ', Kak.' } ],
+				usage: { input_tokens: 40, output_tokens: 12 },
+			} ) );
+		} );
+	} );
+	return new Promise( ( resolve ) => mockServer.listen( 0, '127.0.0.1', resolve ) );
+}
 
 function settings( changes ) {
 	execFileSync( 'php', [ path.join( __dirname, 'set-settings.php' ), SITE, JSON.stringify( changes ) ] );
@@ -64,10 +103,14 @@ function textOf( url ) {
 
 test.before( async () => {
 	browser = await chromium.launch();
+	await startMock();
+	option( 'set', 'ctxc_e2e_si_url', 'http://127.0.0.1:' + mockServer.address().port + '/v1/messages' );
 } );
 
 test.after( async () => {
 	await browser.close();
+	mockServer.close();
+	option( 'delete', 'ctxc_e2e_si_url' );
 	console.log( `Script errors from incomplete core files in the test build (ignored): ${ coreErrors }` );
 } );
 
@@ -409,4 +452,100 @@ test( 'click endpoint validates input and limits bursts', async () => {
 		statuses.push( ( await post( { source: 'shortcode', path: '/burst/' } ) ).status );
 	}
 	assert.ok( statuses.includes( 429 ), 'rate limit applied: ' + statuses.join( ',' ) );
+} );
+
+test( 'SI tab: the API key is stored encrypted and the models route automatically', async () => {
+	const page = await newPage();
+	await login( page );
+	const tab = BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-si';
+	await page.goto( tab );
+	assert.match( await page.locator( '.ctxc-si-key-status' ).textContent(), /No key yet/ );
+	assert.equal( await page.locator( '#ctxc-si-test-run' ).isDisabled(), true, 'no test without a key' );
+
+	// Only administrators can run the test.
+	const anon = await fetch( BASE + '/wp-json/contextchat/v1/admin/si-test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"prompt":"hi"}' } );
+	assert.equal( anon.status, 401 );
+
+	// Something that is not a key is refused and nothing is stored.
+	await page.fill( '#ctxc-si_api_key', 'hello' );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+	assert.match( await page.locator( '.notice-error, .error' ).first().textContent(), /does not look like an Anthropic API key/ );
+	assert.equal( option( 'get', 'contextchat_si_key' ), null );
+
+	await page.fill( '#ctxc-si_api_key', MOCK_KEY );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+	assert.equal( await page.locator( '#ctxc-tab-si' ).isVisible(), true, 'returns to the SI tab' );
+	assert.match( await page.locator( '.ctxc-si-key-status' ).textContent(), /A key is saved, encrypted/ );
+	assert.equal( ( await page.content() ).includes( 'e2eTestKey' ), false, 'the key is never printed back' );
+	assert.equal( await page.inputValue( '#ctxc-si_api_key' ), '' );
+	const stored = option( 'get', 'contextchat_si_key' );
+	assert.ok( stored && stored.box, 'an encrypted key is stored' );
+	assert.equal( JSON.stringify( stored ).includes( 'e2eTestKey' ), false, 'the stored key is encrypted' );
+	assert.equal( JSON.stringify( option( 'get', 'contextchat_settings' ) ).includes( 'e2eTestKey' ), false, 'the key is not in the main settings' );
+	await shot( page, 'admin-si', '.ctxc-admin' );
+
+	// Automatic routing, normal turn: the fast model answers.
+	mockRequests.length = 0;
+	await page.click( '#ctxc-si-test-run' );
+	await page.locator( '.ctxc-si-test-ok' ).waitFor();
+	assert.match( await page.locator( '.ctxc-si-test-ok' ).textContent(), /claude-haiku-5-5/ );
+	assert.equal( await page.locator( '.ctxc-si-test-reply' ).textContent(), 'Halo dari Haiku, Kak.' );
+	assert.equal( mockRequests.length, 1 );
+	const sent = mockRequests[ 0 ];
+	assert.equal( sent.headers[ 'x-api-key' ], MOCK_KEY );
+	assert.equal( sent.headers[ 'anthropic-version' ], '2026-10-21' );
+	assert.deepEqual( { model: sent.body.model, effort: sent.body.output_config.effort, max: sent.body.max_tokens }, { model: 'claude-haiku-5-5', effort: 'low', max: 1024 } );
+	assert.equal( sent.body.messages[ 0 ].content, 'Hello! What is a sworn translation?' );
+
+	// A reply that fails a check is written again by the stronger model.
+	mockRequests.length = 0;
+	await page.check( '#ctxc-si-test-reject' );
+	await page.click( '#ctxc-si-test-run' );
+	await page.locator( '.ctxc-si-test-ok' ).waitFor();
+	assert.match( await page.locator( '.ctxc-si-test-ok' ).textContent(), /claude-sonnet-5-5/ );
+	assert.deepEqual( mockRequests.map( ( r ) => r.body.model ), [ 'claude-haiku-5-5', 'claude-sonnet-5-5' ] );
+	assert.equal( mockRequests[ 1 ].headers[ 'anthropic-beta' ], 'server-side-fallback-2026-07-01' );
+	assert.match( mockRequests[ 1 ].body.system, /rejected by an automatic check/ );
+	assert.equal( await page.locator( '.ctxc-si-test-attempt' ).count(), 2 );
+	await shot( page, 'admin-si-test', '.ctxc-si-test' );
+
+	// Settings save: fast model only, and a daily cap that is already used up.
+	await page.goto( tab );
+	await page.selectOption( '#ctxc-si_routing', 'worker_only' );
+	await page.fill( '#ctxc-si_daily_cap_usd', '0.10' );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+	const saved = option( 'get', 'contextchat_settings' );
+	assert.deepEqual( { routing: saved.si_routing, cap: saved.si_daily_cap_cents }, { routing: 'worker_only', cap: 10 } );
+	assert.ok( option( 'get', 'contextchat_si_key' ).box, 'saving other fields keeps the key' );
+
+	mockRequests.length = 0;
+	await page.check( '#ctxc-si-test-reject' );
+	await page.click( '#ctxc-si-test-run' );
+	await page.locator( '.ctxc-si-test-failed' ).waitFor();
+	assert.match( await page.locator( '.ctxc-si-test-failed' ).textContent(), /failed a check/ );
+	assert.equal( mockRequests.length, 1, 'fast model only: no second model' );
+
+	const today = option( 'get', 'contextchat_si_usage' ).day;
+	option( 'set', 'contextchat_si_usage', { day: today, micro_usd: 100000, calls: 1 } );
+	mockRequests.length = 0;
+	await page.uncheck( '#ctxc-si-test-reject' );
+	await page.click( '#ctxc-si-test-run' );
+	await page.locator( '.ctxc-si-test-failed' ).waitFor();
+	assert.match( await page.locator( '.ctxc-si-test-failed' ).textContent(), /daily spending cap reached/ );
+	assert.equal( mockRequests.length, 0, 'nothing is sent once the cap is reached' );
+
+	// Removing the key.
+	await page.goto( tab );
+	await page.check( 'input[name="contextchat_settings[si_api_key_remove]"]' );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+	assert.equal( option( 'get', 'contextchat_si_key' ), null );
+	assert.match( await page.locator( '.ctxc-si-key-status' ).textContent(), /No key yet/ );
+	await page.context().close();
+
+	settings( { si_routing: 'auto', si_daily_cap_cents: 1000 } );
+	option( 'delete', 'contextchat_si_usage' );
 } );

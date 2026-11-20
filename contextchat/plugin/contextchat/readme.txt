@@ -60,6 +60,16 @@ Use the `contextchat_context` filter:
 
 Other filters: `contextchat_message`, `contextchat_agents`, `contextchat_should_display`. The browser fires a `contextchat:click` event on `document` for every chat started.
 
+== External services ==
+
+ContextChat 2.0 is adding an SI (Synthesized Intelligence) assistant that uses Anthropic's Claude API. In this development version only the connection test on the ContextChat → SI screen contacts it, and only when an administrator presses "Test connection" after adding their own API key.
+
+* **Service:** Anthropic API, https://api.anthropic.com/v1/messages
+* **What is sent:** the test message typed on the SI screen and the site's API key. Nothing about visitors is sent.
+* **When:** only when an administrator runs the test. Nothing is sent before an API key is added.
+* Anthropic's terms: https://www.anthropic.com/legal/commercial-terms
+* Anthropic's privacy policy: https://www.anthropic.com/legal/privacy
+
 == Shortcode ==
 
 `[contextchat text="Chat with us" agent="rina" message="Hi! About {page_title}..."]`

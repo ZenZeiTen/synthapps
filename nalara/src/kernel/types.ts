@@ -164,11 +164,13 @@ export const EVENT_TYPES = [
   "review.round",
   "review.verdict",
   "secret.changed",
+  "reminder.due",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 /** Display names used by the UI, matching the spec's wording where it has one. */
 export const EVENT_LABELS: Partial<Record<EventType, string>> = {
+  "reminder.due": "Reminder",
   "node.created": "Node Created",
   "file.updated": "File Updated",
   "file.created": "File Created",
@@ -512,8 +514,17 @@ export interface McpServerStatus {
 }
 
 export interface ToolRegistry {
-  /** `preview` describes a concrete call for the approval prompt (for tools whose input does not show what will run). */
-  register(def: ToolDefinition, handler: ToolHandler, opts?: { preview?: (input: Record<string, unknown>) => string }): void;
+  /**
+   * `preview` describes a concrete call for the approval prompt (for tools whose input does not show what will run).
+   * `precheck` returns a reason when a call cannot do anything (e.g. no test command): the gateway then fails the
+   * call after its policy checks but before asking for approval, so nobody approves a call that would do nothing.
+   * It gets the raw input (not yet schema-checked) and must not have side effects.
+   */
+  register(
+    def: ToolDefinition,
+    handler: ToolHandler,
+    opts?: { preview?: (input: Record<string, unknown>) => string; precheck?: (input: Record<string, unknown>) => string | undefined },
+  ): void;
   unregister(name: string): boolean;
   get(name: string): ToolDefinition | undefined;
   /** `names` accepts globs ("fs.*"). */
@@ -521,7 +532,8 @@ export interface ToolRegistry {
   /**
    * The single enforcement point for tool use. In order: kernel halted? -> tool disabled? -> principal present and
    * depth within limit? -> tool within the principal's scope (agent tool globs) -> deny/allow rules -> policy mode and
-   * reversibility (may wait for approval) -> input schema -> replay fence -> governor charge -> handler -> audit.
+   * reversibility -> precheck (a call that cannot do anything fails here, unapproved) -> approval if needed -> input
+   * schema -> replay fence -> governor charge -> handler -> audit.
    * Emits tool.called and tool.result. Never throws for tool failures; returns ok:false.
    * Schema rejections are audited as "denied" (reason "invalid input"); handler failures as "error".
    */
@@ -543,7 +555,7 @@ export interface ToolRegistry {
 export interface AuditEntry {
   seq: number;
   ts: string;
-  kind: "tool_call" | "approval" | "halt" | "resume" | "undo" | "budget" | "memory_confirm" | "policy" | "relay" | "verdict" | "secret";
+  kind: "tool_call" | "approval" | "halt" | "resume" | "undo" | "budget" | "memory_confirm" | "policy" | "relay" | "verdict" | "secret" | "file" | "shell" | "app";
   principal: Principal | null;
   subject: string; // tool name, workspace id, ...
   outcome: "allowed" | "denied" | "ok" | "error" | "info";
@@ -640,7 +652,8 @@ export interface McpManager {
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface AgentLoopEvent {
-  type: "text" | "tool_call" | "tool_result" | "turn";
+  /** "delta": text streamed while a turn is generated (with `streamText`); "text": the turn's final text, which replaces its deltas. */
+  type: "text" | "delta" | "tool_call" | "tool_result" | "turn";
   text?: string;
   tool?: string;
   input?: Record<string, unknown>;
@@ -672,8 +685,21 @@ export interface LLMProvider {
     effort?: Effort;
     signal?: AbortSignal;
     onEvent?: (event: AgentLoopEvent) => void;
+    /** Earlier turns of a conversation, oldest first; `task` is the newest user message. */
+    history?: ConversationTurn[];
+    /** Server-side tools run by the model provider itself (web search and fetch). Providers without them ignore this. */
+    serverTools?: ServerTool[];
+    /** Emit "delta" events while text is generated. */
+    streamText?: boolean;
   }): Promise<AgentLoopResult>;
 }
+
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export type ServerTool = "web_search" | "web_fetch";
 
 export class LLMError extends Error {
   constructor(
@@ -1137,7 +1163,7 @@ export interface NalaraConfig {
   dataDir: string;
   port: number;
   host: string;
-  /** Claude model id. Default "claude-opus-5". */
+  /** Claude model id. Default "claude-opus-5-5". */
   model: string;
   effort: Effort;
   /** Use Claude when credentials exist. Set false to force offline mode. */
@@ -1173,6 +1199,8 @@ export interface KernelStatus {
   projectName?: string;
   mode: "claude" | "offline";
   model: string;
+  /** Where the Claude credentials come from: the environment (or an `ant auth` profile), a key saved in Settings, or none. */
+  credentials: "environment" | "settings" | "none";
   startedAt: string;
   graph: { nodes: number; edges: number; byType: Record<string, number> };
   files: number;
@@ -1211,7 +1239,11 @@ export interface Kernel {
   stop(): Promise<void>;
   status(): KernelStatus;
   /** Intent -> workspace. With run (default true) the plan starts in the background; await `done` to wait for it. */
-  submitIntent(text: string, opts?: { run?: boolean }): Promise<{ workspace: Workspace; done: Promise<Workspace> }>;
+  /**
+   * Classifies, plans and (by default) runs an intent. With `offline: "refuse"`, an offline kernel throws
+   * NeedsClaudeError for intents only Claude can carry out (the UI and CLI use this; internal callers allow).
+   */
+  submitIntent(text: string, opts?: { run?: boolean; offline?: "refuse" | "allow" }): Promise<{ workspace: Workspace; done: Promise<Workspace> }>;
   runWorkspace(id: string): Promise<Workspace>;
   radialActions(nodeId: string | "root"): { kind: RadialKind; actions: RadialAction[] };
   radialAction(nodeId: string | "root", actionId: string, input?: Record<string, unknown>): Promise<RadialResult>;

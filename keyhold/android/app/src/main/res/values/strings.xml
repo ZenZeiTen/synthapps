@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Keyhold</string>
+    <string name="no_app_for_link">No app on this phone can open that link.</string>
+    <string name="no_file_app">No app on this phone can open or save files.</string>
+    <string name="saved">Saved</string>
+    <string name="save_failed">Could not save the file.</string>
+</resources>

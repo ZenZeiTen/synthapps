@@ -1,0 +1,148 @@
+# Full winning walkthrough: every score event, ends in [won]. Also exercises
+# "not close enough", GO TO walking, typed exits and the two-keys ambiguity.
+@start
+The old Crowmere house looms over its weedy yard, black against the stormy sky. Two lit windows glare down like eyes that have stayed up too late. A pair of crooked gravestones lean together by the fence as if sharing a secret, and a dead tree claws at the clouds. Rickety steps lead up to the porch and a heavy front door.
+> look at doormat
+A doormat that says GO AWAY. There's a suspicious lump under it.
+> look under doormat
+You're not close enough.
+> go to doormat
+[walk to doormat]
+> look under doormat
+You flip the doormat over. Underneath, a brass key lies on the boards, looking as surprised as you are.
+> take key
+You pick up the brass key. It's cold, and heavier than it looks.
+[score +5 = 5]
+> go to door
+[walk to door]
+> unlock door
+The brass key turns with a heavy clunk. The door is unlocked.
+[score +5 = 10]
+[sound clunk]
+> open door
+You push the door. It swings inward with a long, slow creak, as if it's been waiting all night to make that noise.
+[sound creak]
+> go north
+[walk x_front_door]
+[room hall]
+BOOM! The front door slams shut behind you. You try the handle. It won't budge. Well. The only way out is through.
+[sound slam]
+A grand entrance hall gone badly to seed. A staircase climbs into darkness, its banister draped in cobwebs, and a suit of armor stands guard at the bottom. From a gilded frame, a portrait of a stern old woman glares at everyone. A tall grandfather clock leans against the wall. Doorways lead west and east. The front door behind you is shut tight.
+> go to clock
+[walk to clock]
+> open clock
+You open the little glass door in the clock's case. Tucked behind the pendulum is a box of matches. Somebody's emergency supplies.
+[sound creak]
+> take matches
+You pocket the box of matches. Rattle, rattle.
+[score +5 = 15]
+> west
+[walk x_hall_west]
+[room library]
+Shelves of crumbling books climb all the way to the ceiling, and a cold fireplace yawns in one wall. In a high-backed armchair sits a skeleton, reading a book. It must be a real page-turner; he's been at it for about a hundred years. An old writing desk stands beneath the window. A doorway leads back east to the hall.
+> go to desk
+[walk to desk]
+> open drawer
+The drawer sticks, then shoots open. Inside lies a small silver whistle.
+> take whistle
+You pick up the silver whistle. Engraved on the side: FOR DOGS. HUMANS WILL HEAR NOTHING.
+[score +5 = 20]
+> go to skeleton
+[walk to skeleton]
+> read book
+You lean over the skeleton's bony shoulder. The book is BIRDS OF CROWMERE HILL, and one passage is underlined: THE CROWMERE CROW HOARDS SHINY THINGS, AND CANNOT ABIDE A SHRILL WHISTLE.
+The skeleton turns the page. You decide you didn't see that.
+> give newspaper to skeleton
+You tuck the newspaper under the skeleton's arm. Now he'll have something to read when he finishes his book. Delivery complete!
+> east
+[walk x_library_east]
+[room hall]
+> east
+[walk x_hall_east]
+[room kitchen]
+A cavernous kitchen that hasn't seen a health inspector since before health inspectors were invented. Something green bubbles in a cauldron on the old iron stove. A lone candle stands on the chopping table. A narrow pantry door stands in the corner. A wooden trapdoor with an iron ring is set into the floor, and a cold draft whistles up through its cracks. The hall is back to the west.
+> go to table
+[walk to table]
+> take candle
+You take the candle. It's a stubby little thing, but it will do.
+[score +5 = 25]
+> light candle
+You strike a match and light the candle. A small, brave flame pushes back the dark.
+[score +5 = 30]
+[sound match]
+> go to pantry
+[walk to pantry]
+> open pantry
+The pantry holds cobwebs, a jar of something murky, and a box of CRUNCHY BONES dog biscuits! Crumpet's favorite.
+[sound creak]
+> take biscuits
+You grab the box of Crunchy Bones. If anything can coax Crumpet out of hiding, it's these.
+[score +5 = 35]
+> west
+[walk x_kitchen_west]
+[room hall]
+> up
+[walk x_hall_up]
+[room bedroom]
+A musty bedroom at the top of the stairs. A four-poster bed sags beneath a moth-eaten canopy, a tall wardrobe looms in the corner, and a rocking chair rocks gently all by itself. Rain lashes the big window. On the ledge outside, a fat black crow sits on a nest of twigs, glaring at you. Something small and red lies on the floor. The stairs lead back down.
+> go to collar
+[walk to collar]
+> take collar
+You pick up Crumpet's red collar. The tag says CRUMPET. IF FOUND, HE IS PROBABLY EATING SOMETHING.
+[score +5 = 40]
+> go to window
+[walk to window]
+> take key
+The crow jabs its beak at the glass. It isn't giving up its treasure without a fight. Or at least, not without a very good reason.
+> blow whistle
+You blow the silver whistle. You can't hear a thing, but the crow certainly can. It screeches, flaps, and flees into the storm, leaving its nest behind.
+[score +5 = 45]
+[sound whistle]
+> take key
+The window is closed.
+> open window
+You heave the window open. Rain blows in over the sill. The crow's nest sits on the ledge, within reach.
+> take key
+You reach out into the rain and fish around in the nest. Your fingers close on something cold and heavy: a big iron key!
+[score +5 = 50]
+> inventory
+You are carrying a brass key, a box of matches, a silver whistle, a candle, a box of dog biscuits, Crumpet's collar and an iron key.
+> down
+[walk x_bedroom_down]
+[room hall]
+> east
+[walk x_hall_east]
+[room kitchen]
+> go to trapdoor
+[walk to trapdoor]
+> open trapdoor
+You heave the trapdoor open. Stone steps lead down into total darkness. From somewhere below comes a small, familiar whimper. Crumpet!
+[sound creak]
+> down
+[walk x_trapdoor]
+[score +5 = 55]
+[room cellar]
+A damp stone cellar. Your candle throws jittery shadows across racks of dusty bottles and old barrels. In the far wall, a small iron door sits at the top of a heap of coal: a coal chute! Behind a stack of crates, two worried eyes glint in the candlelight. Stone steps lead back up to the kitchen.
+> give biscuits to crumpet
+You shake the box of Crunchy Bones. Crumpet's head pops up over the crates. Bravery, it turns out, can be bought for one biscuit.
+He bounds out, crunches it happily, and plants himself at your feet. Good boy!
+[score +10 = 65]
+[sound bark]
+> put collar on crumpet
+You buckle Crumpet's collar back on. He looks very dignified for a dog covered in coal dust.
+> go to chute
+[walk to chute]
+> unlock chute
+The iron key grinds in the padlock... and clicks! The padlock falls away, and the little door swings open. Fresh, rainy air pours in.
+[score +5 = 70]
+[sound clunk]
+> score
+Your score is 70 of 80.
+> go out
+[walk x_chute]
+[score +10 = 80]
+You scramble up the coal heap and squeeze through the little door, Crumpet right behind you. You tumble out into the wet grass just as the storm breaks, and the first gray light of dawn creeps over Crowmere Hill.
+Crumpet shakes himself off all over you, collar tag jingling. You don't even mind.
+And somewhere inside, a skeleton is reading tomorrow's paper. Delivery: complete.
+[won] THE END
+> score

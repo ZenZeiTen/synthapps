@@ -31,6 +31,8 @@ import AjvModule from "ajv";
 import {
   LLMError,
   type AgentLoopEvent,
+  type ConversationTurn,
+  type ServerTool,
   type AgentLoopResult,
   type Effort,
   type JsonSchemaObject,
@@ -68,6 +70,9 @@ export interface AgentLoopRequest {
   effort?: Effort;
   signal?: AbortSignal;
   onEvent?: (event: AgentLoopEvent) => void;
+  history?: ConversationTurn[];
+  serverTools?: ServerTool[];
+  streamText?: boolean;
 }
 
 export interface ScriptedToolCall {

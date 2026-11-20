@@ -53,6 +53,14 @@ if ( $fresh ) {
 Settings::flush();
 Blocklist::reset();
 Agents::reset();
+// Network owners come from this table, never from real DNS. The owner name carries markup to
+// prove the feed shows it as text.
+zbst_fake_dns(
+	array(
+		'7.100.51.198.origin.asn.cymru.com' => '64500 | 198.51.100.0/24 | ID | apnic | 2010-01-01',
+		'AS64500.asn.cymru.com'             => '64500 | ID | apnic | 2010-01-01 | EXAMPLE-NET <img src=x onerror=window.__pwned3=1> Example Telecom, ID',
+	)
+);
 register_shutdown_function(
 	function () use ( $state_file ) {
 		file_put_contents( $state_file, serialize( array( WP_Stub::$options, WP_Stub::$transients ) ) );
@@ -76,6 +84,13 @@ if ( 0 === strpos( $path, '/asset/' ) ) {
 	exit;
 }
 
+// A successful administrator login from the request's address, as Hardening::login_ok() records it.
+if ( '/_login' === $path ) {
+	ZenZeiTenBastion\Log::add( array( 'type' => 'login_ok', 'severity' => ZenZeiTenBastion\Log::SEVERITY_LOW, 'score' => 0, 'username' => 'admin' ) );
+	echo 'ok';
+	exit;
+}
+
 if ( '/state' === $path ) {
 	header( 'Content-Type: application/json' );
 	echo json_encode(
@@ -96,7 +111,7 @@ if ( '/admin' === $path ) {
 		'live'     => '/wp-json/zenzeiten-bastion/v1/live',
 		'nonce'    => 'nonce',
 		'interval' => 700,
-		'i18n'     => array( 'paused' => 'Paused', 'live' => 'Live', 'offline' => 'Connection lost', 'empty' => 'No events yet.', 'block' => 'Block' ),
+		'i18n'     => array( 'paused' => 'Paused', 'live' => 'Live', 'offline' => 'Connection lost', 'empty' => 'No events yet.', 'block' => 'Block this IP', 'own' => '(your address)' ),
 		'blockUrl' => '/admin-blocks?x=1',
 	);
 	header( 'Content-Type: text/html; charset=utf-8' );
@@ -112,7 +127,7 @@ if ( '/wp-json/zenzeiten-bastion/v1/live' === $path ) {
 		exit;
 	}
 	WP_Stub::$user = (object) array( 'ID' => 1, 'roles' => array( 'administrator' ) );
-	$response      = $admin->live( new WP_REST_Request( array( 'after' => (int) ( $_GET['after'] ?? 0 ) ) ) );
+	$response      = $admin->live( new WP_REST_Request( array( 'after' => (int) ( $_GET['after'] ?? 0 ), 'nets' => (string) ( $_GET['nets'] ?? '' ) ) ) );
 	header( 'Content-Type: application/json' );
 	echo json_encode( $response->get_data() );
 	exit;

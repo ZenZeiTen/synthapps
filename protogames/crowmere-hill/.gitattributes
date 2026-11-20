@@ -1,0 +1,7 @@
+# LF everywhere: the golden transcripts are compared byte for byte by both engines.
+* text=auto eol=lf
+
+*.png binary
+*.wav binary
+*.aseprite binary
+*.blend binary

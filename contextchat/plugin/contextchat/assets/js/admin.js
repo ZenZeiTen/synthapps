@@ -206,6 +206,69 @@
 		}
 	} );
 
+	/* SI tab: connection test. The reply is shown as text, never as HTML. */
+	function format( text, values ) {
+		var i = 0;
+		return String( text ).replace( /%(?:(\d+)\$)?([sd])/g, function ( all, pos ) {
+			var v = values[ pos ? parseInt( pos, 10 ) - 1 : i++ ];
+			return v === undefined ? '' : String( v );
+		} );
+	}
+	var testButton = document.getElementById( 'ctxc-si-test-run' );
+	if ( testButton && data.siTest ) {
+		var testOut = document.querySelector( '.ctxc-si-test-result' );
+		var line = function ( text, className ) {
+			var p = document.createElement( 'p' );
+			p.textContent = text;
+			if ( className ) {
+				p.className = className;
+			}
+			testOut.appendChild( p );
+		};
+		var dollars = function ( micro, places ) {
+			return ( ( micro || 0 ) / 1000000 ).toFixed( places );
+		};
+		testButton.addEventListener( 'click', function () {
+			var outcomes = data.i18n.outcomes || {};
+			testOut.textContent = '';
+			line( data.i18n.testing );
+			testButton.disabled = true;
+			window.fetch( data.siTest.url, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': data.siTest.nonce },
+				body: JSON.stringify( {
+					prompt: document.getElementById( 'ctxc-si-test-prompt' ).value,
+					simulate_reject: document.getElementById( 'ctxc-si-test-reject' ).checked,
+				} ),
+			} ).then( function ( r ) {
+				return r.json();
+			} ).then( function ( res ) {
+				testOut.textContent = '';
+				if ( res.ok ) {
+					line( format( data.i18n.testOk, [ res.model ] ), 'ctxc-si-test-ok' );
+					var quote = document.createElement( 'blockquote' );
+					quote.className = 'ctxc-si-test-reply';
+					quote.textContent = res.reply;
+					testOut.appendChild( quote );
+				} else {
+					line( data.i18n.testFailed + ' ' + ( outcomes[ res.error ] || res.error || res.message || '' ), 'ctxc-si-test-failed' );
+				}
+				( res.attempts || [] ).forEach( function ( a, n ) {
+					line( format( data.i18n.attempt, [ n + 1, a.served_by || a.model, outcomes[ a.outcome ] || a.outcome, a.ms, a.input_tokens, a.output_tokens, dollars( a.cost_micro_usd, 5 ) ] ), 'ctxc-si-test-attempt' );
+				} );
+				if ( res.cap_micro_usd ) {
+					line( format( data.i18n.spentToday, [ dollars( res.spent_today, 4 ), dollars( res.cap_micro_usd, 2 ) ] ) );
+				}
+			} ).catch( function () {
+				testOut.textContent = '';
+				line( data.i18n.testFailed, 'ctxc-si-test-failed' );
+			} ).then( function () {
+				testButton.disabled = false;
+			} );
+		} );
+	}
+
 	/* Launcher preview on the Appearance tab. */
 	var stage = document.querySelector( '.ctxc-preview-stage' );
 	if ( stage ) {

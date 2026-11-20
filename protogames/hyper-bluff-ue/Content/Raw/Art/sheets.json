@@ -1,0 +1,18 @@
+{
+ "card": [
+  40,
+  56
+ ],
+ "icons": [
+  "hawk",
+  "swap",
+  "guard",
+  "over",
+  "sight",
+  "glare",
+  "empty",
+  "star",
+  "dealer",
+  "retake"
+ ]
+}

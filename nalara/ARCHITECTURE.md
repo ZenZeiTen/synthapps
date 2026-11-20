@@ -96,6 +96,28 @@ SQLite table, audited, published as `relay.message`, capped in size, and
 charged to the fleet budget. Agents have no tool to send one; only the
 orchestrator does.
 
+## Offline mode
+
+Without Claude credentials the kernel is offline: a heuristic Intent Engine and
+rule-based agent skills. Those skills can review code, scan for secrets, run
+tests, search files and check designs; they cannot write, translate or
+summarize. Intent classes whose outcome needs Claude carry `needsClaude` in
+`src/intent/catalog.ts` (writing, translation, localization, feature build,
+bug fix, documentation, summary, general task). When the UI or CLI submits one
+offline, `submitIntent(..., { offline: "refuse" })` throws `NeedsClaudeError`
+(HTTP 422 `needs_claude`) before any workspace is made; resubmitting with
+`offlineAnyway` runs the rule-based checks on purpose. Internal callers
+(triggers, workflows) are not refused.
+
+Credentials come from the environment or an `ant auth` profile first, else
+from a key saved in **Settings → Claude** (secret `ANTHROPIC_API_KEY`, checked
+with `models.retrieve` before it is stored). The provider is chosen when the
+kernel starts, so a new key applies through `POST /api/kernel/restart`, which
+the desktop launcher and `nalara serve` implement by building a new kernel on
+the same port. Both also add the operating system's certificate store to
+Node's (`src/kernel/trust.ts`), so Claude is reachable on networks that
+inspect TLS with a company certificate.
+
 ## Conventions
 
 - ESM TypeScript, extensionless relative imports (`import { x } from "../kernel/types"`).

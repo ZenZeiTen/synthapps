@@ -9,7 +9,7 @@ import { createKernel, type NeuralKernel } from "../src/kernel/kernel";
 import { createScriptedProvider, type ScriptedTurn } from "../src/llm/scripted";
 import type { AgentFinishedData, AgentInstance, ApprovalRequest, KernelEvent, Workspace } from "../src/kernel/types";
 
-const DEMO = path.resolve(__dirname, "../demo/breath-of-fire-iv-remake");
+const DEMO = path.resolve(__dirname, "../demo/lantern-road");
 const temps: string[] = [];
 
 function demoCopy(): string {
@@ -65,7 +65,7 @@ describe("kernel: the four spec intents offline", () => {
     const s = kernel.status();
     expect(s.mode).toBe("offline");
     expect(s.root).toBe(root);
-    expect(s.projectName).toBe("Breath of Fire IV Remake");
+    expect(s.projectName).toBe("Lantern Road");
     expect(s.files).toBeGreaterThan(10);
     expect(s.agents.catalog).toBe(kernel.orchestrator.catalog().length);
     expect(s.toolPolicy).toBe("ask");
@@ -82,8 +82,10 @@ describe("kernel: the four spec intents offline", () => {
     const ws = await runIntent("Review inventory module");
     expect(ws.intent).toBe("engineering_review");
     expect(ws.status).toBe("completed");
-    expect(ws.report?.artifactPath).toBe(`${ws.outputDir}/report.md`);
+    // The user's copy is in the visible Reports folder; the agents' scratch copy stays in the output folder.
+    expect(ws.report?.artifactPath).toMatch(/^Reports\/\d{4}-\d\d-\d\d \d{4} Engineering review \(ws_[a-z0-9]+\)\.md$/);
     expect(existsSync(path.join(root, ws.report!.artifactPath!))).toBe(true);
+    expect(existsSync(path.join(root, `${ws.outputDir}/report.md`))).toBe(true);
     expect(readFileSync(path.join(root, ws.report!.artifactPath!), "utf8")).toMatch(/Engineering review|Review inventory module/);
     const titles = ws.report!.findings.map((f) => f.title);
     expect(titles.some((t) => /TODO/.test(t))).toBe(true);
@@ -117,7 +119,8 @@ describe("kernel: the four spec intents offline", () => {
     expect(ws.status).toBe("completed");
     const titles = ws.report!.findings.map((f) => f.title);
     expect(titles).toContain("Use of `any`");
-    expect(titles).toContain("Magic number in formula");
+    // The same finding at several places is grouped into one entry with the count in its title.
+    expect(titles.some((t) => t.startsWith("Magic number in formula"))).toBe(true);
     expect(titles.some((t) => /TODO/.test(t))).toBe(true);
   });
 

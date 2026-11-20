@@ -143,14 +143,16 @@ describe("registration", () => {
     expect(shape("fs.write_file")).toBe("write/compensable/tenant");
     expect(shape("proc.run_tests")).toBe("execute/irreversible/tenant");
     expect(shape("proc.deploy")).toBe("execute/irreversible/external");
-    expect(registry.list()).toHaveLength(13);
+    // A pure read, so it also runs in readonly mode; external because it reaches the public web.
+    expect(shape("web.fetch")).toBe("read/reversible/external");
+    expect(registry.list()).toHaveLength(14);
   });
 
   it("adds builtin tool-group nodes to the graph when given one", () => {
     const nodes: { id: string; props?: Record<string, unknown> }[] = [];
     const graph = { upsertNode: (n: { id: string; props?: Record<string, unknown> }) => nodes.push(n) } as unknown as KnowledgeGraph;
     makeTools({ graph });
-    expect(nodes.map((n) => n.id).sort()).toEqual(["mcp:builtin-fs", "mcp:builtin-git", "mcp:builtin-memory", "mcp:builtin-proc", "mcp:builtin-search"]);
+    expect(nodes.map((n) => n.id).sort()).toEqual(["mcp:builtin-fs", "mcp:builtin-git", "mcp:builtin-memory", "mcp:builtin-proc", "mcp:builtin-search", "mcp:builtin-web"]);
     expect(nodes.find((n) => n.id === "mcp:builtin-git")!.props!.tools).toEqual(["git.status", "git.log", "git.diff"]);
   });
 });

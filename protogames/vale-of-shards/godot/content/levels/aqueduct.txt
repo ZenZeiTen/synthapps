@@ -1,0 +1,57 @@
+name: Sunken Aqueduct
+theme: water
+music: aqueduct
+stage: 3
+intro: The old aqueduct lies drowned | under still green water
+route: 15,12; 18,20; 26,30; 36,30; 45,19; 55,31; 65,33; 70,19; 78,18; 83,30; 90,20; 92,17; 97,13; 107,13
+map:
+##############################################################################################################
+##############################################################################################################
+##############################################################################################################
+##############################################################################################################
+##############################################################################################################
+##############################################################################################################
+##############################################################################################################
+##############################################################################################################
+##############################################################################################################
+#............................................................................................................#
+#...........................###.........................###.........................###......................#
+#.........0...............0.###.0............3..........###................3.......0###......00..............#
+#..@..P.*..V.y..............###.........................###.........................###......................#
+################.B..........###.........................###.........................###............F..K.u..E.#
+################====........###.........................###.........................###........###############
+################............###.........................###.........................###........###############
+################~~~~~~~~~~~~###~~~~~~~~~~~~~~~~~~~~~~~~~###~~~~~~~~~~~~~~~~~~~~~~~~~###~~~~~Q~~###############
+################wwwwwwwwwwww###wwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwww###############
+################wwwwwwwwwwww###wwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwMwwwwwwwwwHwwwww###wwwwwwww###############
+################wwwwwwwwwwww###wwwSSSwMwwwwwwwwwwwUwwwww###wwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwww###############
+################wwwwwwwwwwww###wwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwwwww###wwwwwwwww###wwwwwwww###############
+################wwwwwwwwwwww###wwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwwwww###wwwwwwwww###wwwwwwww###############
+################wwwwwwwwwwww###wwwwwwwwwww###wwwwwwwwwww###wwwwwwwwwwwww###wwwwwwwww###wwwLwwww###############
+################wwwwwwwwwwww###wwwwwwwwwww###wwwwwwwwwww###wwwwwwwwwwwww###wwwwwwwww###wwwwwwww###############
+################wwwwwwwwGwww###wwwwwwwwwww###wwwwwwwwwww###wwwwwGwwwwwww###wwwwwwwww###wwwwwwww###############
+################wwwwwwwwwwww###wwwwwwwwwww###wwwwwwwwwww###wwwwwwwwwwwww###wwwwUwwww###wwwwwwww###############
+################wwwwwwwwwwww###wwwwwwwwwww###wwwwwwwLwww###wwwwwwwwwwwww###wwwwwwwww###wwwwwwww###############
+################wwwwwwwwwwww###wwwwwwwwwww###wwwwwwwwwww###wwwwwwwwwwwww###wwwwwwwww###wwwwwwww###############
+################wwwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwww###wwwwwwwwwwwww###wwwwwwwwwwwwwwwwwwww###############
+################wwwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwwwwwwwwwwww###############
+################wwwwwwwwwwwwwwwwwwwwMwwwww###wwwwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwwwwwwwwwwww###############
+################wwwwwwwwwwwwwwwwwwwwwwwwww###wwwSSwwwwwwwwwwwwwwwwwwwwww###wwwwwGwwwwwwwwwwwwww###############
+################wwwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwwwwwwwwwwww###############
+################wwwwwwwwwwwwwwwwwwwwwwwwww###wwwwwwwwwwwwwwwwwSSwOwSSwww###wwwwwwwwwwwwwwwwwwww###############
+##############################################################################################################
+##############################################################################################################
+end
+legend:
+P signpost text=sign_aqueduct_1
+* pad channel=1
+V owl text=owl_aqueduct channel=1 xd=-4
+B token item=bell
+O sigil which=tide
+G gar
+M minnow
+U urchin
+L eel
+Q token item=lamp dock=97,13
+K slick xd=-1
+E exit state=3

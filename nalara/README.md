@@ -47,7 +47,18 @@ What happens when you start it:
   window.
 - On Windows a console window shows what Nalara is doing; keep it open. Without
   a console (the Mac app), the same text goes to `Nalara/.nalara/app.log`.
-- It runs offline unless `ANTHROPIC_API_KEY` is set in the environment.
+- Without Claude it runs **offline**: the agents are simple rule-based checkers.
+  They can review code, check security, run tests and search the files in your
+  Nalara folder, but they cannot write, translate, summarize or answer
+  questions. The top bar says **Offline · Add Claude key**, and an intent that
+  needs Claude (writing an email, translating, building a feature) is held with
+  a short explanation instead of producing unrelated file checks. You can still
+  run the offline checks for it on purpose.
+- To use Claude, open **Settings → Claude**, paste an Anthropic API key (create
+  one at console.anthropic.com) and click **Check and save key**. Nalara checks
+  the key with Anthropic, stores it on this computer only, and restarts itself
+  with Claude. Use is billed to your Anthropic account. A key in the
+  `ANTHROPIC_API_KEY` environment variable also works and takes precedence.
 
 Options (from a terminal): `--fullscreen`, `--root DIR`, `--port N`,
 `--no-open`, `--stay` (keep running after the window closes), `--offline`,
@@ -65,7 +76,7 @@ Requires Node.js 22.13 or newer.
 cd nalara
 npm install
 npm run build                      # builds the Nalara UI into web/dist
-npm start -- --root demo/breath-of-fire-iv-remake
+npm start -- --root demo/lantern-road
 ```
 
 On Windows PowerShell 5.1, which does not accept `&&`, run the steps one per
@@ -75,7 +86,7 @@ line, with a backslash in the path:
 cd nalara
 npm install
 npm run build
-npm start -- --root demo\breath-of-fire-iv-remake
+npm start -- --root demo\lantern-road
 ```
 
 Windows is supported in the code (paths, file watching, killing a command's
@@ -92,16 +103,20 @@ agent in orbit for its own menu. **Field** (top right) shows the knowledge
 graph; **Halt** is the kill switch. Screenshots of each state are in
 [docs/screenshots/](docs/screenshots/).
 
-To use Claude, make credentials available before starting (for example
-`export ANTHROPIC_API_KEY=...`, or a profile from `ant auth login`). The status
-line says `mode: claude` or `mode: offline`. `--offline` forces offline mode.
-The default model is `claude-opus-5` (`NALARA_MODEL` to change).
+To use Claude, add an API key in **Settings → Claude** (checked with Anthropic,
+stored in Nalara's secret store, applied by an automatic restart), or make
+credentials available before starting (`export ANTHROPIC_API_KEY=...`, or a
+profile from `ant auth login`). The status line says `mode: claude` or
+`mode: offline`. `--offline` forces offline mode. Offline, intents that need
+Claude are refused with an explanation; `nalara intent ... --offline-anyway`
+(or **Run offline checks anyway** in the UI) runs the rule-based checks
+instead. The default model is `claude-opus-5-5` (`NALARA_MODEL` to change).
 
 From the terminal:
 
 ```bash
-npm run cli -- intent "Review inventory module" --root demo/breath-of-fire-iv-remake --wait
-npm run cli -- search "latest damage calculations" --root demo/breath-of-fire-iv-remake
+npm run cli -- intent "Review inventory module" --root demo/lantern-road --wait
+npm run cli -- search "latest damage calculations" --root demo/lantern-road
 npm run cli -- approvals          # on a running server
 npm run cli -- approve <id>
 npm run cli -- halt "stop everything"
@@ -118,7 +133,7 @@ Nalara writes its database and outputs to `<root>/.nalara/`.
 
 | Spec component (DESIGN.md) | In the runtime |
 |---|---|
-| Intent Engine (3.1) | Classifier, enricher, context loader, priority engine and planner. Claude with structured output, or a catalog of 14 intent classes |
+| Intent Engine (3.1) | Classifier, enricher, context loader, priority engine and planner. Claude with structured output, or a catalog of 15 intent classes |
 | Agent Orchestrator (3.2) | Enforced lifecycle (dormant → summoned → active → collaborating → completed → archived), plan DAGs, concurrency lanes, budgets, checkpoints |
 | Workspace Generator (3.3) | Workspaces with member files, tools, agents, an output folder and generated resources (glossary, style guide, coding standards) |
 | Knowledge Graph (3.4) | SQLite-backed graph of projects, folders, files, concepts, agents, tools, workspaces, outputs and their relations |
@@ -126,10 +141,14 @@ Nalara writes its database and outputs to `<root>/.nalara/`.
 | Neural Canvas (4) | The Neural Core UI, live over server-sent events; the knowledge graph as a React Flow "Field" view |
 | Radial OS (5) | Root, agent, file, project, workspace, MCP and workflow menus with the spec's actions |
 | Agents (6) | 27 agents in four groups, each following `schemas/agent.schema.json`, with rule-based offline skills |
-| Intent-based execution (7) | The four spec examples produce the workspaces the spec describes |
+| Intent-based execution (7) | The four spec examples produce the workspaces the spec describes. When a run finishes, its results open in a panel, and its report is saved as Markdown in the `Reports` folder of your Nalara home (in every tool policy, also `readonly`) |
 | MCP (8) | Stdio and HTTP servers; tools discovered at run time and classed read / write / search / execute |
 | Filesystem by meaning (9) | Semantic search with concepts, recency, kind filters and graph relations |
 | Events (10) | Persistent event bus and the File Changed → Review → QA → Documentation trigger chain |
+| Ask Nalara (beyond the spec) | **Ask** in the top bar, or **ASK** in the intent bar: a conversation with Claude that answers directly and streams as it writes. It can read, search and (after your approval) write your files and notes, add and update tasks and reminders, read git status, history and diffs, use memory, and search the web. It does not run commands, launch apps, change git repositories or use MCP servers: use Terminal and Start for those. Conversations are kept. Offline it says that open questions need Claude and shows what a search of your files found |
+| Files (beyond the spec) | A file manager: the Nalara folder plus any folders you add (Documents, Desktop, a project...). Browse, create files and folders, edit and save text, rename, duplicate, move to a recoverable trash and restore, preview images, and open anything else in its own app (never programs or scripts). Paths are confined to their folder; every change is audited. The assistant gets the same abilities as `files.*` tools, behind approvals |
+| Start, Terminal (beyond the spec) | **Start** in the top bar lists Nalara's own apps and the programs installed on the computer (Windows Start menu, macOS Applications, Linux app menus) and starts them; only programs from that list can be started. **Terminal** runs command lines in the system shell (PowerShell on Windows), streams the output, follows `cd`, keeps a history, and can send input or stop a command. Commands you type run as you; the assistant's `shell.run` and `apps.launch` need your approval every time. Every command and launch is audited; Halt stops running commands |
+| Notes, Tasks, Text editor (beyond the spec) | **Notes**: Markdown notes in a `Notes` folder, saved as you type, with a preview. **Tasks**: to-dos with optional due times; when one is due Nalara shows a reminder (and a system notification if you allow it). **Text editor**: new documents in `Documents`, recent files, and any file from Files. Notes and documents are ordinary files, so search, Files and the assistant see them; the assistant can also read and add tasks (`tasks.*`) |
 | Fleets (beyond the spec) | Process tree per run, adversarial review (builders attacked by critics; only evidence-checked challenges block), an audited relay, fleet memory, fleet budgets, an Observatory and a work queue. See [ARCHITECTURE.md](ARCHITECTURE.md#fleets) and [docs/orc-gap-analysis.md](docs/orc-gap-analysis.md) |
 
 ## Safety
@@ -157,6 +176,10 @@ register are in [SAFETY.md](SAFETY.md).
   `nalara secret set`) and are referenced as `${secret:NAME}`. Agents never see
   them, and stored values are removed from tool results, events, the audit
   ledger and API responses.
+- **Web:** agents can read public web pages with `web.fetch` (and Claude's web
+  search when online), also in the `readonly` policy. Local and private network
+  addresses, URLs carrying secrets and binary files are refused. Deny `web.*`
+  in Settings, or set `NALARA_WEB_TOOLS=0`, to turn it off.
 - **Network:** the server binds to 127.0.0.1 and has no authentication. Do not
   expose it.
 
@@ -174,7 +197,7 @@ would run yourself.
 - `src/`: the kernel. Contracts in `src/kernel/types.ts`, HTTP API in
   `src/server/api-contract.ts`.
 - `web/`: the UI (the Neural Core), plus a mock kernel and smoke test in `web/mock/`.
-- `demo/breath-of-fire-iv-remake/`: a small original game project to try it on.
+- `demo/lantern-road/`: a small original game project to try it on.
 - `schemas/`: JSON Schemas for intents, graph nodes and agents.
 - `design/`: the earlier Claude Design canvas artboards (they render inside the
   Claude Design canvas only). The current UI follows

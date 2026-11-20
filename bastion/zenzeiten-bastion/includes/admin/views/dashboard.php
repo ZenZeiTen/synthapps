@@ -78,11 +78,13 @@ $zbst_cards = array(
 					<th><?php esc_html_e( 'Time', 'zenzeiten-bastion' ); ?></th>
 					<th><?php esc_html_e( 'IP address', 'zenzeiten-bastion' ); ?></th>
 					<th><?php esc_html_e( 'Event', 'zenzeiten-bastion' ); ?></th>
+					<th><?php esc_html_e( 'Action', 'zenzeiten-bastion' ); ?></th>
 					<th><?php esc_html_e( 'Request', 'zenzeiten-bastion' ); ?></th>
 					<th><?php esc_html_e( 'Details', 'zenzeiten-bastion' ); ?></th>
 				</tr></thead>
 				<tbody></tbody>
 			</table>
+			<p class="description"><?php esc_html_e( 'Action shows what Bastion did: Blocked means the request was refused or the address was blocked, Allow means a successful administrator login, Logged means the event was only recorded. "Block this IP" opens the form to block that address.', 'zenzeiten-bastion' ); ?></p>
 			<script type="application/json" class="zbst-initial"><?php echo wp_json_encode( $recent, JSON_HEX_TAG | JSON_HEX_AMP ); ?></script>
 		</div>
 

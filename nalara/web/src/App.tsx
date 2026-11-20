@@ -1,18 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import { BRAND } from "./brand";
 import { coreStatusLine, coreWord, deriveMood, fieldState, FINISHED_STATES, restingSystemAgents, RUNNING_STATES, type MoodInput } from "./core/model";
 import { usePacedInstances, usePacer } from "./core/pacing";
 import { useDebouncedCallback, useGraph, useKernelEvents } from "./hooks";
 import type { AgentDefinition, AgentInstance, AgentState, ApprovalRequest, GraphNode, KernelEvent, KernelStatus, RadialAction, RadialResult, SearchHit, Workspace } from "./types";
+import { AssistantPanel } from "./components/AssistantPanel";
+import { LauncherPanel, type NalaraApp } from "./components/LauncherPanel";
+import { TerminalPanel } from "./components/TerminalPanel";
 import { ApprovalCard } from "./components/ApprovalCard";
-import { AgentsPanel, AppsPanel, FilesPanel, ProjectsPanel } from "./components/BrowsePanels";
+import { ClaudeNotice, type ClaudeNeeded } from "./components/ClaudeNotice";
+import { AgentsPanel, AppsPanel, ProjectsPanel } from "./components/BrowsePanels";
+import { FileExplorer } from "./components/FileExplorer";
 import { Canvas } from "./components/Canvas";
 import { EventLog } from "./components/EventLog";
-import { FileViewer } from "./components/FileViewer";
+import { FilePreview, FileViewer } from "./components/FileViewer";
 import { FleetPanel } from "./components/FleetPanel";
 import { Hud } from "./components/Hud";
-import { IconRefresh } from "./components/Icons";
+import { IconCheck, IconFile, IconFolder, IconMemory, IconPencil, IconRefresh, IconSearch, IconSettings, IconSpark, IconTerminal } from "./components/Icons";
+import { EditorPanel, rememberFile } from "./components/EditorPanel";
+import { NotesPanel } from "./components/NotesPanel";
+import { TasksPanel } from "./components/TasksPanel";
 import { IntentDock } from "./components/IntentDock";
 import { KillSwitch, ResumeButton } from "./components/KillSwitch";
 import { MemoryPanel } from "./components/MemoryPanel";
@@ -27,7 +35,20 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { SidePanel } from "./components/SidePanel";
 import { Ticker } from "./components/Ticker";
 
-type PanelId = "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events" | "fleet" | "observatory";
+/** Nalara's own apps, as the Launcher shows them; each opens the panel with its id. */
+const NALARA_APPS: NalaraApp[] = [
+  { id: "assistant", name: "Ask", description: "Answers, writing and work on your files", icon: <IconSpark size={20} /> },
+  { id: "files", name: "Files", description: "Your folders, edit and save, trash", icon: <IconFolder size={20} /> },
+  { id: "notes", name: "Notes", description: "Markdown notes, saved as you type", icon: <IconPencil size={20} /> },
+  { id: "tasks", name: "Tasks", description: "To-dos and reminders", icon: <IconCheck size={20} /> },
+  { id: "editor", name: "Text editor", description: "New documents and recent files", icon: <IconFile size={20} /> },
+  { id: "terminal", name: "Terminal", description: "Run commands on this computer", icon: <IconTerminal size={20} /> },
+  { id: "search", name: "Search", description: "Find files by meaning", icon: <IconSearch size={20} /> },
+  { id: "memory", name: "Memory", description: "What Nalara remembers", icon: <IconMemory size={20} /> },
+  { id: "settings", name: "Settings", description: "Claude key, policy, secrets", icon: <IconSettings size={20} /> },
+];
+
+type PanelId = "assistant" | "terminal" | "launcher" | "notes" | "tasks" | "editor" | "search" | "files" | "agents" | "projects" | "apps" | "memory" | "settings" | "events" | "fleet" | "observatory";
 const ROOT_PANELS: PanelId[] = ["search", "files", "agents", "projects", "apps", "memory", "settings"];
 
 /** Panel and sheet widths (px) plus their 20 px margin; the stage centres the core in the space left between them. */
@@ -89,10 +110,15 @@ export function App() {
   /** The workspace whose process tree the Fleet panel shows. */
   const [fleetWs, setFleetWs] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /** An intent an offline kernel refused because it needs Claude. */
+  const [claudeNeeded, setClaudeNeeded] = useState<ClaudeNeeded | null>(null);
   const [panel, setPanel] = useState<PanelId | null>(null);
+  /** A question handed from the intent bar to the assistant panel. */
+  const [askQuestion, setAskQuestion] = useState<string | null>(null);
+  const takeQuestion = useCallback(() => setAskQuestion(null), []);
   const [fieldOpen, setFieldOpen] = useState(false);
   const [fieldFocus, setFieldFocus] = useState<{ id: string; n: number } | null>(null);
-  const [fileView, setFileView] = useState<{ path: string; line?: number } | null>(null);
+  const [fileView, setFileView] = useState<{ path: string; line?: number; place?: string; edit?: boolean } | null>(null);
   const [radial, setRadial] = useState<RadialTarget | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [lastLive, setLastLive] = useState<KernelEvent | null>(null);
@@ -116,6 +142,24 @@ export function App() {
     setToasts((t) => [...t.slice(-3), { id, message, tone }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === "error" ? 8000 : 5000);
   }, []);
+
+  // Reminders: a toast, and a system notification when the user allowed them.
+  useEffect(
+    () =>
+      onEvent((ev) => {
+        if (ev.type !== "reminder.due") return;
+        // The stream replays recent history on (re)connect: an old reminder is not shown again.
+        if (Date.now() - Date.parse(ev.ts) > 60_000) return;
+        const title = String((ev.data as { title?: unknown })?.title ?? "A task is due");
+        toast(`Reminder: ${title}`);
+        try {
+          if ("Notification" in window && Notification.permission === "granted") new Notification(`${BRAND} reminder`, { body: title, tag: String((ev.data as { taskId?: unknown })?.taskId ?? title) });
+        } catch {
+          /* notifications unavailable */
+        }
+      }),
+    [onEvent, toast],
+  );
 
   // ---- loaders ---------------------------------------------------------------------------------------
   const loadStatus = useCallback(async () => {
@@ -331,7 +375,11 @@ export function App() {
   }, [paced, tick]);
 
   // ---- actions -----------------------------------------------------------------------------------------
-  const openFile = useCallback((path: string, line?: number) => setFileView({ path, line }), []);
+  const openFile = useCallback((path: string, line?: number, place?: string, edit?: boolean) => {
+    rememberFile(place ?? "home", path);
+    setFileView({ path, line, ...(place ? { place } : {}), ...(edit ? { edit } : {}) });
+  }, []);
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
 
   const coreGeometry = useCallback(() => {
     const el = document.querySelector<HTMLElement>(".core-orb");
@@ -374,16 +422,22 @@ export function App() {
   }, []);
 
   const submitIntent = useCallback(
-    async (text: string) => {
+    async (text: string, offlineAnyway = false) => {
       setSubmitting(true);
       setRadial(null);
       try {
-        const { workspace } = await api.submitIntent(text, true);
+        const { workspace } = await api.submitIntent(text, true, offlineAnyway);
+        setClaudeNeeded(null);
         setWorkspaces((list) => [...(list ?? []).filter((w) => w.id !== workspace.id), workspace]);
         setSheetWs(null);
         setFocusWs(workspace.id);
         return true;
       } catch (err) {
+        if (err instanceof ApiError && err.code === "needs_claude") {
+          // Not an error: the intent is kept in the notice, with the ways on.
+          setClaudeNeeded({ text, message: err.message });
+          return true;
+        }
         toast(`Intent failed: ${(err as Error).message}`, "error");
         return false;
       } finally {
@@ -392,6 +446,36 @@ export function App() {
     },
     [toast],
   );
+
+  /**
+   * Restarts the kernel in place (after a Claude key is saved) and waits for the new one. Resolves false when this
+   * Nalara cannot restart itself (no supervisor): the user then restarts it.
+   */
+  const restartNalara = useCallback(async (): Promise<boolean> => {
+    const before = (await api.status()).startedAt;
+    try {
+      await api.restart();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "restart_unavailable") return false;
+      throw err;
+    }
+    const t0 = Date.now();
+    while (Date.now() - t0 < 60_000) {
+      await new Promise((r) => setTimeout(r, 700));
+      try {
+        const st = await api.status();
+        if (st.startedAt !== before) {
+          setStatus(st);
+          reconnect();
+          loadAll();
+          return true;
+        }
+      } catch {
+        // still restarting
+      }
+    }
+    throw new Error("Nalara did not come back after restarting. Close it and start it again.");
+  }, [reconnect, loadAll]);
 
   const onClientAction = useCallback(
     (action: RadialAction, target: RadialTarget) => {
@@ -460,7 +544,7 @@ export function App() {
   }, []);
 
   // ---- layout ------------------------------------------------------------------------------------------
-  const leftW = panel ? (panel === "settings" || panel === "observatory" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
+  const leftW = panel ? (panel === "settings" || panel === "observatory" || panel === "assistant" || panel === "files" || panel === "terminal" || panel === "launcher" || panel === "notes" || panel === "tasks" ? PANEL_WIDE_W : PANEL_W) + EDGE : 0;
   const rightW = sheetWs ? SHEET_W + EDGE : 0;
   // Shrink the core when panels leave it less room than its orbit needs.
   const orbPx = Math.min(vp.h * 0.266, 300);
@@ -497,7 +581,7 @@ export function App() {
       <div className="stage stage-back" style={stageStyle} aria-hidden="true">
         <CoreHalo mood={mood} lifted={approvals.length > 0} />
       </div>
-      <Scene mood={mood} orbits={!fieldOpen} />
+      <Scene mood={mood} orbits={!fieldOpen} activeAgents={running.length} onEvent={onEvent} />
 
       {fieldOpen ? (
         <div className="field-layer">
@@ -526,6 +610,12 @@ export function App() {
           setFieldOpen((f) => !f);
         }}
         killSwitch={<KillSwitch halted={halted} disabled={!status || offline} onStatus={setStatus} onToast={toast} />}
+        claudeOffline={status?.mode === "offline"}
+        onClaudeOffline={() => setPanel("settings")}
+        askOpen={panel === "assistant"}
+        onAsk={() => setPanel((p) => (p === "assistant" ? null : "assistant"))}
+        launcherOpen={panel === "launcher"}
+        onLauncher={() => setPanel((p) => (p === "launcher" ? null : "launcher"))}
       />
 
       <main className={`stage${room < 720 ? " is-narrow" : ""}`} style={stageStyle} aria-label={`${BRAND} core`} aria-hidden={fieldOpen || undefined}>
@@ -540,26 +630,59 @@ export function App() {
           action={coreAction}
         />
         <ApprovalCard approvals={approvals} onResolved={(a) => setApprovals((list) => list.filter((x) => x.id !== a.id))} onToast={toast} />
+        {approvals.length ? null : (
+          <ClaudeNotice
+            notice={claudeNeeded}
+            busy={submitting}
+            onAddKey={() => {
+              setClaudeNeeded(null);
+              setPanel("settings");
+            }}
+            onRunOffline={(text) => void submitIntent(text, true)}
+            onDismiss={() => setClaudeNeeded(null)}
+          />
+        )}
         <IntentDock
           agentName={agentName}
           onSubmit={submitIntent}
+          onAsk={(q) => {
+            setAskQuestion(q);
+            setPanel("assistant");
+          }}
           busy={submitting}
           disabled={halted || offline}
           disabledReason={halted ? "Halted. Resume to state an intent" : offline ? `${BRAND} is offline` : undefined}
         />
       </main>
 
+      {panel === "assistant" ? (
+        <AssistantPanel
+          online={status?.mode === "claude"}
+          onClose={() => setPanel(null)}
+          onOpenSettings={() => setPanel("settings")}
+          question={askQuestion}
+          onQuestionTaken={takeQuestion}
+        />
+      ) : null}
+      {panel === "terminal" ? <TerminalPanel onClose={() => setPanel(null)} /> : null}
+      {panel === "notes" ? <NotesPanel onClose={() => setPanel(null)} onToast={toast} /> : null}
+      {panel === "tasks" ? <TasksPanel onClose={() => setPanel(null)} onEvent={onEvent} /> : null}
+      {panel === "editor" ? <EditorPanel onClose={() => setPanel(null)} onOpen={(path, place, edit) => openFile(path, undefined, place, edit)} onBrowse={() => setPanel("files")} /> : null}
+      {panel === "launcher" ? (
+        <LauncherPanel apps={NALARA_APPS} onOpenApp={(id) => setPanel(id as PanelId)} onClose={() => setPanel(null)} onToast={toast} />
+      ) : null}
       {panel === "search" ? <SearchPanel onClose={() => setPanel(null)} onOpenHit={onOpenHit} /> : null}
       {panel === "files" ? (
-        <FilesPanel
-          graph={graph}
+        <FileExplorer
           onClose={() => setPanel(null)}
-          onOpen={(path) => openFile(path)}
+          onOpen={(path, place, edit) => openFile(path, undefined, place, edit)}
+          onPreview={(url, name) => setPreview({ url, name })}
           onActions={(path, nodeId) => {
             setPanel(null);
             setRadial({ nodeId, title: path.split("/").pop() ?? path, ...coreGeometry() });
           }}
           onField={() => showInField()}
+          onToast={toast}
         />
       ) : null}
       {panel === "agents" ? (
@@ -597,6 +720,7 @@ export function App() {
           onStatusChanged={() => void loadStatus()}
           onOpenEvents={() => setPanel("events")}
           onOpenObservatory={() => setPanel("observatory")}
+          onRestart={restartNalara}
         />
       ) : null}
       {panel === "observatory" ? <ObservatoryPanel agentName={agentName} onOpenFleet={openFleet} onEvent={onEvent} onClose={() => setPanel(null)} /> : null}
@@ -652,7 +776,8 @@ export function App() {
         ))}
       </div>
 
-      {fileView ? <FileViewer path={fileView.path} line={fileView.line} onClose={() => setFileView(null)} /> : null}
+      {fileView ? <FileViewer path={fileView.path} line={fileView.line} {...(fileView.place ? { place: fileView.place } : {})} edit={fileView.edit === true} onClose={() => setFileView(null)} /> : null}
+      {preview ? <FilePreview url={preview.url} name={preview.name} onClose={() => setPreview(null)} /> : null}
     </div>
   );
 }

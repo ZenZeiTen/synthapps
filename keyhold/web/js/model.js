@@ -98,7 +98,7 @@ export function defaultSettings() {
     // Display
     theme: 'system', showUsername: true, notesTooltip: false, initialTree: 'expanded', expiryWarnDays: 30, view: 'list',
     // Entries
-    confirmTrash: true, historyKeep: 30, defaultExpiryDays: 0, defaultUsername: '', trackAccess: false, doubleClick: 'copyPassword',
+    confirmTrash: true, trashKeepDays: 0, historyKeep: 30, defaultExpiryDays: 0, defaultUsername: '', trackAccess: false, doubleClick: 'copyPassword',
     // Organisation
     folders: [], savedFilters: [], policies: [DEFAULT_POLICY],
     // Vault properties
@@ -115,7 +115,9 @@ export function normalizePayload(p) {
   if (!Array.isArray(s.policies) || !s.policies.length) s.policies = [DEFAULT_POLICY];
   s.policies = s.policies.map((x) => ({ ...DEFAULT_POLICY, ...x }));
   if (!Array.isArray(s.savedFilters)) s.savedFilters = [];
+  if (!Array.isArray(s.folders)) s.folders = [];
   s.historyKeep = Math.max(0, Math.min(MAX_HISTORY, s.historyKeep | 0));
+  s.trashKeepDays = Math.max(0, Math.min(3650, s.trashKeepDays | 0));
   const out = { schema: 1, items: {}, purged: { ...(p && p.purged) }, settings: s };
   for (const it of Object.values((p && p.items) || {})) {
     const n = normalizeItem(it);
@@ -131,12 +133,12 @@ export function normalizeItem(it) {
     id: it.id || uuid(), type,
     title: String(it.title || 'Untitled').slice(0, 300),
     folder: cleanFolder(it.folder || ''),
-    tags: [...new Set((it.tags || []).map((x) => String(x).trim()).filter(Boolean))].slice(0, 30),
+    tags: [...new Set((Array.isArray(it.tags) ? it.tags : []).map((x) => String(x).trim()).filter(Boolean))].slice(0, 30),
     favorite: !!it.favorite,
     fields: { ...(it.fields || {}) },
-    custom: (it.custom || []).map((c) => ({ name: String(c.name || ''), value: String(c.value ?? ''), hidden: !!c.hidden })),
+    custom: (Array.isArray(it.custom) ? it.custom : []).filter(Boolean).map((c) => ({ name: String(c.name || ''), value: String(c.value ?? ''), hidden: !!c.hidden })),
     notes: String(it.notes || ''),
-    history: (it.history || []).slice(0, MAX_HISTORY),
+    history: (Array.isArray(it.history) ? it.history : []).filter((x) => x && typeof x.value === 'string').slice(0, MAX_HISTORY),
     createdAt: t, updatedAt: it.updatedAt || t,
     passwordChangedAt: it.passwordChangedAt || it.createdAt || t,
     deletedAt: it.deletedAt || null,
@@ -174,7 +176,7 @@ export function applyEdit(before, after, { historyKeep = 30 } = {}) {
   if (before && pk) {
     const old = before.fields[pk] || '';
     if (old && old !== (next.fields[pk] || '')) {
-      next.history = [{ value: old, changedAt: t }, ...before.history.filter((h) => h.value !== old)].slice(0, historyKeep);
+      next.history = [{ value: old, changedAt: t }, ...before.history.filter((h) => h.value !== old && h.value !== (next.fields[pk] || ''))].slice(0, historyKeep);
       next.passwordChangedAt = t;
       next.breach = null;
     } else {
@@ -212,22 +214,73 @@ export function safeUrl(url) {
   } catch { return null; }
 }
 
-/** Search titles, non-secret fields, folders, tags and notes. All words must match. */
-export function search(items, query) {
-  const words = String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.length) return items;
+const QUERY_OPS = new Set(['type', 'folder', 'tag', 'is', 'has']);
+
+/**
+ * Split a search into plain words and filters:
+ *   type:card  folder:work  tag:bank  is:favorite|protected|expired|due  has:totp|notes|url|history|password|fields
+ *   "two words" matches the phrase; a leading - excludes (-tag:old, -draft).
+ */
+export function parseQuery(query) {
+  const words = [], ops = [];
+  for (const m of String(query || '').toLowerCase().matchAll(/(-?)(?:([a-z]+):)?(?:"([^"]*)"?|(\S+))/g)) {
+    const neg = m[1] === '-';
+    const value = m[3] ?? m[4] ?? '';
+    if (m[2] && QUERY_OPS.has(m[2])) { if (value) ops.push({ key: m[2], value, neg }); continue; }
+    // Not a filter ("https://x", "note: y"): search for the text as typed.
+    const text = (m[2] ? m[2] + ':' : '') + value;
+    // A filter still being typed ("tag:") matches everything until it has a value.
+    if (!text || /^(type|folder|tag|is|has):$/.test(text)) continue;
+    words.push({ text, neg });
+  }
+  return { words, ops };
+}
+
+function matchOp(it, op, at) {
+  const v = op.value;
+  switch (op.key) {
+    case 'type': { const d = TYPES[it.type]; return it.type === v || d.label.toLowerCase().startsWith(v) || d.plural.toLowerCase().startsWith(v); }
+    case 'folder': { const f = it.folder.toLowerCase(); return f === v || f.startsWith(v + '/') || f.split('/').some((p) => p.startsWith(v)); }
+    case 'tag': return it.tags.some((t) => t.toLowerCase() === v);
+    case 'is':
+      if (v === 'favorite' || v === 'fav' || v === 'favourite') return it.favorite;
+      if (v === 'protected') return it.protected;
+      if (v === 'expired') return !!it.expiresAt && Date.parse(it.expiresAt) < at;
+      if (v === 'due') return !!it.expiresAt;
+      return false;
+    case 'has':
+      if (v === 'totp' || v === '2fa') return !!it.fields.totp;
+      if (v === 'notes' || v === 'note') return !!it.notes.trim();
+      if (v === 'url' || v === 'website') return !!(it.fields.url || it.fields.endpoint);
+      if (v === 'history') return it.history.length > 0;
+      if (v === 'password' || v === 'secret') { const pk = primaryKey(it.type); return !!(pk && it.fields[pk]); }
+      if (v === 'fields' || v === 'custom') return it.custom.length > 0;
+      return false;
+    default: return true;
+  }
+}
+
+/**
+ * Search titles, non-secret fields, folders, tags and notes; never secrets.
+ * Every word and filter must match (see parseQuery for the filters).
+ */
+export function search(items, query, { at = Date.now() } = {}) {
+  const { words, ops } = parseQuery(query);
+  if (!words.length && !ops.length) return items;
   return items.filter((it) => {
+    if (!ops.every((op) => matchOp(it, op, at) !== op.neg)) return false;
+    if (!words.length) return true;
     const def = TYPES[it.type];
     const hay = [it.title, it.folder, it.tags.join(' '), it.notes, def.label,
       ...def.fields.filter((f) => f.kind !== 'secret' && f.kind !== 'totp').map((f) => it.fields[f.key] || ''),
       ...it.custom.filter((c) => !c.hidden).map((c) => c.name + ' ' + c.value)].join('\n').toLowerCase();
-    return words.every((w) => hay.includes(w));
+    return words.every((w) => hay.includes(w.text) !== w.neg);
   });
 }
 
 export function sortItems(items, by = 'title') {
   const arr = [...items];
-  if (by === 'updated') arr.sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1));
+  if (by === 'updated') arr.sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : b.updatedAt < a.updatedAt ? -1 : 0));
   else arr.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true }));
   return arr;
 }
@@ -253,11 +306,12 @@ export function folderTree(items, extra = []) {
 export function healthReport(items, strengthFn, { oldDays = 365, warnDays = 30, at = Date.now() } = {}) {
   const live = items.filter((i) => !i.deletedAt);
   const bySecret = new Map();
-  const weak = [], old = [], breached = [], expiring = [], noTotp = [];
+  const weak = [], old = [], breached = [], expiring = [], noTotp = [], insecure = [];
   for (const it of live) {
     const pk = primaryKey(it.type);
     const s = pk && it.fields[pk];
     if (!s) continue;
+    if (it.type === 'login' && /^http:\/\//i.test(it.fields.url || '') && !/^http:\/\/(localhost|127\.|10\.|192\.168\.|\[::1\])/i.test(it.fields.url)) insecure.push({ item: it });
     if (it.type === 'login' || it.type === 'wifi' || it.type === 'apikey') {
       const st = strengthFn(s);
       if (st.score < 2) weak.push({ item: it, strength: st });
@@ -274,7 +328,7 @@ export function healthReport(items, strengthFn, { oldDays = 365, warnDays = 30, 
   const problems = new Set([...weak, ...old, ...breached].map((x) => x.item.id));
   reused.flat().forEach((i) => problems.add(i.id));
   const score = total ? Math.round(100 * (1 - problems.size / total)) : 100;
-  return { weak, reused, old, breached, expiring, noTotp, total, score };
+  return { weak, reused, old, breached, expiring, noTotp, insecure, total, score };
 }
 
 function stable(v) {
@@ -317,9 +371,10 @@ export function mergePayloads(a, b) {
     }
     items[id] = win;
   }
-  const settings = a.settings.updatedAt >= b.settings.updatedAt ? a.settings : b.settings;
-  const other = settings === a.settings ? b.settings : a.settings;
-  settings.folders = [...new Set([...(settings.folders || []), ...(other.folders || [])])];
+  let aWins = a.settings.updatedAt > b.settings.updatedAt;
+  if (a.settings.updatedAt === b.settings.updatedAt) aWins = stable(a.settings) >= stable(b.settings);
+  const [sw, sl] = aWins ? [a.settings, b.settings] : [b.settings, a.settings];
+  const settings = { ...sw, folders: [...new Set([...(sw.folders || []), ...(sl.folders || [])])].sort() };
   return { schema: 1, items, purged, settings };
 }
 
@@ -351,4 +406,35 @@ export function applyFilter(items, f) {
   if (f.favorite) out = out.filter((i) => i.favorite);
   if (f.expiring) out = out.filter((i) => i.expiresAt);
   return search(out, f.query || '');
+}
+
+/** ISO time as the local calendar day "YYYY-MM-DD" (what a date input shows). */
+export function localDay(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Ids of items that have been in the trash longer than `days` (0 = keep for ever). */
+export function staleTrash(items, days, at = Date.now()) {
+  if (!(days > 0)) return [];
+  return items.filter((i) => i.deletedAt && at - Date.parse(i.deletedAt) > days * 864e5).map((i) => i.id);
+}
+
+/** What makes two items "the same entry" for import: type, name, folder and every field value. */
+export function fingerprint(it) {
+  const fields = Object.entries(it.fields || {}).filter(([, v]) => v).sort(([x], [y]) => (x < y ? -1 : 1));
+  return stable([it.type, it.title.trim().toLowerCase(), it.folder, fields, it.notes.trim(), it.custom.map((c) => [c.name, c.value])]);
+}
+
+/** Split imported items into ones to add and exact copies of what is already there (or repeated in the file). */
+export function dedupeImport(existing, incoming) {
+  const seen = new Set(existing.filter((i) => !i.deletedAt).map(fingerprint));
+  const fresh = [], duplicates = [];
+  for (const it of incoming) {
+    const f = fingerprint(it);
+    if (seen.has(f)) duplicates.push(it); else { seen.add(f); fresh.push(it); }
+  }
+  return { fresh, duplicates };
 }

@@ -1,0 +1,9 @@
+# Unreal build output
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vs/
+*.sln
+# core test builds
+tests/build/

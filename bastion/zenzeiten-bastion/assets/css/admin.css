@@ -47,3 +47,9 @@
 .zbst-wrap pre { background: #f6f7f7; padding: 10px 12px; border-radius: 6px; overflow-x: auto; }
 .zbst-agents { max-width: 900px; }
 .zbst-agents td { vertical-align: top; }
+.zbst-net { display: block; color: #646970; margin-top: 2px; }
+.zbst-own { color: #646970; font-size: 12px; }
+.zbst-outcome { font-weight: 600; white-space: nowrap; }
+.zbst-outcome-blocked { color: #b32d2e; }
+.zbst-outcome-allow { color: #007017; }
+.zbst-outcome-logged { color: #50575e; }

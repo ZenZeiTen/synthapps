@@ -1,0 +1,57 @@
+{
+  "_doc": "Every rule number of Tidebell. Speeds and positions are 16.16 fixed point (65536 = 1 px per step), except where a key ends in _px or _f (frames). The IDs refer to docs/DESIGN.md.",
+  "step_hz": 60,
+  "tile": 16,
+  "screen": [320, 224],
+  "player": {
+    "hw": 7, "h": 38, "h_crouch": 24,
+    "walk_first": 24576, "walk_accel": 36864,
+    "jump_v": -529408, "jump_cut": -196608, "gravity": 27648, "max_fall": 524288,
+    "coyote_f": 5, "jump_buffer_f": 6,
+    "climb_v": 98304, "climb_push": 131072,
+    "knock_vx": 262144, "knock_vy": -262144, "hurt_f": 20, "safe_f": 100,
+    "pit_damage": 20, "pit_margin_px": 48,
+    "hp_start": 71, "hp_cap": 127, "heartroot_add": 24,
+    "lives": 3, "continues": 3, "dead_f": 90, "drop_f": 10,
+    "crouch_swing_f": 21, "air_swing_f": 13, "attack_buffer_f": 6,
+    "special": {"len": 30, "from": 6, "to": 20, "damage": 4, "cost": 12, "needs": 24, "reach_add": 10},
+    "item_cap": 9, "knife_v": 393216, "knife_damage": 2
+  },
+  "heroes": {
+    "kess":     {"name": "Kess Marrow",   "weapon": "cutlass",         "walk_max": 180224, "swing": 20, "repress": 16, "reach": 30, "damage": 2, "hits": 1, "from": 3, "to": 9},
+    "june":     {"name": "June Rook",     "weapon": "twin hook-knives", "walk_max": 196608, "swing": 16, "repress": 12, "reach": 24, "damage": 1, "hits": 2, "from": 2, "to": 8},
+    "brannoch": {"name": "Brannoch Tull", "weapon": "boarding anchor", "walk_max": 163840, "swing": 24, "repress": 20, "reach": 36, "damage": 3, "hits": 1, "from": 5, "to": 12}
+  },
+  "hero_order": ["kess", "june", "brannoch"],
+  "difficulty": {
+    "names": ["Easy", "Normal", "Hard"],
+    "enemy_hit": [8, 12, 16],
+    "hazard": [10, 15, 20]
+  },
+  "timed": {
+    "feather": {"state": 1, "f": 900},
+    "squall":  {"state": 2, "f": 480, "burst": 6},
+    "stoneskin": {"state": 3, "f": 1200},
+    "fury":    {"state": 4, "f": 1200}
+  },
+  "items": ["tonic", "heartroot", "knives", "feather", "squall", "stoneskin", "fury", "key"],
+  "enemies": {
+    "raider":  {"hp": 6,  "w": 16, "h": 36, "score": 200, "speed": 65536, "reach": 28, "windup": 12, "cut": 8, "cool": 50},
+    "thrower": {"hp": 4,  "w": 16, "h": 36, "score": 200, "speed": 49152, "every": 90},
+    "mudskip": {"hp": 2,  "w": 16, "h": 12, "score": 100, "every": 50},
+    "bat":     {"hp": 2,  "w": 14, "h": 12, "score": 100},
+    "crab":    {"hp": 8,  "w": 24, "h": 16, "score": 300, "speed": 49152},
+    "gull":    {"hp": 3,  "w": 20, "h": 12, "score": 150, "speed": 131072},
+    "wisp":    {"hp": 3,  "w": 12, "h": 12, "score": 150, "speed": 49152},
+    "golem":   {"hp": 14, "w": 24, "h": 40, "score": 500, "speed": 32768, "cool": 90},
+    "vell":        {"hp": 30, "w": 20, "h": 38, "score": 5000, "guardian": true},
+    "hullbreaker": {"hp": 40, "w": 40, "h": 30, "score": 5000, "guardian": true},
+    "tallyman":    {"hp": 36, "w": 20, "h": 40, "score": 5000, "guardian": true},
+    "oldgrey":     {"hp": 40, "w": 40, "h": 24, "score": 5000, "guardian": true},
+    "warden":      {"hp": 44, "w": 24, "h": 40, "score": 5000, "guardian": true},
+    "grane":       {"hp": 50, "w": 20, "h": 40, "score": 8000, "guardian": true},
+    "siltking":    {"hp": 90, "w": 56, "h": 72, "score": 20000, "guardian": true}
+  },
+  "score": {"coin": 50, "gem": 250, "bell": 10000, "captive": 1000},
+  "stages": ["reach", "harbor", "village", "cliffs", "abbey", "brinecrow"]
+}

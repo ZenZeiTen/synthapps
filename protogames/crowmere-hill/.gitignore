@@ -1,0 +1,14 @@
+# Regenerated in seconds by the tools -- rebuild them, don't commit them.
+# node tools/bundle_web.mjs
+dist/
+# node tools/sync_godot.mjs (the transcript runner reads content/ directly)
+godot/content/
+# Godot editor cache
+godot/.godot/
+# node tools/dump_art.mjs, read by tests/verify_art.py
+build/art_dump.json
+
+*.log
+__pycache__/
+*.pyc
+*.blend1

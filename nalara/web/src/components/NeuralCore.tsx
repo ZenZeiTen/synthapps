@@ -42,7 +42,11 @@ export function NeuralCore({ mood, statusLine, sats, lifted, radialOpen, onCoreC
       >
         {/* The breathing happens inside the button, so the button itself keeps a still box. */}
         <span className="orb-breath" aria-hidden="true">
+          {/* Light around the orb, pulsing with each breath; then the body and two slow currents of light inside it. */}
+          <span className="orb-glow" />
           <span className="orb-layer orb-body" />
+          <span className="orb-layer orb-flow" />
+          <span className="orb-layer orb-flow orb-flow-2" />
           <span className="orb-layer orb-tint orb-amber" />
           <span className="orb-layer orb-tint orb-ember" />
           <span className="orb-layer orb-tint orb-calm" />

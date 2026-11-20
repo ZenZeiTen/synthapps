@@ -266,6 +266,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 /* ---------- additions modelled on Password Safe's main window ---------- */
 svg.i.tiny { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; color: var(--faint); }
 svg.i.tiny.fav { color: var(--warn); fill: currentColor; }
+.bulk-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; }
+.list .row, table.grid tbody tr { user-select: none; -webkit-user-select: none; }
 .row .prot { color: var(--faint); } .row .prot svg { width: 14px; height: 14px; }
 .chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); background: var(--warn-soft); }
 

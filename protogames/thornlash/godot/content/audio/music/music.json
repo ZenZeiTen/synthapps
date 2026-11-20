@@ -1,0 +1,50 @@
+{
+ "title": {
+  "title": "Vigil of Hollowmoor",
+  "seconds": 32.0
+ },
+ "stage1": {
+  "title": "Thorn and Lantern",
+  "seconds": 25.6
+ },
+ "stage2": {
+  "title": "Procession of Bones",
+  "seconds": 29.091
+ },
+ "stage3": {
+  "title": "The Drowned Stair",
+  "seconds": 20.87
+ },
+ "stage4": {
+  "title": "Iron in the Deep",
+  "seconds": 24.0
+ },
+ "stage5": {
+  "title": "Clockwork Spire",
+  "seconds": 26.667
+ },
+ "stage6": {
+  "title": "Throne of Ash",
+  "seconds": 32.0
+ },
+ "boss": {
+  "title": "Fang and Talon",
+  "seconds": 11.429
+ },
+ "clear": {
+  "title": "Soul Orb",
+  "seconds": 6.857
+ },
+ "death": {
+  "title": "Fallen",
+  "seconds": 9.6
+ },
+ "gameover": {
+  "title": "The Vigil Ends",
+  "seconds": 19.2
+ },
+ "ending": {
+  "title": "Dawn over Hollowmoor",
+  "seconds": 38.4
+ }
+}

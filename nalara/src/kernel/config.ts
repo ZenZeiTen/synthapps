@@ -15,7 +15,7 @@ import type { AdversarialConfig, AgentBudget, Effort, FleetBudget, Finding, McpS
 export const CONFIG_FILE = "nalara.config.json";
 export const DEFAULT_PORT = 7437;
 export const DEFAULT_HOST = "127.0.0.1";
-export const DEFAULT_MODEL = "claude-opus-5";
+export const DEFAULT_MODEL = "claude-opus-5-5";
 
 export const DEFAULT_BUDGET: AgentBudget = {
   maxInputTokens: 400_000,

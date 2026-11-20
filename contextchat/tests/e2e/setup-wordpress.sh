@@ -63,4 +63,6 @@ php -r 'file_put_contents($argv[1], pack("V7", 0x950412de, 0, 0, 28, 28, 0, 28))
 
 ln -s "$PLUGIN" "$SITE/wp-content/plugins/contextchat"
 cp "$HERE/fake-woocommerce.php" "$SITE/wp-content/plugins/fake-woocommerce.php"
+mkdir -p "$SITE/wp-content/mu-plugins"
+cp "$HERE/si-mock-endpoint.php" "$SITE/wp-content/mu-plugins/si-mock-endpoint.php"
 echo "WordPress ready in $SITE"

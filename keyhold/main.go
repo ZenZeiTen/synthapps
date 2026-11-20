@@ -9,7 +9,9 @@
 package main
 
 import (
+	"context"
 	"embed"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -30,7 +32,7 @@ var webFiles embed.FS
 
 // Set with -ldflags "-X main.version=... -X main.guiBuild=1".
 var (
-	version  = "1.1.0"
+	version  = "1.3.1"
 	guiBuild = "0"
 )
 
@@ -54,6 +56,9 @@ func main() {
 	default:
 		usage()
 		os.Exit(2)
+	}
+	if errors.Is(err, flag.ErrHelp) {
+		return // the flag package has printed the options
 	}
 	if err != nil {
 		fatal(err)
@@ -118,7 +123,7 @@ func runServe(args []string) error {
 	key := fl.String("tls-key", "", "TLS key file (PEM)")
 	open := fl.Bool("open-signup", false, "let anyone create an account")
 	invite := fl.String("invite-code", "", "require this code to create an account")
-	cors := fl.String("cors-origins", "", "comma-separated origins allowed to call the API (default: desktop apps on loopback)")
+	cors := fl.String("cors-origins", "", "comma-separated origins allowed to call the API (default: the desktop and Android apps)")
 	proxy := fl.Bool("trust-proxy", false, "behind a reverse proxy: use X-Forwarded-For for rate limits")
 	keep := fl.Int("history", 50, "previous versions kept per vault")
 	if err := fl.Parse(args); err != nil {
@@ -163,15 +168,29 @@ func runServe(args []string) error {
 	if *invite != "" {
 		mode = "invite code"
 	}
+	// Ctrl+C or a stop signal lets requests in flight finish before the program ends.
+	done := make(chan error, 1)
+	go func() {
+		<-interrupted()
+		logger.Printf("stopping")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		done <- hs.Shutdown(ctx)
+	}()
 	if *cert != "" {
 		logger.Printf("sync server on https://%s (signup: %s, data: %s)", *addr, mode, *data)
-		return hs.ListenAndServeTLS(*cert, *key)
+		err = hs.ListenAndServeTLS(*cert, *key)
+	} else {
+		if !isLoopbackAddr(*addr) && !*proxy {
+			logger.Printf("WARNING: no TLS. Put this server behind an HTTPS reverse proxy (and pass --trust-proxy), or give --tls-cert/--tls-key. Browsers only allow the app's encryption on HTTPS or localhost.")
+		}
+		logger.Printf("sync server on http://%s (signup: %s, data: %s)", *addr, mode, *data)
+		err = hs.ListenAndServe()
 	}
-	if !isLoopbackAddr(*addr) && !*proxy {
-		logger.Printf("WARNING: no TLS. Put this server behind an HTTPS reverse proxy (and pass --trust-proxy), or give --tls-cert/--tls-key. Browsers only allow the app's encryption on HTTPS or localhost.")
+	if errors.Is(err, http.ErrServerClosed) {
+		return <-done
 	}
-	logger.Printf("sync server on http://%s (signup: %s, data: %s)", *addr, mode, *data)
-	return hs.ListenAndServe()
+	return err
 }
 
 func isLoopbackAddr(a string) bool {

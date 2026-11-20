@@ -2,185 +2,201 @@
 # This file is distributed under the MIT license.
 msgid ""
 msgstr ""
-"Project-Id-Version: ZenZeiTen Bastion 1.1.0\n"
+"Project-Id-Version: ZenZeiTen Bastion 1.2.0\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Domain: zenzeiten-bastion\n"
 
-#: includes/admin/class-admin.php:155 includes/admin/class-admin.php:155
+#: includes/admin/class-admin.php:145 includes/admin/views/blocks.php:53
+msgid "Blocked"
+msgstr ""
+
+#: includes/admin/class-admin.php:148
+msgid "Allow"
+msgstr ""
+
+#: includes/admin/class-admin.php:150
+msgid "Logged"
+msgstr ""
+
+#: includes/admin/class-admin.php:224 includes/admin/class-admin.php:224
 msgid "Bastion"
 msgstr ""
 
-#: includes/admin/class-admin.php:156 includes/admin/class-admin.php:156
+#: includes/admin/class-admin.php:225 includes/admin/class-admin.php:225 includes/admin/views/settings.php:335
 msgid "Live monitor"
 msgstr ""
 
-#: includes/admin/class-admin.php:157 includes/admin/class-admin.php:157 includes/admin/views/events.php:24
+#: includes/admin/class-admin.php:226 includes/admin/class-admin.php:226 includes/admin/views/events.php:24
 msgid "Attack log"
 msgstr ""
 
-#: includes/admin/class-admin.php:158 includes/admin/class-admin.php:158
+#: includes/admin/class-admin.php:227 includes/admin/class-admin.php:227
 msgid "Blocked IPs"
 msgstr ""
 
-#: includes/admin/class-admin.php:159 includes/admin/class-admin.php:159
+#: includes/admin/class-admin.php:228 includes/admin/class-admin.php:228
 msgid "Backups"
 msgstr ""
 
-#: includes/admin/class-admin.php:160 includes/admin/class-admin.php:160 includes/admin/class-admin.php:170
+#: includes/admin/class-admin.php:229 includes/admin/class-admin.php:229 includes/admin/class-admin.php:239
 msgid "Settings"
 msgstr ""
 
-#: includes/admin/class-admin.php:193
+#: includes/admin/class-admin.php:262
 msgid "Paused"
 msgstr ""
 
-#: includes/admin/class-admin.php:194 includes/admin/views/dashboard.php:74
+#: includes/admin/class-admin.php:263 includes/admin/views/dashboard.php:74
 msgid "Live"
 msgstr ""
 
-#: includes/admin/class-admin.php:195
+#: includes/admin/class-admin.php:264
 msgid "Connection lost, retrying…"
 msgstr ""
 
-#: includes/admin/class-admin.php:196
+#: includes/admin/class-admin.php:265
 msgid "No events yet. Attacks will appear here as they happen."
 msgstr ""
 
-#: includes/admin/class-admin.php:197 includes/admin/views/blocks.php:42 includes/admin/views/dashboard.php:107
-msgid "Block"
+#: includes/admin/class-admin.php:266
+msgid "Block this IP"
 msgstr ""
 
-#: includes/admin/class-admin.php:198
+#: includes/admin/class-admin.php:267
+msgid "(your address)"
+msgstr ""
+
+#: includes/admin/class-admin.php:268
 msgid "Replace the whole database with this backup? A safety backup of the current database is taken first and restored automatically if anything fails."
 msgstr ""
 
-#: includes/admin/class-admin.php:199
+#: includes/admin/class-admin.php:269
 msgid "Delete this backup permanently?"
 msgstr ""
 
-#: includes/admin/class-admin.php:213
+#: includes/admin/class-admin.php:283
 msgid "Sorry, you are not allowed to do that."
 msgstr ""
 
-#: includes/admin/class-admin.php:251
+#: includes/admin/class-admin.php:321
 msgid "ZenZeiTen Bastion skipped a security check because of an error."
 msgstr ""
 
-#: includes/admin/class-admin.php:252
+#: includes/admin/class-admin.php:322
 msgid "Your site kept working. Please send these details to the plugin's developer:"
 msgstr ""
 
-#: includes/admin/class-admin.php:255
+#: includes/admin/class-admin.php:325
 #, php-format
 msgid "Last seen %1$s on %2$s (Bastion %3$s, PHP %4$s)."
 msgstr ""
 
-#: includes/admin/class-admin.php:258
+#: includes/admin/class-admin.php:328
 msgid "Clear this message"
 msgstr ""
 
-#: includes/admin/class-admin.php:267
+#: includes/admin/class-admin.php:337
 msgid "Message cleared."
 msgstr ""
 
-#: includes/admin/class-admin.php:282
+#: includes/admin/class-admin.php:352
 #, php-format
 msgid "ZenZeiTen Bastion blocked %s, an address in Cloudflare's network, for one hour."
 msgstr ""
 
-#: includes/admin/class-admin.php:283
+#: includes/admin/class-admin.php:353
 msgid "If your site is behind Cloudflare, that address is Cloudflare itself and the block may shut out real visitors. Open Bastion > Settings and look at \"Your address as Bastion sees it\". If it is not your own address, tick \"This site is behind Cloudflare\" and save. If your site does not use Cloudflare, the block caught a scanner and you can dismiss this message."
 msgstr ""
 
-#: includes/admin/class-admin.php:286
+#: includes/admin/class-admin.php:356
 msgid "Open settings"
 msgstr ""
 
-#: includes/admin/class-admin.php:286
+#: includes/admin/class-admin.php:356
 msgid "Dismiss"
 msgstr ""
 
-#: includes/admin/class-admin.php:296
+#: includes/admin/class-admin.php:366
 msgid "Message dismissed."
-msgstr ""
-
-#: includes/admin/class-admin.php:312
-#, php-format
-msgid "These lists could not be refreshed, and keep their previous copy: %s. The attack log has the details."
-msgstr ""
-
-#: includes/admin/class-admin.php:314
-msgid "Agent lists refreshed."
-msgstr ""
-
-#: includes/admin/class-admin.php:323
-msgid "New trap path and fake key created. Clear your page cache so pages carry the new ones."
-msgstr ""
-
-#: includes/admin/class-admin.php:345
-msgid "That would block your own address, so it was not blocked."
-msgstr ""
-
-#: includes/admin/class-admin.php:347
-msgid "Blocked by an administrator"
-msgstr ""
-
-#: includes/admin/class-admin.php:350
-msgid "Enter a valid IP address or range that is not on the allowlist."
-msgstr ""
-
-#: includes/admin/class-admin.php:363
-#, php-format
-msgid "Blocked %s."
 msgstr ""
 
 #: includes/admin/class-admin.php:382
 #, php-format
-msgid "Unblocked %s."
+msgid "These lists could not be refreshed, and keep their previous copy: %s. The attack log has the details."
 msgstr ""
 
 #: includes/admin/class-admin.php:384
-msgid "That address is not blocked."
+msgid "Agent lists refreshed."
 msgstr ""
 
 #: includes/admin/class-admin.php:393
+msgid "New trap path and fake key created. Clear your page cache so pages carry the new ones."
+msgstr ""
+
+#: includes/admin/class-admin.php:415
+msgid "That would block your own address, so it was not blocked."
+msgstr ""
+
+#: includes/admin/class-admin.php:417
+msgid "Blocked by an administrator"
+msgstr ""
+
+#: includes/admin/class-admin.php:420
+msgid "Enter a valid IP address or range that is not on the allowlist."
+msgstr ""
+
+#: includes/admin/class-admin.php:433
+#, php-format
+msgid "Blocked %s."
+msgstr ""
+
+#: includes/admin/class-admin.php:452
+#, php-format
+msgid "Unblocked %s."
+msgstr ""
+
+#: includes/admin/class-admin.php:454
+msgid "That address is not blocked."
+msgstr ""
+
+#: includes/admin/class-admin.php:463
 msgid "Block removed and its history forgotten."
 msgstr ""
 
-#: includes/admin/class-admin.php:406
+#: includes/admin/class-admin.php:476
 #, php-format
 msgid "Backup created: %1$d tables, %2$d rows."
 msgstr ""
 
-#: includes/admin/class-admin.php:417 includes/class-backup.php:325
+#: includes/admin/class-admin.php:487 includes/class-backup.php:325
 msgid "That backup does not exist."
 msgstr ""
 
-#: includes/admin/class-admin.php:439
+#: includes/admin/class-admin.php:509
 #, php-format
 msgid "Database restored from %1$s. The database as it was before is saved as %2$s. If the site uses a different login now, sign in again."
 msgstr ""
 
-#: includes/admin/class-admin.php:448
+#: includes/admin/class-admin.php:518
 msgid "Backup deleted."
 msgstr ""
 
-#: includes/admin/class-admin.php:459
+#: includes/admin/class-admin.php:529
 msgid "Choose a backup file to upload. If you did, it may be larger than the server allows."
 msgstr ""
 
-#: includes/admin/class-admin.php:466
+#: includes/admin/class-admin.php:536
 #, php-format
 msgid "Backup uploaded as %s. You can restore it from the list."
 msgstr ""
 
-#: includes/admin/class-admin.php:478
+#: includes/admin/class-admin.php:548
 msgid "Settings saved."
 msgstr ""
 
-#: includes/admin/class-admin.php:486
+#: includes/admin/class-admin.php:556
 msgid "Sorry, you are not allowed to access this page."
 msgstr ""
 
@@ -362,21 +378,21 @@ msgstr ""
 msgid "Reason"
 msgstr ""
 
+#: includes/admin/views/blocks.php:42 includes/admin/views/dashboard.php:109
+msgid "Block"
+msgstr ""
+
 #: includes/admin/views/blocks.php:45
 #, php-format
 msgid "Your address is %s. It cannot be blocked from here, and addresses administrators signed in from are spared from automatic blocks."
 msgstr ""
 
-#: includes/admin/views/blocks.php:50 includes/admin/views/dashboard.php:79 includes/admin/views/dashboard.php:96 includes/admin/views/events.php:42 includes/admin/views/events.php:52
+#: includes/admin/views/blocks.php:50 includes/admin/views/dashboard.php:79 includes/admin/views/dashboard.php:98 includes/admin/views/events.php:42 includes/admin/views/events.php:52
 msgid "IP address"
 msgstr ""
 
 #: includes/admin/views/blocks.php:51
 msgid "Source"
-msgstr ""
-
-#: includes/admin/views/blocks.php:53
-msgid "Blocked"
 msgstr ""
 
 #: includes/admin/views/blocks.php:54
@@ -477,27 +493,35 @@ msgstr ""
 msgid "Event"
 msgstr ""
 
-#: includes/admin/views/dashboard.php:81 includes/admin/views/events.php:55
+#: includes/admin/views/dashboard.php:81 includes/admin/views/events.php:54
+msgid "Action"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:82 includes/admin/views/events.php:55
 msgid "Request"
 msgstr ""
 
-#: includes/admin/views/dashboard.php:82 includes/admin/views/events.php:56
+#: includes/admin/views/dashboard.php:83 includes/admin/views/events.php:56
 msgid "Details"
 msgstr ""
 
-#: includes/admin/views/dashboard.php:90
-msgid "Top attacking IPs (24 h)"
+#: includes/admin/views/dashboard.php:87
+msgid "Action shows what Bastion did: Blocked means the request was refused or the address was blocked, Allow means a successful administrator login, Logged means the event was only recorded. \"Block this IP\" opens the form to block that address."
 msgstr ""
 
 #: includes/admin/views/dashboard.php:92
+msgid "Top attacking IPs (24 h)"
+msgstr ""
+
+#: includes/admin/views/dashboard.php:94
 msgid "No attacks in the last 24 hours."
 msgstr ""
 
-#: includes/admin/views/dashboard.php:97
+#: includes/admin/views/dashboard.php:99
 msgid "Events"
 msgstr ""
 
-#: includes/admin/views/dashboard.php:98
+#: includes/admin/views/dashboard.php:100
 msgid "Score"
 msgstr ""
 
@@ -520,10 +544,6 @@ msgstr ""
 
 #: includes/admin/views/events.php:51
 msgid "Severity"
-msgstr ""
-
-#: includes/admin/views/events.php:54
-msgid "Action"
 msgstr ""
 
 #: includes/admin/views/events.php:60
@@ -908,31 +928,43 @@ msgstr ""
 msgid "Your address as Bastion sees it: %s"
 msgstr ""
 
-#: includes/admin/views/settings.php:335
-msgid "Data"
-msgstr ""
-
 #: includes/admin/views/settings.php:338
-msgid "Keep the attack log for"
+msgid "Network owner and country"
 msgstr ""
 
 #: includes/admin/views/settings.php:339
-msgid "days"
+msgid "Show who each address belongs to in the live feed"
 msgstr ""
 
-#: includes/admin/views/settings.php:342
-msgid "Uninstall"
-msgstr ""
-
-#: includes/admin/views/settings.php:343
-msgid "Delete the log, blocks, settings and all backups when the plugin is deleted"
+#: includes/admin/views/settings.php:339
+msgid "While you have the live monitor open, Bastion looks up the addresses it shows with Team Cymru (through your server's DNS) and, if that gives nothing, with the address registries through rdap.org. Only the address is sent. Answers are kept for 30 days. Nothing is looked up while a visitor waits."
 msgstr ""
 
 #: includes/admin/views/settings.php:343
-msgid "Leave this off if you may reinstall the plugin."
+msgid "Data"
+msgstr ""
+
+#: includes/admin/views/settings.php:346
+msgid "Keep the attack log for"
 msgstr ""
 
 #: includes/admin/views/settings.php:347
+msgid "days"
+msgstr ""
+
+#: includes/admin/views/settings.php:350
+msgid "Uninstall"
+msgstr ""
+
+#: includes/admin/views/settings.php:351
+msgid "Delete the log, blocks, settings and all backups when the plugin is deleted"
+msgstr ""
+
+#: includes/admin/views/settings.php:351
+msgid "Leave this off if you may reinstall the plugin."
+msgstr ""
+
+#: includes/admin/views/settings.php:355
 msgid "Save settings"
 msgstr ""
 

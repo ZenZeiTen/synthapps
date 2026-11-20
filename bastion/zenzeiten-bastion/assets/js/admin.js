@@ -23,6 +23,13 @@
 	}
 
 	var MAX_ROWS = 100;
+	// Addresses shown without an owner yet: address -> times asked. Asked for a few times, then left.
+	var MAX_ASKS = 3;
+	var wanted = {};
+	var regions = null;
+	try {
+		regions = new Intl.DisplayNames( [ document.documentElement.lang || 'en' ], { type: 'region' } );
+	} catch ( e ) {}
 	var lastId = 0;
 	var paused = false;
 	var timer = null;
@@ -39,10 +46,48 @@
 		return td;
 	}
 
+	// "Telkom Indonesia · Indonesia" from an owner and a two-letter country code.
+	function netText( net ) {
+		var country = net.country || '';
+		if ( country && regions ) {
+			try {
+				country = regions.of( country ) || country;
+			} catch ( e ) {}
+		}
+		return [ net.owner || '', country ].filter( Boolean ).join( ' · ' );
+	}
+
+	function showNet( ipCell, net ) {
+		var text = netText( net );
+		if ( ! text || ipCell.querySelector( '.zbst-net' ) ) {
+			return;
+		}
+		var small = document.createElement( 'small' );
+		small.className = 'zbst-net';
+		small.textContent = text;
+		ipCell.appendChild( small );
+	}
+
+	// Fill in the rows of addresses whose owner arrived after they were drawn.
+	function applyNetworks( networks ) {
+		Object.keys( networks || {} ).forEach( function ( ip ) {
+			delete wanted[ ip ];
+			if ( ! networks[ ip ] ) {
+				return;
+			}
+			feed.querySelectorAll( 'tr[data-id]' ).forEach( function ( tr ) {
+				if ( tr.getAttribute( 'data-ip' ) === ip ) {
+					showNet( tr.children[ 1 ], networks[ ip ] );
+				}
+			} );
+		} );
+	}
+
 	function render( ev, fresh ) {
 		var tr = document.createElement( 'tr' );
 		tr.className = 'zbst-sev-' + ev.severity + ( fresh ? ' zbst-new' : '' );
 		tr.setAttribute( 'data-id', ev.id );
+		tr.setAttribute( 'data-ip', ev.ip || '' );
 		cell( tr, ev.time );
 
 		var ipCell = cell( tr, '' );
@@ -50,13 +95,24 @@
 			var code = document.createElement( 'code' );
 			code.textContent = ev.ip;
 			ipCell.appendChild( code );
-			if ( cfg.blockUrl ) {
+			ipCell.appendChild( document.createTextNode( ' ' ) );
+			if ( ev.own ) {
+				// Blocking your own address would lock you out, so no link is offered.
+				var own = document.createElement( 'span' );
+				own.className = 'zbst-own';
+				own.textContent = i18n.own || '(your address)';
+				ipCell.appendChild( own );
+			} else if ( cfg.blockUrl ) {
 				var a = document.createElement( 'a' );
 				a.href = cfg.blockUrl + '&ip=' + encodeURIComponent( ev.ip );
 				a.className = 'zbst-block-link';
-				a.textContent = i18n.block || 'Block';
-				ipCell.appendChild( document.createTextNode( ' ' ) );
+				a.textContent = i18n.block || 'Block this IP';
 				ipCell.appendChild( a );
+			}
+			if ( ev.net ) {
+				showNet( ipCell, ev.net );
+			} else if ( false === ev.net && ! ( ev.ip in wanted ) ) {
+				wanted[ ev.ip ] = 0;
 			}
 		}
 
@@ -65,7 +121,13 @@
 		badge.className = 'zbst-badge zbst-badge-' + ev.severity;
 		badge.textContent = ev.level;
 		typeCell.appendChild( badge );
-		typeCell.appendChild( document.createTextNode( ' ' + ev.type + ( 'blocked' === ev.action || 'locked' === ev.action ? ' ✓' : '' ) ) );
+		typeCell.appendChild( document.createTextNode( ' ' + ev.type ) );
+
+		var outcome = cell( tr, '' );
+		var mark = document.createElement( 'span' );
+		mark.className = 'zbst-outcome zbst-outcome-' + ( ev.result || 'logged' );
+		mark.textContent = ev.outcome || '';
+		outcome.appendChild( mark );
 
 		cell( tr, ev.request, 'zbst-request' );
 		cell( tr, ev.details );
@@ -77,7 +139,7 @@
 			var tr = document.createElement( 'tr' );
 			tr.className = 'zbst-empty';
 			var td = cell( tr, i18n.empty || '' );
-			td.colSpan = 5;
+			td.colSpan = 6;
 			feed.appendChild( tr );
 		}
 	}
@@ -104,6 +166,7 @@
 
 	function update( data ) {
 		add( data.events || [], true );
+		applyNetworks( data.networks );
 		var counters = data.counters || {};
 		Object.keys( counters ).forEach( function ( key ) {
 			var el = document.querySelector( '[data-counter="' + key + '"]' );
@@ -142,6 +205,15 @@
 			return;
 		}
 		var url = cfg.live + ( cfg.live.indexOf( '?' ) === -1 ? '?' : '&' ) + 'after=' + lastId;
+		var ask = Object.keys( wanted ).slice( 0, 10 );
+		ask.forEach( function ( ip ) {
+			if ( ++wanted[ ip ] >= MAX_ASKS ) {
+				delete wanted[ ip ];
+			}
+		} );
+		if ( ask.length ) {
+			url += '&nets=' + encodeURIComponent( ask.join( ',' ) );
+		}
 		window.fetch( url, { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', cache: 'no-store' } )
 			.then( function ( r ) {
 				if ( ! r.ok ) {
