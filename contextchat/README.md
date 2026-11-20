@@ -43,7 +43,7 @@ npm run build
 
 On Windows, if you don't know where your copy is, open the `contextchat` folder in File Explorer, type `powershell` in the address bar and press Enter: PowerShell opens in that folder. Running `npm run build` anywhere else fails with "Could not read package.json".
 
-The build prints the full path of the zip it wrote, `dist/contextchat-1.1.0.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
+The build prints the full path of the zip it wrote, `dist/contextchat-2.0.0-dev.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
 
 Requirements: WordPress 6.2 or newer, PHP 7.4 or newer. WooCommerce is optional.
 
@@ -54,7 +54,7 @@ ContextChat is not on WordPress.org, so it opts out of WordPress.org updates (`U
 1. Update `RELEASE_NOTES.md` and the `Version:` line in `contextchat.php`, and merge to `main`.
 2. On GitHub, open **Actions → ContextChat plugin → Run workflow**, keep the branch on `main`, tick **Publish a release**, and click **Run workflow**.
 
-The run tests everything, builds the zip, and publishes the release `contextchat-v<version>` with `RELEASE_NOTES.md` as its description, creating the tag on the tested commit. The run's summary links to the release.
+The run tests everything, builds the zip, and publishes the release `contextchat-v<version>` with `RELEASE_NOTES.md` as its description, creating the tag on the tested commit. The run's summary links to the release. A version with a suffix, such as `2.0.0-dev`, is published as a pre-release, so it is never shown as the repository's latest release.
 
 Pushing a tag yourself works too (`git tag contextchat-v1.1.0 && git push origin contextchat-v1.1.0`); the workflow refuses a tag that does not match the `Version:` line. If a release with that tag already exists, even as a draft, the zip is added to it and a draft is published.
 
