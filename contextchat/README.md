@@ -27,11 +27,23 @@ So the first message you receive reads *"Hi Budi! I need a sworn translation for
 
 ## Install
 
+The easiest way is to download the zip from the [ContextChat releases](https://github.com/ZenZeiTen/synthapps/releases?q=contextchat&expanded=true). Each release has a `contextchat-<version>.zip`, at an address of this form:
+
+`https://github.com/ZenZeiTen/synthapps/releases/download/contextchat-v<version>/contextchat-<version>.zip`
+
+To build the zip yourself you need [Node.js](https://nodejs.org/) 18 or newer and a copy of this repository. The build has no other dependencies, and works the same in PowerShell, Command Prompt, macOS and Linux. Run it from the `contextchat` folder of your copy:
+
+```bash
+cd synthapps/contextchat
+```
+
 ```bash
 npm run build
 ```
 
-This writes `dist/contextchat-1.1.0.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
+On Windows, if you don't know where your copy is, open the `contextchat` folder in File Explorer, type `powershell` in the address bar and press Enter: PowerShell opens in that folder. Running `npm run build` anywhere else fails with "Could not read package.json".
+
+The build prints the full path of the zip it wrote, `dist/contextchat-1.1.0.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
 
 Requirements: WordPress 6.2 or newer, PHP 7.4 or newer. WooCommerce is optional.
 
