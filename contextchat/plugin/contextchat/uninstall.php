@@ -15,6 +15,8 @@ function contextchat_uninstall_site() {
 
 	delete_option( 'contextchat_settings' );
 	delete_option( 'contextchat_db_version' );
+	delete_option( 'contextchat_si_key' );
+	delete_option( 'contextchat_si_usage' );
 	wp_clear_scheduled_hook( 'contextchat_prune' );
 	delete_post_meta_by_key( '_contextchat_hide' );
 	delete_post_meta_by_key( '_contextchat_message' );

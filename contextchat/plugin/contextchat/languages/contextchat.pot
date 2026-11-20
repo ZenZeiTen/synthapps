@@ -2,7 +2,7 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: ContextChat 1.1.0\n"
+"Project-Id-Version: ContextChat 2.0.0-dev\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -32,7 +32,7 @@ msgstr ""
 msgid "Follow context rules"
 msgstr ""
 
-#: assets/js/block.js:44 includes/class-admin.php:451
+#: assets/js/block.js:44 includes/class-admin.php:467
 msgid "Message"
 msgstr ""
 
@@ -40,7 +40,7 @@ msgstr ""
 msgid "Leave empty to use your context rules. Placeholders such as {page_title} work here."
 msgstr ""
 
-#: assets/js/block.js:60 includes/class-admin.php:194
+#: assets/js/block.js:60 includes/class-admin.php:208
 msgid "Button text"
 msgstr ""
 
@@ -60,7 +60,7 @@ msgstr ""
 msgid "Block"
 msgstr ""
 
-#: includes/class-admin-analytics.php:55 includes/class-admin.php:309
+#: includes/class-admin-analytics.php:55 includes/class-admin.php:323
 msgid "Product button"
 msgstr ""
 
@@ -146,7 +146,7 @@ msgstr ""
 msgid "You are not allowed to export this data."
 msgstr ""
 
-#: includes/class-admin.php:32 includes/class-admin.php:32 includes/class-admin.php:122 includes/class-meta-box.php:61
+#: includes/class-admin.php:32 includes/class-admin.php:32 includes/class-admin.php:136 includes/class-meta-box.php:61
 msgid "ContextChat"
 msgstr ""
 
@@ -154,572 +154,782 @@ msgstr ""
 msgid "ContextChat Settings"
 msgstr ""
 
-#: includes/class-admin.php:33 includes/class-admin.php:101
+#: includes/class-admin.php:33 includes/class-admin.php:114
 msgid "Settings"
 msgstr ""
 
-#: includes/class-admin.php:34 includes/class-admin.php:334
+#: includes/class-admin.php:34 includes/class-admin.php:348
 msgid "Analytics"
 msgstr ""
 
-#: includes/class-admin.php:67 includes/class-admin.php:377
+#: includes/class-admin.php:71 includes/class-admin.php:393
 msgid "Choose avatar"
 msgstr ""
 
-#: includes/class-admin.php:68
+#: includes/class-admin.php:72
 msgid "Use this image"
 msgstr ""
 
-#: includes/class-admin.php:69
+#: includes/class-admin.php:73
 msgid "Remove this row?"
 msgstr ""
 
-#: includes/class-admin.php:88
+#: includes/class-admin.php:74
+msgid "Sending a test message…"
+msgstr ""
+
+#: includes/class-admin.php:76
+#, php-format
+msgid "Connected. Reply from %s:"
+msgstr ""
+
+#: includes/class-admin.php:77
+msgid "The test did not get a usable reply."
+msgstr ""
+
+#: includes/class-admin.php:79
+#, php-format
+msgid "Attempt %1$d: %2$s, %3$s, %4$d ms, %5$d tokens in, %6$d tokens out, about $%7$s"
+msgstr ""
+
+#. translators: 1: dollars spent today, 2: daily cap in dollars.
+#: includes/class-admin.php:81 includes/class-admin.php:657
+#, php-format
+msgid "Spent today: about $%1$s of $%2$s."
+msgstr ""
+
+#: includes/class-admin.php:101
 msgid "ContextChat is active but has no WhatsApp number yet, so no button is shown."
 msgstr ""
 
-#: includes/class-admin.php:90
+#: includes/class-admin.php:103
 msgid "Add a number"
 msgstr ""
 
-#: includes/class-admin.php:114 includes/class-admin.php:136
+#: includes/class-admin.php:127 includes/class-admin.php:150
 msgid "General"
 msgstr ""
 
-#: includes/class-admin.php:115
+#: includes/class-admin.php:128
 msgid "Agents & context"
 msgstr ""
 
-#: includes/class-admin.php:116
+#: includes/class-admin.php:129
 msgid "Appearance"
 msgstr ""
 
-#: includes/class-admin.php:117 includes/class-admin.php:253
+#: includes/class-admin.php:130 includes/class-admin.php:267
 msgid "Opening hours"
 msgstr ""
 
-#: includes/class-admin.php:118
+#: includes/class-admin.php:131
 msgid "WooCommerce & advanced"
 msgstr ""
 
-#: includes/class-admin.php:123
+#: includes/class-admin.php:132
+msgid "SI"
+msgstr ""
+
+#: includes/class-admin.php:137
 msgid "A chat button that tells you what the visitor was looking at before they wrote to you."
 msgstr ""
 
-#: includes/class-admin.php:139
+#: includes/class-admin.php:153
 msgid "Show the chat button"
 msgstr ""
 
-#: includes/class-admin.php:139
+#: includes/class-admin.php:153
 msgid "Turn the floating button on across the site."
 msgstr ""
 
-#: includes/class-admin.php:140
+#: includes/class-admin.php:154
 msgid "Main WhatsApp number"
 msgstr ""
 
-#: includes/class-admin.php:140
+#: includes/class-admin.php:154
 msgid "Used when no agents are set up. Include the country code, e.g. +62 812 3456 7890."
 msgstr ""
 
-#: includes/class-admin.php:141
+#: includes/class-admin.php:155
 msgid "Default country code"
 msgstr ""
 
-#: includes/class-admin.php:141
+#: includes/class-admin.php:155
 msgid "Optional. Lets you type local numbers such as 0812… (for Indonesia enter 62)."
 msgstr ""
 
-#: includes/class-admin.php:144
+#: includes/class-admin.php:158
 msgid "Button opens"
 msgstr ""
 
-#: includes/class-admin.php:146
+#: includes/class-admin.php:160
 msgid "A chat panel with agents and an editable message"
 msgstr ""
 
-#: includes/class-admin.php:147
+#: includes/class-admin.php:161
 msgid "WhatsApp straight away"
 msgstr ""
 
-#: includes/class-admin.php:150
+#: includes/class-admin.php:164
 msgid "Show the message in the panel"
 msgstr ""
 
-#: includes/class-admin.php:150
+#: includes/class-admin.php:164
 msgid "Visitors see the pre-filled message and can edit it before sending. Recommended: people trust what they can read."
 msgstr ""
 
-#: includes/class-admin.php:154
+#: includes/class-admin.php:168
 msgid "Default message"
 msgstr ""
 
-#: includes/class-admin.php:155
+#: includes/class-admin.php:169
 msgid "Sent when no rule below matches the page. Click a placeholder to insert it."
 msgstr ""
 
-#: includes/class-admin.php:160
+#: includes/class-admin.php:174
 msgid "Agents"
 msgstr ""
 
-#: includes/class-admin.php:161
+#: includes/class-admin.php:175
 msgid "People or teams visitors can choose between. Leave empty to use the main number only."
 msgstr ""
 
-#: includes/class-admin.php:171
+#: includes/class-admin.php:185
 msgid "Add agent"
 msgstr ""
 
-#: includes/class-admin.php:174
+#: includes/class-admin.php:188
 msgid "Context rules"
 msgstr ""
 
-#: includes/class-admin.php:175
+#: includes/class-admin.php:189
 msgid "Give different pages their own message and agents. The first matching rule wins; drag rows to change the order. A message set on an individual page in the editor beats every rule."
 msgstr ""
 
-#: includes/class-admin.php:185
+#: includes/class-admin.php:199
 msgid "Add rule"
 msgstr ""
 
-#: includes/class-admin.php:190
+#: includes/class-admin.php:204
 msgid "Button"
 msgstr ""
 
-#: includes/class-admin.php:194
+#: includes/class-admin.php:208
 msgid "Leave empty for an icon-only button."
 msgstr ""
 
-#: includes/class-admin.php:197
+#: includes/class-admin.php:211
 msgid "Show text"
 msgstr ""
 
-#: includes/class-admin.php:199
+#: includes/class-admin.php:213
 msgid "On larger screens only"
 msgstr ""
 
-#: includes/class-admin.php:200
+#: includes/class-admin.php:214
 msgid "Always"
 msgstr ""
 
-#: includes/class-admin.php:201
+#: includes/class-admin.php:215
 msgid "Never (icon only)"
 msgstr ""
 
-#: includes/class-admin.php:206
+#: includes/class-admin.php:220
 msgid "Position"
 msgstr ""
 
-#: includes/class-admin.php:208
+#: includes/class-admin.php:222
 msgid "Bottom right"
 msgstr ""
 
-#: includes/class-admin.php:209
+#: includes/class-admin.php:223
 msgid "Bottom left"
 msgstr ""
 
-#: includes/class-admin.php:212
+#: includes/class-admin.php:226
 msgid "Distance from side (px)"
 msgstr ""
 
-#: includes/class-admin.php:213
+#: includes/class-admin.php:227
 msgid "Distance from bottom (px)"
 msgstr ""
 
-#: includes/class-admin.php:214
+#: includes/class-admin.php:228
 msgid "Button size (px)"
 msgstr ""
 
-#: includes/class-admin.php:215
+#: includes/class-admin.php:229
 msgid "Button colour"
 msgstr ""
 
-#: includes/class-admin.php:216
+#: includes/class-admin.php:230
 msgid "Icon and text colour"
 msgstr ""
 
-#: includes/class-admin.php:217
+#: includes/class-admin.php:231
 msgid "Panel header colour"
 msgstr ""
 
-#: includes/class-admin.php:218
+#: includes/class-admin.php:232
 msgid "Gentle pulse"
 msgstr ""
 
-#: includes/class-admin.php:218
+#: includes/class-admin.php:232
 msgid "Draws the eye once. Turned off automatically for visitors who prefer reduced motion."
 msgstr ""
 
-#: includes/class-admin.php:219
+#: includes/class-admin.php:233
 msgid "Appear after (seconds)"
 msgstr ""
 
-#: includes/class-admin.php:222
+#: includes/class-admin.php:236
 msgid "Show on"
 msgstr ""
 
-#: includes/class-admin.php:224
+#: includes/class-admin.php:238
 msgid "All devices"
 msgstr ""
 
-#: includes/class-admin.php:225
+#: includes/class-admin.php:239
 msgid "Phones only"
 msgstr ""
 
-#: includes/class-admin.php:226
+#: includes/class-admin.php:240
 msgid "Larger screens only"
 msgstr ""
 
-#: includes/class-admin.php:232
+#: includes/class-admin.php:246
 msgid "Preview"
 msgstr ""
 
-#: includes/class-admin.php:242
+#: includes/class-admin.php:256
 msgid "Chat panel"
 msgstr ""
 
-#: includes/class-admin.php:245
+#: includes/class-admin.php:259
 msgid "Title"
 msgstr ""
 
-#: includes/class-admin.php:246
+#: includes/class-admin.php:260
 msgid "Subtitle"
 msgstr ""
 
-#: includes/class-admin.php:247
+#: includes/class-admin.php:261
 msgid "Greeting"
 msgstr ""
 
-#: includes/class-admin.php:247
+#: includes/class-admin.php:261
 msgid "Shown as a chat bubble at the top of the panel."
 msgstr ""
 
 #. translators: %s: time zone name.
-#: includes/class-admin.php:258
+#: includes/class-admin.php:272
 #, php-format
 msgid "Times are in the site time zone (%s), set under Settings → General. Agents marked \"always available\" ignore these hours."
 msgstr ""
 
-#: includes/class-admin.php:264
+#: includes/class-admin.php:278
 msgid "Use opening hours"
 msgstr ""
 
-#: includes/class-admin.php:264
+#: includes/class-admin.php:278
 msgid "Outside these hours agents show as offline."
 msgstr ""
 
-#: includes/class-admin.php:266
+#: includes/class-admin.php:280
 msgid "Weekly schedule"
 msgstr ""
 
 #. translators: %s: weekday.
-#: includes/class-admin.php:278
+#: includes/class-admin.php:292
 #, php-format
 msgid "%s opening time"
 msgstr ""
 
 #. translators: %s: weekday.
-#: includes/class-admin.php:280
+#: includes/class-admin.php:294
 #, php-format
 msgid "%s closing time"
 msgstr ""
 
-#: includes/class-admin.php:284
+#: includes/class-admin.php:298
 msgid "A closing time earlier than the opening time runs past midnight."
 msgstr ""
 
-#: includes/class-admin.php:290
+#: includes/class-admin.php:304
 msgid "When everyone is offline"
 msgstr ""
 
-#: includes/class-admin.php:292
+#: includes/class-admin.php:306
 msgid "Keep the button and show the offline note"
 msgstr ""
 
-#: includes/class-admin.php:293
+#: includes/class-admin.php:307
 msgid "Hide the floating button"
 msgstr ""
 
-#: includes/class-admin.php:296
+#: includes/class-admin.php:310
 msgid "Offline note"
 msgstr ""
 
-#: includes/class-admin.php:296
+#: includes/class-admin.php:310
 msgid "Shown in the panel outside opening hours."
 msgstr ""
 
-#: includes/class-admin.php:297
+#: includes/class-admin.php:311
 msgid "Add to messages sent while offline"
 msgstr ""
 
-#: includes/class-admin.php:297
+#: includes/class-admin.php:311
 msgid "Optional, e.g. \"(Sent outside business hours.)\" so your team knows when it arrived."
 msgstr ""
 
-#: includes/class-admin.php:303
+#: includes/class-admin.php:317
 msgid "WooCommerce"
 msgstr ""
 
-#: includes/class-admin.php:305
+#: includes/class-admin.php:319
 msgid "WooCommerce is not active. These settings take effect once it is."
 msgstr ""
 
-#: includes/class-admin.php:309
+#: includes/class-admin.php:323
 msgid "Add an \"Ask about this product\" button under Add to cart."
 msgstr ""
 
-#: includes/class-admin.php:310
+#: includes/class-admin.php:324
 msgid "Product button text"
 msgstr ""
 
-#: includes/class-admin.php:313
+#: includes/class-admin.php:327
 msgid "Product message"
 msgstr ""
 
-#: includes/class-admin.php:318
+#: includes/class-admin.php:332
 msgid "Where the button appears"
 msgstr ""
 
-#: includes/class-admin.php:321
+#: includes/class-admin.php:335
 msgid "Hide on these page IDs"
 msgstr ""
 
-#: includes/class-admin.php:321
+#: includes/class-admin.php:335
 msgid "Comma separated, e.g. 12, 48. You can also hide it from the page editor."
 msgstr ""
 
-#: includes/class-admin.php:322
+#: includes/class-admin.php:336
 msgid "Hide on addresses containing"
 msgstr ""
 
-#: includes/class-admin.php:322
+#: includes/class-admin.php:336
 msgid "One per line, e.g. /checkout/ or /my-account/."
 msgstr ""
 
-#: includes/class-admin.php:325
+#: includes/class-admin.php:339
 msgid "On computers, open"
 msgstr ""
 
-#: includes/class-admin.php:327
+#: includes/class-admin.php:341
 msgid "WhatsApp Web in the browser"
 msgstr ""
 
-#: includes/class-admin.php:328
+#: includes/class-admin.php:342
 msgid "The WhatsApp desktop app (via wa.me)"
 msgstr ""
 
-#: includes/class-admin.php:337
+#: includes/class-admin.php:351
 msgid "Count clicks"
 msgstr ""
 
-#: includes/class-admin.php:337
+#: includes/class-admin.php:351
 msgid "Stores the page, agent and device type of each click. No IP addresses, cookies or message text."
 msgstr ""
 
-#: includes/class-admin.php:338
+#: includes/class-admin.php:352
 msgid "Send events to Google Analytics / Tag Manager"
 msgstr ""
 
-#: includes/class-admin.php:338
+#: includes/class-admin.php:352
 msgid "Pushes a contextchat_click event to dataLayer and gtag when they are on the page."
 msgstr ""
 
-#: includes/class-admin.php:339
+#: includes/class-admin.php:353
 msgid "Keep click data for (days)"
 msgstr ""
 
-#: includes/class-admin.php:373 includes/class-admin.php:434
+#: includes/class-admin.php:389 includes/class-admin.php:450
 msgid "Drag to reorder"
 msgstr ""
 
-#: includes/class-admin.php:378
+#: includes/class-admin.php:394
 msgid "Remove photo"
 msgstr ""
 
-#: includes/class-admin.php:381
+#: includes/class-admin.php:397
 msgid "Name"
 msgstr ""
 
-#: includes/class-admin.php:382
+#: includes/class-admin.php:398
 msgid "e.g. Rina"
 msgstr ""
 
-#: includes/class-admin.php:384
+#: includes/class-admin.php:400
 msgid "Role"
 msgstr ""
 
-#: includes/class-admin.php:385
+#: includes/class-admin.php:401
 msgid "e.g. Sales"
 msgstr ""
 
-#: includes/class-admin.php:387
+#: includes/class-admin.php:403
 msgid "WhatsApp number"
 msgstr ""
 
-#: includes/class-admin.php:390
+#: includes/class-admin.php:406
 msgid "Always available"
 msgstr ""
 
-#: includes/class-admin.php:391
+#: includes/class-admin.php:407
 msgid "Paused"
 msgstr ""
 
 #. translators: %s: agent ID.
-#: includes/class-admin.php:393
+#: includes/class-admin.php:409
 #, php-format
 msgid "ID: %s"
 msgstr ""
 
-#: includes/class-admin.php:396
+#: includes/class-admin.php:412
 msgid "Remove agent"
 msgstr ""
 
-#: includes/class-admin.php:423
+#: includes/class-admin.php:439
 msgid "Address contains"
 msgstr ""
 
-#: includes/class-admin.php:424
+#: includes/class-admin.php:440
 msgid "Page or post (ID or slug)"
 msgstr ""
 
-#: includes/class-admin.php:425
+#: includes/class-admin.php:441
 msgid "Content type (e.g. post, page, product)"
 msgstr ""
 
-#: includes/class-admin.php:426
+#: includes/class-admin.php:442
 msgid "Post category (slug)"
 msgstr ""
 
-#: includes/class-admin.php:427
+#: includes/class-admin.php:443
 msgid "Product category (slug)"
 msgstr ""
 
-#: includes/class-admin.php:428
+#: includes/class-admin.php:444
 msgid "Any product page"
 msgstr ""
 
-#: includes/class-admin.php:429
+#: includes/class-admin.php:445
 msgid "Home page"
 msgstr ""
 
-#: includes/class-admin.php:430
+#: includes/class-admin.php:446
 msgid "Search results"
 msgstr ""
 
-#: includes/class-admin.php:437
+#: includes/class-admin.php:453
 msgid "Name (for you)"
 msgstr ""
 
-#: includes/class-admin.php:438
+#: includes/class-admin.php:454
 msgid "e.g. Visa pages"
 msgstr ""
 
-#: includes/class-admin.php:440
+#: includes/class-admin.php:456
 msgid "When"
 msgstr ""
 
-#: includes/class-admin.php:447
+#: includes/class-admin.php:463
 msgid "Matches"
 msgstr ""
 
-#: includes/class-admin.php:448
+#: includes/class-admin.php:464
 msgid "e.g. /visa, passport"
 msgstr ""
 
-#: includes/class-admin.php:452
+#: includes/class-admin.php:468
 msgid "Leave empty to keep the default message and only change the agents."
 msgstr ""
 
-#: includes/class-admin.php:456
+#: includes/class-admin.php:472
 msgid "Route to (none ticked = all agents)"
 msgstr ""
 
-#: includes/class-admin.php:463
+#: includes/class-admin.php:479
 msgid "Remove rule"
 msgstr ""
 
-#: includes/class-admin.php:483
+#: includes/class-admin.php:499
 msgid "Message template"
 msgstr ""
 
-#: includes/class-admin.php:485
+#: includes/class-admin.php:501
 msgid "Insert a placeholder"
 msgstr ""
 
-#: includes/class-admin.php:490
+#: includes/class-admin.php:506
 msgid "Preview:"
 msgstr ""
 
-#: includes/class-admin.php:494
+#: includes/class-admin.php:510
 msgid "Write {name|fallback} to use the fallback when a value is empty, e.g. {product_name|your services}."
 msgstr ""
 
-#: includes/class-admin.php:508
+#: includes/class-admin.php:524
 msgid "Page title"
 msgstr ""
 
-#: includes/class-admin.php:509
+#: includes/class-admin.php:525
 msgid "Page address"
 msgstr ""
 
-#: includes/class-admin.php:510
+#: includes/class-admin.php:526
 msgid "Site name"
 msgstr ""
 
-#: includes/class-admin.php:511
+#: includes/class-admin.php:527
 msgid "Content type"
 msgstr ""
 
-#: includes/class-admin.php:512
+#: includes/class-admin.php:528
 msgid "Category"
 msgstr ""
 
-#: includes/class-admin.php:513
+#: includes/class-admin.php:529
 msgid "Search terms"
 msgstr ""
 
-#: includes/class-admin.php:514
+#: includes/class-admin.php:530
 msgid "Product name"
 msgstr ""
 
-#: includes/class-admin.php:515
+#: includes/class-admin.php:531
 msgid "Product price"
 msgstr ""
 
-#: includes/class-admin.php:516
+#: includes/class-admin.php:532
 msgid "Product SKU"
 msgstr ""
 
-#: includes/class-admin.php:517
+#: includes/class-admin.php:533
 msgid "Stock status"
 msgstr ""
 
-#: includes/class-admin.php:518
+#: includes/class-admin.php:534
 msgid "Agent name"
 msgstr ""
 
-#: includes/class-admin.php:519
+#: includes/class-admin.php:535
 msgid "Campaign source"
 msgstr ""
 
-#: includes/class-admin.php:520
+#: includes/class-admin.php:536
 msgid "Campaign medium"
 msgstr ""
 
-#: includes/class-admin.php:521
+#: includes/class-admin.php:537
 msgid "Campaign name"
 msgstr ""
 
-#: includes/class-admin.php:522
+#: includes/class-admin.php:538
 msgid "Referring site"
 msgstr ""
 
-#: includes/class-admin.php:523
+#: includes/class-admin.php:539
 msgid "Visitor date"
 msgstr ""
 
-#: includes/class-admin.php:524
+#: includes/class-admin.php:540
 msgid "Visitor time"
+msgstr ""
+
+#: includes/class-admin.php:583
+msgid "SI (Synthesized Intelligence)"
+msgstr ""
+
+#: includes/class-admin.php:584
+msgid "ContextChat 2.0 adds an SI assistant to the chat panel, powered by Anthropic's Claude models. This tab holds the API key, chooses which models answer, and caps what the site spends each day. The assistant itself arrives in a later 2.0 update: until then, nothing is sent to Anthropic unless you press \"Test connection\"."
+msgstr ""
+
+#: includes/class-admin.php:586
+msgid "API key"
+msgstr ""
+
+#: includes/class-admin.php:589
+msgid "Anthropic API key"
+msgstr ""
+
+#: includes/class-admin.php:595
+msgid "The key is set in wp-config.php (CONTEXTCHAT_ANTHROPIC_KEY). That is the safest place for it; the field below is ignored."
+msgstr ""
+
+#. translators: %s: date the key was saved.
+#: includes/class-admin.php:600
+#, php-format
+msgid "A key is saved, encrypted, since %s. It is never shown again. To replace it, enter a new one."
+msgstr ""
+
+#: includes/class-admin.php:605
+msgid "A key is saved but can no longer be decrypted, probably because AUTH_KEY in wp-config.php changed. Enter the key again."
+msgstr ""
+
+#: includes/class-admin.php:608
+msgid "No key yet. Create one in the Anthropic Console under API keys, then paste it here."
+msgstr ""
+
+#: includes/class-admin.php:615
+msgid "Remove the stored key"
+msgstr ""
+
+#: includes/class-admin.php:617
+msgid "Stored encrypted with a key derived from AUTH_KEY in wp-config.php. For more safety, put it in wp-config.php instead: define( 'CONTEXTCHAT_ANTHROPIC_KEY', 'sk-ant-…' );"
+msgstr ""
+
+#: includes/class-admin.php:623
+msgid "Model routing"
+msgstr ""
+
+#: includes/class-admin.php:624
+msgid "In automatic mode the fast model writes every reply. When a reply fails ContextChat's checks, is declined or is cut off, the stronger model writes it again. Most chats only ever use the fast model."
+msgstr ""
+
+#: includes/class-admin.php:629
+msgid "Routing"
+msgstr ""
+
+#: includes/class-admin.php:631
+msgid "Automatic: fast model first, stronger model when a reply fails a check (recommended)"
+msgstr ""
+
+#: includes/class-admin.php:632
+msgid "Fast model only (lowest cost, no retry)"
+msgstr ""
+
+#: includes/class-admin.php:633
+msgid "Stronger model for every reply (highest cost)"
+msgstr ""
+
+#: includes/class-admin.php:636
+msgid "Fast model"
+msgstr ""
+
+#: includes/class-admin.php:636
+msgid "Writes every reply in automatic mode. Default: claude-haiku-5-5."
+msgstr ""
+
+#: includes/class-admin.php:637
+msgid "Stronger model"
+msgstr ""
+
+#: includes/class-admin.php:637
+msgid "Writes a reply again when the fast model's reply cannot be used. Default: claude-sonnet-5-5."
+msgstr ""
+
+#: includes/class-admin.php:640
+msgid "Thinking effort"
+msgstr ""
+
+#: includes/class-admin.php:642
+msgid "Low (fastest replies; enough for chat)"
+msgstr ""
+
+#: includes/class-admin.php:643
+msgid "Medium"
+msgstr ""
+
+#: includes/class-admin.php:644
+msgid "High (slower, more thorough)"
+msgstr ""
+
+#: includes/class-admin.php:647
+msgid "Longest reply (tokens)"
+msgstr ""
+
+#: includes/class-admin.php:650
+msgid "Daily spending cap (USD)"
+msgstr ""
+
+#: includes/class-admin.php:662
+msgid "When the cap is reached, no more requests are sent until the next day (site time zone). Costs are estimated from Anthropic's published prices."
+msgstr ""
+
+#: includes/class-admin.php:668 includes/class-admin.php:674
+msgid "Test connection"
+msgstr ""
+
+#: includes/class-admin.php:669
+msgid "Sends one message to Anthropic with the saved key and settings, and shows which model answered. Save your changes first. A test costs a fraction of a cent and counts toward the daily cap."
+msgstr ""
+
+#: includes/class-admin.php:671
+msgid "Test message"
+msgstr ""
+
+#: includes/class-admin.php:672
+msgid "Hello! What is a sworn translation?"
+msgstr ""
+
+#: includes/class-admin.php:673
+msgid "Treat the first reply as failing a check, to see the stronger model take over"
+msgstr ""
+
+#: includes/class-admin.php:688
+msgid "answered"
+msgstr ""
+
+#: includes/class-admin.php:689
+msgid "reply failed a check"
+msgstr ""
+
+#: includes/class-admin.php:690
+msgid "declined to answer"
+msgstr ""
+
+#: includes/class-admin.php:691
+msgid "reply cut off"
+msgstr ""
+
+#: includes/class-admin.php:692
+msgid "empty reply"
+msgstr ""
+
+#: includes/class-admin.php:693
+msgid "model not found"
+msgstr ""
+
+#: includes/class-admin.php:694
+msgid "Anthropic busy or unreachable, tried twice"
+msgstr ""
+
+#: includes/class-admin.php:695
+msgid "API key refused"
+msgstr ""
+
+#: includes/class-admin.php:696
+msgid "Anthropic account spend limit reached"
+msgstr ""
+
+#: includes/class-admin.php:697
+msgid "request refused as invalid"
+msgstr ""
+
+#: includes/class-admin.php:698
+msgid "daily spending cap reached"
+msgstr ""
+
+#: includes/class-admin.php:699
+msgid "no API key saved"
+msgstr ""
+
+#: includes/class-admin.php:700
+msgid "unexpected error"
 msgstr ""
 
 #: includes/class-analytics.php:140
@@ -809,4 +1019,16 @@ msgstr ""
 
 #: includes/class-settings.php:99
 msgid "Hi! I'm interested in {product_name} ({product_price}). {page_url}"
+msgstr ""
+
+#: includes/class-settings.php:254
+msgid "The stored API key was removed."
+msgstr ""
+
+#: includes/si/class-si-secrets.php:71
+msgid "That does not look like an Anthropic API key. Keys start with \"sk-ant-\" and contain no spaces."
+msgstr ""
+
+#: includes/si/class-si-secrets.php:75
+msgid "This site has no unique AUTH_KEY in wp-config.php, so the key cannot be stored safely. Add the key to wp-config.php instead: define( 'CONTEXTCHAT_ANTHROPIC_KEY', 'sk-ant-…' );"
 msgstr ""

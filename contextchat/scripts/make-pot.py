@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "plugin" / "contextchat"
 CALL = re.compile(
-    r"(?:/\*\s*translators:(?P<note>.*?)\*/\s*)?"
+    r"(?:/\*\s*translators:(?P<note>(?:(?!\*/).)*?)\*/\s*)?"  # a note ends at its own */
     r"\b(?:__|_e|esc_html__|esc_html_e|esc_attr__|esc_attr_e)\(\s*'(?P<msg>(?:[^'\\]|\\.)*)'\s*,\s*'contextchat'",
     re.S,
 )
