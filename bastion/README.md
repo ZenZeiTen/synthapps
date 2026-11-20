@@ -12,10 +12,11 @@ The plugin is in [`zenzeiten-bastion/`](zenzeiten-bastion/). Its [`readme.txt`](
 | Agents | `includes/class-agents.php` | A registry of known crawlers and AI agents. A request that names one is checked against the vendor's published address list and gets a verdict: verified, spoofed or unknown. Spoofed agents, misbehaving verified agents and trap hits are reported through `Guard::report()`. The lists are fetched by a daily cron job (`zbst_agents_refresh`) into the option `zbst_agent_lists`; a list older than 3 days gives unknown, never spoofed. |
 | Firewall | `includes/class-firewall.php` | 18 signature rules over the URL, query, form and JSON fields, cookies, user agent and upload names, with URL-decoded, comment-stripped and entity-decoded variants. `inspect()` is pure and unit tested. |
 | Blocklist | `includes/class-blocklist.php` | Automatic and manual blocks with escalation (1 h, 1 day, 1 week, 30 days). A compact index in an autoloaded option makes the per-request check free of database queries. |
+| Network | `includes/class-network.php` | Owner and country of an address for the live feed: Team Cymru's IP-to-ASN service over DNS, then RDAP through rdap.org. Runs only in the live monitor's REST request, at most two fresh lookups per poll; answers are kept 30 days in the option `zbst_ip_networks` (500 entries). Off with the `ip_lookup` setting. |
 | Hardening | `includes/class-hardening.php` | Login lockout, generic login errors, user enumeration, XML-RPC, 404 floods and the rate limit. Verified agents are spared the last two. |
 | Backup | `includes/class-backup.php` | Pure-PHP SQL dumps, one statement per line and gzip-compressed. Text that is not printable ASCII is written as a hex literal, which restores the exact bytes on any connection character set. Restores are verified (SHA-256, header and end marker), preceded by a safety backup, and rolled back automatically on failure. |
 | Live monitor | `includes/admin/class-admin.php`, `assets/js/admin.js` | A REST route returns events newer than the last one the browser has; the dashboard polls it every 4 seconds and renders rows as text. |
-| WP-CLI | `includes/class-cli.php` | `wp bastion status|backup|backups|verify|restore|block|unblock|blocks`, and `wp bastion agents status|refresh|check|traps`. |
+| WP-CLI | `includes/class-cli.php` | `wp bastion status|backup|backups|verify|restore|block|unblock|blocks`, `wp bastion network <ip>`, and `wp bastion agents status|refresh|check|traps`. |
 
 Prefix `zbst_` (options, tables, cron hooks, admin pages), namespace `ZenZeiTenBastion`, REST namespace `zenzeiten-bastion/v1`. Access to every screen and action is controlled by the `zbst_capability` filter (default `manage_options`). The plugin header has `Update URI: false` and the plugin removes any WordPress.org update offer for its folder, so a same-named plugin elsewhere can never replace it.
 
@@ -49,6 +50,7 @@ Rules the code keeps:
 
 Be clear about this with site owners. Compared with commercial security suites, Bastion has:
 
+- **No location database.** The owner and country in the live feed come from public registries, looked up on demand; the country is where the network is registered, not where the visitor sits.
 - **No threat-intelligence feed.** It blocks addresses based on what they do on your site, not on attacks seen across other sites.
 - **No malware or file-change scanner,** and no country blocking.
 - **No pre-WordPress firewall.** The firewall runs as early as a regular plugin can, after WordPress loads its plugins. It does not install an `auto_prepend_file`.

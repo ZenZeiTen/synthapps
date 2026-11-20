@@ -65,7 +65,7 @@ $zbst_severities = Log::severities();
 				<td><span class="zbst-badge zbst-badge-<?php echo esc_attr( (string) (int) $zbst_e['severity'] ); ?>"><?php echo esc_html( isset( $zbst_severities[ (int) $zbst_e['severity'] ] ) ? $zbst_severities[ (int) $zbst_e['severity'] ] : '' ); ?></span></td>
 				<td><?php if ( '' !== $zbst_e['ip'] ) : ?><a href="<?php echo esc_url( add_query_arg( array( 'page' => 'zbst-events', 'ip' => $zbst_e['ip'] ), admin_url( 'admin.php' ) ) ); ?>"><code><?php echo esc_html( $zbst_e['ip'] ); ?></code></a><?php endif; ?></td>
 				<td><?php echo esc_html( isset( $zbst_types[ $zbst_e['type'] ] ) ? $zbst_types[ $zbst_e['type'] ] : $zbst_e['type'] ); ?><?php if ( '' !== $zbst_e['rule'] ) : ?><br /><?php echo esc_html( isset( $zbst_labels[ $zbst_e['rule'] ] ) ? $zbst_labels[ $zbst_e['rule'] ] : '' ); ?> <code><?php echo esc_html( $zbst_e['rule'] ); ?></code><?php endif; ?></td>
-				<td><?php echo esc_html( $zbst_e['action'] ); ?></td>
+				<td><?php echo esc_html( Admin::result( $zbst_e )[1] ); ?></td>
 				<td class="zbst-request"><?php echo esc_html( trim( $zbst_e['method'] . ' ' . $zbst_e['uri'] ) ); ?><?php if ( '' !== $zbst_e['user_agent'] ) : ?><br /><small><?php echo esc_html( $zbst_e['user_agent'] ); ?></small><?php endif; ?></td>
 				<td><?php echo esc_html( $zbst_e['details'] ); ?><?php if ( '' !== $zbst_e['username'] ) : ?><br /><small><?php esc_html_e( 'User:', 'zenzeiten-bastion' ); ?> <?php echo esc_html( $zbst_e['username'] ); ?></small><?php endif; ?></td>
 			</tr>

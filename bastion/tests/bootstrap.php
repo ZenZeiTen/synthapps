@@ -573,6 +573,7 @@ function zbst_test_reset( array $settings = array() ) {
 	Blocklist::reset();
 	Blocklist::rebuild_index();
 	Agents::reset();
+	ZenZeiTenBastion\Network::reset();
 	$_GET    = array();
 	$_POST   = array();
 	$_COOKIE = array();
@@ -643,6 +644,22 @@ function zbst_seed_agent_lists( $age_days = 0 ) {
 	}
 	update_option( Agents::LISTS_OPTION, $lists, false );
 	Agents::reset();
+}
+
+/**
+ * Answer the plugin's DNS lookups from a table (name => TXT records), so tests never touch the
+ * network. Returns a counter of the names asked for.
+ */
+function zbst_fake_dns( array $records ) {
+	$asked = new ArrayObject();
+	add_filter(
+		'zbst_dns_txt',
+		function ( $value, $host ) use ( $records, $asked ) {
+			$asked[] = $host;
+			return isset( $records[ $host ] ) ? (array) $records[ $host ] : array();
+		}
+	);
+	return $asked;
 }
 
 /**

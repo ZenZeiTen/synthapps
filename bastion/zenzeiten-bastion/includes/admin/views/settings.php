@@ -332,6 +332,14 @@ $zbst_number = function ( array $s, $key, $min, $max ) {
 			</tr>
 		</table>
 
+		<h2><?php esc_html_e( 'Live monitor', 'zenzeiten-bastion' ); ?></h2>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Network owner and country', 'zenzeiten-bastion' ); ?></th>
+				<td><?php $zbst_check( $s, 'ip_lookup', __( 'Show who each address belongs to in the live feed', 'zenzeiten-bastion' ), __( 'While you have the live monitor open, Bastion looks up the addresses it shows with Team Cymru (through your server\'s DNS) and, if that gives nothing, with the address registries through rdap.org. Only the address is sent. Answers are kept for 30 days. Nothing is looked up while a visitor waits.', 'zenzeiten-bastion' ) ); ?></td>
+			</tr>
+		</table>
+
 		<h2><?php esc_html_e( 'Data', 'zenzeiten-bastion' ); ?></h2>
 		<table class="form-table" role="presentation">
 			<tr>

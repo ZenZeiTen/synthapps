@@ -62,6 +62,14 @@ function hit( ip, pathAndQuery, headers = {} ) {
 		await page.waitForSelector( '.zbst-feed tr[data-id] >> text=198.51.100.7', { timeout: 10000 } );
 		const row = await page.textContent( '.zbst-feed tr[data-id]' );
 		assert.ok( row.includes( 'Firewall rule' ) && row.includes( 'Critical' ), row );
+		// The Action column says what Bastion did, and the link says what it does.
+		assert.strictEqual( await page.textContent( '.zbst-feed tr[data-id] .zbst-outcome' ), 'Blocked' );
+		assert.strictEqual( await page.textContent( '.zbst-feed tr[data-id] .zbst-block-link' ), 'Block this IP' );
+		// The owner and country arrive on a later poll and are added to the row already shown.
+		await page.waitForSelector( '.zbst-feed tr[data-ip="198.51.100.7"] .zbst-net', { timeout: 10000 } );
+		const net = await page.textContent( '.zbst-feed tr[data-ip="198.51.100.7"] .zbst-net' );
+		assert.ok( net.includes( 'Example Telecom' ) && net.endsWith( ' · Indonesia' ), net );
+		assert.strictEqual( await page.evaluate( () => window.__pwned3 || 0 ), 0, 'the owner name is shown as text' );
 		assert.ok( row.includes( 'UNION SELECT' ), 'the request is shown: ' + row );
 
 		// A second attack crosses the threshold: the address is blocked automatically.
@@ -134,10 +142,29 @@ function hit( ip, pathAndQuery, headers = {} ) {
 		await page.waitForSelector( '.zbst-feed tr[data-id] >> text=Trap hit', { timeout: 10000 } );
 		assert.strictEqual( ( await hit( '192.0.2.7', '/robots.txt', { 'User-Agent': googlebot } ) ).status, 200 );
 
+		// A successful login reads "Allow". From another address it can be blocked; your own
+		// address is marked and offers no block link.
+		await hit( '203.0.113.77', '/_login' );
+		await page.waitForSelector( '.zbst-feed tr[data-ip="203.0.113.77"]', { timeout: 10000 } );
+		const other = page.locator( '.zbst-feed tr[data-ip="203.0.113.77"]' ).first();
+		assert.strictEqual( await other.locator( '.zbst-outcome' ).textContent(), 'Allow' );
+		assert.strictEqual( await other.locator( '.zbst-block-link' ).textContent(), 'Block this IP' );
+		await fetch( `${ BASE }/_login` );
+		await page.waitForSelector( '.zbst-feed tr[data-ip="127.0.0.1"]', { timeout: 10000 } );
+		const mine = page.locator( '.zbst-feed tr[data-ip="127.0.0.1"]' ).first();
+		assert.strictEqual( await mine.locator( '.zbst-outcome' ).textContent(), 'Allow' );
+		assert.strictEqual( await mine.locator( '.zbst-own' ).textContent(), '(your address)' );
+		assert.strictEqual( await mine.locator( '.zbst-block-link' ).count(), 0 );
+		const spoofRow = page.locator( '.zbst-feed tr[data-ip="203.0.113.9"]' ).first();
+		assert.strictEqual( await spoofRow.locator( '.zbst-outcome' ).textContent(), 'Blocked' );
+
 		// Reloading shows the history from the server-rendered data.
 		await page.reload();
 		await page.waitForSelector( '.zbst-feed tr[data-id] >> text=198.51.100.7' );
 		assert.strictEqual( await page.textContent( '[data-counter="active"]' ), '1' );
+		// Remembered owners are in the page from the start after a reload.
+		await page.waitForSelector( '.zbst-feed tr[data-ip="198.51.100.7"] .zbst-net' );
+		assert.strictEqual( await page.locator( '.zbst-feed thead th' ).count(), 6 );
 
 		assert.deepStrictEqual( pageErrors, [] );
 		assert.ok( ! serverLog.includes( 'PHP notice' ), serverLog );

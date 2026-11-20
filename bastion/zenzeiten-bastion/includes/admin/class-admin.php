@@ -14,6 +14,7 @@ use ZenZeiTenBastion\Firewall;
 use ZenZeiTenBastion\Guard;
 use ZenZeiTenBastion\IP;
 use ZenZeiTenBastion\Log;
+use ZenZeiTenBastion\Network;
 use ZenZeiTenBastion\Plugin;
 use ZenZeiTenBastion\Request;
 use ZenZeiTenBastion\Settings;
@@ -26,6 +27,12 @@ defined( 'ABSPATH' ) || exit;
 final class Admin {
 
 	const PER_PAGE = 50;
+
+	/**
+	 * Most addresses looked up in one request of the live monitor, so a slow registry cannot
+	 * hold the feed up. The browser asks again for the rest.
+	 */
+	const LOOKUPS_PER_POLL = 2;
 
 	/**
 	 * Register hooks.
@@ -60,6 +67,10 @@ final class Admin {
 						'default'           => 0,
 						'sanitize_callback' => 'absint',
 					),
+					'nets'  => array(
+						'type'    => 'string',
+						'default' => '',
+					),
 				),
 			)
 		);
@@ -83,10 +94,60 @@ final class Admin {
 				'events'   => $events,
 				'counters' => self::counters( $stats ),
 				'hours'    => array_values( $stats['hours'] ),
+				'networks' => self::networks( (string) $request->get_param( 'nets' ) ),
 			)
 		);
 		$response->header( 'Cache-Control', 'no-store' );
 		return $response;
+	}
+
+	/**
+	 * Owner and country for the addresses the browser shows without them.
+	 *
+	 * Remembered answers cost nothing; at most LOOKUPS_PER_POLL addresses are looked up afresh.
+	 * An address with nothing to show comes back as null, so the browser stops asking for it.
+	 *
+	 * @param string $list Comma-separated addresses.
+	 * @return array Address => array( owner, country, asn ) or null.
+	 */
+	public static function networks( $list ) {
+		$out = array();
+		if ( ! Network::enabled() ) {
+			return $out;
+		}
+		$fresh = 0;
+		foreach ( array_slice( array_unique( array_filter( array_map( array( 'ZenZeiTenBastion\\IP', 'normalize' ), explode( ',', $list ) ) ) ), 0, 20 ) as $ip ) {
+			if ( ! Network::is_public( $ip ) ) {
+				$out[ $ip ] = null;
+				continue;
+			}
+			$known = Network::known( $ip );
+			if ( false === $known ) {
+				if ( $fresh >= self::LOOKUPS_PER_POLL ) {
+					continue;
+				}
+				++$fresh;
+				$known = Network::lookup( $ip );
+			}
+			$out[ $ip ] = $known;
+		}
+		return $out;
+	}
+
+	/**
+	 * What Bastion did about an event, in a word.
+	 *
+	 * @param array $row Event row.
+	 * @return array Key (allow, logged or blocked) and its label.
+	 */
+	public static function result( array $row ) {
+		if ( in_array( $row['action'], array( 'blocked', 'locked' ), true ) ) {
+			return array( 'blocked', __( 'Blocked', 'zenzeiten-bastion' ) );
+		}
+		if ( 'login_ok' === $row['type'] ) {
+			return array( 'allow', __( 'Allow', 'zenzeiten-bastion' ) );
+		}
+		return array( 'logged', __( 'Logged', 'zenzeiten-bastion' ) );
 	}
 
 	/**
@@ -119,6 +180,8 @@ final class Admin {
 		if ( isset( $labels[ $row['rule'] ] ) ) {
 			$details = $labels[ $row['rule'] ] . ' · ' . $details;
 		}
+		$result = self::result( $row );
+		$known  = '' !== $row['ip'] && Network::enabled() ? Network::known( $row['ip'] ) : null;
 		return array(
 			'id'       => (int) $row['id'],
 			'time'     => self::local_time( $row['created_at'], 'H:i:s' ),
@@ -127,6 +190,12 @@ final class Admin {
 			'severity' => (int) $row['severity'],
 			'level'    => isset( $severities[ (int) $row['severity'] ] ) ? $severities[ (int) $row['severity'] ] : '',
 			'action'   => (string) $row['action'],
+			'result'   => $result[0],
+			'outcome'  => $result[1],
+			// True on the address of the administrator who is looking at the feed.
+			'own'      => '' !== $row['ip'] && Request::ip() === $row['ip'],
+			// Owner and country when remembered; false asks the browser to request a lookup.
+			'net'      => $known,
 			'request'  => trim( $row['method'] . ' ' . $row['uri'] ),
 			'details'  => $details,
 		);
@@ -194,7 +263,8 @@ final class Admin {
 					'live'    => __( 'Live', 'zenzeiten-bastion' ),
 					'offline' => __( 'Connection lost, retrying…', 'zenzeiten-bastion' ),
 					'empty'   => __( 'No events yet. Attacks will appear here as they happen.', 'zenzeiten-bastion' ),
-					'block'   => __( 'Block', 'zenzeiten-bastion' ),
+					'block'   => __( 'Block this IP', 'zenzeiten-bastion' ),
+					'own'     => __( '(your address)', 'zenzeiten-bastion' ),
 					'restore' => __( 'Replace the whole database with this backup? A safety backup of the current database is taken first and restored automatically if anything fails.', 'zenzeiten-bastion' ),
 					'delete'  => __( 'Delete this backup permanently?', 'zenzeiten-bastion' ),
 				),
