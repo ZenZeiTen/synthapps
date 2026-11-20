@@ -192,6 +192,36 @@ final class CLI {
 	}
 
 	/**
+	 * Show who an address belongs to: the network's owner and its country.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <ip>
+	 * : The address to look up.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp bastion network 8.8.8.8
+	 *
+	 * @param array $args Positional arguments.
+	 */
+	public function network( $args ) {
+		$ip = isset( $args[0] ) ? IP::normalize( $args[0] ) : '';
+		if ( '' === $ip ) {
+			\WP_CLI::error( 'Not a valid address.' );
+		}
+		if ( ! Network::enabled() ) {
+			\WP_CLI::error( 'Lookups are switched off in Bastion > Settings > Live monitor.' );
+		}
+		$found = Network::lookup( $ip );
+		if ( ! $found ) {
+			\WP_CLI::error( Network::is_public( $ip ) ? 'Nothing found for ' . $ip . '.' : $ip . ' is a private or reserved address.' );
+		}
+		\WP_CLI::line( 'Owner:   ' . $found['owner'] . ( $found['asn'] ? ' (AS' . $found['asn'] . ')' : '' ) );
+		\WP_CLI::line( 'Country: ' . ( '' !== $found['country'] ? $found['country'] : 'unknown' ) );
+	}
+
+	/**
 	 * Agent identity: the address lists of known crawlers and AI agents, and the traps.
 	 *
 	 * ## OPTIONS

@@ -208,6 +208,7 @@ admin_page() {
 	printf '%s' "$html"
 }
 DASH=$(admin_page zbst-dashboard 'zbst-feed')
+contains "$DASH" 'Block this IP' && contains "$DASH" '"outcome":"Blocked"' || fail "live feed lacks the new labels"
 admin_page zbst-events 'sqli-union' >/dev/null
 admin_page "zbst-events&type=login_failed" 'zbst-wrap' >/dev/null
 admin_page zbst-blocks '198.51.100.7' >/dev/null
@@ -221,6 +222,12 @@ REST_NONCE=$(grep 'var zbstAdmin' <<<"$DASH" | sed -n 's/.*"nonce":"\([a-z0-9]*\
 [ -n "$REST_NONCE" ] || fail "no REST nonce on the dashboard"
 LIVE=$(curl -s -b "$COOKIES" -H "X-WP-Nonce: $REST_NONCE" "$URL/?rest_route=/zenzeiten-bastion/v1/live&after=0")
 contains "$LIVE" '"events"' && contains "$LIVE" '198.51.100.7' || fail "live endpoint: $LIVE"
+contains "$LIVE" '"outcome":"Blocked"' || fail "live endpoint lacks the action label"
+# Network owner and country. A private address is answered without any lookup; a real one goes
+# to the public registries, which must not fail the build when they are out of reach.
+NETS=$(curl -s -b "$COOKIES" -H "X-WP-Nonce: $REST_NONCE" "$URL/?rest_route=/zenzeiten-bastion/v1/live&after=999999&nets=10.0.0.1")
+contains "$NETS" '"networks":{"10.0.0.1":null}' || fail "live endpoint networks: $NETS"
+wp bastion network 8.8.8.8 || echo "note: no owner found for 8.8.8.8 from here"
 [ "$(status "$URL/?rest_route=/zenzeiten-bastion/v1/live")" = "401" ] || fail "live endpoint open to visitors"
 
 # --- Backup and restore --------------------------------------------------------------------------
