@@ -1,0 +1,216 @@
+name: kempt
+
+# Tests Kempt, builds it, and runs the real Windows parts (PowerShell scripts,
+# the Recycle Bin, the desktop API) on a Windows runner. Two ways to publish a
+# GitHub release:
+#  - the "Run workflow" button on main with "Publish a release" ticked:
+#    publishes kempt-v<version in kempt/main.go>;
+#  - pushing a tag named kempt-v<version>.
+on:
+  pull_request:
+    paths:
+      - "kempt/**"
+      - ".github/workflows/kempt.yml"
+  push:
+    branches: [main]
+    tags:
+      - "kempt-v*"
+    paths:
+      - "kempt/**"
+      - ".github/workflows/kempt.yml"
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a release of the version in kempt/main.go (run on main)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: kempt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: go vet ./...
+      - run: go test ./...
+
+  browser:
+    name: End-to-end in Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: kempt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Playwright with Chromium
+        timeout-minutes: 10
+        run: |
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - run: node test/e2e.mjs "$RUNNER_TEMP/kempt-shots"
+        timeout-minutes: 10
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kempt-e2e-screenshots
+          path: ${{ runner.temp }}/kempt-shots
+          if-no-files-found: ignore
+          retention-days: 14
+
+  windows:
+    name: Build Kempt.exe and check it on Windows
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: kempt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Build
+        shell: bash
+        run: ./scripts/build.sh
+      - name: Smoke test on Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # The app must open without a console window (GUI subsystem 2), the command line with one (3).
+          function Get-Subsystem($path) { $b = [IO.File]::ReadAllBytes((Resolve-Path $path)); $pe = [BitConverter]::ToInt32($b, 0x3C); [BitConverter]::ToUInt16($b, $pe + 0x5C) }
+          foreach ($f in @{ "Kempt.exe" = 2; "Kempt-arm64.exe" = 2; "kempt-cli.exe" = 3 }.GetEnumerator()) {
+            $got = Get-Subsystem ".\dist\$($f.Key)"
+            if ($got -ne $f.Value) { throw "$($f.Key): subsystem $got, expected $($f.Value)" }
+          }
+          $cli = ".\dist\kempt-cli.exe"
+          & $cli version
+
+          # Every PowerShell script Kempt runs must work on a real Windows.
+          $scan = (& $cli scan --json | Out-String) | ConvertFrom-Json
+          if (-not ($scan | Where-Object id -eq 'user-temp')) { throw "scan: no user-temp category" }
+          if (-not ($scan | Where-Object id -eq 'recycle-bin')) { throw "scan: no Recycle Bin" }
+          $h = (& $cli health --json | Out-String) | ConvertFrom-Json
+          if (-not $h.facts.windows) { throw "health: the Windows checks returned nothing" }
+          if (-not $h.facts.drives) { throw "health: no drives" }
+          if (-not ($h.findings | Where-Object id -eq 'av')) { throw "health: no antivirus finding" }
+          $h.findings | ForEach-Object { Write-Host "  [$($_.status)] $($_.title): $($_.detail)" }
+          $st = (& $cli startup --json | Out-String) | ConvertFrom-Json
+          Write-Host "startup items: $(@($st).Count)"
+
+          # Moving a file to the Recycle Bin.
+          $f = Join-Path $env:RUNNER_TEMP "kempt-recycle-test.txt"
+          Set-Content -Path $f -Value "test"
+          & $cli recycle $f
+          if (Test-Path $f) { throw "recycle: the file is still there" }
+
+          # Cleaning: an old temp file goes, a new one stays.
+          $old = Join-Path $env:TEMP "kempt-old-$([guid]::NewGuid()).tmp"
+          $new = Join-Path $env:TEMP "kempt-new-$([guid]::NewGuid()).tmp"
+          Set-Content $old "old"; Set-Content $new "new"
+          (Get-Item $old).LastWriteTime = (Get-Date).AddDays(-5)
+          & $cli clean --only user-temp --yes --data "$env:RUNNER_TEMP\kempt-data"
+          if (Test-Path $old) { throw "clean: old temp file left" }
+          if (-not (Test-Path $new)) { throw "clean: new temp file removed" }
+
+          # The desktop API: key required, privacy and Task Scheduler readable.
+          $data = "$env:RUNNER_TEMP\kempt-desk"
+          $p = Start-Process -FilePath $cli -ArgumentList "desktop","--no-browser","--data",$data,"--port","47851" -PassThru
+          Start-Sleep -Seconds 3
+          $inst = Get-Content "$data\instance.json" | ConvertFrom-Json
+          $base = "http://127.0.0.1:$($inst.port)"
+          $auth = @{ Authorization = "Bearer $($inst.token)" }
+          $mode = Invoke-RestMethod "$base/api/mode"
+          if ($mode.mode -ne "desktop" -or -not $mode.features.privacy) { throw "mode wrong" }
+          try { Invoke-WebRequest "$base/api/local/categories" -UseBasicParsing | Out-Null; throw "no key accepted" } catch { if ($_.Exception.Response.StatusCode.value__ -ne 401) { throw } }
+          $priv = Invoke-RestMethod "$base/api/local/privacy" -Headers $auth
+          if (@($priv.settings).Count -lt 5) { throw "privacy: too few settings" }
+          $sched = Invoke-RestMethod "$base/api/local/schedule" -Headers $auth
+          Write-Host "schedule: enabled=$($sched.enabled)"
+          # Register automatic care, read it back, remove it.
+          $put = @{ enabled = $true; frequency = "weekly"; day = "Sunday"; time = "11:15" } | ConvertTo-Json
+          $r = Invoke-RestMethod "$base/api/local/schedule" -Method Put -Headers $auth -ContentType "application/json" -Body $put
+          if (-not $r.enabled -or $r.time -ne "11:15" -or $r.day -ne "Sunday") { throw "schedule not registered: $($r | ConvertTo-Json)" }
+          $off = @{ enabled = $false } | ConvertTo-Json
+          Invoke-RestMethod "$base/api/local/schedule" -Method Put -Headers $auth -ContentType "application/json" -Body $off | Out-Null
+          if (Get-ScheduledTask -TaskName "Kempt automatic care" -ErrorAction SilentlyContinue) { throw "task not removed" }
+          $html = Invoke-WebRequest "$base/" -UseBasicParsing
+          if ($html.Headers["Content-Security-Policy"] -notmatch "script-src 'self'") { throw "CSP missing" }
+          $second = & $cli desktop --no-browser --data $data
+          if ("$second" -notmatch "$($inst.port)") { throw "second launch did not find the first: $second" }
+          Stop-Process -Id $p.Id
+          Write-Host "Windows smoke test passed"
+      - name: Windows app and other builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kempt
+          path: kempt/dist/*
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  release:
+    name: Publish the GitHub release
+    if: >-
+      startsWith(github.ref, 'refs/tags/kempt-v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
+    needs: [test, browser, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            kempt/RELEASE_NOTES.md
+            kempt/main.go
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: Kempt
+          path: files
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for f in Kempt.exe kempt-cli.exe Kempt-arm64.exe kempt-linux-amd64 kempt-linux-arm64 SHA256SUMS.txt; do
+            [[ -f "files/$f" ]] || { echo "::error::files/$f is missing; nothing was published." >&2; exit 1; }
+          done
+          version="$(sed -n 's/^\tversion  = "\(.*\)"/\1/p' kempt/main.go)"
+          [[ -n "$version" ]] || { echo "::error::No version in kempt/main.go." >&2; exit 1; }
+          tag="kempt-v$version"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "$tag" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the version in kempt/main.go ($version)." >&2
+            exit 1
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+              gh release upload "$tag" files/* --repo "$GITHUB_REPOSITORY" --clobber
+              exit 0
+            fi
+            echo "::error::Release $tag already exists. Raise the version in kempt/main.go to publish a new one." >&2
+            exit 1
+          fi
+          gh release create "$tag" files/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Kempt $version" --notes-file kempt/RELEASE_NOTES.md
