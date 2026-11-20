@@ -63,10 +63,23 @@ class ContextChat_Admin {
 			array(
 				'samples'    => $samples,
 				'valueRules' => ContextChat_Settings::RULE_TYPES_WITH_VALUE,
+				'siTest'     => array(
+					'url'   => esc_url_raw( rest_url( 'contextchat/v1/admin/si-test' ) ),
+					'nonce' => wp_create_nonce( 'wp_rest' ),
+				),
 				'i18n'       => array(
 					'chooseAvatar'  => __( 'Choose avatar', 'contextchat' ),
 					'useImage'      => __( 'Use this image', 'contextchat' ),
 					'confirmRemove' => __( 'Remove this row?', 'contextchat' ),
+					'testing'       => __( 'Sending a test message…', 'contextchat' ),
+					/* translators: %s: model ID. */
+					'testOk'        => __( 'Connected. Reply from %s:', 'contextchat' ),
+					'testFailed'    => __( 'The test did not get a usable reply.', 'contextchat' ),
+					/* translators: 1: attempt number, 2: model ID, 3: what happened, 4: milliseconds, 5: input tokens, 6: output tokens, 7: cost in dollars. */
+					'attempt'       => __( 'Attempt %1$d: %2$s, %3$s, %4$d ms, %5$d tokens in, %6$d tokens out, about $%7$s', 'contextchat' ),
+					/* translators: 1: dollars spent today, 2: daily cap in dollars. */
+					'spentToday'    => __( 'Spent today: about $%1$s of $%2$s.', 'contextchat' ),
+					'outcomes'      => self::outcome_labels(),
 				),
 			)
 		);
@@ -116,6 +129,7 @@ class ContextChat_Admin {
 			'appearance' => __( 'Appearance', 'contextchat' ),
 			'hours'      => __( 'Opening hours', 'contextchat' ),
 			'advanced'   => __( 'WooCommerce & advanced', 'contextchat' ),
+			'si'         => __( 'SI', 'contextchat' ),
 		);
 		?>
 		<div class="wrap ctxc-admin">
@@ -341,6 +355,8 @@ class ContextChat_Admin {
 					</table>
 				</section>
 
+				<?php self::si_tab(); ?>
+
 				<?php submit_button(); ?>
 			</form>
 		</div>
@@ -552,6 +568,137 @@ class ContextChat_Admin {
 			</td>
 		</tr>
 		<?php
+	}
+
+	/**
+	 * The SI tab: API key, model routing, spending cap and a connection test.
+	 */
+	private static function si_tab() {
+		$s      = ContextChat_Settings::get();
+		$source = ContextChat_SI_Secrets::source();
+		$meter  = new ContextChat_SI();
+		$cap    = (int) $s['si_daily_cap_cents'];
+		?>
+		<section id="ctxc-tab-si" class="ctxc-tab" data-tab="si" aria-labelledby="ctxc-tablink-si">
+			<h2><?php esc_html_e( 'SI (Synthesized Intelligence)', 'contextchat' ); ?></h2>
+			<p><?php esc_html_e( 'ContextChat 2.0 adds an SI assistant to the chat panel, powered by Anthropic\'s Claude models. This tab holds the API key, chooses which models answer, and caps what the site spends each day. The assistant itself arrives in a later 2.0 update: until then, nothing is sent to Anthropic unless you press "Test connection".', 'contextchat' ); ?></p>
+
+			<h3><?php esc_html_e( 'API key', 'contextchat' ); ?></h3>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="ctxc-si_api_key"><?php esc_html_e( 'Anthropic API key', 'contextchat' ); ?></label></th>
+					<td>
+						<p class="ctxc-si-key-status ctxc-si-key-status--<?php echo esc_attr( $source ); ?>">
+							<?php
+							switch ( $source ) {
+								case 'constant':
+									esc_html_e( 'The key is set in wp-config.php (CONTEXTCHAT_ANTHROPIC_KEY). That is the safest place for it; the field below is ignored.', 'contextchat' );
+									break;
+								case 'stored':
+									printf(
+										/* translators: %s: date the key was saved. */
+										esc_html__( 'A key is saved, encrypted, since %s. It is never shown again. To replace it, enter a new one.', 'contextchat' ),
+										esc_html( get_date_from_gmt( ContextChat_SI_Secrets::saved_at(), get_option( 'date_format' ) ) )
+									);
+									break;
+								case 'unreadable':
+									esc_html_e( 'A key is saved but can no longer be decrypted, probably because AUTH_KEY in wp-config.php changed. Enter the key again.', 'contextchat' );
+									break;
+								default:
+									esc_html_e( 'No key yet. Create one in the Anthropic Console under API keys, then paste it here.', 'contextchat' );
+							}
+							?>
+						</p>
+						<?php if ( 'constant' !== $source ) : ?>
+							<input type="password" id="ctxc-si_api_key" name="<?php echo esc_attr( ContextChat_Settings::OPTION . '[si_api_key]' ); ?>" value="" class="regular-text" autocomplete="new-password" spellcheck="false" placeholder="sk-ant-…">
+							<?php if ( 'stored' === $source || 'unreadable' === $source ) : ?>
+								<p><label><input type="checkbox" name="<?php echo esc_attr( ContextChat_Settings::OPTION . '[si_api_key_remove]' ); ?>" value="1"> <?php esc_html_e( 'Remove the stored key', 'contextchat' ); ?></label></p>
+							<?php endif; ?>
+							<p class="description"><?php esc_html_e( 'Stored encrypted with a key derived from AUTH_KEY in wp-config.php. For more safety, put it in wp-config.php instead: define( \'CONTEXTCHAT_ANTHROPIC_KEY\', \'sk-ant-…\' );', 'contextchat' ); ?></p>
+						<?php endif; ?>
+					</td>
+				</tr>
+			</table>
+
+			<h3><?php esc_html_e( 'Model routing', 'contextchat' ); ?></h3>
+			<p><?php esc_html_e( 'In automatic mode the fast model writes every reply. When a reply fails ContextChat\'s checks, is declined or is cut off, the stronger model writes it again. Most chats only ever use the fast model.', 'contextchat' ); ?></p>
+			<table class="form-table" role="presentation">
+				<?php
+				self::row_select(
+					'si_routing',
+					__( 'Routing', 'contextchat' ),
+					array(
+						'auto'          => __( 'Automatic: fast model first, stronger model when a reply fails a check (recommended)', 'contextchat' ),
+						'worker_only'   => __( 'Fast model only (lowest cost, no retry)', 'contextchat' ),
+						'executor_only' => __( 'Stronger model for every reply (highest cost)', 'contextchat' ),
+					)
+				);
+				self::row_text( 'si_model_worker', __( 'Fast model', 'contextchat' ), __( 'Writes every reply in automatic mode. Default: claude-haiku-5-5.', 'contextchat' ) );
+				self::row_text( 'si_model_executor', __( 'Stronger model', 'contextchat' ), __( 'Writes a reply again when the fast model\'s reply cannot be used. Default: claude-sonnet-5-5.', 'contextchat' ) );
+				self::row_select(
+					'si_effort',
+					__( 'Thinking effort', 'contextchat' ),
+					array(
+						'low'    => __( 'Low (fastest replies; enough for chat)', 'contextchat' ),
+						'medium' => __( 'Medium', 'contextchat' ),
+						'high'   => __( 'High (slower, more thorough)', 'contextchat' ),
+					)
+				);
+				self::row_number( 'si_max_tokens', __( 'Longest reply (tokens)', 'contextchat' ), 256, 4096 );
+				?>
+				<tr>
+					<th scope="row"><label for="ctxc-si_daily_cap_usd"><?php esc_html_e( 'Daily spending cap (USD)', 'contextchat' ); ?></label></th>
+					<td>
+						<input type="number" id="ctxc-si_daily_cap_usd" name="<?php echo esc_attr( ContextChat_Settings::OPTION . '[si_daily_cap_usd]' ); ?>" value="<?php echo esc_attr( number_format( $cap / 100, 2, '.', '' ) ); ?>" min="0.10" max="1000" step="0.01" class="small-text">
+						<p class="description ctxc-si-spend">
+							<?php
+							printf(
+								/* translators: 1: dollars spent today, 2: daily cap in dollars. */
+								esc_html__( 'Spent today: about $%1$s of $%2$s.', 'contextchat' ),
+								esc_html( number_format( $meter->spent_today() / 1000000, 4 ) ),
+								esc_html( number_format( $cap / 100, 2 ) )
+							);
+							?>
+							<?php esc_html_e( 'When the cap is reached, no more requests are sent until the next day (site time zone). Costs are estimated from Anthropic\'s published prices.', 'contextchat' ); ?>
+						</p>
+					</td>
+				</tr>
+			</table>
+
+			<h3><?php esc_html_e( 'Test connection', 'contextchat' ); ?></h3>
+			<p><?php esc_html_e( 'Sends one message to Anthropic with the saved key and settings, and shows which model answered. Save your changes first. A test costs a fraction of a cent and counts toward the daily cap.', 'contextchat' ); ?></p>
+			<div class="ctxc-si-test">
+				<label for="ctxc-si-test-prompt"><?php esc_html_e( 'Test message', 'contextchat' ); ?></label>
+				<textarea id="ctxc-si-test-prompt" rows="2" class="large-text" maxlength="500"><?php echo esc_textarea( __( 'Hello! What is a sworn translation?', 'contextchat' ) ); ?></textarea>
+				<p><label><input type="checkbox" id="ctxc-si-test-reject"> <?php esc_html_e( 'Treat the first reply as failing a check, to see the stronger model take over', 'contextchat' ); ?></label></p>
+				<p><button type="button" class="button button-secondary" id="ctxc-si-test-run"<?php disabled( 'none' === $source || 'unreadable' === $source ); ?>><?php esc_html_e( 'Test connection', 'contextchat' ); ?></button></p>
+				<div class="ctxc-si-test-result" role="status" aria-live="polite"></div>
+			</div>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Words for the router's outcomes, shown in the connection test.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function outcome_labels() {
+		return array(
+			'ok'              => __( 'answered', 'contextchat' ),
+			'rejected'        => __( 'reply failed a check', 'contextchat' ),
+			'refusal'         => __( 'declined to answer', 'contextchat' ),
+			'truncated'       => __( 'reply cut off', 'contextchat' ),
+			'empty'           => __( 'empty reply', 'contextchat' ),
+			'model_not_found' => __( 'model not found', 'contextchat' ),
+			'unavailable'     => __( 'Anthropic busy or unreachable, tried twice', 'contextchat' ),
+			'auth_error'      => __( 'API key refused', 'contextchat' ),
+			'spend_limit'     => __( 'Anthropic account spend limit reached', 'contextchat' ),
+			'invalid_request' => __( 'request refused as invalid', 'contextchat' ),
+			'cap_reached'     => __( 'daily spending cap reached', 'contextchat' ),
+			'no_key'          => __( 'no API key saved', 'contextchat' ),
+			'error'           => __( 'unexpected error', 'contextchat' ),
+		);
 	}
 
 	/**

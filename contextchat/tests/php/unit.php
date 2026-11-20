@@ -12,6 +12,9 @@ require $plugin . '/includes/class-template.php';
 require $plugin . '/includes/class-context.php';
 require $plugin . '/includes/class-updates.php';
 require $plugin . '/includes/class-analytics.php';
+require $plugin . '/includes/si/class-si-pricing.php';
+require $plugin . '/includes/si/class-si-router.php';
+require $plugin . '/includes/si/class-si-secrets.php';
 
 // Just enough of WordPress's hook and plugin API for ContextChat_Updates.
 define( 'CONTEXTCHAT_FILE', $plugin . '/contextchat.php' );
@@ -154,6 +157,136 @@ check(
 	ContextChat_Analytics::daily_counts( array( $slot( '2026-11-12', 0, 0 ) ), 3, new DateTimeZone( 'UTC' ), strtotime( '2026-11-12 23:59:00 UTC' ) ),
 	array( '2026-11-10' => 0, '2026-11-11' => 0, '2026-11-12' => 1 )
 );
+
+// SI pricing: dollars per million tokens are micro-dollars per token.
+$prices = ContextChat_SI_Pricing::table();
+check( 'pricing: Haiku 5.5, 1,000 in and 200 out', ContextChat_SI_Pricing::cost_micro_usd( 'claude-haiku-5-5', array( 'input_tokens' => 1000, 'output_tokens' => 200 ), $prices ), 200 );
+check( 'pricing: Sonnet 5.5 with cache reads and writes', ContextChat_SI_Pricing::cost_micro_usd( 'claude-sonnet-5-5', array( 'input_tokens' => 100, 'output_tokens' => 50, 'cache_read_input_tokens' => 1000, 'cache_creation_input_tokens' => 400 ), $prices ), 200 + 500 + 100 + 1000 );
+check( 'pricing: Haiku 5.5 above 100,000 prompt tokens uses the higher rate', ContextChat_SI_Pricing::cost_micro_usd( 'claude-haiku-5-5', array( 'input_tokens' => 100001, 'output_tokens' => 10 ), $prices ), 50026 );
+check( 'pricing: an unknown model is priced like the most expensive one', ContextChat_SI_Pricing::cost_micro_usd( 'claude-new-9', array( 'input_tokens' => 10, 'output_tokens' => 10 ), $prices ), 480 );
+check( 'pricing: fractions round up', ContextChat_SI_Pricing::cost_micro_usd( 'claude-haiku-5-5', array( 'input_tokens' => 3 ), $prices ), 1 );
+check( 'pricing: missing usage costs nothing', ContextChat_SI_Pricing::cost_micro_usd( 'claude-haiku-5-5', array(), $prices ), 0 );
+
+// SI routing, with a scripted fake API.
+class Fake_SI_Client {
+	public $script; public $sent = array();
+	public function __construct( array $script ) { $this->script = $script; }
+	public function send( array $body, array $betas = array() ) {
+		$this->sent[] = array( 'body' => $body, 'betas' => $betas );
+		$next = array_shift( $this->script );
+		return is_callable( $next ) ? $next( $body ) : $next;
+	}
+}
+class Fake_SI_Meter {
+	public $spent = 0;
+	public function spent_today() { return $this->spent; }
+	public function add( $m ) { $this->spent += $m; }
+}
+function si_ok( $text, $stop = 'end_turn', $model = null ) {
+	return function ( $body ) use ( $text, $stop, $model ) {
+		return array( 'status' => 200, 'error_type' => '', 'error_code' => '', 'retry_after' => 0, 'data' => array(
+			'model' => $model ? $model : $body['model'], 'stop_reason' => $stop,
+			'content' => array( array( 'type' => 'thinking', 'thinking' => '' ), array( 'type' => 'text', 'text' => $text ) ),
+			'usage' => array( 'input_tokens' => 1000, 'output_tokens' => 100 ),
+		) );
+	};
+}
+function si_err( $status, $type, $code = '', $retry_after = 0 ) {
+	return array( 'status' => $status, 'error_type' => $type, 'error_code' => $code, 'retry_after' => $retry_after, 'data' => array( 'type' => 'error', 'error' => array( 'type' => $type ) ) );
+}
+$si_run = function ( array $script, array $config = array(), $accept = null, $meter = null ) {
+	$client = new Fake_SI_Client( $script );
+	$meter  = $meter ? $meter : new Fake_SI_Meter();
+	$pauses = array();
+	$router = new ContextChat_SI_Router( $client, $config, $meter, function ( $s ) use ( &$pauses ) { $pauses[] = $s; } );
+	$result = $router->route( array( 'system' => 'Be brief.', 'messages' => array( array( 'role' => 'user', 'content' => 'Hi' ) ) ), $accept );
+	return array( $result, $client, $meter, $pauses );
+};
+$models = function ( $client ) { return array_map( function ( $s ) { return $s['body']['model']; }, $client->sent ); };
+
+list( $r, $c, $m ) = $si_run( array( si_ok( 'Halo, Kak.' ) ) );
+check( 'routing: the fast model answers a normal turn', array( $r['ok'], $r['model'], $r['text'], $models( $c ) ), array( true, 'claude-haiku-5-5', 'Halo, Kak.', array( 'claude-haiku-5-5' ) ) );
+check( 'routing: the request carries effort and max_tokens, no sampling settings', array( $c->sent[0]['body']['output_config'], $c->sent[0]['body']['max_tokens'], isset( $c->sent[0]['body']['temperature'] ) ), array( array( 'effort' => 'low' ), 1024, false ) );
+check( 'routing: the fast model gets no fallback beta', array( isset( $c->sent[0]['body']['fallbacks'] ), $c->sent[0]['betas'] ), array( false, array() ) );
+check( 'routing: cost goes to the daily meter', array( $r['cost_micro_usd'], $m->spent ), array( 150, 150 ) );
+
+list( $r, $c ) = $si_run( array( si_ok( 'Pasti diterima!' ), si_ok( 'Tergantung instansinya, Kak.' ) ), array(), function ( $text ) { return false !== strpos( $text, 'Pasti' ) ? 'promise' : true; } );
+check( 'routing: a reply that fails a check goes to the stronger model', array( $r['ok'], $r['error'], $r['model'], $models( $c ) ), array( true, '', 'claude-sonnet-5-5', array( 'claude-haiku-5-5', 'claude-sonnet-5-5' ) ) );
+check( 'routing: the stronger model is told why the draft was rejected', false !== strpos( $c->sent[1]['body']['system'], '(promise)' ), true );
+check( 'routing: the stronger model asks for server-side refusal fallbacks', array( $c->sent[1]['body']['fallbacks'], $c->sent[1]['betas'] ), array( 'default', array( 'server-side-fallback-2026-07-01' ) ) );
+check( 'routing: both attempts are reported', array_map( function ( $a ) { return $a['outcome']; }, $r['attempts'] ), array( 'rejected', 'ok' ) );
+
+list( $r, $c ) = $si_run( array( si_ok( 'x' ), si_ok( 'y' ) ), array(), function () { return 'promise'; } );
+check( 'routing: when both replies fail the check, the turn fails', array( $r['ok'], $r['error'], count( $c->sent ) ), array( false, 'rejected', 2 ) );
+
+list( $r, $c ) = $si_run( array( si_ok( '', 'refusal' ), si_ok( 'OK' ) ) );
+check( 'routing: a refusal goes to the stronger model', array( $r['ok'], $models( $c ) ), array( true, array( 'claude-haiku-5-5', 'claude-sonnet-5-5' ) ) );
+
+list( $r, $c ) = $si_run( array( si_ok( '', 'max_tokens' ), si_ok( 'OK' ) ) );
+check( 'routing: a reply cut off before any text goes to the stronger model', array( $r['ok'], $r['attempts'][0]['outcome'] ), array( true, 'truncated' ) );
+
+list( $r, $c ) = $si_run( array( si_ok( '' ), si_ok( 'OK' ) ) );
+check( 'routing: a finished but empty reply goes to the stronger model', array( $r['ok'], $r['attempts'][0]['outcome'], $r['model'] ), array( true, 'empty', 'claude-sonnet-5-5' ) );
+
+list( $r, $c ) = $si_run( array( si_ok( 'Partial but usable', 'max_tokens' ) ) );
+check( 'routing: a long reply cut off with text is kept', array( $r['ok'], count( $c->sent ) ), array( true, 1 ) );
+
+list( $r, $c ) = $si_run( array( si_err( 404, 'not_found_error' ), si_ok( 'OK' ) ) );
+check( 'routing: a fast model that does not exist falls through to the stronger one', array( $r['ok'], $r['model'] ), array( true, 'claude-sonnet-5-5' ) );
+
+list( $r, $c, $m, $pauses ) = $si_run( array( si_err( 529, 'overloaded_error' ), si_ok( 'OK' ) ) );
+check( 'routing: overloaded is retried once on the same model after 2 s', array( $r['ok'], $models( $c ), $pauses ), array( true, array( 'claude-haiku-5-5', 'claude-haiku-5-5' ), array( 2 ) ) );
+
+list( $r, $c, $m, $pauses ) = $si_run( array( si_err( 429, 'rate_limit_error', '', 9 ), si_err( 500, 'api_error' ) ) );
+check( 'routing: still failing after the retry stops with "unavailable", no model switch', array( $r['ok'], $r['error'], count( $c->sent ), $pauses ), array( false, 'unavailable', 2, array( 5 ) ) );
+
+list( $r, $c, $m ) = $si_run( array( array( 'status' => 0, 'error_type' => 'transport_error', 'error_code' => 'http_request_failed', 'retry_after' => 0, 'data' => array() ), si_ok( 'OK' ) ) );
+check( 'routing: a timeout is retried once', array( $r['ok'], count( $c->sent ) ), array( true, 2 ) );
+check( 'routing: a timeout counts a full-length reply toward the cap', $m->spent > 1024 * 0.5 && $m->spent < 1024 * 0.5 + 1000, true );
+
+list( $r, $c ) = $si_run( array( si_err( 429, 'rate_limit_error', 'enforced_spend_limit_reached' ) ) );
+check( 'routing: the account spend limit is not retried', array( $r['error'], count( $c->sent ) ), array( 'spend_limit', 1 ) );
+
+list( $r, $c ) = $si_run( array( si_err( 401, 'authentication_error' ) ) );
+check( 'routing: a refused key stops at once', array( $r['error'], count( $c->sent ) ), array( 'auth_error', 1 ) );
+
+list( $r, $c ) = $si_run( array( si_err( 400, 'invalid_request_error' ) ) );
+check( 'routing: an invalid request is not sent to another model', array( $r['error'], count( $c->sent ) ), array( 'invalid_request', 1 ) );
+
+$full = new Fake_SI_Meter(); $full->spent = 10000000;
+list( $r, $c ) = $si_run( array( si_ok( 'never' ) ), array(), null, $full );
+check( 'routing: at the daily cap nothing is sent', array( $r['error'], count( $c->sent ) ), array( 'cap_reached', 0 ) );
+
+$near = new Fake_SI_Meter(); $near->spent = 9999900;
+list( $r, $c ) = $si_run( array( si_ok( 'x' ), si_ok( 'never' ) ), array(), function () { return 'promise'; }, $near );
+check( 'routing: the cap is checked again before the stronger model', array( $r['error'], count( $c->sent ) ), array( 'cap_reached', 1 ) );
+
+list( $r, $c ) = $si_run( array( si_ok( 'x' ) ), array( 'mode' => 'worker_only' ), function () { return 'promise'; } );
+check( 'routing: "fast model only" never asks the stronger model', array( $r['ok'], count( $c->sent ) ), array( false, 1 ) );
+
+list( $r, $c ) = $si_run( array( si_ok( 'OK' ) ), array( 'mode' => 'executor_only' ) );
+check( 'routing: "stronger model only" goes straight to it', $models( $c ), array( 'claude-sonnet-5-5' ) );
+
+list( $r, $c ) = $si_run( array( si_ok( 'x' ) ), array( 'executor' => 'claude-haiku-5-5' ), function () { return 'promise'; } );
+check( 'routing: the same model is not asked twice when both settings name it', count( $c->sent ), 1 );
+
+list( $r, $c, $m ) = $si_run( array( si_ok( 'OK', 'end_turn', 'claude-opus-5-5' ) ), array( 'mode' => 'executor_only' ) );
+check( 'routing: cost follows the model that actually served the reply', $m->spent, 1000 * 4 + 100 * 20 );
+
+// SI key encryption.
+$secret = 'a-long-unique-auth-key-for-tests-0123456789';
+$box    = ContextChat_SI_Secrets::encrypt( 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz', $secret );
+check( 'secrets: the stored form does not contain the key', false === strpos( $box, 'abcdefghijklmnop' ) && false === strpos( base64_decode( $box ), 'abcdefghijklmnop' ), true );
+check( 'secrets: the key decrypts with the same secret', ContextChat_SI_Secrets::decrypt( $box, $secret ), 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz' );
+check( 'secrets: a different secret cannot read it', ContextChat_SI_Secrets::decrypt( $box, $secret . 'x' ), '' );
+check( 'secrets: encrypting twice gives different text (fresh nonce)', $box !== ContextChat_SI_Secrets::encrypt( 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz', $secret ), true );
+check( 'secrets: damaged data reads as no key', ContextChat_SI_Secrets::decrypt( 'not base64!', $secret ), '' );
+check( 'secrets: key format', array(
+	ContextChat_SI_Secrets::looks_valid( 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz' ),
+	ContextChat_SI_Secrets::looks_valid( 'sk-ant-admin01-abcdefghijklmnopqrstuvwxyz' ),
+	ContextChat_SI_Secrets::looks_valid( 'sk-ant-api03 abcdefghijklmnop' ),
+	ContextChat_SI_Secrets::looks_valid( 'hello' ),
+), array( true, false, false, false ) );
 
 // Updates: WordPress.org must not offer a same-named plugin as an update to this one.
 ContextChat_Updates::init();

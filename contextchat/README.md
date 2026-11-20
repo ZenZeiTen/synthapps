@@ -56,6 +56,8 @@ Filters:
 | `contextchat_message` | Change the message template for a button. |
 | `contextchat_agents` | Change which agents are offered on a page. |
 | `contextchat_should_display` | Show or hide the floating button. |
+| `contextchat_si_prices` | Model prices (US dollars per million tokens) used for the SI daily spending cap. Add a model, or correct a price that changed. |
+| `contextchat_si_api_url` | The Claude Messages API endpoint. Used by the tests to point at a mock server. |
 | `contextchat_client_ip` | The visitor address used to rate limit click counting. Needed only behind a proxy or CDN that does not pass the visitor's address on as `REMOTE_ADDR`; without it all visitors share one limit of 20 clicks a minute. |
 
 In the browser, `document` receives a `contextchat:click` event with `{ agent, source, rule, path, post, device }` for every chat started.
@@ -69,6 +71,19 @@ How it fits together:
 - `includes/class-analytics.php` – click table, the public `POST /wp-json/contextchat/v1/click` endpoint (validated and rate limited), reports. Clicks are stored in UTC and reported by day in the site time zone.
 - `includes/class-admin.php`, `class-settings.php` – settings screen and strict sanitising of every saved value.
 - `includes/class-admin-analytics.php` – the analytics screen and CSV export.
+
+## SI (2.0, in development)
+
+ContextChat 2.0 adds an SI (Synthesized Intelligence) assistant to the chat panel, following the ContextChat 2.0 design plan (kept outside this repository). This first part adds the **ContextChat → SI** settings tab:
+
+- **API key.** Put it in `wp-config.php` as `define( 'CONTEXTCHAT_ANTHROPIC_KEY', 'sk-ant-…' );`, or paste it into the tab. A pasted key is stored encrypted (libsodium secretbox, with a key derived from `AUTH_KEY`), in its own option that is not autoloaded. It is never shown again, sent to the browser or logged. If `AUTH_KEY` changes, the key can no longer be read and the tab asks for it again.
+- **Model routing.** In automatic mode Claude Haiku 5.5 writes every reply and Claude Sonnet 5.5 writes it again only when the reply fails a check, is declined (`stop_reason: refusal`) or is cut off before any text, or when the fast model's ID does not exist. A wrong key, an invalid request and the Anthropic account's spend limit stop at once; a busy API (429, 5xx, timeouts) is retried once on the same model. Two other modes: fast model only, and stronger model for every reply. Both model IDs can be changed. Requests to Sonnet, Opus and Fable models ask for Anthropic's server-side refusal fallbacks.
+- **Daily spending cap.** Each response's `usage` is priced (`includes/si/class-si-pricing.php`) and added to today's total in the site time zone. At the cap, nothing more is sent until the next day. Default: USD 10.
+- **Test connection.** Sends one message with the saved settings and shows which model answered, the tokens and the cost. A checkbox treats the first reply as failing a check, to show the stronger model taking over.
+
+Requests use `anthropic-version: 2026-10-21` and `output_config.effort` (default `low`, enough for chat). `max_tokens` defaults to 1,024 rather than the plan's 400, because Haiku 5.5 thinks by default and thinking counts toward `max_tokens`. The code is in `includes/si/`: `class-si-router.php` (routing, pure PHP), `class-si-client.php` (the HTTP call), `class-si-secrets.php` (the key), `class-si-pricing.php` and `class-si.php` (settings, spend meter, the test endpoint `POST /wp-json/contextchat/v1/admin/si-test`, administrators only).
+
+Nothing reaches visitors yet: the chat, price engine, guard, validator and the rest of the plan follow in later parts.
 
 ## Translations
 

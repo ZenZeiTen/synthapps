@@ -128,3 +128,15 @@
 	.ctxc-split, .ctxc-grid { grid-template-columns: 1fr; }
 	.ctxc-preview { position: static; }
 }
+
+/* SI tab */
+.ctxc-si-key-status { margin-top: 0; }
+.ctxc-si-key-status--constant, .ctxc-si-key-status--stored { color: #00703c; }
+.ctxc-si-key-status--unreadable { color: #b32d2e; }
+.ctxc-si-test { max-width: 760px; }
+.ctxc-si-test label[for="ctxc-si-test-prompt"] { display: block; font-weight: 600; margin-bottom: 4px; }
+.ctxc-si-test-result p { margin: 4px 0; }
+.ctxc-si-test-ok { color: #00703c; font-weight: 600; }
+.ctxc-si-test-failed { color: #b32d2e; font-weight: 600; }
+.ctxc-si-test-attempt { font-family: Menlo, Consolas, monospace; font-size: 12px; color: #50575e; }
+.ctxc-si-test-reply { margin: 6px 0 10px; padding: 10px 12px; border-radius: 10px 2px 10px 10px; background: #dcf8c6; white-space: pre-wrap; }
