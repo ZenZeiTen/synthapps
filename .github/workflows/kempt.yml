@@ -155,6 +155,18 @@ jobs:
           $off = @{ enabled = $false } | ConvertTo-Json
           Invoke-RestMethod "$base/api/local/schedule" -Method Put -Headers $auth -ContentType "application/json" -Body $off | Out-Null
           if (Get-ScheduledTask -TaskName "Kempt automatic care" -ErrorAction SilentlyContinue) { throw "task not removed" }
+          # Start at Windows startup: one Run value, written and removed again.
+          $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+          $on = @{ startup = $true; minimized = $true } | ConvertTo-Json
+          $a = Invoke-RestMethod "$base/api/local/app" -Method Put -Headers $auth -ContentType "application/json" -Body $on
+          if (-not $a.startup -or -not $a.minimized) { throw "app settings not saved: $($a | ConvertTo-Json)" }
+          $val = (Get-ItemProperty -Path $runKey -Name "Kempt").Kempt
+          if ($val -notmatch 'desktop --startup --data "') { throw "Run value wrong: $val" }
+          $list = Invoke-RestMethod "$base/api/local/startup" -Headers $auth
+          if (-not ($list.items | Where-Object { $_.name -eq "Kempt" -and $_.enabled })) { throw "Kempt missing from its own startup list" }
+          $offApp = @{ startup = $false; minimized = $false } | ConvertTo-Json
+          Invoke-RestMethod "$base/api/local/app" -Method Put -Headers $auth -ContentType "application/json" -Body $offApp | Out-Null
+          if (Get-ItemProperty -Path $runKey -Name "Kempt" -ErrorAction SilentlyContinue) { throw "Run value not removed" }
           $html = Invoke-WebRequest "$base/" -UseBasicParsing
           if ($html.Headers["Content-Security-Policy"] -notmatch "script-src 'self'") { throw "CSP missing" }
           $second = & $cli desktop --no-browser --data $data

@@ -20,6 +20,7 @@ compares the two.
 | **Privacy** | Advertising ID, suggestions in Start and Settings, tips, welcome screens, lock-screen promotions and automatic installation of suggested apps, each linked to its Settings page. |
 | **Automatic care** | A daily or weekly Task Scheduler task that runs the same cleanup. No background program. |
 | **History** | Everything Kempt changed. Startup and privacy changes can be undone. |
+| **Settings** | **Start at Windows startup** opens Kempt when you sign in. **Minimize to desktop and stick to taskbar** makes that startup window open minimized on the taskbar. Both are off by default. |
 | **What Kempt won't do** | Why there is no registry cleaner, RAM booster, internet booster, driver updater or PC score. |
 
 ## Get started on Windows
@@ -32,7 +33,8 @@ compares the two.
    **Restart as administrator** at the bottom left.
 
 Kempt keeps its settings and history in `%LOCALAPPDATA%\Kempt`. It runs only while its window
-is open (or when the automatic-care task starts it) and sends nothing anywhere.
+is open (or when the automatic-care task starts it), starts with Windows only if you turn
+that on in Settings, and sends nothing anywhere.
 
 Windows may show a SmartScreen warning the first time, because the program is not code-signed.
 Choose "More info", then "Run anyway", after checking the file against `SHA256SUMS.txt`.

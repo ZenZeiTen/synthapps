@@ -2,6 +2,7 @@ package shell
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -20,12 +21,20 @@ func TestEncodeCommand(t *testing.T) {
 }
 
 func TestPSDataKeepsDataOutOfScript(t *testing.T) {
-	s := PSData([]string{"C:\\a'b", "\n'@\nRemove-Item C:\\"})
-	lines := strings.Split(s, "\n")
-	if len(lines) != 3 || lines[0] != "(@'" || lines[2] != "'@ | ConvertFrom-Json)" {
+	in := []string{"C:\\a'b", "\n'@\nRemove-Item C:\\", "'); Remove-Item C:\\ #"}
+	s := PSData(in)
+	const pre, post = "([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('", "')) | ConvertFrom-Json)"
+	if !strings.HasPrefix(s, pre) || !strings.HasSuffix(s, post) {
 		t.Fatalf("unexpected shape: %q", s)
 	}
-	if strings.HasPrefix(lines[1], "'@") {
-		t.Fatal("data line could end the here-string")
+	for _, c := range s[len(pre) : len(s)-len(post)] {
+		ok := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '+' || c == '/' || c == '='
+		if !ok {
+			t.Fatalf("character %q from the data reached the script", c)
+		}
+	}
+	var back []string
+	if err := json.Unmarshal(DecodePSData("$d = "+s), &back); err != nil || len(back) != 3 || back[2] != in[2] {
+		t.Fatalf("round trip: %v %q", err, back)
 	}
 }

@@ -72,6 +72,7 @@ const pages = [
   { sep: true },
   { id: 'care', title: 'Automatic care' },
   { id: 'history', title: 'History' },
+  { id: 'settings', title: 'Settings', when: () => feat('autostart') },
   { id: 'why', title: 'What Kempt won’t do' },
 ];
 
@@ -93,12 +94,13 @@ function updateNav() {
       h('span', null, p.title), h('small', null, badge(p.id)))));
 }
 
+const views = {};
 function route() {
   const r = location.hash.replace(/^#\/?/, '').split(/[/?]/)[0];
-  return pages.some(p => p.id === r) ? r : 'overview';
+  // Only a page Kempt defines, and only a view that really exists.
+  return pages.some(p => p.id === r) && Object.hasOwn(views, r) ? r : 'overview';
 }
 
-const views = {};
 let viewToken = 0;
 function render() {
   const id = route();
@@ -646,6 +648,48 @@ views.care = async (page, alive) => {
   sync();
 };
 
+// ---------------------------------------------------------------- settings
+
+views.settings = async (page, alive) => {
+  header(page, 'Settings', 'How Kempt itself starts. Both are off unless you turn them on.');
+  const body = h('div', null, working('Reading settings…'));
+  page.append(body);
+  let st = await api('GET', '/api/local/app');
+  if (!alive()) return;
+  const draw = () => {
+    const change = async (key, value, sw) => {
+      sw.disabled = true;
+      try {
+        st = await api('PUT', '/api/local/app', { [key]: value });
+        toast(key === 'startup'
+          ? (st.startup ? 'Kempt will start when you sign in.' : 'Kempt will no longer start when you sign in.')
+          : (st.minimized ? 'Kempt will open minimized on the taskbar at startup.' : 'Kempt will open its window normally at startup.'));
+      } catch (e) { toast(e.message, 'error'); }
+      if (alive()) draw();
+    };
+    const startup = h('input', { type: 'checkbox', class: 'switch', checked: st.startup, 'aria-label': isWin() ? 'Start at Windows startup' : 'Start when you sign in',
+      onchange: e => change('startup', e.target.checked, e.target) });
+    const mini = h('input', { type: 'checkbox', class: 'switch', checked: st.minimized, 'aria-label': 'Minimize to desktop and stick to taskbar',
+      disabled: !st.minimizedSupported || !st.startup,
+      onchange: e => change('minimized', e.target.checked, e.target) });
+    fill(body, h('ul', { class: 'ledger' },
+      h('li', null, h('div', { class: 'row-main' }, startup,
+        h('div', { class: 'row-title' }, h('h3', null, isWin() ? 'Start at Windows startup' : 'Start when you sign in'),
+          h('div', { class: 'sub' }, isWin()
+            ? 'Kempt opens when you sign in to Windows. It is listed as “Kempt” under Startup, here and in Task Manager, and nothing is cleaned until you ask.'
+            : 'Kempt opens when you sign in. It adds one file, kempt.desktop, to your autostart folder.')),
+        h('span'), h('span', { class: 'muted small' }, st.startup ? 'On' : 'Off'))),
+      h('li', null, h('div', { class: 'row-main' }, mini,
+        h('div', { class: 'row-title' }, h('h3', null, 'Minimize to desktop and stick to taskbar'),
+          h('div', { class: 'sub' }, !st.minimizedSupported
+            ? 'Only available on Windows.'
+            : 'When Kempt starts with Windows, its window opens minimized and stays on the taskbar until you click it.' + (st.startup ? '' : ' Turn on Start at Windows startup first.'))),
+        h('span'), h('span', { class: 'muted small' }, st.minimized ? 'On' : 'Off')))),
+      h('p', { class: 'muted small' }, 'Closing the window still closes Kempt. Both changes are recorded in History.'));
+  };
+  draw();
+};
+
 // ---------------------------------------------------------------- history
 
 views.history = async (page, alive) => {
@@ -675,7 +719,7 @@ views.why = page => {
     ['Update drivers from its own database', 'Third-party driver updaters can install the wrong driver for your hardware. Windows Update delivers drivers tested for your PC, and your PC maker’s support page has the rest.'],
     ['Give your PC a score or an “AI mode”', 'A single number hides what is going on. Kempt shows each measurement with what it means and what to do about it.'],
     ['Replace your antivirus', 'Microsoft Defender is built in, updates itself and is enough for most people. Kempt checks that it, or the antivirus you chose, is switched on.'],
-    ['Run in the background or nag you to upgrade', 'Kempt runs only while its window is open, or when the task you scheduled starts it. There is no paid version, no advertising and no data sent anywhere.'],
+    ['Run in the background or nag you to upgrade', 'Kempt runs only while its window is open, or when the task you scheduled starts it. It starts with Windows only if you turn that on in Settings. There is no paid version, no advertising and no data sent anywhere.'],
   ];
   page.append(h('ul', { class: 'why' }, notes.map(([t, p]) => h('li', null, h('h3', null, t), h('p', null, p)))));
 };

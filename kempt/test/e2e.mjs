@@ -130,6 +130,20 @@ try {
   await page.getByText('Undid: Turned off Chat at startup').waitFor();
   assert.match(readFileSync(join(home, '.config/autostart/chat.desktop'), 'utf8'), /Hidden=false/);
 
+  // Settings: start when you sign in writes one autostart file; off removes it.
+  await page.click('a[href="#/settings"]');
+  assert.equal(await page.getByRole('checkbox', { name: 'Minimize to desktop and stick to taskbar' }).isDisabled(), true, 'minimize needs Windows');
+  await page.getByRole('checkbox', { name: 'Start when you sign in' }).click();
+  await page.getByText('Kempt will start when you sign in.').waitFor();
+  assert.match(readFileSync(join(home, '.config/autostart/kempt.desktop'), 'utf8'), /Exec=".*" desktop --startup --data "/);
+  await shot('7b-settings');
+  await page.click('a[href="#/startup"]');
+  await page.getByRole('heading', { name: 'Kempt', exact: true }).waitFor();
+  await page.click('a[href="#/settings"]');
+  await page.getByRole('checkbox', { name: 'Start when you sign in' }).click();
+  await page.getByText('Kempt will no longer start when you sign in.').waitFor();
+  assert.ok(!existsSync(join(home, '.config/autostart/kempt.desktop')), 'autostart file removed');
+
   // Health, automatic care (no Task Scheduler here), honest notes.
   await page.click('a[href="#/health"]');
   await page.getByText(/Free space on/).first().waitFor({ timeout: 20000 });

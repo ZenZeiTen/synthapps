@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/ZenZeiTen/synthapps/kempt/internal/shell"
 )
 
 func TestReadAndSet(t *testing.T) {
@@ -12,8 +14,7 @@ func TestReadAndSet(t *testing.T) {
 	defer func() { PS = old }()
 	var wrote []map[string]any
 	PS = func(ctx context.Context, script string, v any) error {
-		i, j := strings.Index(script, "(@'\n"), strings.Index(script, "\n'@")
-		data := script[i+4 : j]
+		data := string(shell.DecodePSData(script))
 		if strings.Contains(script, "Get-ItemProperty") {
 			var refs []ref
 			json.Unmarshal([]byte(data), &refs)

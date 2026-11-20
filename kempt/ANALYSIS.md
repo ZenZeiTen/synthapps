@@ -66,7 +66,7 @@ These are real needs, and Kempt keeps them:
   launch on every API call, rejects other host names (DNS rebinding) and other web origins,
   and sends a strict Content-Security-Policy.
 - **Windows access** goes through Windows PowerShell scripts with fixed text. Data from Kempt
-  (paths, names) is passed as JSON in a here-string and read with `ConvertFrom-Json`, so it
+  (paths, names) is passed as base64-encoded JSON and read with `ConvertFrom-Json`, so it
   never becomes script code.
 - **Deleting** happens only in folders from Kempt's catalog, only to regular files, only to
   files older than each kind's age limit, and only after a second check just before deletion.

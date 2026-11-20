@@ -92,12 +92,29 @@ func EncodeCommand(script string) string {
 	return base64.StdEncoding.EncodeToString(b)
 }
 
-// PSData returns a PowerShell expression that evaluates to v, which is
-// marshalled to JSON and read back with ConvertFrom-Json. Data from Kempt
-// never becomes script text this way.
+// PSData returns a PowerShell expression that evaluates to v. The value is
+// marshalled to JSON and embedded base64-encoded, so the script text holds
+// only letters, digits, "+", "/" and "=" from it: data from Kempt can never
+// end a string or become script.
 func PSData(v any) string {
 	b, _ := json.Marshal(v)
-	// A single-quoted here-string ends only at a line that starts with '@.
-	// JSON from json.Marshal is one line, so that cannot happen.
-	return "(@'\n" + string(b) + "\n'@ | ConvertFrom-Json)"
+	return "([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('" +
+		base64.StdEncoding.EncodeToString(b) + "')) | ConvertFrom-Json)"
+}
+
+// DecodePSData returns the JSON of the first PSData value in a script.
+// Tests use it to see what a script was given.
+func DecodePSData(script string) []byte {
+	const open = "FromBase64String('"
+	i := strings.Index(script, open)
+	if i < 0 {
+		return nil
+	}
+	rest := script[i+len(open):]
+	j := strings.IndexByte(rest, '\'')
+	if j < 0 {
+		return nil
+	}
+	b, _ := base64.StdEncoding.DecodeString(rest[:j])
+	return b
 }

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ZenZeiTen/synthapps/kempt/internal/api"
+	"github.com/ZenZeiTen/synthapps/kempt/internal/autostart"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/clean"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/jobs"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/journal"
@@ -39,6 +40,7 @@ func runDesktop(args []string) error {
 	port := fl.Int("port", DefaultPort, "loopback port")
 	noBrowser := fl.Bool("no-browser", false, "do not open a window; print the address")
 	stayOpen := fl.Bool("stay-open", false, "keep running after the window closes")
+	atStartup := fl.Bool("startup", false, "Kempt was started by signing in (set by \"Start at Windows startup\")")
 	afterRestart := fl.Bool("after-restart", false, "wait for the previous Kempt to close (used when restarting as administrator)")
 	if err := fl.Parse(args); err != nil {
 		return err
@@ -66,7 +68,7 @@ func runDesktop(args []string) error {
 			fmt.Println(url)
 			return nil
 		}
-		return openApp(url, dir)
+		return openApp(url, dir, false)
 	}
 
 	ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(*port)))
@@ -96,16 +98,17 @@ func runDesktop(args []string) error {
 	defer cancel()
 	h := api.NewDesktop(api.Config{
 		DataDir: dir, Token: tok, Static: static, Elevated: elevated, Exe: guiExe(exe),
-		Hosts:    []string{fmt.Sprintf("127.0.0.1:%d", p), fmt.Sprintf("localhost:%d", p)},
-		Engine:   clean.NewEngine(elevated),
-		Startup:  startup.New(elevated),
-		Journal:  journal.Open(dir),
-		Jobs:     jobs.New(),
-		Activity: func() { last.Store(time.Now().Unix()) },
-		Quit:     func() { time.Sleep(200 * time.Millisecond); cancel() },
-		Elevate:  func() error { return elevate(exe, []string{"desktop", "--after-restart", "--data", dir}) },
-		Open:     openTarget,
-		Reveal:   reveal,
+		Hosts:     []string{fmt.Sprintf("127.0.0.1:%d", p), fmt.Sprintf("localhost:%d", p)},
+		Engine:    clean.NewEngine(elevated),
+		Startup:   startup.New(elevated),
+		Journal:   journal.Open(dir),
+		Jobs:      jobs.New(),
+		Activity:  func() { last.Store(time.Now().Unix()) },
+		Quit:      func() { time.Sleep(200 * time.Millisecond); cancel() },
+		Elevate:   func() error { return elevate(exe, []string{"desktop", "--after-restart", "--data", dir}) },
+		Autostart: autostart.New(), CanMinimize: canMinimize,
+		Open:   openTarget,
+		Reveal: reveal,
 	})
 	hs := &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second}
 	errc := make(chan error, 1)
@@ -114,7 +117,7 @@ func runDesktop(args []string) error {
 	url := appURL(p, tok)
 	if *noBrowser {
 		fmt.Printf("Kempt is running at %s\nData folder: %s\nPress Ctrl+C to stop.\n", url, dir)
-	} else if err := openApp(url, dir); err != nil {
+	} else if err := openApp(url, dir, *atStartup && api.LoadSettings(dir).StartMinimized); err != nil {
 		showError("Kempt", "Could not open a window. Open this address in your browser:\n\n"+url)
 	}
 

@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/ZenZeiTen/synthapps/kempt/internal/apps"
+	"github.com/ZenZeiTen/synthapps/kempt/internal/autostart"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/clean"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/files"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/fsx"
@@ -39,6 +40,10 @@ type Config struct {
 	Startup startup.Manager
 	Journal *journal.Journal
 	Jobs    *jobs.Manager
+	// Autostart makes Kempt start when you sign in; nil where unsupported.
+	Autostart autostart.Manager
+	// CanMinimize: the window can be opened minimized on this system.
+	CanMinimize bool
 
 	Activity func()                    // called on every authenticated request
 	Quit     func()                    // the window asked Kempt to close
@@ -80,6 +85,8 @@ func NewDesktop(c Config) http.Handler {
 	mux.HandleFunc("GET /api/local/categories", a(s.categories))
 	mux.HandleFunc("GET /api/local/settings", a(s.getSettings))
 	mux.HandleFunc("PUT /api/local/settings", a(s.putSettings))
+	mux.HandleFunc("GET /api/local/app", a(s.getApp))
+	mux.HandleFunc("PUT /api/local/app", a(s.putApp))
 	mux.HandleFunc("POST /api/local/jobs/{kind}", a(s.startJob))
 	mux.HandleFunc("GET /api/local/jobs/{id}", a(s.getJob))
 	mux.HandleFunc("DELETE /api/local/jobs/{id}", a(s.cancelJob))
@@ -138,6 +145,7 @@ func (s *server) mode(w http.ResponseWriter, r *http.Request) {
 		"features": map[string]bool{
 			"privacy": privacy.Supported(), "schedule": schedule.Supported(),
 			"updates": win, "winget": apps.Available(), "repair": win, "elevate": win && !s.Elevated,
+			"autostart": s.Autostart != nil, "minimize": s.CanMinimize,
 		},
 	})
 }
@@ -166,9 +174,16 @@ func (s *server) categories(w http.ResponseWriter, r *http.Request) {
 // Settings are the user's choices, kept in settings.json.
 type Settings struct {
 	CareCategories []string `json:"careCategories"`
+	// StartMinimized: when Kempt starts with the computer, open its window
+	// minimized on the taskbar.
+	StartMinimized bool `json:"startMinimized"`
 }
 
-func (s *server) settingsPath() string { return filepath.Join(s.DataDir, "settings.json") }
+// SaveSettings writes settings.json.
+func SaveSettings(dir string, st Settings) error {
+	b, _ := json.MarshalIndent(st, "", "  ")
+	return os.WriteFile(filepath.Join(dir, "settings.json"), b, 0o600)
+}
 
 // LoadSettings reads settings.json; a missing file gives the defaults.
 func LoadSettings(dir string) Settings {
@@ -208,13 +223,90 @@ func (s *server) putSettings(w http.ResponseWriter, r *http.Request) {
 	if in.CareCategories == nil {
 		in.CareCategories = []string{}
 	}
-	in.CareCategories = CareIDs(s.Engine, in)
-	b, _ := json.MarshalIndent(in, "", "  ")
-	if err := os.WriteFile(s.settingsPath(), b, 0o600); err != nil {
+	st := LoadSettings(s.DataDir) // keep the other settings
+	st.CareCategories = CareIDs(s.Engine, in)
+	if st.CareCategories == nil {
+		st.CareCategories = []string{}
+	}
+	if err := SaveSettings(s.DataDir, st); err != nil {
 		writeErr(w, 500, "write_failed", "Could not save the settings: "+err.Error())
 		return
 	}
-	writeJSON(w, 200, in)
+	writeJSON(w, 200, map[string]any{"careCategories": st.CareCategories})
+}
+
+// ---- how Kempt itself starts ----
+
+func (s *server) appState(r *http.Request) (map[string]any, error) {
+	on := false
+	if s.Autostart != nil {
+		var err error
+		if on, err = s.Autostart.Enabled(r.Context()); err != nil {
+			return nil, err
+		}
+	}
+	return map[string]any{
+		"startup": on, "minimized": LoadSettings(s.DataDir).StartMinimized,
+		"startupSupported": s.Autostart != nil, "minimizedSupported": s.CanMinimize,
+	}, nil
+}
+
+func (s *server) getApp(w http.ResponseWriter, r *http.Request) {
+	st, err := s.appState(r)
+	if err != nil {
+		writeErr(w, 500, "read_failed", "Could not read the startup setting: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, st)
+}
+
+func (s *server) putApp(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Startup   *bool `json:"startup"`
+		Minimized *bool `json:"minimized"`
+	}
+	if readJSON(w, r, &in) != nil {
+		writeErr(w, 400, "bad_request", "Invalid request.")
+		return
+	}
+	if in.Startup != nil {
+		if s.Autostart == nil {
+			writeErr(w, 501, "unsupported", "Starting with the computer is not available on this system.")
+			return
+		}
+		if err := s.Autostart.Set(r.Context(), *in.Startup, autostart.Command(s.Exe, s.DataDir)); err != nil {
+			writeErr(w, 500, "write_failed", "Could not change it: "+err.Error())
+			return
+		}
+		sum := "Kempt no longer starts when you sign in"
+		if *in.Startup {
+			sum = "Kempt starts when you sign in"
+		}
+		s.Journal.Add(journal.Entry{Kind: "settings", Summary: sum})
+	}
+	if in.Minimized != nil {
+		if *in.Minimized && !s.CanMinimize {
+			writeErr(w, 501, "unsupported", "Opening minimized is only available on Windows.")
+			return
+		}
+		st := LoadSettings(s.DataDir)
+		st.StartMinimized = *in.Minimized
+		if err := SaveSettings(s.DataDir, st); err != nil {
+			writeErr(w, 500, "write_failed", "Could not save the settings: "+err.Error())
+			return
+		}
+		sum := "Kempt opens its window normally at startup"
+		if *in.Minimized {
+			sum = "Kempt opens minimized on the taskbar at startup"
+		}
+		s.Journal.Add(journal.Entry{Kind: "settings", Summary: sum})
+	}
+	st, err := s.appState(r)
+	if err != nil {
+		writeErr(w, 500, "read_failed", err.Error())
+		return
+	}
+	writeJSON(w, 200, st)
 }
 
 // Clean removes the chosen categories and records it in the journal.

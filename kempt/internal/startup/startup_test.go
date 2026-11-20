@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ZenZeiTen/synthapps/kempt/internal/shell"
 )
 
 func env(k string) string {
@@ -73,10 +75,8 @@ func (f *fakePS) run(ctx context.Context, script string, v any) error {
 	case strings.Contains(script, "VersionInfo"):
 		return json.Unmarshal([]byte(`{"C:\\Program Files\\Steam\\steam.exe":{"exists":true,"company":"Valve"},"C:\\gone\\old.exe":{"exists":false}}`), v)
 	case strings.Contains(script, "New-ItemProperty"):
-		i := strings.Index(script, "(@'\n")
-		j := strings.Index(script, "\n'@")
 		var d map[string]string
-		json.Unmarshal([]byte(script[i+4:j]), &d)
+		json.Unmarshal(shell.DecodePSData(script), &d)
 		f.sets = append(f.sets, d)
 		return json.Unmarshal([]byte(`{"ok":true}`), v)
 	}

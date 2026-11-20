@@ -12,6 +12,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/ZenZeiTen/synthapps/kempt/internal/autostart"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/clean"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/health"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/jobs"
@@ -46,6 +47,7 @@ func newRig(t *testing.T) *rig {
 	r.h = NewDesktop(Config{
 		DataDir: data, Token: tok, Hosts: []string{"127.0.0.1:1"}, Static: static,
 		Engine: e, Startup: r.x, Journal: journal.Open(data), Jobs: jobs.New(),
+		Autostart: &autostart.XDG{Dir: filepath.Join(home, ".config", "autostart")}, CanMinimize: true, Exe: "/opt/kempt",
 		Recycle: func(p string) error { r.recycled = append(r.recycled, p); return os.Remove(p) },
 		Open:    func(target string) error { r.opened = append(r.opened, target); return nil },
 		Health:  func(ctx context.Context) health.Report { return health.Report{Findings: []health.Finding{{ID: "x"}}} },
@@ -212,5 +214,49 @@ func TestSettingsNeverIncludeBin(t *testing.T) {
 	got := out["careCategories"].([]any)
 	if code != 200 || len(got) != 1 || got[0] != "thumbnails" {
 		t.Fatalf("settings %d %v", code, out)
+	}
+}
+
+func TestAppSettings(t *testing.T) {
+	r := newRig(t)
+	_, st := r.do(t, "GET", "/api/local/app", nil)
+	if st["startup"] != false || st["minimized"] != false || st["startupSupported"] != true {
+		t.Fatalf("defaults %v", st)
+	}
+	// Care categories saved first must survive a change to the other settings.
+	r.do(t, "PUT", "/api/local/settings", map[string]any{"careCategories": []string{"thumbnails"}})
+	code, st := r.do(t, "PUT", "/api/local/app", map[string]any{"startup": true, "minimized": true})
+	if code != 200 || st["startup"] != true || st["minimized"] != true {
+		t.Fatalf("on: %d %v", code, st)
+	}
+	b, err := os.ReadFile(filepath.Join(r.home, ".config", "autostart", "kempt.desktop"))
+	if err != nil || !bytes.Contains(b, []byte(`Exec="/opt/kempt" desktop --startup --data "`)) {
+		t.Fatalf("autostart file: %v %q", err, b)
+	}
+	_, set := r.do(t, "GET", "/api/local/settings", nil)
+	if got := set["careCategories"].([]any); len(got) != 1 || got[0] != "thumbnails" {
+		t.Fatalf("care categories lost: %v", set)
+	}
+	// And the other way round.
+	r.do(t, "PUT", "/api/local/settings", map[string]any{"careCategories": []string{}})
+	if _, st := r.do(t, "GET", "/api/local/app", nil); st["minimized"] != true {
+		t.Fatal("start-minimized lost when care categories changed")
+	}
+	_, st = r.do(t, "PUT", "/api/local/app", map[string]any{"startup": false})
+	if st["startup"] != false || st["minimized"] != true {
+		t.Fatalf("off: %v", st)
+	}
+	if _, err := os.Stat(filepath.Join(r.home, ".config", "autostart", "kempt.desktop")); !os.IsNotExist(err) {
+		t.Fatal("autostart file left behind")
+	}
+	// Kempt's own entry shows up in its Startup list while it is on.
+	r.do(t, "PUT", "/api/local/app", map[string]any{"startup": true})
+	_, list := r.do(t, "GET", "/api/local/startup", nil)
+	found := false
+	for _, it := range list["items"].([]any) {
+		found = found || it.(map[string]any)["name"] == "Kempt"
+	}
+	if !found {
+		t.Fatalf("Kempt missing from its own startup list: %v", list)
 	}
 }

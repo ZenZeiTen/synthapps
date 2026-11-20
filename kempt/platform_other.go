@@ -20,7 +20,10 @@ func opener() string {
 	return "xdg-open"
 }
 
-func openApp(url, dataDir string) error { return exec.Command(opener(), url).Start() }
+// canMinimize: a browser opened through xdg-open cannot be told to start minimized.
+const canMinimize = false
+
+func openApp(url, dataDir string, minimized bool) error { return exec.Command(opener(), url).Start() }
 
 func showError(title, msg string) { fmt.Fprintf(os.Stderr, "%s: %s\n", title, msg) }
 

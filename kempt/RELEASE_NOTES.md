@@ -15,4 +15,6 @@ The first release.
 - **Privacy**: advertising ID, suggestions, tips and automatic installation of suggested apps.
 - **Automatic care**, free, through Windows Task Scheduler.
 - **History** of every change, with undo for startup and privacy changes.
+- **Settings**: start at Windows startup, and open that startup window minimized on the taskbar.
+  Both are off by default.
 - A command line (`kempt-cli.exe`) and a Linux build.

@@ -27,8 +27,8 @@ in step when a script changes.
   paths a search in this session returned (`server.allow`). `fsx.WalkFiles` never follows links,
   junctions or reparse points (OneDrive placeholders); keep it that way.
 - **The Recycle Bin is never part of automatic care** (`CareIDs` drops it; a test checks).
-- **PowerShell**: fixed script text only. Pass data with `shell.PSData` (JSON in a single-quoted
-  here-string). Scripts print one JSON value; read it with `shell.PowerShellJSON`.
+- **PowerShell**: fixed script text only. Pass data with `shell.PSData` (base64-encoded
+  JSON). Scripts print one JSON value; read it with `shell.PowerShellJSON`.
 - **Windows changes use Windows' own mechanisms**: StartupApproved values (as Task Manager),
   the HKCU values the Settings app writes, Task Scheduler, winget, SFC/DISM. Every startup and
   privacy change writes a journal entry with `Undo`.
@@ -42,7 +42,7 @@ in step when a script changes.
 | Path | Role |
 |---|---|
 | `main.go` | CLI (`scan`, `clean`, `care`, `health`, `startup`, `updates`, `recycle`), embedded `web/` |
-| `desktop.go`, `platform_*.go` | Loopback server, per-launch key, single instance, Edge app window with its own profile, restart as administrator, opening Settings pages |
+| `desktop.go`, `platform_*.go` | Loopback server, per-launch key, single instance, Edge app window with its own profile, restart as administrator, opening Settings pages, `--startup` and the minimized window |
 | `internal/clean` | Catalog of cache kinds (Windows and Linux), scan and clean, browser lock detection |
 | `internal/files` | Large files, duplicates (size, then first/last 64 KB, then full SHA-256) |
 | `internal/fsx` | Safe walking and deleting, Recycle Bin (SHFileOperationW) / freedesktop trash |
@@ -51,6 +51,7 @@ in step when a script changes.
 | `internal/apps` | winget table parser and upgrades |
 | `internal/privacy` | Per-user Windows switches |
 | `internal/schedule` | Task Scheduler task for `Kempt.exe care` |
+| `internal/autostart` | Kempt's own "Start at Windows startup" entry (HKCU Run value / XDG file) |
 | `internal/journal` | `journal.jsonl` with undo |
 | `internal/jobs` | Background jobs with progress for the window |
 | `internal/api` | HTTP API: key, Host and Origin checks, routes |
