@@ -926,6 +926,20 @@ test( 'Prices, Privacy and Conversations: edited prices are quoted, the privacy 
 	const quoted = await chatApi( 'message', { conversation_id: id, token, text: 'Ijazah 2 halaman tersumpah ke Inggris untuk Australia' } );
 	assert.equal( quoted.json.quote.total, 260000 + 700000 + 1500000 );
 
+	// Analytics: the SI funnel and a CSV with one row per chat and no message text.
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat-analytics' );
+	const funnel = await page.locator( '.ctxc-funnel' ).textContent();
+	assert.match( funnel, /Chats started\s*\d+/ );
+	assert.match( funnel, /Estimate given\s*[1-9]/ );
+	assert.match( await page.locator( '.ctxc-si-analytics' ).textContent(), /Refused: documents or file links/ );
+	await shot( page, 'si-analytics', '.ctxc-si-analytics' );
+	const csvUrl = await page.locator( 'a:has-text("Export SI chats")' ).getAttribute( 'href' );
+	const csv = await ( await page.context().request.get( csvUrl ) ).text();
+	assert.match( csv.split( '\n' )[ 0 ], /^time_utc,reference,lang,device,path,status,service,handoff_reason,handoff_channel,visitor_messages,estimates,last_estimate_idr,cost_usd/ );
+	assert.ok( csv.includes( reference + ',id,desktop,/,quoted,translation' ), 'the chat is a row' );
+	assert.ok( csv.includes( ',2460000,' ), 'with its last estimate' );
+	assert.equal( csv.includes( 'Ijazah' ), false, 'no message text' );
+
 	// Conversations: listed, filtered by reference, readable, exportable, deletable.
 	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat-conversations&reference=' + reference );
 	assert.equal( await page.locator( '.ctxc-conv-table tbody tr' ).count(), 1 );

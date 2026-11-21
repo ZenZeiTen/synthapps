@@ -171,3 +171,11 @@
 .ctxc-conv-who { margin: 0 0 4px; color: #50575e; font-size: 12px; }
 .ctxc-conv-text { overflow-wrap: anywhere; }
 .ctxc-conv-delete { margin-top: 12px; }
+
+/* SI analytics */
+.ctxc-si-analytics { margin-top: 20px; }
+.ctxc-funnel { list-style: none; margin: 12px 0 16px; padding: 0; max-width: 640px; }
+.ctxc-funnel li { display: grid; grid-template-columns: 180px 110px 1fr; gap: 8px; align-items: center; margin: 6px 0; }
+.ctxc-funnel .ctxc-share-bar { grid-column: auto; }
+.ctxc-si-cost { font-size: 15px; font-weight: 600; }
+@media (max-width: 782px) { .ctxc-funnel li { grid-template-columns: 1fr 90px; } .ctxc-funnel .ctxc-share-bar { grid-column: 1 / -1; } }

@@ -82,7 +82,7 @@ msgstr ""
 msgid "Export CSV"
 msgstr ""
 
-#: includes/class-admin-analytics.php:77
+#: includes/class-admin-analytics.php:77 includes/class-admin-analytics.php:158
 msgid "Chats started"
 msgstr ""
 
@@ -134,15 +134,131 @@ msgstr ""
 msgid "By button"
 msgstr ""
 
-#: includes/class-admin-analytics.php:155
-msgid "No data yet."
+#: includes/class-admin-analytics.php:159
+msgid "Visitor wrote"
+msgstr ""
+
+#: includes/class-admin-analytics.php:160 includes/si/class-admin-conversations.php:90
+msgid "Estimate given"
 msgstr ""
 
 #: includes/class-admin-analytics.php:161
+msgid "Team offered"
+msgstr ""
+
+#: includes/class-admin-analytics.php:162
+msgid "Went to the team"
+msgstr ""
+
+#: includes/class-admin-analytics.php:165
+msgid "Refused: ID numbers"
+msgstr ""
+
+#: includes/class-admin-analytics.php:166
+msgid "Refused: documents or file links"
+msgstr ""
+
+#: includes/class-admin-analytics.php:167
+msgid "Refused: other (too long, markup)"
+msgstr ""
+
+#: includes/class-admin-analytics.php:168
+msgid "Over a rate limit"
+msgstr ""
+
+#: includes/class-admin-analytics.php:169
+msgid "Replies rewritten by the checker"
+msgstr ""
+
+#: includes/class-admin-analytics.php:170
+msgid "API errors"
+msgstr ""
+
+#: includes/class-admin-analytics.php:171 includes/class-admin.php:1310
+msgid "Daily spending cap reached"
+msgstr ""
+
+#: includes/class-admin-analytics.php:172
+msgid "Asked for the instructions"
+msgstr ""
+
+#: includes/class-admin-analytics.php:173
+msgid "Asked for staff names"
+msgstr ""
+
+#: includes/class-admin-analytics.php:174
+msgid "Idle offers after an estimate"
+msgstr ""
+
+#: includes/class-admin-analytics.php:177 includes/si/class-admin-conversations.php:105 includes/si/class-admin-conversations.php:163
+msgid "Translation"
+msgstr ""
+
+#: includes/class-admin-analytics.php:178 includes/si/class-admin-conversations.php:106 includes/si/class-admin-conversations.php:164
+msgid "Interpreting"
+msgstr ""
+
+#: includes/class-admin-analytics.php:179 includes/si/class-admin-conversations.php:165
+msgid "Not known yet"
+msgstr ""
+
+#: includes/class-admin-analytics.php:183
+msgid "Email"
+msgstr ""
+
+#: includes/class-admin-analytics.php:187
+msgid "SI chat"
+msgstr ""
+
+#. translators: 1: days in the report, 2: days chats are kept.
+#: includes/class-admin-analytics.php:192
+#, php-format
+msgid "Chats started in the last %1$d days. Only chats still kept are counted (Settings → Privacy keeps them %2$d days). No message text is used here or in the export."
+msgstr ""
+
+#: includes/class-admin-analytics.php:197
+msgid "Export SI chats (CSV)"
+msgstr ""
+
+#: includes/class-admin-analytics.php:211
+msgid "Went to the team by"
+msgstr ""
+
+#: includes/class-admin-analytics.php:213
+#, php-format
+msgid "A chat can use both, so the shares can add up to more than 100%."
+msgstr ""
+
+#: includes/class-admin-analytics.php:214 includes/si/class-admin-conversations.php:160 includes/si/class-admin-conversations.php:181 includes/si/class-admin-conversations.php:256
+msgid "Service"
+msgstr ""
+
+#: includes/class-admin-analytics.php:218
+msgid "Refusals and errors"
+msgstr ""
+
+#: includes/class-admin-analytics.php:231
+msgid "None in this period."
+msgstr ""
+
+#: includes/class-admin-analytics.php:233 includes/si/class-admin-conversations.php:259
+msgid "Model cost"
+msgstr ""
+
+#: includes/class-admin-analytics.php:237
+#, php-format
+msgid "$%1$s in total, $%2$s per chat"
+msgstr ""
+
+#: includes/class-admin-analytics.php:256
+msgid "No data yet."
+msgstr ""
+
+#: includes/class-admin-analytics.php:262
 msgid "Unknown"
 msgstr ""
 
-#: includes/class-admin-analytics.php:178
+#: includes/class-admin-analytics.php:279 includes/si/class-si-analytics.php:127
 msgid "You are not allowed to export this data."
 msgstr ""
 
@@ -1447,10 +1563,6 @@ msgstr ""
 msgid "Conversation too long"
 msgstr ""
 
-#: includes/class-admin.php:1310
-msgid "Daily spending cap reached"
-msgstr ""
-
 #: includes/class-admin.php:1311
 msgid "A reply failed its checks twice"
 msgstr ""
@@ -1609,24 +1721,12 @@ msgstr ""
 msgid "Open"
 msgstr ""
 
-#: includes/si/class-admin-conversations.php:90
-msgid "Estimate given"
-msgstr ""
-
 #: includes/si/class-admin-conversations.php:91
 msgid "Reached the message limit"
 msgstr ""
 
 #: includes/si/class-admin-conversations.php:92
 msgid "Handed to the team"
-msgstr ""
-
-#: includes/si/class-admin-conversations.php:105 includes/si/class-admin-conversations.php:163
-msgid "Translation"
-msgstr ""
-
-#: includes/si/class-admin-conversations.php:106 includes/si/class-admin-conversations.php:164
-msgid "Interpreting"
 msgstr ""
 
 #: includes/si/class-admin-conversations.php:121
@@ -1649,14 +1749,6 @@ msgstr ""
 
 #: includes/si/class-admin-conversations.php:155 includes/si/class-admin-conversations.php:162
 msgid "All"
-msgstr ""
-
-#: includes/si/class-admin-conversations.php:160 includes/si/class-admin-conversations.php:181 includes/si/class-admin-conversations.php:256
-msgid "Service"
-msgstr ""
-
-#: includes/si/class-admin-conversations.php:165
-msgid "Not known yet"
 msgstr ""
 
 #: includes/si/class-admin-conversations.php:169
@@ -1718,10 +1810,6 @@ msgstr ""
 
 #: includes/si/class-admin-conversations.php:254
 msgid "Deleted on"
-msgstr ""
-
-#: includes/si/class-admin-conversations.php:259
-msgid "Model cost"
 msgstr ""
 
 #: includes/si/class-admin-conversations.php:263

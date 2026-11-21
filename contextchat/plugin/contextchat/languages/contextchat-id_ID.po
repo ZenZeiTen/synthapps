@@ -84,7 +84,7 @@ msgstr "%d hari terakhir"
 msgid "Export CSV"
 msgstr "Ekspor CSV"
 
-#: includes/class-admin-analytics.php:77
+#: includes/class-admin-analytics.php:77 includes/class-admin-analytics.php:158
 msgid "Chats started"
 msgstr "Chat dimulai"
 
@@ -136,15 +136,131 @@ msgstr "Per agen"
 msgid "By button"
 msgstr "Per tombol"
 
-#: includes/class-admin-analytics.php:155
+#: includes/class-admin-analytics.php:159
+msgid "Visitor wrote"
+msgstr "Pengunjung menulis"
+
+#: includes/class-admin-analytics.php:160 includes/si/class-admin-conversations.php:90
+msgid "Estimate given"
+msgstr "Estimasi diberikan"
+
+#: includes/class-admin-analytics.php:161
+msgid "Team offered"
+msgstr "Tim ditawarkan"
+
+#: includes/class-admin-analytics.php:162
+msgid "Went to the team"
+msgstr "Lanjut ke tim"
+
+#: includes/class-admin-analytics.php:165
+msgid "Refused: ID numbers"
+msgstr "Ditolak: nomor identitas"
+
+#: includes/class-admin-analytics.php:166
+msgid "Refused: documents or file links"
+msgstr "Ditolak: dokumen atau tautan file"
+
+#: includes/class-admin-analytics.php:167
+msgid "Refused: other (too long, markup)"
+msgstr "Ditolak: lainnya (terlalu panjang, markup)"
+
+#: includes/class-admin-analytics.php:168
+msgid "Over a rate limit"
+msgstr "Melewati batas pesan"
+
+#: includes/class-admin-analytics.php:169
+msgid "Replies rewritten by the checker"
+msgstr "Balasan yang ditulis ulang oleh pemeriksa"
+
+#: includes/class-admin-analytics.php:170
+msgid "API errors"
+msgstr "Galat API"
+
+#: includes/class-admin-analytics.php:171 includes/class-admin.php:1310
+msgid "Daily spending cap reached"
+msgstr "Batas belanja harian tercapai"
+
+#: includes/class-admin-analytics.php:172
+msgid "Asked for the instructions"
+msgstr "Meminta instruksi"
+
+#: includes/class-admin-analytics.php:173
+msgid "Asked for staff names"
+msgstr "Menanyakan nama staf"
+
+#: includes/class-admin-analytics.php:174
+msgid "Idle offers after an estimate"
+msgstr "Tawaran setelah estimasi saat pengunjung diam"
+
+#: includes/class-admin-analytics.php:177 includes/si/class-admin-conversations.php:105 includes/si/class-admin-conversations.php:163
+msgid "Translation"
+msgstr "Penerjemahan"
+
+#: includes/class-admin-analytics.php:178 includes/si/class-admin-conversations.php:106 includes/si/class-admin-conversations.php:164
+msgid "Interpreting"
+msgstr "Interpretasi"
+
+#: includes/class-admin-analytics.php:179 includes/si/class-admin-conversations.php:165
+msgid "Not known yet"
+msgstr "Belum diketahui"
+
+#: includes/class-admin-analytics.php:183
+msgid "Email"
+msgstr "Email"
+
+#: includes/class-admin-analytics.php:187
+msgid "SI chat"
+msgstr "Chat SI"
+
+#. translators: 1: days in the report, 2: days chats are kept.
+#: includes/class-admin-analytics.php:192
+#, php-format
+msgid "Chats started in the last %1$d days. Only chats still kept are counted (Settings → Privacy keeps them %2$d days). No message text is used here or in the export."
+msgstr "Chat yang dimulai dalam %1$d hari terakhir. Hanya chat yang masih disimpan yang dihitung (Pengaturan → Privasi menyimpannya %2$d hari). Isi pesan tidak dipakai di sini maupun di ekspor."
+
+#: includes/class-admin-analytics.php:197
+msgid "Export SI chats (CSV)"
+msgstr "Ekspor chat SI (CSV)"
+
+#: includes/class-admin-analytics.php:211
+msgid "Went to the team by"
+msgstr "Lanjut ke tim lewat"
+
+#: includes/class-admin-analytics.php:213
+#, php-format
+msgid "A chat can use both, so the shares can add up to more than 100%."
+msgstr "Satu chat bisa memakai keduanya, jadi jumlah persentasenya bisa lebih dari 100%."
+
+#: includes/class-admin-analytics.php:214 includes/si/class-admin-conversations.php:160 includes/si/class-admin-conversations.php:181 includes/si/class-admin-conversations.php:256
+msgid "Service"
+msgstr "Layanan"
+
+#: includes/class-admin-analytics.php:218
+msgid "Refusals and errors"
+msgstr "Penolakan dan galat"
+
+#: includes/class-admin-analytics.php:231
+msgid "None in this period."
+msgstr "Tidak ada pada periode ini."
+
+#: includes/class-admin-analytics.php:233 includes/si/class-admin-conversations.php:259
+msgid "Model cost"
+msgstr "Biaya model"
+
+#: includes/class-admin-analytics.php:237
+#, php-format
+msgid "$%1$s in total, $%2$s per chat"
+msgstr "Total $%1$s, $%2$s per chat"
+
+#: includes/class-admin-analytics.php:256
 msgid "No data yet."
 msgstr "Belum ada data."
 
-#: includes/class-admin-analytics.php:161
+#: includes/class-admin-analytics.php:262
 msgid "Unknown"
 msgstr "Tidak diketahui"
 
-#: includes/class-admin-analytics.php:178
+#: includes/class-admin-analytics.php:279 includes/si/class-si-analytics.php:127
 msgid "You are not allowed to export this data."
 msgstr "Anda tidak diizinkan mengekspor data ini."
 
@@ -1449,10 +1565,6 @@ msgstr "Meminta instruksi SI"
 msgid "Conversation too long"
 msgstr "Percakapan terlalu panjang"
 
-#: includes/class-admin.php:1310
-msgid "Daily spending cap reached"
-msgstr "Batas belanja harian tercapai"
-
 #: includes/class-admin.php:1311
 msgid "A reply failed its checks twice"
 msgstr "Balasan gagal pemeriksaan dua kali"
@@ -1611,10 +1723,6 @@ msgstr "API key yang tersimpan sudah dihapus."
 msgid "Open"
 msgstr "Terbuka"
 
-#: includes/si/class-admin-conversations.php:90
-msgid "Estimate given"
-msgstr "Estimasi diberikan"
-
 #: includes/si/class-admin-conversations.php:91
 msgid "Reached the message limit"
 msgstr "Mencapai batas pesan"
@@ -1622,14 +1730,6 @@ msgstr "Mencapai batas pesan"
 #: includes/si/class-admin-conversations.php:92
 msgid "Handed to the team"
 msgstr "Diteruskan ke tim"
-
-#: includes/si/class-admin-conversations.php:105 includes/si/class-admin-conversations.php:163
-msgid "Translation"
-msgstr "Penerjemahan"
-
-#: includes/si/class-admin-conversations.php:106 includes/si/class-admin-conversations.php:164
-msgid "Interpreting"
-msgstr "Interpretasi"
 
 #: includes/si/class-admin-conversations.php:121
 msgid "The conversation was deleted."
@@ -1652,14 +1752,6 @@ msgstr "Status"
 #: includes/si/class-admin-conversations.php:155 includes/si/class-admin-conversations.php:162
 msgid "All"
 msgstr "Semua"
-
-#: includes/si/class-admin-conversations.php:160 includes/si/class-admin-conversations.php:181 includes/si/class-admin-conversations.php:256
-msgid "Service"
-msgstr "Layanan"
-
-#: includes/si/class-admin-conversations.php:165
-msgid "Not known yet"
-msgstr "Belum diketahui"
 
 #: includes/si/class-admin-conversations.php:169
 msgid "To"
@@ -1721,10 +1813,6 @@ msgstr "Aktivitas terakhir"
 #: includes/si/class-admin-conversations.php:254
 msgid "Deleted on"
 msgstr "Dihapus pada"
-
-#: includes/si/class-admin-conversations.php:259
-msgid "Model cost"
-msgstr "Biaya model"
 
 #: includes/si/class-admin-conversations.php:263
 #, php-format

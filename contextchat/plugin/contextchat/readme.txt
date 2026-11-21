@@ -22,6 +22,7 @@ Most chat buttons open WhatsApp with an empty message, and the first reply is al
 * **WooCommerce.** An "Ask about this product" button under Add to cart, sending the product name, price, SKU and link.
 * **Shortcode and block.** [contextchat] and a "ContextChat button" block for any page, using the same context and routing.
 * **Analytics without tracking people.** Clicks by day, page, agent, button and device, with CSV export. No IP addresses, cookies or message text are stored. Optional events for Google Analytics and Tag Manager.
+* **SI assistant (optional, new in 2.0).** A chat in the panel, powered by Anthropic's Claude models through your own API key. It answers from your knowledge entries, collects what your team needs, gives estimates calculated in code from your price table (never by the model), and hands the visitor to your team on WhatsApp or by email with a summary. It refuses ID numbers, documents and file links, keeps chats for a period you set, and has screens to read, export and delete chats. Off until you turn it on.
 * **Bahasa Indonesia included.** Full Indonesian translation, used automatically when the site language is Indonesian.
 * **Fast and accessible.** One small script and stylesheet with no jQuery, loaded only where a button appears. Every button is a real link that works before the script loads. Keyboard and screen reader friendly, respects reduced motion, has a dark mode, and turns into a bottom sheet on phones.
 
@@ -52,6 +53,16 @@ Yes. Page details are built into the page, and everything that depends on the vi
 
 For each click: the time, the page path, the agent, the rule, the button and whether it was a phone or a computer. Nothing that identifies a person. Data older than the retention period (180 days by default) is deleted daily.
 
+When the SI chat is on, each chat is stored too: the messages, the details collected, the estimates, the page path, the language and the device, under a chat reference. No IP address is stored, and messages containing ID numbers, documents or file links are refused and not stored. Chats are deleted after the period set under Privacy (365 days by default). Administrators can read, export and delete single chats under ContextChat → Conversations.
+
+= What does the SI assistant cost, and what does it need? =
+
+An Anthropic API key, which your site pays for directly. A daily spending cap (USD 10 by default) stops the chat for the rest of the day when it is reached; visitors are then offered WhatsApp or email. Analytics shows the cost per chat.
+
+= Does it help with privacy rules? =
+
+WordPress shows a suggested privacy policy section for the SI chat under Settings → Privacy → Policy Guide. It was checked against Indonesia's Personal Data Protection Law (UU 27/2022) and its implementing regulation (PP 33/2026). It is a starting point with parts for you to fill in, not legal advice. Have it reviewed before you publish it. An option asks visitors to agree to the privacy notice before the chat starts and records their agreement.
+
 = How do I add my own placeholders? =
 
 Use the `contextchat_context` filter:
@@ -71,6 +82,7 @@ ContextChat 2.0 adds an SI (Synthesized Intelligence) assistant that uses Anthro
   * **Always:** the site's API key, in a request header.
 * **What is never sent:** messages that ContextChat blocks (file links, ID and card numbers), IP addresses and cookies.
 * **When:** nothing is sent until an administrator adds an API key and either turns on the SI chat or runs the connection test.
+* **Where:** Anthropic, PBC is based in the United States. The chat's privacy notice tells visitors that chat text is processed by Anthropic outside Indonesia.
 * Anthropic's terms: https://www.anthropic.com/legal/commercial-terms
 * Anthropic's privacy policy: https://www.anthropic.com/legal/privacy
 
