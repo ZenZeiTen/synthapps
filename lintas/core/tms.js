@@ -2,7 +2,7 @@
 // status, translation memories, termbases, analysis, QA and exports.
 // Pure Node; the Electron main process wraps it in IPC handlers.
 import { splitSentences, tokenize, detectLanguage, escapeRegex } from './text.js';
-import { parseText, parseFile, decodeText, exportPo, exportXliff, exportJson, exportTmx, exportTbx, toCsv, parseCsv, decodeEntities, xmlEscape } from './formats.js';
+import { parseText, parseFile, decodeText, exportPo, exportXliff, exportJson, exportTmx, exportTbx, toCsv, parseCsv, stripTags, xmlEscape, markupTokens, tagAttr } from './formats.js';
 import { TmIndex, wordDiff, bandOf, BANDS, normKey } from './tm.js';
 import { checkSegment, inconsistencies } from './qa.js';
 import { writeDocx } from './docx.js';
@@ -337,17 +337,10 @@ export class Tms {
     const text = decodeText(buf);
     let added = 0;
     if (/\.tbx$/i.test(filename) || /<martif|<tbx/i.test(text.slice(0, 500))) {
-      for (const m of text.matchAll(/<(termEntry|conceptEntry)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
-        const sets = [...m[2].matchAll(/<langSet\b[^>]*xml:lang=["']([^"']+)["'][^>]*>([\s\S]*?)<\/langSet>/gi)].map(x => ({
-          lang: x[1].toLowerCase().split('-')[0],
-          term: decodeEntities((x[2].match(/<term[^>]*>([\s\S]*?)<\/term>/i) || [, ''])[1].replace(/<[^>]+>/g, '')).trim(),
-          deprecated: /deprecatedTerm|forbidden|notRecommended/i.test(x[2]),
-          preferred: /preferredTerm/i.test(x[2]),
-        }));
-        const src = sets.find(s => s.lang === tb.sourceLang) || sets[0];
-        const tgt = sets.find(s => s !== src && (s.lang === tb.targetLang || true));
-        const note = decodeEntities((m[2].match(/<descrip[^>]*>([\s\S]*?)<\/descrip>/i) || [, ''])[1].replace(/<[^>]+>/g, '')).trim();
-        if (src?.term) { this.addTerm(id, { source: src.term, target: tgt?.term || '', status: tgt?.deprecated ? 'forbidden' : tgt?.preferred ? 'preferred' : 'admitted', note }); added++; }
+      for (const e of tbxEntries(text)) {
+        const src = e.sets.find(x => x.lang === tb.sourceLang) || e.sets[0];
+        const tgt = e.sets.find(x => x !== src);
+        if (src?.term) { this.addTerm(id, { source: src.term, target: tgt?.term || '', status: tgt?.deprecated ? 'forbidden' : tgt?.preferred ? 'preferred' : 'admitted', note: e.note }); added++; }
       }
     } else {
       const rows = parseCsv(text);
@@ -513,6 +506,32 @@ export class Tms {
   detectProjectLanguage(text) {
     return detectLanguage(text).lang;
   }
+}
+
+/** Read TBX (TBX-Basic, TBX v3) entries with a tokenizer. */
+function tbxEntries(xml) {
+  const entries = [];
+  let entry = null, set = null, field = null, buf = '';
+  for (const t of markupTokens(xml)) {
+    if (t.type !== 'tag') { if (field) buf += t.value; continue; }
+    const n = t.name;
+    if (n === 'termentry' || n === 'conceptentry') {
+      if (!t.closing) entry = { sets: [], note: '' }; else if (entry) { entries.push(entry); entry = null; }
+    } else if (n === 'langset' && entry) {
+      if (!t.closing) set = { lang: (tagAttr(t.raw, 'xml:lang') || '').toLowerCase().split('-')[0], term: '', deprecated: false, preferred: false };
+      else if (set) { entry.sets.push(set); set = null; }
+    } else if ((n === 'term' || n === 'descrip' || n === 'termnote') && entry) {
+      if (!t.closing) { field = n; buf = ''; }
+      else if (field === n) {
+        const v = stripTags(buf).trim();
+        if (n === 'term' && set && !set.term) set.term = v;
+        else if (n === 'descrip' && !entry.note) entry.note = v;
+        else if (n === 'termnote' && set) { if (/deprecated|forbidden|notRecommended/i.test(v)) set.deprecated = true; if (/preferred/i.test(v)) set.preferred = true; }
+        field = null;
+      }
+    } else if (field) buf += t.raw;
+  }
+  return entries;
 }
 
 function publicSeg(s) {

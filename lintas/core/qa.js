@@ -2,7 +2,7 @@
 // a severity and a plain-language message.
 
 const PLACEHOLDER = /\{\{\s*[\w.]+\s*\}\}|\{[\w.]+\}|%(?:\d+\$)?[sdif@]|\$\{[\w.]+\}|\$[\w]+|:[a-z_]+\b(?=[^:]|$)/g;
-const TAG = /<\/?[a-z][\w-]*[^>]*>|\{\/?\d+\}|\{\/\}/gi;
+const TAG = /<\/?[a-z][^<>]*>|\{\/?\d+\}|\{\/\}/gi;
 const NUMBER = /\d+(?:[.,]\d+)*/g;
 
 function list(re, s) {

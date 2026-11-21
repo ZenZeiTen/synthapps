@@ -22,8 +22,58 @@ export function xmlEscape(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function stripTags(s) {
-  return decodeEntities(String(s).replace(/<[^>]+>/g, ''));
+/**
+ * Linear-time tokenizer for HTML/XML-like markup. Yields text runs and tags;
+ * quoted attribute values may contain ">" and comments are skipped whole.
+ * Used instead of regular-expression tag stripping, which cannot handle
+ * nested or malformed markup reliably.
+ */
+export function* markupTokens(input) {
+  const s = String(input ?? '');
+  let i = 0;
+  while (i < s.length) {
+    const lt = s.indexOf('<', i);
+    if (lt < 0) { yield { type: 'text', value: s.slice(i) }; return; }
+    if (lt > i) yield { type: 'text', value: s.slice(i, lt) };
+    if (s.startsWith('<!--', lt)) {
+      const end = s.indexOf('-->', lt + 4);
+      i = end < 0 ? s.length : end + 3;
+      continue;
+    }
+    if (s.startsWith('<![CDATA[', lt)) {
+      const end = s.indexOf(']]>', lt + 9);
+      yield { type: 'cdata', value: s.slice(lt + 9, end < 0 ? s.length : end) };
+      i = end < 0 ? s.length : end + 3;
+      continue;
+    }
+    const nameMatch = /^<(\/?)([A-Za-z][\w:.-]*)/.exec(s.slice(lt, lt + 80));
+    if (!nameMatch && !/^<[!?]/.test(s.slice(lt, lt + 2))) { yield { type: 'text', value: '<' }; i = lt + 1; continue; }
+    // Find the closing ">" outside quotes.
+    let j = lt + 1, quote = null;
+    for (; j < s.length; j++) {
+      const ch = s[j];
+      if (quote) { if (ch === quote) quote = null; }
+      else if (ch === '"' || ch === "'") quote = ch;
+      else if (ch === '>') break;
+    }
+    const raw = s.slice(lt, Math.min(j + 1, s.length));
+    i = j + 1;
+    if (!nameMatch) continue; // doctype, processing instruction
+    yield { type: 'tag', name: nameMatch[2].toLowerCase(), closing: nameMatch[1] === '/', selfClosing: /\/\s*>$/.test(raw), raw };
+  }
+}
+
+export function tagAttr(raw, name) {
+  const re = new RegExp('\\s' + name.replace(/[.:-]/g, '\\$&') + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))', 'i');
+  const m = re.exec(raw);
+  return m ? decodeEntities(m[1] ?? m[2] ?? m[3]) : null;
+}
+
+/** Text content of markup, without any tags. */
+export function stripTags(s) {
+  let out = '';
+  for (const t of markupTokens(s)) if (t.type === 'text' || t.type === 'cdata') out += t.value;
+  return decodeEntities(out);
 }
 
 function csvCell(v) {
@@ -147,18 +197,34 @@ export function docxText(buf) {
   return paras.join('\n\n');
 }
 
+const SKIP_HTML = new Set(['script', 'style', 'noscript', 'svg', 'nav', 'footer', 'header', 'form', 'iframe', 'template', 'head', 'select', 'button']);
+const BLOCK_HTML = new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'tr', 'section', 'article', 'main', 'blockquote', 'pre', 'dd', 'dt',
+  'figcaption', 'td', 'th', 'table', 'ul', 'ol', 'dl', 'aside', 'caption', 'summary', 'details']);
+
 export function htmlText(html) {
-  const title = stripTags((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [, ''])[1]).trim();
-  let lang = (html.match(/<html[^>]*\blang=["']?([a-zA-Z-]+)/i) || [, ''])[1].toLowerCase().split('-')[0] || null;
-  let body = html.replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<(script|style|noscript|svg|nav|footer|header|form|iframe|template)[\s\S]*?<\/\1>/gi, ' ');
-  const main = body.match(/<(main|article)[^>]*>([\s\S]*?)<\/\1>/i);
-  if (main && main[2].length > 400) body = main[2];
-  body = body.replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|h[1-6]|tr|section|blockquote|pre|dd|dt|figcaption|td|th)>/gi, '\n\n')
-    .replace(/<li[^>]*>/gi, '\n- ');
-  const text = stripTags(body).replace(/[ \t]+/g, ' ').replace(/\n[ \t]+/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-  return { text, title: title || null, lang };
+  let title = '', lang = null, inTitle = false, skip = 0;
+  const parts = { all: [], main: [] };
+  let mainDepth = 0;
+  const push = v => { parts.all.push(v); if (mainDepth > 0) parts.main.push(v); };
+  for (const t of markupTokens(html)) {
+    if (t.type === 'tag') {
+      if (t.name === 'html' && !t.closing && !lang) lang = (tagAttr(t.raw, 'lang') || '').toLowerCase().split('-')[0] || null;
+      if (t.name === 'title') { inTitle = !t.closing; continue; }
+      if (SKIP_HTML.has(t.name) && !t.selfClosing) { skip = Math.max(0, skip + (t.closing ? -1 : 1)); continue; }
+      if (skip) continue;
+      if (t.name === 'main' || t.name === 'article') mainDepth = Math.max(0, mainDepth + (t.closing ? -1 : 1));
+      if (t.name === 'br') push('\n');
+      else if (t.name === 'li') { if (!t.closing) push('\n- '); }
+      else if (BLOCK_HTML.has(t.name) && t.closing) push('\n\n');
+      continue;
+    }
+    if (inTitle) { title += t.value; continue; }
+    if (!skip) push(t.value);
+  }
+  const tidy = a => decodeEntities(a.join('')).replace(/[ \t\r\f\v]+/g, ' ').replace(/\n /g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  const main = tidy(parts.main);
+  const text = main.length > 400 ? main : tidy(parts.all);
+  return { text, title: decodeEntities(title).trim() || null, lang };
 }
 
 function mdText(md) {
@@ -176,7 +242,7 @@ function subtitleUnits(text) {
     const lines = block.split('\n').filter(l => l.trim() && l.trim() !== 'WEBVTT');
     const ti = lines.findIndex(l => /-->/.test(l));
     if (ti < 0) continue;
-    const body = lines.slice(ti + 1).join(' ').replace(/<[^>]+>/g, '').trim();
+    const body = stripTags(lines.slice(ti + 1).join(' ')).trim();
     if (body) units.push({ text: body, note: lines[ti].trim(), key: lines[0] && ti > 0 ? lines[0].trim() : null });
   }
   return units;
@@ -235,28 +301,49 @@ function xliffUnits(xml) {
   return { units, bilingual: true, sourceLang, targetLang };
 }
 
-// Keep inline tags visible as {1} {/1} style markers so tag QA still works.
+// Keep inline tags visible as {1} {/} style markers so tag QA still works.
+const PAIRED_INLINE = new Set(['g', 'pc', 'bpt']);
+const STANDALONE_INLINE = new Set(['x', 'ph', 'bx', 'ex', 'it', 'sc', 'ec', 'sm', 'em']);
 function inlineXml(s) {
-  return decodeEntities(String(s)
-    .replace(/<(?:x|ph|bx|ex)\b[^>]*\bid=["']([^"']+)["'][^>]*\/?>(?:[\s\S]*?<\/(?:ph)>)?/gi, '{$1}')
-    .replace(/<(?:g|pc|bpt)\b[^>]*\bid=["']([^"']+)["'][^>]*>/gi, '{$1}')
-    .replace(/<\/(?:g|pc)>/gi, '{/}')
-    .replace(/<[^>]+>/g, '')).trim();
+  let out = '', inPh = 0;
+  for (const t of markupTokens(s)) {
+    if (t.type !== 'tag') { if (!inPh) out += t.value; continue; }
+    const id = tagAttr(t.raw, 'id');
+    if (t.name === 'ph') {
+      if (!t.closing) { out += `{${id ?? 'ph'}}`; if (!t.selfClosing) inPh++; } else inPh = Math.max(0, inPh - 1);
+    } else if (STANDALONE_INLINE.has(t.name) && !t.closing) out += `{${id ?? t.name}}`;
+    else if (PAIRED_INLINE.has(t.name)) out += t.closing ? '{/}' : `{${id ?? t.name}}`;
+  }
+  return decodeEntities(out).trim();
 }
 
 function tmxUnits(xml) {
   const units = [];
-  let sourceLang = (attr(xml.match(/<header[^>]*>/i)?.[0] || '', 'srclang') || '').toLowerCase().split('-')[0] || null;
+  let sourceLang = (attr(xml.match(/<header\b[^>]*>/i)?.[0] || '', 'srclang') || '').toLowerCase().split('-')[0] || null;
+  if (sourceLang === '*all*') sourceLang = null;
   let targetLang = null;
-  for (const m of xml.matchAll(/<tu\b[^>]*>([\s\S]*?)<\/tu>/gi)) {
-    const tuvs = [...m[1].matchAll(/<tuv\b([^>]*)>[\s\S]*?<seg>([\s\S]*?)<\/seg>[\s\S]*?<\/tuv>/gi)]
-      .map(t => ({ lang: (attr('<x ' + t[1] + '>', 'xml:lang') || attr('<x ' + t[1] + '>', 'lang') || '').toLowerCase().split('-')[0], text: inlineXml(t[2]) }));
-    if (tuvs.length < 1) continue;
-    let s = tuvs.find(t => t.lang === sourceLang) || tuvs[0];
-    let tt = tuvs.find(t => t !== s) || { text: '' };
-    if (!sourceLang) sourceLang = s.lang;
-    if (!targetLang && tt.lang) targetLang = tt.lang;
-    units.push({ text: s.text, target: tt.text });
+  let tuvs = null, cur = null, seg = null;
+  for (const t of markupTokens(xml)) {
+    if (t.type === 'tag') {
+      if (t.name === 'tu') {
+        if (!t.closing) tuvs = [];
+        else if (tuvs) {
+          const s0 = tuvs.find(v => v.lang === sourceLang) || tuvs[0];
+          const t0 = tuvs.find(v => v !== s0) || { text: '' };
+          if (s0) {
+            if (!sourceLang) sourceLang = s0.lang;
+            if (!targetLang && t0.lang) targetLang = t0.lang;
+            units.push({ text: s0.text, target: t0.text });
+          }
+          tuvs = null;
+        }
+      } else if (t.name === 'tuv' && tuvs) {
+        if (!t.closing) cur = { lang: (tagAttr(t.raw, 'xml:lang') || tagAttr(t.raw, 'lang') || '').toLowerCase().split('-')[0], text: '' };
+        else if (cur) { tuvs.push(cur); cur = null; }
+      } else if (t.name === 'seg' && cur) {
+        if (!t.closing) seg = ''; else { cur.text = inlineXml(seg); seg = null; }
+      } else if (seg != null) seg += t.raw;
+    } else if (seg != null) seg += t.type === 'cdata' ? xmlEscape(t.value) : t.value;
   }
   return { units, bilingual: true, sourceLang, targetLang };
 }
@@ -306,9 +393,9 @@ export function codeStrings(text, filename = '') {
       const s = m[2];
       if (looksUserFacing(s, line, m.index)) units.push({ text: s, key: `${path.basename(filename) || 'code'}:${i + 1}`, note: line.trim().slice(0, 160) });
     }
-    if (isJsx) for (const m of line.matchAll(/>([^<>{}]*[\p{L}][^<>{}]*)</gu)) {
+    if (isJsx) for (const m of line.matchAll(/>([^<>{}]+)</gu)) {
       const s = m[1].trim();
-      if (s.split(/\s+/).length >= 1 && /\p{L}{2,}/u.test(s)) units.push({ text: s, key: `${path.basename(filename) || 'code'}:${i + 1}`, note: line.trim().slice(0, 160) });
+      if (/\p{L}{2,}/u.test(s)) units.push({ text: s, key: `${path.basename(filename) || 'code'}:${i + 1}`, note: line.trim().slice(0, 160) });
     }
   });
   return units;
@@ -407,19 +494,24 @@ ${units}
 `;
 }
 
+const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
 export function exportJson(segments, { side = 'target' } = {}) {
-  const out = {};
+  // Null-prototype objects: keys come from imported files and must never reach Object.prototype.
+  const out = Object.create(null);
   for (const s of segments) {
-    const key = s.key || s.id;
+    const key = String(s.key || s.id);
     const val = side === 'target' ? (s.target ?? '') : s.text;
     const parts = key.split('.');
-    let node = out;
-    let ok = true;
+    if (parts.some(p => UNSAFE_KEYS.has(p))) { out[key] = val; continue; }
+    let node = out, ok = true;
     for (let i = 0; i < parts.length - 1; i++) {
-      if (typeof node[parts[i]] === 'string') { ok = false; break; }
-      node = node[parts[i]] ??= {};
+      const next = node[parts[i]];
+      if (typeof next === 'string') { ok = false; break; }
+      node = next ?? (node[parts[i]] = Object.create(null));
     }
-    if (ok && typeof node[parts.at(-1)] !== 'object') node[parts.at(-1)] = val; else out[key] = val;
+    const last = parts[parts.length - 1];
+    if (ok && typeof node[last] !== 'object') node[last] = val; else out[key] = val;
   }
   return JSON.stringify(out, null, 2) + '\n';
 }

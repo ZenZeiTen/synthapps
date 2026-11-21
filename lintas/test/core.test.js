@@ -113,3 +113,35 @@ test('TMS workflow: project, import, confirm to TM, lookup, pretranslate, analys
   assert.equal(again.dashboard().projects[0].stats.byStatus.translated, 3);
   assert.ok(s3);
 });
+
+test('HTML to text: scripts, comments and quoted ">" never leak into text', async () => {
+  const { htmlText, stripTags } = await import('../core/formats.js');
+  const r = htmlText('<html lang="id-ID"><head><title>Judul &amp; Sub</title><script>var a = "</p><p>x";</script></head><body><nav>Menu</nav><p title="a > b">Halo <b>dunia</b>.</p><!-- <p>hidden</p> --><ul><li>Satu</li><li>Dua</li></ul><script>alert(1)</script></body></html>');
+  assert.equal(r.title, 'Judul & Sub');
+  assert.equal(r.lang, 'id');
+  assert.ok(r.text.startsWith('Halo dunia.'), r.text);
+  assert.ok(!/alert|hidden|Menu|var a/.test(r.text), r.text);
+  assert.match(r.text, /- Satu\n- Dua/);
+  assert.equal(stripTags('a <b class="x>y">bold</b> &lt;tag&gt;'), 'a bold <tag>');
+});
+
+test('TMX and TBX import use the tokenizer', () => {
+  const tmx = parseText('tmx', '<tmx><header srclang="en-US"/><body><tu><tuv xml:lang="en-US"><seg>Save <ph x="1">&lt;b&gt;</ph>now</seg></tuv><tuv xml:lang="id-ID"><seg>Simpan sekarang</seg></tuv></tu></body></tmx>');
+  assert.deepEqual(tmx.units, [{ text: 'Save {ph}now', target: 'Simpan sekarang' }]);
+  assert.equal(tmx.targetLang, 'id');
+  const dir = tmp();
+  const t = new Tms(new JsonStore(dir, { delay: 0 }));
+  const tb = t.createTermbase({ name: 'x', sourceLang: 'en', targetLang: 'id' });
+  const r = t.importTermbase(tb.id, 'g.tbx', Buffer.from('<martif><text><body><termEntry><descrip type="definition">UI term</descrip><langSet xml:lang="en"><tig><term>settings</term></tig></langSet><langSet xml:lang="id"><tig><term>setelan</term><termNote type="administrativeStatus">deprecatedTerm-admn-sts</termNote></tig></langSet></termEntry></body></text></martif>'));
+  assert.equal(r.added, 1);
+  const [term] = t.listTerms(tb.id);
+  assert.deepEqual([term.source, term.target, term.status, term.note], ['settings', 'setelan', 'forbidden', 'UI term']);
+});
+
+test('JSON export cannot pollute Object.prototype', async () => {
+  const { exportJson } = await import('../core/formats.js');
+  const out = exportJson([{ key: '__proto__.polluted', target: 'yes' }, { key: 'a.b', target: 'c' }, { key: 'constructor.prototype.x', target: 'y' }]);
+  assert.equal({}.polluted, undefined);
+  assert.equal({}.x, undefined);
+  assert.deepEqual(JSON.parse(out), { '__proto__.polluted': 'yes', a: { b: 'c' }, 'constructor.prototype.x': 'y' });
+});

@@ -82,8 +82,13 @@ export class BrowserData {
   // site permissions: { origin: { permission: bool } }
   permissionStore() {
     return {
-      get: (origin, perm) => this.data.permissions[origin]?.[perm],
-      set: (origin, perm, allow) => { (this.data.permissions[origin] ||= {})[perm] = allow; this.save(); },
+      get: (origin, perm) => (Object.hasOwn(this.data.permissions, origin) && Object.hasOwn(this.data.permissions[origin], perm) ? this.data.permissions[origin][perm] : undefined),
+      set: (origin, perm, allow) => {
+        if (!/^https?:\/\//.test(origin)) return; // only real web origins; never keys like __proto__
+        if (!Object.hasOwn(this.data.permissions, origin)) this.data.permissions[origin] = {};
+        this.data.permissions[origin][perm] = !!allow;
+        this.save();
+      },
     };
   }
 

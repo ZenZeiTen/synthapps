@@ -32,7 +32,7 @@
   "build": {
     "appId": "com.zenzeiten.lintas",
     "productName": "Lintas",
-    "copyright": "Copyright © 2026 ZenZeiTen",
+    "copyright": "Copyright \u00a9 2026 ZenZeiTen",
     "directories": {
       "output": "dist"
     },
@@ -51,7 +51,9 @@
         "deb"
       ],
       "category": "Network;WebBrowser",
-      "executableName": "lintas"
+      "executableName": "lintas",
+      "maintainer": "ZenZeiTen <https://github.com/ZenZeiTen/synthapps>",
+      "synopsis": "AI-powered online/offline browser with a Translation Management System"
     },
     "win": {
       "target": [
@@ -75,5 +77,6 @@
     "type": "git",
     "url": "https://github.com/ZenZeiTen/synthapps.git",
     "directory": "lintas"
-  }
+  },
+  "desktopName": "lintas.desktop"
 }
