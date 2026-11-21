@@ -240,7 +240,7 @@ export function resetManifestLimit() { lastManifest = -Infinity; }
 /**
  * The "Wisdom Council Convening" strip. A seal appears the first time its role becomes active and stays
  * (as "done") until reset(). Role changes are announced politely through a visually hidden live region.
- * @returns {{ el: HTMLElement, update(states: Record<string, 'idle'|'active'|'done'>): void, reset(): void }}
+ * @returns {{ el: HTMLElement, update(states: Record<string, 'idle'|'active'|'done'>, status?: { running: boolean, waiting: boolean }): void, reset(): void }}
  */
 export function createCouncil() {
   const title = h('span', 'o-council-title', 'Wisdom Council Convening');
@@ -268,19 +268,24 @@ export function createCouncil() {
   }
   track(el);
 
+  // `run`: { running, waiting } from the caller. While a run is still going (or waiting for the user's
+  // permission) the council never claims to be done, even between steps.
+  let run = { running: false, waiting: false };
   const render = (said) => {
     const shown = ROLES.filter((r) => !seals[r].li.hidden);
     const working = shown.filter((r) => now[r] === 'active');
+    const going = working.length > 0 || run.running;
     el.hidden = !shown.length;
-    el.dataset.phase = working.length ? 'convening' : shown.length ? 'rested' : 'idle';
-    title.textContent = working.length || !shown.length ? 'Wisdom Council Convening' : 'The council has spoken';
-    count.textContent = working.length ? `${working.length} working` : shown.length ? 'All done' : '';
+    el.dataset.phase = going ? 'convening' : shown.length ? 'rested' : 'idle';
+    title.textContent = going || !shown.length ? 'Wisdom Council Convening' : 'The council has spoken';
+    count.textContent = working.length ? `${working.length} working` : run.waiting ? 'Waiting for you' : run.running ? 'Between steps' : shown.length ? 'All done' : '';
     if (said.length) sr.textContent = said.join('. ') + '.';
   };
 
   return {
     el,
-    update(states = {}) {
+    update(states = {}, status) {
+      if (status && typeof status === 'object') run = { running: !!status.running, waiting: !!status.waiting };
       const said = [];
       let order = 0;
       for (const r of ROLES) {
@@ -300,6 +305,7 @@ export function createCouncil() {
     reset() {
       for (const r of ROLES) { now[r] = 'idle'; seals[r].li.hidden = true; seals[r].li.dataset.state = 'idle'; seals[r].st.textContent = ''; }
       sr.textContent = '';
+      run = { running: false, waiting: false };
       render([]);
     },
   };

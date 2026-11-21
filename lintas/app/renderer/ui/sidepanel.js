@@ -2,18 +2,17 @@
 // Chrome extension side panels. Resizable; sits beside the page (never over it).
 import { h, mount, hostOf, LANGS, langName, fmtBytes, relTime, debounce, errText } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { renderMarkdown } from '../lib/markdown.js';
 import { S, L, on, emit, call, go, activeTab, setPanel, setSettings, modLabel } from '../lib/store.js';
 import { iconBtn, withBusy, diffView, matchBadge, favicon, emptyState } from './widgets.js';
 import { toast } from './overlay.js';
 import { tabTitle } from './tabstrip.js';
 import { openInternal } from './toolbar.js';
+import { viewOracle, disposeOracle } from './oracle.js';
 
 const VIEWS = [['assistant', 'Assistant', 'sparkle'], ['translate', 'Translate', 'translate'], ['terms', 'Terms', 'book'], ['offline', 'Offline', 'saveOffline']];
 const APPS = [['gmail', 'Gmail', 'mail'], ['calendar', 'Google Calendar', 'calendar']];
 let root, body, tabsEl, extBtn, lastKey = '';
 let lastActiveId = null, restoreView = null;   // extension side panels: which tab we followed, the view to return to
-const chats = new Map();       // tabId -> [{ role, text, citations, error }]
 const mem = { targetLang: null, projectId: '', lookupText: '', termbaseId: '', termQuery: '' };
 let projects = null, termbases = null;
 
@@ -93,13 +92,14 @@ function sync(force) {
   const ep = activeTab()?.extPanel;
   extBtn.hidden = !ep;
   if (ep && extBtn.dataset.key !== ep.key) { extBtn.dataset.key = ep.key; extBtn.title = ep.name; extBtn.setAttribute('aria-label', ep.name); mount(extBtn, extIcon(ep.extId)); }
-  if (!S.panel.open) { lastKey = ''; return; }
+  if (!S.panel.open) { lastKey = ''; disposeOracle(); return; }
   for (const b of tabsEl.children) b.setAttribute('aria-selected', String(b.dataset.view === S.panel.view));
   const t = activeTab();
   const key = [S.panel.view, t?.id, t?.extPanel?.key, S.panel.view === 'ext' ? '' : t?.url, t?.translated?.targetLang, t?.offlineCopy?.id, !!t?.error, !!t?.loading && S.panel.view === 'offline'].join('|');
   const intent = S.panelIntent && S.panelIntent.view === S.panel.view ? S.panelIntent : null;
   if (!force && !intent && key === lastKey) return;
   lastKey = key; if (intent) S.panelIntent = null;
+  if (S.panel.view !== 'assistant') disposeOracle();
   if (S.panel.view === 'ext') return viewExt(t);
   if (String(S.panel.view).startsWith('app:')) return viewApp(S.panel.view.slice(4));
   ({ assistant: viewAssistant, translate: viewTranslate, terms: viewTerms, offline: viewOffline }[S.panel.view] || viewAssistant)(t, intent);
@@ -142,47 +142,10 @@ const webOnly = (what) => emptyState('globe', 'Open a web page', what);
 async function loadProjects() { if (!projects) { const d = await call(L().tms.dashboard(), { silent: true }); projects = d?.projects || []; termbases = d?.termbases || []; } return projects; }
 export function invalidateTmsCache() { projects = null; termbases = null; }
 
-/* ================= Assistant ================= */
+/* ================= Assistant (AI Oracle) ================= */
 function viewAssistant(t, intent) {
-  if (!t || t.kind !== 'web' || t.error) return mount(body, h('div.sp-section', webOnly('The assistant answers questions about the page in the active tab, with citations you can click.')));
-  if (!chats.has(t.id)) chats.set(t.id, []);
-  const msgs = chats.get(t.id);
-  const log = h('div.chat', { 'aria-live': 'polite' });
-  const input = h('textarea', { rows: 1, placeholder: 'Ask about this page…', 'aria-label': 'Ask about this page', dir: 'auto' });
-  const send = h('button.icon-btn.send', { type: 'button', title: 'Send (Enter)', 'aria-label': 'Send' }, icon('send', 16));
-  const grow = () => { input.style.height = 'auto'; input.style.height = Math.min(120, input.scrollHeight) + 'px'; };
-  let busy = false;
-
-  const cite = (n) => call(L().ai.highlight(t.id, n));
-  const draw = () => {
-    mount(log, msgs.length ? msgs.map((m) => {
-      if (m.role === 'user') return h('div.msg.user', { dir: 'auto' }, m.text);
-      if (m.error) return h('div.msg.err', m.text);
-      return h('div.msg.bot', h('div.who', icon('sparkle'), 'Claude'), renderMarkdown(m.text, { onCite: cite }),
-        m.citations?.length ? h('div.cites', m.citations.map((c) => h('button', { type: 'button', title: 'Show on the page', onClick: () => cite(c.n) }, h('b', `[${c.n}]`), h('span', { dir: 'auto' }, '“' + c.quote + (c.quote.length >= 138 ? '…' : '') + '”')))) : null);
-    }) : h('div.sp-hello', h('h3', 'Ask about this page'), h('p', 'Answers are grounded in the page text. Numbered citations like ', h('span.cite', '3'), ' jump to the paragraph they come from.'),
-      h('div.prompt-chips', ['Summarise this page', 'List the key terms with translations', 'What are the main claims?', 'Explain this for a general reader'].map((q) => h('button', { type: 'button', onClick: () => ask(q) }, q)))),
-    busy ? h('div.msg.bot', h('div.who', icon('sparkle'), 'Claude'), h('div.typing', { 'aria-label': 'Thinking' }, h('i'), h('i'), h('i'))) : null);
-    log.scrollTop = log.scrollHeight;
-  };
-  async function ask(q) {
-    q = (q ?? input.value).trim(); if (!q || busy) return;
-    input.value = ''; grow();
-    const history = msgs.filter((m) => !m.error).map((m) => ({ role: m.role, content: m.text }));
-    msgs.push({ role: 'user', text: q }); busy = true; draw();
-    try { const r = await L().ai.ask(t.id, q, { history }); msgs.push({ role: 'assistant', text: r.answer, citations: r.citations || [] }); }
-    catch (e) { msgs.push({ role: 'assistant', error: true, text: errText(e, 'The assistant could not answer.') }); }
-    busy = false; if (activeTab()?.id === t.id && S.panel.view === 'assistant') draw();
-  }
-  input.addEventListener('input', grow);
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); } });
-  send.addEventListener('click', () => ask());
-  mount(body, h('div.sp-section', { style: { paddingBottom: '10px' } }, pageContext(t), S.status.hasApiKey ? null : needsKey(),
-    msgs.length ? h('div.row', h('span.grow'), h('button.btn.sm.ghost', { type: 'button', onClick: () => { msgs.length = 0; draw(); } }, icon('trash'), 'Clear conversation')) : null),
-    log, h('div.composer', input, send));
-  draw();
-  if (intent?.selection) { input.value = `About this passage: “${intent.selection}”\n`; grow(); }
-  if (intent) input.focus();
+  if (!t || t.kind !== 'web' || t.error) { disposeOracle(); return mount(body, h('div.sp-section', webOnly('The Oracle answers questions about the page in the active tab, with citations you can click.'))); }
+  viewOracle(body, t, intent);
 }
 
 /* ================= Translate ================= */
