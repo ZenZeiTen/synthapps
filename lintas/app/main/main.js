@@ -11,6 +11,8 @@ import { TabManager } from './tabs.js';
 import { hardenSession } from './security.js';
 import { Ai, MODELS } from './ai.js';
 import * as page from './pagetools.js';
+import { Extensions } from './extensions.js';
+import { Bridge, claudeConfigPath, claudeEntry, readClaudeConfig, writeClaudeConfig } from './bridge.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '../..');
@@ -27,7 +29,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'lintas-ui', privileges: { stand
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
-let win, tabs, data, tms, ai, store;
+let win, tabs, data, tms, ai, store, extensions, bridge;
 const pendingPermissions = new Map();
 const downloads = new Map();
 const httpAllowed = new Set();
@@ -43,7 +45,7 @@ function toast(kind, message) { emit('toast', { kind, message }); }
 
 // ---------- renderer protocol ----------
 
-const CSP = "default-src 'self'; img-src 'self' data: https: http:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-src 'none'";
+const CSP = "default-src 'self'; img-src 'self' data: https: http: crx:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-src 'none'";
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2' };
 
@@ -79,7 +81,7 @@ function createWindow() {
     titleBarStyle: 'hidden',
     ...(isMac ? { trafficLightPosition: { x: 14, y: 13 } } : { titleBarOverlay: { color: '#00000000', symbolColor: dark ? '#e6e6e9' : '#2b2d33', height: 40 } }),
     webPreferences: {
-      preload: path.join(ROOT, 'app/preload/chrome.cjs'),
+      preload: path.join(ROOT, 'app/preload/chrome.bundle.cjs'),
       sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: false,
     },
   });
@@ -92,7 +94,9 @@ function createWindow() {
     win, data, emit, partitions: PARTITIONS, isMac,
     onContents: (wc, t) => {
       wc.on('did-finish-load', () => autoSaveOffline(t));
+      if (!t.private && extensions) extensions.addTab(wc);
     },
+    onActivate: (wc, t) => { if (!t.private && extensions) extensions.selectTab(wc); },
   });
 
   win.on('close', () => { tabs.persist(); store.flushAll(); });
@@ -313,9 +317,10 @@ function registerIpc() {
 
   handle('app.status', () => status());
   handle('settings.get', () => data.settings());
-  handle('settings.set', patch => {
+  handle('settings.set', async patch => {
     const s = data.setSettings(patch);
     if ('theme' in patch) nativeTheme.themeSource = s.theme;
+    if ('claudeDesktop' in patch) await syncBridge();
     emit('settings', s);
     return s;
   });
@@ -415,6 +420,26 @@ function registerIpc() {
   });
   handle('tms.exportTermbase', id => saveTo((tms.tbSummary(id)?.name || 'termbase').replace(/[^\w -]+/g, '') + '.tbx', tms.exportTermbase(id), [{ name: 'TBX', extensions: ['tbx'] }]));
 
+  // Chrome extensions
+  handle('extensions.list', () => extensions.list());
+  handle('extensions.installFromStore', input => extensions.installFromStore(input));
+  handle('extensions.loadUnpacked', () => extensions.loadUnpacked());
+  handle('extensions.remove', id => extensions.remove(id));
+  handle('extensions.openOptions', id => {
+    const e = extensions.list().find(x => x.id === id);
+    if (!e?.optionsUrl) throw new Error('This extension has no options page.');
+    tabs.create({ url: e.optionsUrl, raw: true });
+  });
+
+  // Claude Desktop (MCP)
+  handle('claude.status', () => claudeStatus());
+  handle('claude.connect', async () => {
+    const file = writeClaudeConfig(claudeEntry({ execPath: process.execPath, appPath: app.getAppPath(), dataDir: app.getPath('userData') }));
+    if (!data.settings().claudeDesktop) { data.setSettings({ claudeDesktop: true }); emit('settings', data.settings()); }
+    await syncBridge();
+    return { ...claudeStatus(), configPath: file };
+  });
+
   // AI
   handle('ai.suggest', (p, f, s) => ai.suggest(tms.segmentContext(p, f, s)));
   handle('ai.review', (p, f, s) => ai.review(tms.segmentContext(p, f, s)));
@@ -453,6 +478,78 @@ function registerIpc() {
     return t.view ? t.view.webContents.executeJavaScriptInIsolatedWorld(page.WORLD_ID, [{ code: page.SELECTION }]) : '';
   });
   handle('ai.usage', () => ai.usage());
+}
+
+async function syncBridge() {
+  try {
+    if (data.settings().claudeDesktop) await bridge.start(); else bridge.stop();
+  } catch (e) { toast('error', 'Claude Desktop access could not start: ' + e.message); }
+}
+
+function claudeStatus() {
+  let configured = false, configError = null;
+  try { configured = !!readClaudeConfig()?.mcpServers?.lintas; } catch (e) { configError = e.message; }
+  return { enabled: !!data.settings().claudeDesktop, running: bridge.running, configured, configPath: claudeConfigPath(), configError,
+    entry: claudeEntry({ execPath: process.execPath, appPath: app.getAppPath(), dataDir: app.getPath('userData') }) };
+}
+
+function activeOr(tabId) {
+  const t = tabId != null ? tabs.get(Number(tabId)) : tabs.active();
+  if (!t) throw new Error('No tab is open.');
+  return t;
+}
+
+/** Tools called by Claude Desktop through the MCP bridge. */
+async function mcpTool(name, a) {
+  switch (name) {
+    case 'lintas_status': { const st = status(); return { version: st.version, online: st.online, hasApiKey: st.hasApiKey, tabs: tabs.tabs.length }; }
+    case 'browser_list_tabs': return { tabs: tabs.list().map(t => ({ id: t.id, title: t.title, url: t.url, active: t.active, private: t.private, security: t.security })) };
+    case 'browser_open': {
+      if (a.tabId != null) { tabs.go(Number(a.tabId), a.url); return { tabId: Number(a.tabId) }; }
+      return { tabId: tabs.create({ url: a.url }).id };
+    }
+    case 'browser_read_page': {
+      const t = activeOr(a.tabId);
+      if (t.private) throw new Error('Private tabs are not shared with Claude Desktop.');
+      if (t.kind !== 'web' || !t.view) throw new Error('That tab does not show a web page.');
+      const info = await pageInfo(t.view.webContents);
+      const max = Math.min(Math.max(Number(a.maxChars) || 60000, 1000), 200000);
+      let used = 0;
+      const paragraphs = info.paragraphs.filter(p => (used += p.text.length) <= max);
+      return { tabId: t.id, url: info.url, title: info.title, lang: info.lang, paragraphs, truncated: paragraphs.length < info.paragraphs.length };
+    }
+    case 'browser_get_selection': {
+      const t = activeOr(a.tabId);
+      if (t.private) throw new Error('Private tabs are not shared with Claude Desktop.');
+      return { text: t.view ? await t.view.webContents.executeJavaScriptInIsolatedWorld(page.WORLD_ID, [{ code: page.SELECTION }]) : '' };
+    }
+    case 'browser_save_offline': return saveOffline(activeOr(a.tabId));
+    case 'offline_list': return { pages: data.offlineList({ q: a.q }) };
+    case 'tms_list_projects': return { projects: tms.dashboard().projects };
+    case 'tms_create_project': return tms.createProject({ name: a.name, sourceLang: a.sourceLang, targetLang: a.targetLang });
+    case 'tms_get_project': return tms.getProject(a.projectId);
+    case 'tms_get_segments': return tms.getFile(a.projectId, a.fileId, { offset: Number(a.offset) || 0, limit: Math.min(Number(a.limit) || 100, 500), status: a.status, q: a.q });
+    case 'tms_update_segment': {
+      const patch = {};
+      for (const k of ['target', 'status', 'comment']) if (a[k] !== undefined) patch[k] = a[k];
+      const r = tms.updateSegment(a.projectId, a.fileId, a.segmentId, patch);
+      emit('tms-changed', { projectId: a.projectId, fileId: a.fileId });
+      return r;
+    }
+    case 'tms_lookup': return tms.lookup(a.projectId, a.text);
+    case 'tms_search_terms': return { terms: tms.listTerms(a.termbaseId, { q: a.q }) };
+    case 'tms_add_term': return tms.addTerm(a.termbaseId, { source: a.source, target: a.target || '', status: a.status, note: a.note });
+    case 'tms_qa': return tms.qa(a.projectId, a.fileId);
+    case 'tms_import_text': return tms.importText(a.projectId, { name: a.name, text: a.text });
+    case 'tms_capture_page': {
+      const t = activeOr(a.tabId);
+      if (t.private) throw new Error('Private tabs are not shared with Claude Desktop.');
+      if (t.kind !== 'web' || !t.view) throw new Error('That tab does not show a web page.');
+      const info = await t.view.webContents.executeJavaScriptInIsolatedWorld(page.WORLD_ID, [{ code: page.PAGE_HTML }]);
+      return tms.importWebPage(a.projectId, { url: info.url, title: info.title, html: info.html });
+    }
+    default: throw new Error('Unknown tool.');
+  }
 }
 
 function status() {
@@ -505,7 +602,7 @@ app.on('web-contents-created', (e, wc) => {
 
 app.on('certificate-error', (e, wc, url, error, cert, callback) => callback(false));
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   store = new JsonStore(path.join(app.getPath('userData'), 'data'));
   data = new BrowserData(store, app.getPath('userData'));
   tms = new Tms(store);
@@ -532,6 +629,10 @@ app.whenReady().then(() => {
     ses.setSpellCheckerLanguages(['en-US', 'id'].filter(l => ses.availableSpellCheckerLanguages.includes(l)));
   }
   seedSample();
+  extensions = new Extensions({ ses: session.fromPartition(PARTITIONS.normal), dataDir: app.getPath('userData'), getWin: () => win, getTabs: () => tabs });
+  try { await extensions.init(); } catch (e) { console.error('Chrome extension support failed to start:', e); }
+  bridge = new Bridge({ dataDir: app.getPath('userData'), run: mcpTool });
+  await syncBridge();
   registerIpc();
   if (!isMac) Menu.setApplicationMenu(null);
   else Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]));
@@ -545,5 +646,5 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => { store?.flushAll(); app.quit(); });
-app.on('before-quit', () => { tabs?.persist(); store?.flushAll(); });
+app.on('before-quit', () => { tabs?.persist(); store?.flushAll(); bridge?.stop(); });
 

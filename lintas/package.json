@@ -10,14 +10,20 @@
     "dist": "electron-builder",
     "dist:linux": "electron-builder --linux",
     "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac"
+    "dist:mac": "electron-builder --mac",
+    "build:preload": "node scripts/build-preload.mjs",
+    "prestart": "node scripts/build-preload.mjs",
+    "predist": "node scripts/build-preload.mjs",
+    "mcp": "node app/mcp/server.cjs"
   },
   "engines": {
     "node": ">=20"
   },
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.12.0"
+    "@anthropic-ai/sdk": "^1.12.0",
+    "electron-chrome-extensions": "^4.10.0",
+    "electron-chrome-web-store": "^0.13.0"
   },
   "devDependencies": {
     "electron": "^45.4.1",

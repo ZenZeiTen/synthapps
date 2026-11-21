@@ -7,8 +7,21 @@ import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lintas-e2e-'));
+// A small MV3 extension (content script + toolbar action), loaded as an unpacked extension.
+fs.writeFileSync(path.join(dataDir, 'unpacked-extensions.json'), JSON.stringify([path.resolve(import.meta.dirname, 'fixtures/hello-ext')]));
+
+function mcpCall(tool, args = {}) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(process.execPath, [path.resolve(import.meta.dirname, '../app/mcp/server.cjs')], { env: { ...process.env, LINTAS_DATA_DIR: dataDir } });
+    let out = '';
+    p.stdout.on('data', d => { out += d; if (out.includes('\n')) p.stdin.end(); });
+    p.on('close', () => { try { const r = JSON.parse(out.split('\n')[0]).result; r.isError ? reject(new Error(r.content[0].text)) : resolve(JSON.parse(r.content[0].text)); } catch (e) { reject(e); } });
+    p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: args } }) + '\n');
+  });
+}
 const site = http.createServer((req, res) => {
   if (req.url.startsWith('/track')) { res.end('x'); return; }
   res.setHeader('content-type', 'text/html; charset=utf-8');
@@ -46,14 +59,32 @@ try {
   const t1 = await L(([id]) => lintas.tabs.list().then(ts => ts.find(x => x.id === id)), [tabId]);
   assert.equal(t1.security, 'insecure');
   assert.equal(t1.blocked, 1, 'the analytics script should be blocked');
+  // Chrome extension: listed, content script ran, toolbar button shown
+  const exts = await L(() => lintas.extensions.list());
+  assert.ok(exts.some(e => e.name === 'Lintas test extension'), JSON.stringify(exts));
+  await win.waitForFunction(() => { const el = document.querySelector('browser-action-list'); return !!customElements.get('browser-action-list') && el?.shadowRoot?.querySelectorAll('.action, button').length > 0; }, null, { timeout: 15000, polling: 300 });
+
+  // Claude Desktop route: turn access on, then use the real MCP server
+  await L(() => lintas.settings.set({ claudeDesktop: true }));
+  const mcpTabs = await mcpCall('browser_list_tabs');
+  assert.ok(mcpTabs.tabs.some(t => t.title === 'Test page'), JSON.stringify(mcpTabs));
+  const read = await mcpCall('browser_read_page', { tabId });
+  const readText = read.paragraphs.map(p => p.text).join(' ');
+  assert.match(readText, /Open the settings page/);
+  assert.match(readText, /Added by a Chrome extension/);
+  const projects = await mcpCall('tms_list_projects');
+  assert.ok(projects.projects.length >= 1);
+  await L(() => lintas.settings.set({ claudeDesktop: false }));
+  await assert.rejects(mcpCall('lintas_status'), /Claude Desktop access/);
+
   const hist = await L(() => lintas.history.list({}));
   assert.equal(hist[0].title, 'Test page');
 
   // In-page translation from the TM only (no API key needed when every text node has a 100 % match)
   const tp = await L(() => lintas.tms.createProject({ name: 'Page', sourceLang: 'en', targetLang: 'id' }));
-  const tf = await L(([pid]) => lintas.tms.importText(pid, { name: 'p.txt', text: 'Settings guide\n\nOpen the settings page to change your password.\n\nSave your work before you close the app.\n\nTest page' }), [tp.id]);
+  const tf = await L(([pid]) => lintas.tms.importText(pid, { name: 'p.txt', text: 'Settings guide\n\nOpen the settings page to change your password.\n\nSave your work before you close the app.\n\nTest page\n\nAdded by a Chrome extension.' }), [tp.id]);
   const tsegs = (await L(([pid, fid]) => lintas.tms.getFile(pid, fid, {}), [tp.id, tf.id])).segments;
-  const tgt = ['Panduan pengaturan', 'Buka halaman pengaturan untuk mengubah kata sandi Anda.', "Simpan pekerjaan Anda sebelum menutup aplikasi. ');alert(1);('", 'Halaman uji'];
+  const tgt = ['Panduan pengaturan', 'Buka halaman pengaturan untuk mengubah kata sandi Anda.', "Simpan pekerjaan Anda sebelum menutup aplikasi. ');alert(1);('", 'Halaman uji', 'Ditambahkan oleh ekstensi Chrome.'];
   for (let k = 0; k < tsegs.length; k++) await L(([pid, fid, sid, t]) => lintas.tms.updateSegment(pid, fid, sid, { target: t, status: 'translated' }), [tp.id, tf.id, tsegs[k].id, tgt[k]]);
   const tr = await L(([id, pid]) => lintas.ai.translatePage(id, { targetLang: 'id', projectId: pid }), [tabId, tp.id]);
   assert.equal(tr.fromAi, 0);

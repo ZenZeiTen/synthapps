@@ -1,7 +1,7 @@
 // lintas://settings + the "Clear browsing data" dialog.
 import { h, mount, LANGS, fmtNum, relTime, errText } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { S, L, on, call, setSettings, refreshStatus } from '../lib/store.js';
+import { S, L, on, call, go, setSettings, refreshStatus } from '../lib/store.js';
 import { openDialog, toast, confirmDialog } from '../ui/overlay.js';
 import { withBusy } from '../ui/widgets.js';
 
@@ -22,7 +22,7 @@ export async function clearDataDialog() {
   } }] });
 }
 
-const SECTIONS = [['general', 'General', 'settings'], ['appearance', 'Appearance', 'sun'], ['privacy', 'Privacy & security', 'shieldCheck'], ['offline', 'Offline', 'saveOffline'], ['languages', 'Languages', 'translate'], ['ai', 'AI — Claude', 'sparkle'], ['about', 'About', 'info']];
+const SECTIONS = [['general', 'General', 'settings'], ['appearance', 'Appearance', 'sun'], ['privacy', 'Privacy & security', 'shieldCheck'], ['offline', 'Offline', 'saveOffline'], ['languages', 'Languages', 'translate'], ['ai', 'AI — Claude', 'sparkle'], ['extensions', 'Extensions', 'puzzle'], ['claude', 'Claude Desktop', 'plug'], ['about', 'About', 'info']];
 const ENGINES = [['duckduckgo', 'DuckDuckGo'], ['startpage', 'Startpage'], ['brave', 'Brave Search'], ['google', 'Google'], ['bing', 'Bing']];
 
 export default function settingsPage(el) {
@@ -33,6 +33,21 @@ export default function settingsPage(el) {
   const toggle = (k, title, sub) => row(title, sub, h('input.switch', { type: 'checkbox', checked: !!S.settings[k], 'aria-label': title, onChange: (e) => set(k)(e.target.checked) }));
   const select = (k, title, sub, options) => row(title, sub, h('select.select', { 'aria-label': title, onChange: (e) => set(k)(e.target.value) }, options.map(([v, l]) => h('option', { value: v, selected: S.settings[k] === v }, l))));
   const group = (id, title, ...rows) => h('section.set-group', { id: 'set-' + id }, h('h2', title), h('div.card.set-card', rows));
+
+  function claudeRows() {
+    const box = h('div', h('span.muted', 'Checking Claude Desktop…'));
+    call(L().claude.status(), { silent: true }).then((c) => {
+      if (!c) return mount(box, h('span.muted', 'Claude Desktop status is not available in preview mode.'));
+      const connect = h('button.btn.primary', { type: 'button' }, icon('plug'), c.configured ? 'Update Claude Desktop setup' : 'Add Lintas to Claude Desktop');
+      connect.addEventListener('click', () => withBusy(connect, async () => { const r = await call(L().claude.connect()); if (r) { toast('success', 'Lintas added to Claude Desktop. Restart Claude Desktop to use it.'); draw(); } }));
+      const copy = h('button.btn', { type: 'button', onClick: async () => { try { await navigator.clipboard.writeText(JSON.stringify({ mcpServers: { lintas: c.entry } }, null, 2)); toast('success', 'Configuration copied'); } catch { toast('error', 'Could not copy to the clipboard.'); } } }, 'Copy configuration');
+      mount(box,
+        toggle('claudeDesktop', 'Allow Claude Desktop to use Lintas', 'Claude Desktop can then list tabs, read and open pages, and work with your translation projects, memories and termbases. It uses a private connection on this computer only. Private tabs are never shared.'),
+        row('Connection', c.running ? 'Ready: Claude Desktop can reach Lintas while Lintas is open.' : 'Off: turn on the switch above.', h('span.chip', c.running ? 'On' : 'Off')),
+        row('Claude Desktop setup', c.configError ? errText(c.configError) : (c.configured ? 'Lintas is listed in ' : 'Not set up yet. This adds Lintas to ') + c.configPath + ' and keeps a backup of the old file.', h('div.ctl', connect, copy)));
+    });
+    return box;
+  }
 
   function draw() {
     const s = S.settings, st = S.status;
@@ -71,6 +86,9 @@ export default function settingsPage(el) {
         h('div', { style: { borderTop: '1px solid var(--border)' } }, h('div.set-row', { style: { paddingBottom: 0, minHeight: 0 } }, h('div.txt', h('b', 'Model'), h('span', 'Used for suggestions, review, page translation and the assistant.'))), models),
         select('effort', 'Effort', 'Higher effort gives more careful answers and uses more tokens.', [['low', 'Low — fastest'], ['medium', 'Medium'], ['high', 'High — most careful']]),
         h('div', { style: { borderTop: '1px solid var(--border)' } }, usage)),
+      group('extensions', 'Extensions',
+        row('Chrome extensions', 'Install from the Chrome Web Store with “Add to Chrome”, or load an unpacked extension. Extensions run in normal tabs, never in private ones.', h('button.btn', { type: 'button', onClick: () => go('lintas://extensions', { newTab: true }) }, icon('puzzle'), 'Manage extensions'))),
+      group('claude', 'Claude Desktop', claudeRows()),
       group('about', 'About', row('Lintas ' + (st.version || ''), 'A fast, private browser with a translation management system built in. Your projects, memories and termbases stay on this computer.', h('span.chip', st.platform || ''))));
     main.querySelectorAll('.set-row .ctl').forEach((c) => { if (c.children.length > 2) c.parentElement.style.flexWrap = 'wrap'; });
   }

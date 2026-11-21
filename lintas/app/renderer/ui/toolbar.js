@@ -36,6 +36,11 @@ export function initToolbar() {
   el.drop = h('div.omni-drop', { id: 'omni-drop', role: 'listbox', hidden: true });
   el.omni = h('div.omnibox', h('div.omni-field', el.sec, h('div.omni-input-wrap', el.input, el.display), h('div.omni-end', el.zoom, el.shield, el.star)), el.drop);
 
+  // Chrome extension buttons (the <browser-action-list> element comes from the preload).
+  el.ext = document.createElement('browser-action-list');
+  el.ext.setAttribute('partition', 'persist:lintas');
+  el.ext.setAttribute('alignment', 'bottom left');
+  el.ext.className = 'ext-actions';
   el.translate = iconBtn('translate', 'Translate this page', () => openPanel('translate'));
   el.save = iconBtn('saveOffline', `Save page for offline (${m}S)`, () => saveOffline());
   el.panel = iconBtn('panel', `Side panel (${m}Shift+E)`, () => setPanel({ open: !S.panel.open }));
@@ -46,7 +51,7 @@ export function initToolbar() {
   el.loadbar = h('div#loadbar');
 
   mount(bar, h('div.nav-group', el.back, el.fwd, el.reload, el.home), el.omni, el.offline, el.preview,
-    h('div.action-group', el.translate, el.save, el.panel, el.dl, el.menu), el.loadbar);
+    h('div.action-group', el.ext, el.translate, el.save, el.panel, el.dl, el.menu), el.loadbar);
 
   el.input.addEventListener('focus', () => { el.omni.classList.add('focused'); typed = el.input.value; el.input.select(); });
   // a click that focuses the field selects the whole address (like Chrome); later clicks place the caret

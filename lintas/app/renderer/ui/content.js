@@ -8,12 +8,13 @@ import { iconBtn } from './widgets.js';
 import newtab from '../pages/newtab.js';
 import { historyPage, downloadsPage, bookmarksPage, offlinePage } from '../pages/library.js';
 import settingsPage from '../pages/settings.js';
+import extensionsPage from '../pages/extensions.js';
 import errorPage from '../pages/error.js';
 import tmsHome from '../tms/home.js';
 import tmsProject from '../tms/project.js';
 import tmsEditor from '../tms/editor.js';
 
-const PAGES = { newtab, history: historyPage, downloads: downloadsPage, bookmarks: bookmarksPage, offline: offlinePage, settings: settingsPage, tms: tmsHome, 'tms-project': tmsProject, 'tms-file': tmsEditor };
+const PAGES = { newtab, history: historyPage, downloads: downloadsPage, bookmarks: bookmarksPage, offline: offlinePage, settings: settingsPage, extensions: extensionsPage, tms: tmsHome, 'tms-project': tmsProject, 'tms-file': tmsEditor };
 
 let viewport, webSlot, findstrip, contentEl;
 const hosts = new Map(); // tabId -> { key, el, dispose }

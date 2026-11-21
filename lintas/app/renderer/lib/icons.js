@@ -2,6 +2,8 @@
 // Shape mini-language, '|' separated:  path data  |  c:cx,cy,r  |  r:x,y,w,h,rx  |  prefix '*' = filled shape.
 
 const I = {
+  puzzle: 'M10 4.5a2 2 0 1 1 4 0V6h4v4h-1.5a2 2 0 1 0 0 4H18v4h-4v-1.5a2 2 0 1 0-4 0V18H6v-4h1.5a2 2 0 1 0 0-4H6V6h4z',
+  plug: 'M9 3v5|M15 3v5|M7 8h10v3a5 5 0 0 1-10 0z|M12 16v5',
   back: 'M19 12H5|M12 19l-7-7 7-7',
   forward: 'M5 12h14|M12 5l7 7-7 7',
   reload: 'M20 12a8 8 0 1 1-2.34-5.66|M20 4v5h-5',

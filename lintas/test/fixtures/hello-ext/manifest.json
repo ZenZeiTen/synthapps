@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Lintas test extension",
+  "version": "1.0.0",
+  "description": "Adds a paragraph to every page; used by the end-to-end test.",
+  "action": {
+    "default_title": "Lintas test",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "icon.png"
+  }
+}

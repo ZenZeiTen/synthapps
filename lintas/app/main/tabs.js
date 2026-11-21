@@ -13,12 +13,13 @@ const INTERNAL_TITLES = {
 let nextId = 1;
 
 export class TabManager {
-  constructor({ win, data, emit, partitions, onContents, isMac }) {
+  constructor({ win, data, emit, partitions, onContents, onActivate, isMac }) {
     this.win = win;
     this.data = data;
     this.emit = emit;
     this.partitions = partitions;      // { normal, private } partition names
     this.onContents = onContents;      // (webContents, tab) => void, extra per-tab wiring
+    this.onActivate = onActivate || (() => {});
     this.isMac = isMac;
     this.tabs = [];
     this.activeId = null;
@@ -84,9 +85,10 @@ export class TabManager {
 
   // ---------- lifecycle ----------
 
-  create({ url, active = true, private: priv = false, index, lazy = false, pinned = false } = {}) {
+  create({ url, active = true, private: priv = false, index, lazy = false, pinned = false, raw = false } = {}) {
     const t = { id: nextId++, kind: 'internal', url: 'lintas://newtab', title: '', private: !!priv, pinned: !!pinned, blocked: 0, zoom: 1, view: null };
-    const target = url ? resolveInput(url, this.data.settings().searchEngine) : 'lintas://newtab';
+    // raw: a URL that came from an extension (chrome-extension://, about:blank) and is loaded as is.
+    const target = url ? (raw ? String(url) : resolveInput(url, this.data.settings().searchEngine)) : 'lintas://newtab';
     if (index == null) {
       // New tabs open after the pinned ones and next to the active tab, like other browsers.
       const ai = this.tabs.findIndex(x => x.id === this.activeId);
@@ -131,7 +133,7 @@ export class TabManager {
     this.activeId = id;
     if (t.lazy) this.loadWeb(t, t.url);
     this.changed();
-    if (t.view && !t.error && t.kind === 'web') t.view.webContents.focus();
+    if (t.view && !t.error && t.kind === 'web') { t.view.webContents.focus(); this.onActivate(t.view.webContents, t); }
   }
 
   close(id) {
@@ -320,12 +322,12 @@ export class TabManager {
     wc.on('found-in-page', (e, r) => this.emit('find', { tabId: t.id, matches: r.matches, active: r.activeMatchOrdinal }));
     wc.on('zoom-changed', (e, dir) => this.zoom(t.id, dir === 'in' ? 'in' : 'out'));
     wc.setWindowOpenHandler(({ url, disposition }) => {
-      if (/^https?:/.test(url)) this.create({ url, active: disposition !== 'background-tab', private: t.private, index: this.tabs.indexOf(t) + 1 });
+      if (/^(https?|chrome-extension):/.test(url)) this.create({ url, raw: true, active: disposition !== 'background-tab', private: t.private, index: this.tabs.indexOf(t) + 1 });
       return { action: 'deny' };
     });
     wc.on('will-navigate', (e) => {
       const u = e.url;
-      if (!/^(https?|file|data|blob|about):/i.test(u)) {
+      if (!/^(https?|file|data|blob|about|chrome-extension):/i.test(u)) {
         e.preventDefault();
         if (/^(mailto|tel|sms):/i.test(u)) shell.openExternal(u).catch(() => {});
       }

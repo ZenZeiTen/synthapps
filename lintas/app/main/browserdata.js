@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS = {
   autoSaveOffline: false, showBookmarksBar: true, theme: 'system',
   model: 'claude-opus-5-5', effort: 'medium', restoreSession: true,
   uiLanguage: 'en', defaultSourceLang: 'en', defaultTargetLang: 'id',
+  claudeDesktop: false,
 };
 
 const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);

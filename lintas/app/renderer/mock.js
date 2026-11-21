@@ -492,6 +492,16 @@ export function installMock() {
       async show(d) { emit('toast', { kind: 'info', message: 'Preview mode: the folder opens in the real app.' }); },
       async cancel(did) { const d = downloads.find((x) => x.id === did); if (d && d.state === 'progressing') { d.state = 'cancelled'; emit('download', d); } },
     },
+    extensions: {
+      async list() { return [{ id: 'cjpalhdlnbpafiamejdnhcphjbkeiagm', name: 'uBlock Origin', version: '1.62.0', description: 'An efficient blocker.', manifestVersion: 3, source: 'store', optionsUrl: null, permissions: ['storage', '<all_urls>'] }]; },
+      async installFromStore() { throw new Error('Preview mode: extensions install in the real app.'); },
+      async loadUnpacked() { throw new Error('Preview mode: extensions load in the real app.'); },
+      async remove() {}, async openOptions() {},
+    },
+    claude: {
+      async status() { return { enabled: false, running: false, configured: false, configPath: '~/.config/Claude/claude_desktop_config.json', configError: null, entry: { command: 'lintas', args: ['app/mcp/server.cjs'], env: { ELECTRON_RUN_AS_NODE: '1' } } }; },
+      async connect() { throw new Error('Preview mode: setup runs in the real app.'); },
+    },
     offline: {
       async save(tid) { const t = T(tid); if (t.kind !== 'web' || t.error) throw new Error('Only loaded web pages can be saved for offline use.'); await delay(700);
         let o = offlinePages.find((x) => x.url === t.url); const pg = pageFor(t.url);

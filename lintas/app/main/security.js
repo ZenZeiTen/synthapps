@@ -157,7 +157,7 @@ export function resolveInput(input, engine = 'duckduckgo') {
   const t = String(input || '').trim();
   if (!t) return null;
   if (/^lintas:\/\//i.test(t)) return t.toLowerCase().startsWith('lintas://') ? t : 'lintas://' + t.slice(9);
-  if (/^(https?|file):\/\//i.test(t)) return t;
+  if (/^(https?|file|chrome-extension):\/\//i.test(t)) return t;
   if (/^(javascript|data|vbscript|chrome|devtools|about):/i.test(t)) return (SEARCH[engine] || SEARCH.duckduckgo) + encodeURIComponent(t);
   const hostish = /^([\w-]+\.)+[a-z]{2,63}(:\d+)?(\/\S*)?$/i.test(t) || /^(localhost|\d{1,3}(\.\d{1,3}){3})(:\d+)?(\/\S*)?$/i.test(t);
   if (!/\s/.test(t) && hostish) {

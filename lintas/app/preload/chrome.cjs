@@ -21,6 +21,8 @@ const groups = {
     'deleteFile', 'getFile', 'updateSegment', 'lookup', 'pretranslate', 'analyze', 'qa', 'export',
     'listTms', 'createTm', 'deleteTm', 'importTmx', 'exportTm', 'searchTm',
     'listTermbases', 'createTermbase', 'deleteTermbase', 'listTerms', 'addTerm', 'updateTerm', 'deleteTerm', 'importTermbase', 'exportTermbase'],
+  extensions: ['list', 'installFromStore', 'loadUnpacked', 'remove', 'openOptions'],
+  claude: ['status', 'connect'],
   ai: ['suggest', 'review', 'extractTerms', 'translatePage', 'restorePage', 'translateText', 'ask', 'highlight', 'selection', 'usage'],
 };
 

@@ -16,6 +16,43 @@ write code.
 - Tab strip, omnibox with suggestions, bookmarks bar, side panel, find in page, zoom,
   downloads, history and the usual keyboard shortcuts.
 
+**Chrome extensions**
+- Install from the Chrome Web Store: open chromewebstore.google.com in Lintas and choose
+  *Add to Chrome*, or paste a store link on `lintas://extensions`. Installed extensions
+  update automatically.
+- Load unpacked extensions from a folder, for extension developers.
+- Extension buttons and popups appear next to the address bar. Content scripts, background
+  service workers, options pages and these `chrome.*` APIs work: `action`, `commands`,
+  `contextMenus`, `cookies`, `notifications`, `runtime`, `storage`, `tabs`,
+  `webNavigation`, `windows`, `webRequest`, `scripting`, `i18n`, `management` and
+  devtools panels. This comes from Electron and
+  [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell).
+- Extensions run in normal tabs, never in private ones.
+- Not every Chrome extension works. Lintas is not Google Chrome, so extensions that need
+  APIs Electron lacks fail or run in part. Examples: `chrome.identity` (Google sign-in),
+  `sidePanel`, `offscreen`, `declarativeNetRequest` rule sets, and Manifest V2 features
+  Chrome itself has removed. Password managers that need native messaging also
+  will not work.
+
+**Claude Desktop (MCP)**
+- Settings → Claude Desktop → *Allow Claude Desktop to use Lintas*, then *Add Lintas to
+  Claude Desktop*. This adds a `lintas` entry to Claude Desktop's
+  `claude_desktop_config.json`, keeps the other entries, and saves a backup of the old
+  file. Restart Claude Desktop afterwards.
+- Claude Desktop then has 18 tools:
+  - browser: list tabs, open a URL, read a page as numbered paragraphs, get the
+    selection, save a page offline, list the offline library
+  - TMS: list, create and open projects; read and update segments; translation memory
+    lookup; search and add terms; QA; import text; capture the open page
+- How it connects: Claude Desktop starts `app/mcp/server.cjs` with the Lintas program
+  itself (`ELECTRON_RUN_AS_NODE=1`, so no separate Node.js is needed). That script talks
+  to the running browser over a Unix socket (macOS, Linux) or named pipe (Windows) that is
+  readable only by you, with a random token. No network port is opened, and private tabs
+  are never shared. Lintas must be open for the tools to work.
+- If you move the Lintas app, press *Update Claude Desktop setup* again.
+- Manual setup: *Copy configuration* gives the exact JSON to paste into the config
+  file yourself.
+
 **Offline**
 - Save any page as one MHTML file. Ctrl/Cmd+S saves the current page.
 - When a page fails to load, the error page offers the saved copy.
@@ -111,11 +148,29 @@ starts the real app and checks, end to end:
 
 The end-to-end test needs Playwright.
 
+## Claude Desktop configuration (manual)
+
+On macOS, with Lintas in /Applications, the entry looks like this. The button in
+Settings writes the right paths for your computer.
+
+```json
+{
+  "mcpServers": {
+    "lintas": {
+      "command": "/Applications/Lintas.app/Contents/MacOS/Lintas",
+      "args": ["/Applications/Lintas.app/Contents/Resources/app.asar/app/mcp/server.cjs"],
+      "env": { "ELECTRON_RUN_AS_NODE": "1", "LINTAS_DATA_DIR": "/Users/you/Library/Application Support/Lintas" }
+    }
+  }
+}
+```
+
 ## Layout
 
 ```
 app/main/       Electron main process: tabs, security, offline library, Claude client
 app/preload/    the only bridge to the interface (window.lintas)
+app/mcp/        MCP server for Claude Desktop (stdio) and its tool definitions
 app/renderer/   browser interface and TMS screens (vanilla JS, no network access)
 core/           text engine, file formats, translation memory, QA and the TMS
 docs/           IPC.md (interface contract), DESIGN.md, ANALYSIS.md (Opera Neon comparison)
@@ -126,4 +181,5 @@ docs/           IPC.md (interface contract), DESIGN.md, ANALYSIS.md (Opera Neon 
 - DOCX export keeps paragraphs but not run formatting (bold, styles).
 - Third-party cookie blocking strips cookies on cross-site requests. It does not
   partition storage the way Chrome or Firefox do.
-- There is no extension support and no sync between devices.
+- There is no sync between devices.
+- Chrome extensions: see the limits listed under Features.
