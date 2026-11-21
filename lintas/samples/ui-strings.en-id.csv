@@ -1,0 +1,8 @@
+key,en,id
+nav.home,Home,Beranda
+nav.settings,Settings,Pengaturan
+action.save,Save,Simpan
+action.cancel,Cancel,Batal
+message.saved,Your changes have been saved.,Perubahan Anda telah disimpan.
+message.items,You have {count} new messages.,
+error.offline,You are offline. Check your connection and try again.,

@@ -1,0 +1,9 @@
+Welcome to Lintas, a browser built for translators.
+
+Open any web page and press the translate button to see it in another language. Lintas uses your translation memory first, then Claude for anything new.
+
+Every confirmed segment is saved to the translation memory. The next time a similar sentence appears, you will see a fuzzy match with the differences highlighted.
+
+Add terms to the termbase from any page: select a word, right-click and choose Add to termbase. Forbidden terms are flagged by the quality check.
+
+You can save pages for offline reading. When the network is down, Lintas opens the saved copy instead.

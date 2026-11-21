@@ -1,0 +1,78 @@
+name: lintas
+
+# Tests Lintas (unit tests, then the real Electron app end to end under Xvfb) and
+# builds installers for Linux (AppImage, deb), Windows (installer, portable) and
+# macOS (dmg, zip) as downloadable artifacts. The builds are not code-signed.
+on:
+  pull_request:
+    paths:
+      - "lintas/**"
+      - ".github/workflows/lintas.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lintas/**"
+      - ".github/workflows/lintas.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: lintas
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm test
+      - name: Preload bundle is up to date
+        run: node scripts/build-preload.mjs && git diff --exit-code app/preload/chrome.bundle.cjs
+      - run: npm install --no-save playwright@1
+      - run: sudo apt-get update && sudo apt-get install -y xvfb
+      - run: xvfb-run -a node test/app.smoke.mjs
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: test
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: --linux
+          - os: windows-latest
+            target: --win
+          - os: macos-latest
+            target: --mac
+    defaults:
+      run:
+        working-directory: lintas
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npx electron-builder ${{ matrix.target }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lintas-${{ runner.os }}
+          path: |
+            lintas/dist/*.AppImage
+            lintas/dist/*.deb
+            lintas/dist/*.exe
+            lintas/dist/*.dmg
+            lintas/dist/*.zip
+          if-no-files-found: error
