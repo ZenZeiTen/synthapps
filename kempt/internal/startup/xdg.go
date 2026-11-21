@@ -37,7 +37,7 @@ func NewXDG() *XDG {
 
 type desktopFile struct {
 	name, path, source string
-	content      string
+	content            string
 }
 
 func (x *XDG) files() map[string]desktopFile {
