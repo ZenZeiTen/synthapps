@@ -2,6 +2,7 @@
 // localisation engineers use every day. Standard library only.
 import zlib from 'node:zlib';
 import path from 'node:path';
+import { escapeRegex } from './text.js';
 
 // ---------- small helpers ----------
 
@@ -68,7 +69,7 @@ export function* markupTokens(input) {
 }
 
 export function tagAttr(raw, name) {
-  const re = new RegExp('\\s' + name.replace(/[.:-]/g, '\\$&') + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))', 'i');
+  const re = new RegExp('\\s' + escapeRegex(name) + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))', 'i');
   const m = re.exec(raw);
   return m ? decodeEntities(m[1] ?? m[2] ?? m[3]) : null;
 }
@@ -244,7 +245,7 @@ function subtitleUnits(text) {
   const units = [];
   for (const block of text.replace(/\r/g, '').split(/\n\s*\n/)) {
     const lines = block.split('\n').filter(l => l.trim() && l.trim() !== 'WEBVTT');
-    const ti = lines.findIndex(l => /-->/.test(l));
+    const ti = lines.findIndex(l => l.includes('-->')); // cue timing line, e.g. 00:00:01,000 --> 00:00:02,000
     if (ti < 0) continue;
     const body = stripTags(lines.slice(ti + 1).join(' ')).trim();
     if (body) units.push({ text: body, note: lines[ti].trim(), key: lines[0] && ti > 0 ? lines[0].trim() : null });
