@@ -186,6 +186,28 @@ try {
   }, port);
   assert.match(cookies.sent, /login=1/, 'extension page request carries the site cookie: ' + JSON.stringify(cookies));
   assert.equal(cookies.kept, 1, 'cookie set in the reply is stored');
+  if (SANDBOX) {
+    // A listed site framed inside an extension page can message the extension too (Claude in Chrome's
+    // panel frames claude.ai, which pings the extension; without this it says "Can't reach Claude in Chrome")
+    const framed = await app.evaluate(async ({ webContents }, port) => {
+      const page = webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html'));
+      // Dock the extension's panel beside the site's tab, as Claude in Chrome does
+      const opened = await page.executeJavaScript(`chrome.tabs.query({}).then(ts => { const t = ts.find(x => (x.url || '').startsWith('http://127.0.0.1:${port}/')); return chrome.sidePanel.setOptions({ tabId: t.id, path: 'panel.html?docked', enabled: true }).then(() => chrome.sidePanel.open({ tabId: t.id })).then(() => 'ok', e => e.message); })`, true);
+      let wc;
+      for (let i = 0; i < 50 && !wc; i++) { wc = webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html?docked')); if (!wc) await new Promise(r => setTimeout(r, 100)); }
+      if (!wc) return 'no docked panel: ' + opened;
+      await new Promise(r => wc.isLoading() ? wc.once('did-stop-loading', r) : r());
+      await wc.executeJavaScript(`new Promise(r => { const f = document.createElement('iframe'); f.onload = () => r(1); f.src = 'http://127.0.0.1:${port}/?framed'; document.body.append(f); })`, true);
+      const frame = wc.mainFrame.framesInSubtree.find(f => f.url.includes('?framed'));
+      if (!frame) return 'no frame';
+      const reply = await frame.executeJavaScript(`typeof chrome === 'object' && chrome.runtime && chrome.runtime.sendMessage ? chrome.runtime.sendMessage('fenpfjggfaejmpbinaajochaceelkfml', { ping: 'framed' }) : 'no sendMessage'`, true);
+      await page.executeJavaScript(`chrome.tabs.query({}).then(ts => { const t = ts.find(x => (x.url || '').startsWith('http://127.0.0.1:${port}/')); return chrome.sidePanel.setOptions({ tabId: t.id, enabled: false }); }).catch(() => {})`, true);
+      return reply;
+    }, port);
+    assert.equal(framed?.pong, 'framed', 'framed page reaches the extension: ' + JSON.stringify(framed));
+    assert.equal(framed.origin, `http://127.0.0.1:${port}`);
+    assert.equal(framed.inTab, false, 'a frame in a side panel has no tab, as in Chrome');
+  }
   // chrome.windows.create({ type: 'popup' }) opens a real popup; chrome.windows.remove closes it, but never the browser window
   const popups = await app.evaluate(async ({ webContents, BrowserWindow }, port) => {
     const wc = webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html'));

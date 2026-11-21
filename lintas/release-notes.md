@@ -1,5 +1,9 @@
 Lintas is a fast, secure desktop browser (Chromium engine) that works online and offline, with a built-in Translation Management System, Claude AI features, Chrome extensions and a Claude Desktop (MCP) connection.
 
+## New in 0.5.3
+
+- **Fixed: Claude in Chrome said "Can't reach Claude in Chrome. Claude in Chrome didn't respond."** Claude's panel shows claude.ai, which asks the extension for your account. The extension only answers that request from a side panel, and Lintas reported the side panel as a tab. Messages from side panels, and from sites shown inside them, now come with no tab, as in Chrome.
+
 ## New in 0.5.2
 
 - **Fixed: Claude in Chrome kept saying "Sign in to Claude"** after you had signed in on claude.ai. Claude's panel uses your claude.ai session, and Lintas did not let extension pages use a site's login cookies. Extension pages now get the cookies of the sites they have access to, as in Chrome.

@@ -30,7 +30,8 @@ export class Extensions {
     this.groups = new Map();       // tab group id -> { id, title, color, collapsed }
     this.nextGroupId = 1;
     this.tabPanels = new Map();    // tab webContents id -> { extId, url, name }: side panels opened for one tab
-    this.windowPanel = null;       // { extId, url, name }: a side panel opened for the whole window
+    this.windowPanel = null;
+    this.panelContents = new Set(); // webContents ids of pages shown in extension side panels (not tabs)       // { extId, url, name }: a side panel opened for the whole window
     this.panelBehavior = new Map(); // extension id -> { openPanelOnActionClick }
     this.listeners = new Map();    // extension id -> Set of senders for chrome.* events
     this.docIds = new Map();       // webContents id -> { contextId, documentId }
@@ -140,7 +141,7 @@ export class Extensions {
       case 'events.hello': {
         const set = this.listeners.get(extId) || new Set();
         set.add(send); this.listeners.set(extId, set);
-        return;
+        return [...this.panelContents];
       }
       case 'window.close': {
         if (!page) return false;
@@ -505,6 +506,20 @@ export class Extensions {
     let details;
     try { details = wc ? this.api.api.tabs.getTabDetails(wc) : undefined; } catch {}
     this.api.ctx.router.sendEvent(ext.id, 'commands.onCommand', name, details);
+  }
+
+  /** A side panel's page was created: extensions must not take it for a tab (see the shims). */
+  panelCreated(key, wc) {
+    if (!String(key).startsWith('ext:') || !wc) return;
+    const id = wc.id;
+    this.panelContents.add(id);
+    wc.once('destroyed', () => { this.panelContents.delete(id); this.broadcastPanels(); });
+    this.broadcastPanels();
+  }
+
+  broadcastPanels() {
+    const ids = [...this.panelContents];
+    for (const set of this.listeners.values()) for (const send of [...set]) if (send('panels.ids', [ids]) === false) set.delete(send);
   }
 
   // ---------- tab groups ----------

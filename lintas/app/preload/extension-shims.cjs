@@ -59,14 +59,44 @@ function install(call, extErr, subscribe) {
       _fire: (...a) => { for (const f of [...ls]) { try { f(...a); } catch (e) { console.error(e); } } } };
   };
   const events = {};
+  // Side panels are not tabs. Electron counts every page it shows as a tab, so a message from a side
+  // panel, or from a site framed in one, would arrive with sender.tab; in Chrome it has none, and
+  // extensions rely on that (Claude in Chrome only gives claude.ai in its panel the account it
+  // needs when the sender has no tab: "Can't reach Claude in Chrome" otherwise).
+  let panelIds = new Set();
+  const untab = (sender) => {
+    if (!sender || typeof sender !== 'object' || !sender.tab || !panelIds.has(sender.tab.id)) return sender;
+    const { tab, ...rest } = sender;
+    return rest;
+  };
+  const fixSenders = (target, name, viaPort) => {
+    const native = target && target[name];
+    if (!native || typeof native.addListener !== 'function') return;
+    const wrap = new Map();
+    const wrapped = {
+      addListener: (f) => {
+        if (typeof f !== 'function' || wrap.has(f)) return;
+        const g = viaPort
+          ? (port, ...rest) => { try { const s = untab(port && port.sender); if (s !== port.sender) Object.defineProperty(port, 'sender', { value: s, configurable: true, enumerable: true }); } catch {} return f(port, ...rest); }
+          : (message, sender, reply) => f(message, untab(sender), reply);
+        wrap.set(f, g); native.addListener(g);
+      },
+      removeListener: (f) => { const g = wrap.get(f); if (g) { wrap.delete(f); native.removeListener(g); } },
+      hasListener: (f) => wrap.has(f), hasListeners: () => wrap.size > 0,
+    };
+    try { Object.defineProperty(target, name, { value: wrapped, configurable: true, writable: true, enumerable: true }); } catch {}
+  };
+  if (chrome.runtime && subscribe) for (const [name, port] of [['onMessage', false], ['onMessageExternal', false], ['onConnect', true], ['onConnectExternal', true]]) fixSenders(chrome.runtime, name, port);
   const ev = (name) => (events[name] ||= event());
   if (subscribe) {
     subscribe((name, args) => {
       if (name === 'runtime.onMessageExternal') return deliverExternal(...(args || []));
+      if (name === 'panels.ids') { panelIds = new Set(args && args[0] || []); return; }
       if (events[name]) events[name]._fire(...(args || []));
     });
-    // Register for events nobody asked for, such as tab groups changing.
-    Promise.resolve(call('events.hello', [])).catch(() => {});
+    // Register for events nobody asked for, such as tab groups changing. The answer lists the pages
+    // shown in side panels (see "side panels are not tabs" below).
+    Promise.resolve(call('events.hello', [])).then(ids => { if (Array.isArray(ids)) panelIds = new Set(ids); }, () => {});
   }
   const ok = (v) => (...args) => { const cb = typeof args[args.length - 1] === 'function' ? args.pop() : null; const r = typeof v === 'function' ? v(...args) : v; if (cb) { cb(r); return; } return Promise.resolve(r); };
   const fail = (msg) => (...args) => { const cb = typeof args[args.length - 1] === 'function' ? args.pop() : null; if (!cb) return Promise.reject(new Error(msg));

@@ -13,7 +13,8 @@ export const WEB_APPS = [
 ];
 
 export class WebPanels {
-  constructor({ win, ses, tabs, resolve, onGone, commandKey }) {
+  constructor({ win, ses, tabs, resolve, onGone, onCreated, commandKey }) {
+    this.onCreated = onCreated || (() => {});
     this.commandKey = commandKey || (() => false);
     this.win = win; this.ses = ses; this.tabs = tabs;
     this.resolve = resolve || (() => null);
@@ -47,6 +48,7 @@ export class WebPanels {
       if (this.want === id) this.want = null;
       if (!app) this.onGone(id);
     });
+    if (!app) this.onCreated(id, wc);
     wc.loadURL(app ? app.url : ext.url).catch(() => {});
     this.views.set(id, v);
     return v;

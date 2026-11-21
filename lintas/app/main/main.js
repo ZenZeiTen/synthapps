@@ -116,7 +116,7 @@ function createWindow() {
   });
 
   webPanels = new WebPanels({ win, ses: session.fromPartition(PARTITIONS.normal), tabs,
-    resolve: (key) => extensions?.panelTarget(key) || null, onGone: (key) => extensions?.forgetPanel(key),
+    resolve: (key) => extensions?.panelTarget(key) || null, onGone: (key) => extensions?.forgetPanel(key), onCreated: (key, wc) => extensions?.panelCreated(key, wc),
     commandKey: (input) => !!extensions?.commandKey(input) });
   win.on('close', () => { tabs.persist(); store.flushAll(); });
   win.on('closed', () => { win = null; });
