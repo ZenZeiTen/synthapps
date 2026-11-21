@@ -308,10 +308,64 @@
 			fitComposer();
 		}
 		launcher.setAttribute( 'aria-expanded', 'true' );
+		if ( cfg.si && openChat() ) {
+			return;
+		}
 		var focusTarget = composer || panel.querySelector( '.ctxc-agents li:not([hidden]) .ctxc-agent' );
 		if ( focusTarget ) {
 			focusTarget.focus( { preventScroll: true } );
 		}
+	}
+
+	// The SI chat (2.0): its script is loaded the first time the panel opens, and it takes over
+	// the panel body. If it cannot load or start, the 1.1 panel stays as it is.
+	var siFocus = null;
+	var siLoading = false;
+
+	function siHost() {
+		return {
+			link: function ( phone, text ) {
+				return link( phone, text, cfg.target, mobile );
+			},
+			online: function () {
+				return open;
+			},
+			rule: function () {
+				return activeRule || '';
+			},
+			mobile: mobile,
+		};
+	}
+
+	function openChat() {
+		if ( siFocus ) {
+			siFocus();
+			return true;
+		}
+		if ( win.ContextChatSI ) {
+			siFocus = win.ContextChatSI.mount( panel, cfg.si, siHost() );
+			return true;
+		}
+		if ( ! siLoading ) {
+			siLoading = true;
+			// Hide the 1.1 message box while the chat loads, so it does not flash up first.
+			var body = panel.querySelector( '.ctxc-body' );
+			body.hidden = true;
+			var script = win.document.createElement( 'script' );
+			script.src = cfg.si.script;
+			script.async = true;
+			script.onload = function () {
+				if ( win.ContextChatSI && ! panel.hidden ) {
+					siFocus = win.ContextChatSI.mount( panel, cfg.si, siHost() );
+				}
+			};
+			script.onerror = function () {
+				cfg.si = null;
+				body.hidden = false;
+			};
+			win.document.head.appendChild( script );
+		}
+		return false;
 	}
 
 	function closePanel( returnFocus ) {

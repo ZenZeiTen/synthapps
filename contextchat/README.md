@@ -161,7 +161,30 @@ The fifth part adds the conversation itself, on the server:
 - **Data** goes into the conversations, messages, quotes and events tables, with tokens and cost per conversation.
 - **New filters:** `contextchat_si_enabled`, `contextchat_si_reply`, `contextchat_price_table`, `contextchat_handoff_text`, `contextchat_si_limits`, `contextchat_si_file_hosts`.
 
-The chat in the panel follows in the next part.
+The sixth part puts the chat in the panel (`assets/js/chat.js`).
+
+When the SI chat is on, opening the panel loads the chat script, the first time only (about 5 KB gzipped). The chat then takes over the panel body:
+
+- the privacy notice and the greeting;
+- a message box with a 1,000-character counter (Enter sends, Shift+Enter starts a new line) and a typing indicator;
+- the **quote card**: lines, express surcharge, discount, total, 50% deposit, reference, "estimate" note and 7-day validity;
+- the **handoff card**: the summary the visitor can edit, then WhatsApp and Email buttons, the agent's label, and the hours note when you're offline.
+
+How it behaves:
+
+- After a quote, the team is offered once if the visitor stays silent for the set minutes; typing resets the timer.
+- Pasted or dropped files are refused in the browser.
+- The conversation resumes after a reload in the same tab (`sessionStorage`, no cookies).
+- Everything from the server is written as text, never as HTML.
+
+If the chat can't start, for example because it was switched off while the page was open, the 1.1 panel comes back. Without JavaScript, the button is still the 1.1 WhatsApp link. On phones the chat fills the bottom sheet. Dark mode, reduced motion, keyboard use and screen readers are supported: the conversation is a live region, and each message says who wrote it.
+
+**To try it:**
+
+1. On the SI tab, save your key and press **Test connection**.
+2. Add staff names under **Voice**.
+3. Choose the agents and the email for handoffs.
+4. Tick **Turn on the SI chat**.
 
 ## Translations
 

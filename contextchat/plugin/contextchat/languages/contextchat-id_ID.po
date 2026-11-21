@@ -1215,7 +1215,7 @@ msgstr "Hasil pencarian untuk \"%s\""
 msgid "Close chat window"
 msgstr "Tutup jendela chat"
 
-#: includes/class-frontend.php:165
+#: includes/class-frontend.php:165 includes/class-frontend.php:467
 msgid "Your message"
 msgstr "Pesan Anda"
 
@@ -1238,6 +1238,43 @@ msgstr "Online"
 #: includes/class-frontend.php:437
 msgid "Offline – replies when we are back"
 msgstr "Offline – dibalas saat kami kembali"
+
+#: includes/class-frontend.php:463
+#, php-format
+msgid "%s SI Assistant"
+msgstr "Asisten SI %s"
+
+#: includes/class-frontend.php:464
+msgid "Synthesized Intelligence · can hand you to our team"
+msgstr "Dibantu Kecerdasan Sintesis · dapat diteruskan ke tim kami"
+
+#: includes/class-frontend.php:466
+msgid "Conversation"
+msgstr "Percakapan"
+
+#: includes/class-frontend.php:468
+msgid "Write a message…"
+msgstr "Tulis pesan…"
+
+#: includes/class-frontend.php:469
+msgid "Send"
+msgstr "Kirim"
+
+#: includes/class-frontend.php:470
+msgid "The SI assistant is writing…"
+msgstr "Asisten SI sedang menulis…"
+
+#: includes/class-frontend.php:471
+msgid "You"
+msgstr "Anda"
+
+#: includes/class-frontend.php:472
+msgid "SI assistant"
+msgstr "Asisten SI"
+
+#: includes/class-frontend.php:473
+msgid "The message could not be sent. Please try again."
+msgstr "Pesan tidak terkirim. Silakan coba lagi."
 
 #: includes/class-meta-box.php:78
 msgid "Hide the floating chat button here"

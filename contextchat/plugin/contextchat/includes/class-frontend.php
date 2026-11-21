@@ -437,8 +437,43 @@ class ContextChat_Frontend {
 				'offline' => __( 'Offline – replies when we are back', 'contextchat' ),
 			),
 		);
+		if ( 'widget' === $s['mode'] && ContextChat_Chat_REST::available() ) {
+			$cfg['si'] = self::si_config();
+		}
 		echo '<script type="application/json" id="contextchat-config">' . wp_json_encode( $cfg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . '</script>' . "\n";
 		do_action( 'contextchat_config_printed' );
+	}
+
+	/**
+	 * What the SI chat script needs: endpoints, language, idle time and its interface text.
+	 *
+	 * @return array
+	 */
+	private static function si_config() {
+		$s    = ContextChat_Settings::get();
+		$name = ContextChat_Chat_REST::business_name();
+		$lang = 0 === strpos( determine_locale(), 'id' ) ? 'id' : 'en';
+		return array(
+			'api'      => esc_url_raw( rest_url( 'contextchat/v1/chat/' ) ),
+			'script'   => CONTEXTCHAT_URL . 'assets/js/chat.js?ver=' . rawurlencode( CONTEXTCHAT_VERSION ),
+			'lang'     => $lang,
+			'host'     => (string) wp_parse_url( home_url(), PHP_URL_HOST ),
+			'idle'     => (int) $s['si_idle_minutes'] * 60000,
+			/* translators: %s: business name, e.g. Nusalexia. */
+			'title'    => sprintf( __( '%s SI Assistant', 'contextchat' ), $name ),
+			'subtitle' => __( 'Synthesized Intelligence · can hand you to our team', 'contextchat' ),
+			'i18n'     => array(
+				'log'         => __( 'Conversation', 'contextchat' ),
+				'label'       => __( 'Your message', 'contextchat' ),
+				'placeholder' => __( 'Write a message…', 'contextchat' ),
+				'send'        => __( 'Send', 'contextchat' ),
+				'typing'      => __( 'The SI assistant is writing…', 'contextchat' ),
+				'you'         => __( 'You', 'contextchat' ),
+				'assistant'   => __( 'SI assistant', 'contextchat' ),
+				'error'       => __( 'The message could not be sent. Please try again.', 'contextchat' ),
+				'upload'      => ContextChat_Voice::template( 'upload', $lang ),
+			),
+		);
 	}
 
 	/**
