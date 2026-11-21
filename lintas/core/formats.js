@@ -36,8 +36,12 @@ export function* markupTokens(input) {
     if (lt < 0) { yield { type: 'text', value: s.slice(i) }; return; }
     if (lt > i) yield { type: 'text', value: s.slice(i, lt) };
     if (s.startsWith('<!--', lt)) {
-      const end = s.indexOf('-->', lt + 4);
-      i = end < 0 ? s.length : end + 3;
+      // HTML comments end at "-->" or "--!>"; "<!-->" and "<!--->" close at once.
+      if (s.startsWith('<!-->', lt)) { i = lt + 5; continue; }
+      if (s.startsWith('<!--->', lt)) { i = lt + 6; continue; }
+      const a = s.indexOf('-->', lt + 4), b = s.indexOf('--!>', lt + 4);
+      if (a < 0 && b < 0) { i = s.length; continue; }
+      i = (b >= 0 && (a < 0 || b < a)) ? b + 4 : a + 3;
       continue;
     }
     if (s.startsWith('<![CDATA[', lt)) {

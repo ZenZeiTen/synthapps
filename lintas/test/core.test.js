@@ -123,6 +123,7 @@ test('HTML to text: scripts, comments and quoted ">" never leak into text', asyn
   assert.ok(!/alert|hidden|Menu|var a/.test(r.text), r.text);
   assert.match(r.text, /- Satu\n- Dua/);
   assert.equal(stripTags('a <b class="x>y">bold</b> &lt;tag&gt;'), 'a bold <tag>');
+  assert.equal(stripTags('1<!-- x --!>2<!-->3<!--->4<!-- y -->5'), '12345');
 });
 
 test('TMX and TBX import use the tokenizer', () => {
