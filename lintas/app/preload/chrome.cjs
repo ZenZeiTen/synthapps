@@ -24,6 +24,7 @@ const groups = {
   extensions: ['list', 'installFromStore', 'loadUnpacked', 'remove', 'openOptions'],
   claude: ['status', 'connect'],
   importer: ['detect', 'run', 'fromFile'],
+  webpanel: ['apps', 'show', 'reload', 'home', 'openInTab'],
   ai: ['suggest', 'review', 'extractTerms', 'translatePage', 'restorePage', 'translateText', 'ask', 'highlight', 'selection', 'usage'],
 };
 

@@ -114,6 +114,9 @@ saved too.
 | `importer.detect()` | `[{ id, name, kind: 'chromium'\|'firefox', profiles: [{ id, name, path }] }]` — browsers found on this computer |
 | `importer.run({ browserId, profileId, bookmarks, history, settings })` | `{ source, bookmarks, history, settings: [keys] }` — counts of what was added |
 | `importer.fromFile()` | Same result, from a bookmarks HTML file the user picks; `null` if cancelled |
+| `webpanel.apps()` | `[{ id, name, icon }]`: Gmail and Calendar |
+| `webpanel.show(id \| null, bounds)` | Docks web panel `id` at `bounds` (window coordinates) or hides it |
+| `webpanel.reload(id)`, `webpanel.home(id)`, `webpanel.openInTab(id)` | Panel toolbar actions |
 
 Setting `minimizeToTray` (boolean): minimizing hides the window to the notification area.
 | `settings.get()` | `Settings` |

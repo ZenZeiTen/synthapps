@@ -1,5 +1,11 @@
 Lintas is a fast, secure desktop browser (Chromium engine) that works online and offline, with a built-in Translation Management System, Claude AI features, Chrome extensions and a Claude Desktop (MCP) connection.
 
+## New in 0.3.0
+
+- **Gmail and Google Calendar in the side panel**, like the sidebar apps in Opera and Edge: click the envelope or calendar icon at the top of the side panel. They use your normal browsing profile, so signing in to Gmail there signs you in to Google in your tabs too (private tabs stay separate). Each keeps its place when you switch, and *Open in a tab* moves it to a full tab.
+- **Sign-in popups work.** "Sign in with Google" (and Microsoft, Apple and payment popups) stuck on "Processing your request…" because Lintas opened every popup as a tab, cutting its link back to the page that opened it. Sized popups now open as real popup windows and can hand the result back.
+- **Extension sign-in** (`chrome.identity.launchWebAuthFlow`) opens in a popup window, as in Chrome, and a silent check no longer opens a visible tab.
+
 ## New in 0.2.1
 
 - **Google sign-in:** Google refused Lintas with "This browser or app may not be secure". On Google's sign-in pages only, Lintas now identifies itself as Firefox, which Google accepts. Signing in with a real account has not been tested; if Google still refuses, please report it.

@@ -10,6 +10,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dialog, ipcMain, session as electronSession, BrowserWindow } from 'electron';
 import { ElectronChromeExtensions } from 'electron-chrome-extensions';
+import { popupWindowOptions } from './tabs.js';
 import { installChromeWebStore, installExtension, uninstallExtension } from 'electron-chrome-web-store';
 
 const ID = /^[a-p]{32}$/;
@@ -176,18 +177,31 @@ export class Extensions {
         finally { fs.rm(file, { force: true }, () => {}); }
       }
       case 'identity.launchWebAuthFlow': {
+        // As in Chrome: interactive sign-in opens in a popup window; a non-interactive check
+        // loads hidden and fails if the provider needs the user.
         this.requirePermission(ext, 'identity');
-        const url = String(args[0]?.url || '');
+        const o = args[0] || {};
+        const url = String(o.url || '');
         if (!/^https:\/\//.test(url)) throw new Error('launchWebAuthFlow needs an https URL.');
+        const interactive = !!o.interactive;
         const redirect = `https://${extId}.chromiumapp.org/`;
+        const w = new BrowserWindow({ ...popupWindowOptions(process.platform === 'darwin'), show: interactive, title: 'Sign in', parent: interactive ? this.getWin() || undefined : undefined,
+          webPreferences: { ...popupWindowOptions(false).webPreferences, session: this.ses } });
         const tabs = this.getTabs();
-        const t = tabs.get(tabs.create({ url, raw: true }).id);
-        const wc = tabs.ensureView(t).webContents;
+        if (tabs?.wirePopup) tabs.wirePopup(w, { private: false });
+        const wc = w.webContents;
         return new Promise((resolve, reject) => {
-          const done = (fn, v) => { wc.off('did-start-navigation', onNav); wc.off('did-redirect-navigation', onNav); wc.off('destroyed', onGone); fn(v); };
-          const onNav = (e) => { if (e.isMainFrame && e.url.startsWith(redirect)) { e.preventDefault?.(); done(resolve, e.url); tabs.close(t.id); } };
-          const onGone = () => done(reject, new Error('The user closed the sign-in window.'));
-          wc.on('did-start-navigation', onNav); wc.on('did-redirect-navigation', onNav); wc.once('destroyed', onGone);
+          let timer = null, settled = false;
+          const done = (fn, v) => { if (settled) return; settled = true; clearTimeout(timer); if (!w.isDestroyed()) w.destroy(); fn(v); };
+          const onNav = (e) => { if (e.isMainFrame && e.url.startsWith(redirect)) { e.preventDefault?.(); done(resolve, e.url); } };
+          wc.on('will-redirect', onNav); wc.on('will-navigate', onNav); wc.on('did-start-navigation', onNav); wc.on('did-redirect-navigation', onNav);
+          w.on('closed', () => done(reject, new Error('The user did not approve access.')));
+          if (!interactive) {
+            const ms = Math.max(0, Number(o.timeoutMsForNonInteractive) || 0);
+            if (o.abortOnLoadForNonInteractive !== false) wc.on('did-finish-load', () => setTimeout(() => done(reject, new Error('User interaction required.')), 50));
+            timer = setTimeout(() => done(reject, new Error('User interaction required.')), ms || 60000);
+          }
+          wc.loadURL(url).catch((e) => { if (!settled && !String(e?.message).includes('ERR_ABORTED')) done(reject, new Error('Authorization page could not be loaded.')); });
         });
       }
       case 'userScripts.register': case 'userScripts.update': {

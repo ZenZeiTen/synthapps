@@ -8,6 +8,7 @@ import { Tms } from '../../core/tms.js';
 import { detectLanguage, tokenize } from '../../core/text.js';
 import { BrowserData } from './browserdata.js';
 import { TabManager } from './tabs.js';
+import { WebPanels, WEB_APPS } from './webpanel.js';
 import { hardenSession, urlsFromArgs } from './security.js';
 import { execFile } from 'node:child_process';
 import { detectBrowsers, readProfile, parseBookmarksHtml } from './importer.js';
@@ -36,7 +37,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'lintas-ui', privileges: { stand
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
-let win, tabs, data, tms, ai, store, extensions, bridge;
+let win, tabs, webPanels, data, tms, ai, store, extensions, bridge;
 const pendingPermissions = new Map();
 const downloads = new Map();
 const httpAllowed = new Set();
@@ -109,6 +110,7 @@ function createWindow() {
     onActivate: (wc, t) => { if (!t.private && extensions) extensions.selectTab(wc); },
   });
 
+  webPanels = new WebPanels({ win, ses: session.fromPartition(PARTITIONS.normal), tabs });
   win.on('close', () => { tabs.persist(); store.flushAll(); });
   win.on('closed', () => { win = null; });
   nativeTheme.on('updated', () => {
@@ -262,7 +264,12 @@ const IMPORTABLE = [{ name: 'Translatable files', extensions: ['txt', 'md', 'htm
 
 function registerIpc() {
   handle('view.setBounds', b => tabs.setBounds(b));
-  handle('view.setVisible', v => tabs.setVisible(v));
+  handle('view.setVisible', v => { tabs.setVisible(v); webPanels?.setVisible(v); });
+  handle('webpanel.apps', () => WEB_APPS.map(({ id, name, icon }) => ({ id, name, icon })));
+  handle('webpanel.show', (id, bounds) => webPanels.show(typeof id === 'string' ? id : null, bounds && typeof bounds === 'object' ? bounds : null));
+  handle('webpanel.reload', id => webPanels.reload(String(id)));
+  handle('webpanel.home', id => webPanels.home(String(id)));
+  handle('webpanel.openInTab', id => webPanels.openInTab(String(id)));
 
   handle('tabs.list', () => tabs.list());
   handle('tabs.create', (o = {}) => tabs.create(o));

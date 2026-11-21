@@ -27,6 +27,11 @@ does not let apps change the default themselves.
 - Google sign-in: Google refuses browsers built on Electron, so on `accounts.google.com`
   (and `accounts.youtube.com`) only, Lintas identifies itself as Firefox. Every other site
   sees the normal Chromium identity.
+- Gmail and Google Calendar in the side panel (envelope and calendar icons), like the
+  sidebar apps in Opera and Edge. They share your normal browsing profile, so signing in
+  there signs you in to Google in tabs too; private tabs stay separate.
+- Popups that pages open with a size (sign-in, payment, share) open as real popup windows
+  linked to their page, so "Sign in with Google" and similar flows can finish.
 - Tab strip, omnibox with suggestions, bookmarks bar, side panel, find in page, zoom,
   downloads, history and the usual keyboard shortcuts.
 - Import from Chrome, Edge, Firefox, Brave, Vivaldi, Opera or Chromium on the same

@@ -1,6 +1,6 @@
 {
   "name": "lintas-browser",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Lintas: a fast, secure, AI-powered web browser that works online and offline, with a built-in Translation Management System.",
   "type": "module",
   "scripts": {
