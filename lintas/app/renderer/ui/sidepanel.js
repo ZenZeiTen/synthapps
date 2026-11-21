@@ -1,5 +1,5 @@
 // Right-hand side panel: Assistant · Translate · Terms · Offline. Resizable; sits beside the page (never over it).
-import { h, mount, hostOf, LANGS, langName, fmtBytes, relTime, debounce } from '../lib/dom.js';
+import { h, mount, hostOf, LANGS, langName, fmtBytes, relTime, debounce, errText } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { S, L, on, emit, call, go, activeTab, setPanel, setSettings, modLabel } from '../lib/store.js';
@@ -84,7 +84,7 @@ function viewAssistant(t, intent) {
     const history = msgs.filter((m) => !m.error).map((m) => ({ role: m.role, content: m.text }));
     msgs.push({ role: 'user', text: q }); busy = true; draw();
     try { const r = await L().ai.ask(t.id, q, { history }); msgs.push({ role: 'assistant', text: r.answer, citations: r.citations || [] }); }
-    catch (e) { msgs.push({ role: 'assistant', error: true, text: e?.message || 'The assistant could not answer.' }); }
+    catch (e) { msgs.push({ role: 'assistant', error: true, text: errText(e, 'The assistant could not answer.') }); }
     busy = false; if (activeTab()?.id === t.id && S.panel.view === 'assistant') draw();
   }
   input.addEventListener('input', grow);
@@ -142,7 +142,7 @@ function viewTranslate(t, intent) {
     await withBusy(pageBtn, async () => {
       try { const r = await L().ai.translatePage(t.id, { targetLang: mem.targetLang, projectId: mem.projectId || undefined });
         mount(status, h('div.sp-note', h('b', `${r.translated} passages translated. `), `${r.fromTm} from translation memory, ${r.fromAi} by AI.`)); }
-      catch (e) { mount(status, h('div.msg.err', e?.message || 'The page could not be translated.')); }
+      catch (e) { mount(status, h('div.msg.err', errText(e, 'The page could not be translated.'))); }
     });
     off && off(); off = null;
   });
@@ -173,7 +173,7 @@ function viewTranslate(t, intent) {
       try { const r = await L().ai.translateText(q, { targetLang: mem.targetLang, projectId: mem.projectId || undefined });
         const out = h('div.tm-tgt.selectable', { dir: 'auto' }, r.text);
         mount(results, h('div.sp-title', h('span.grow', `Translation · ${langName(mem.targetLang)}`), iconBtn('copy', 'Copy translation', () => { navigator.clipboard?.writeText(r.text).then(() => toast('success', 'Copied', 1600), () => {}); }, 'sm')), h('div.tm-match', out)); }
-      catch (e) { mount(results, h('div.msg.err', e?.message || 'Could not translate.')); }
+      catch (e) { mount(results, h('div.msg.err', errText(e, 'Could not translate.'))); }
     });
   }
   lookBtn.addEventListener('click', lookup); trBtn.addEventListener('click', translate);

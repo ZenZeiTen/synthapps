@@ -1,6 +1,6 @@
 // Menus, popovers, dialogs and toasts. Anything here may sit above the web page, so each open overlay
 // "holds" the native view hidden (lintas.view.setVisible(false)) and releases it when it closes.
-import { h, trapFocus } from '../lib/dom.js';
+import { h, trapFocus, errText } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { L, emit } from '../lib/store.js';
 
@@ -202,7 +202,7 @@ export function formDialog({ title, fields, submit = 'Save', width, intro, onSub
       if (miss) { err.hidden = false; err.textContent = `${miss.label} is required.`; inputs[miss.name].focus(); return false; }
       if (onSubmit) {
         try { const r = await onSubmit(v); return r === undefined ? v : r; }
-        catch (e) { err.hidden = false; err.textContent = e?.message || 'Could not save.'; return false; }
+        catch (e) { err.hidden = false; err.textContent = errText(e, 'Could not save.'); return false; }
       }
       return v;
     } },

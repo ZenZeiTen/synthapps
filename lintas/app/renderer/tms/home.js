@@ -85,7 +85,7 @@ export default function tmsHome(el, ctx) {
       h('div.top', h('div', h('h3', { dir: 'auto' }, p.name), p.client ? h('div.client', { dir: 'auto' }, p.client) : null), ring(p.stats.progress, { size: 46, stroke: 4 })),
       h('div.chips', langPair(p.sourceLang, p.targetLang), due && p.stats.progress < 1 ? h('span.chip', { class: due.tone }, icon('calendar'), due.text) : (p.stats.progress >= 1 ? h('span.chip.ok', icon('check'), 'Complete') : null)),
       segBar(p.stats),
-      h('div.foot', h('span', `${fmtNum(p.stats.words)} words`), h('span', '·'), h('span', `${fmtNum(p.stats.segments)} segments`), h('span', '·'), h('span', `${p.fileCount} file${p.fileCount === 1 ? '' : 's'}`), h('span.grow'), h('span', { style: { marginRight: '28px' } }, 'Updated ' + relTime(p.updatedAt))),
+      h('div.foot', h('span', `${fmtNum(p.stats.words)} words`), h('span', '·'), h('span', `${fmtNum(p.stats.segments)} segments`), h('span', '·'), h('span', `${p.fileCount} file${p.fileCount === 1 ? '' : 's'}`), h('span.grow'), h('span.upd', 'Updated ' + relTime(p.updatedAt))),
       h('button.icon-btn.sm.more', { type: 'button', title: 'Project actions', 'aria-label': 'Project actions', onClick: (e) => { e.stopPropagation(); openMenu(e.currentTarget, [
         { label: 'Open', icon: 'external', onClick: () => openProject(p) },
         { label: 'Delete project…', icon: 'trash', danger: true, onClick: async () => { if (await confirmDialog({ title: 'Delete project?', message: `“${p.name}” and its files will be deleted. Its translation memory and termbase are kept.`, ok: 'Delete project', danger: true })) { await call(L().tms.deleteProject(p.id)); load(); } } },

@@ -1,6 +1,6 @@
 // Lintas browser chrome — entry point. Talks to main only through window.lintas (see docs/IPC.md).
 import { S, L, on, emit, call, go, activeTab, loadPanelPrefs, setPanel, openPanel, refreshBookmarks, refreshDownloads, setSettings } from './lib/store.js';
-import { isMod } from './lib/dom.js';
+import { isMod, errText } from './lib/dom.js';
 import { toast, viewHeld, closeAllPopovers } from './ui/overlay.js';
 import { initTabstrip } from './ui/tabstrip.js';
 import { initToolbar, focusOmnibox, toggleBookmark, saveOffline, downloadsBubble, queuePermission, openTms, openInternal, reloadTab } from './ui/toolbar.js';
@@ -125,5 +125,5 @@ function onKey(e) {
 boot().catch((e) => {
   console.error(e);
   const pre = document.createElement('pre'); pre.style.cssText = 'padding:24px;white-space:pre-wrap;user-select:text';
-  pre.textContent = 'Lintas could not start its interface.\n\n' + (e?.stack || e?.message || String(e)); document.body.appendChild(pre);
+  pre.textContent = 'Lintas could not start its interface.\n\n' + errText(e, 'Unknown error.'); document.body.appendChild(pre);
 });

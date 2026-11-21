@@ -1,6 +1,6 @@
 // Content area: reports the native-view rectangle to main, mounts internal pages and error pages,
 // hosts the find bar. Web pages themselves are drawn by main on top of #viewport.
-import { h, mount, debounce } from '../lib/dom.js';
+import { h, mount, debounce, errText } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { S, L, on, emit, call, go, activeTab, parseInternal, setTitle } from '../lib/store.js';
 import { iconBtn } from './widgets.js';
@@ -60,7 +60,7 @@ function render() {
       try {
         const fn = internal ? (PAGES[ctx.params?.page] || notFound) : errorPage;
         const d = fn(el, ctx); if (typeof d === 'function') x.dispose = d;
-      } catch (e) { console.error(e); mount(el, h('div.empty', icon('alert'), h('h3', 'This page could not be shown'), h('p', e.message))); }
+      } catch (e) { console.error(e); mount(el, h('div.empty', icon('alert'), h('h3', 'This page could not be shown'), h('p', errText(e, 'Unexpected error.')))); }
     }
     x.el.hidden = false;
     webSlot.hidden = true;

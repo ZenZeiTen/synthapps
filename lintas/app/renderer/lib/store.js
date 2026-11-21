@@ -1,4 +1,5 @@
 // Tiny shared state + event bus for the chrome renderer.
+import { errText } from './dom.js';
 export const S = {
   tabs: [], settings: {}, status: { models: [] }, online: true, bookmarks: [], downloads: [],
   preview: false,
@@ -30,7 +31,7 @@ export const modLabel = () => (isDarwin() ? '⌘' : 'Ctrl+');
 /** Wraps a lintas call: shows the (plain-language) rejection as a toast and returns undefined. */
 export async function call(promise, { silent } = {}) {
   try { return await promise; }
-  catch (e) { if (!silent) emit('toast', { kind: 'error', message: e?.message || 'Something went wrong.' }); return undefined; }
+  catch (e) { if (!silent) emit('toast', { kind: 'error', message: errText(e) }); return undefined; }
 }
 
 export function go(url, { newTab = false, tabId } = {}) {

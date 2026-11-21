@@ -152,6 +152,7 @@
 .sp-title .grow { flex: 1; }
 .sp-context { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-md); background: var(--surface-2); font-size: var(--fs-12); color: var(--text-2); min-width: 0; }
 .sp-note { padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); color: var(--text-2); font-size: var(--fs-12); line-height: 1.5; }
+.sp-note > svg.ic { display: inline-block; vertical-align: -3px; margin-right: 4px; }
 .sp-note.warn { background: var(--warn-soft); color: var(--warn); }
 .chat { flex: 1; min-height: 0; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .msg { max-width: 100%; }

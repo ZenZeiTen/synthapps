@@ -122,3 +122,9 @@ export function trapFocus(root, e) {
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 }
 export const isMod = (e) => e.ctrlKey || e.metaKey;
+
+/** Text of a caught value. Anything can be thrown, so only a non-empty string message is ever shown. */
+export function errText(e, fallback = 'Something went wrong.') {
+  const m = e && typeof e === 'object' && 'message' in e ? e.message : e;
+  return typeof m === 'string' && m ? m : fallback;
+}

@@ -9,6 +9,8 @@
 .proj-card .chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .proj-card .foot { display: flex; align-items: center; gap: 10px; color: var(--text-3); font-size: var(--fs-12); }
 .proj-card .foot .grow { flex: 1; }
+.proj-card .foot { padding-right: 28px; overflow: hidden; } .proj-card .foot span { white-space: nowrap; } .proj-card .foot .upd { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.proj-card .chips { min-height: 24px; }
 .proj-card .more { position: absolute; right: 8px; bottom: 8px; }
 .proj-card.new { place-items: center; align-content: center; border-style: dashed; background: transparent; box-shadow: none; color: var(--text-2); min-height: 150px; gap: 8px; font-weight: 600; }
 .proj-card.new svg.ic { width: 24px; height: 24px; color: var(--accent-text); }

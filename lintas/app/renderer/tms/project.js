@@ -1,5 +1,5 @@
 // lintas://tms/project/<id> — files with status-split progress, and the project actions.
-import { h, mount, fmtNum, fmtPct, relTime, dueInfo, hostOf, fmtDate } from '../lib/dom.js';
+import { h, mount, fmtNum, fmtPct, relTime, dueInfo, hostOf, fmtDate, errText } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { S, L, call, emit } from '../lib/store.js';
 import { ring, segBar, langPair, emptyState, iconBtn, btn, withBusy, favicon } from '../ui/widgets.js';
@@ -40,7 +40,7 @@ export function pretranslateDialog(projectId, files, preselect) {
     const label = h('span.muted', 'Working…'); mount(prog, h('div', { style: { display: 'grid', gap: '6px' } }, h('div.progress-line'), label));
     const off = L().on('pretranslate-progress', (p) => { if (p.projectId === projectId) label.textContent = `Working… ${fmtNum(p.done)} of ${fmtNum(p.total)} segments`; });
     try { for (const f of targets) { const r = await L().tms.pretranslate(projectId, f.id, { minScore: Number(min.value), useAi: ai.checked }); for (const k in total) total[k] += r[k] || 0; } }
-    catch (e) { off(); mount(prog, h('div.msg.err', e?.message || 'Pre-translation failed.')); return false; }
+    catch (e) { off(); mount(prog, h('div.msg.err', errText(e, 'Pre-translation failed.'))); return false; }
     off(); toast('success', `${fmtNum(total.filled)} segments filled — ${fmtNum(total.fromTm)} from TM, ${fmtNum(total.fromAi)} by AI`);
     return total;
   } }] });
@@ -80,7 +80,7 @@ export default function tmsProject(el, ctx) {
       if (!webTabs.length) return toast('info', 'Open the web page you want to translate in another tab first.');
       let chosen = webTabs[0].id;
       const list = h('div.pick-list', { role: 'radiogroup' }, webTabs.map((t, i) => h('label', h('input', { type: 'radio', name: 'cap', checked: i === 0, onChange: () => { chosen = t.id; } }), favicon(t.favicon, t.url, t.favicon ? null : 'globe'), h('span.lr-main', { style: { display: 'grid', minWidth: 0 } }, h('span.lr-title.ellipsis', { dir: 'auto' }, tabTitle(t)), h('span.lr-sub.ellipsis.muted', { style: { fontSize: '12px' } }, hostOf(t.url))))));
-      const f = await openDialog({ title: 'Capture a web page', width: 520, content: [h('p', 'The text of the page becomes a file in this project, segmented and ready to translate.'), list], actions: [{ label: 'Cancel', value: null }, { label: 'Capture page', kind: 'primary', primary: true, onClick: async () => { try { return await L().tms.capturePage(chosen, pid); } catch (e) { toast('error', e?.message || 'The page could not be captured.'); return false; } } }] });
+      const f = await openDialog({ title: 'Capture a web page', width: 520, content: [h('p', 'The text of the page becomes a file in this project, segmented and ready to translate.'), list], actions: [{ label: 'Cancel', value: null }, { label: 'Capture page', kind: 'primary', primary: true, onClick: async () => { try { return await L().tms.capturePage(chosen, pid); } catch (e) { toast('error', errText(e, 'The page could not be captured.')); return false; } } }] });
       if (f) { toast('success', 'Page captured'); await load(); }
     },
     async pretranslate() { if (!project.files.length) return toast('info', 'Add a file first.'); if (await pretranslateDialog(pid, project.files)) load(); },

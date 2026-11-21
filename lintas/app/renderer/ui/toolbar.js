@@ -48,7 +48,9 @@ export function initToolbar() {
   mount(bar, h('div.nav-group', el.back, el.fwd, el.reload, el.home), el.omni, el.offline, el.preview,
     h('div.action-group', el.translate, el.save, el.panel, el.dl, el.menu), el.loadbar);
 
-  el.input.addEventListener('focus', () => { el.omni.classList.add('focused'); typed = el.input.value; requestAnimationFrame(() => el.input.select()); });
+  el.input.addEventListener('focus', () => { el.omni.classList.add('focused'); typed = el.input.value; el.input.select(); });
+  // a click that focuses the field selects the whole address (like Chrome); later clicks place the caret
+  el.input.addEventListener('mousedown', () => { if (document.activeElement !== el.input) el.input.addEventListener('mouseup', (e) => { if (el.input.selectionStart === el.input.selectionEnd) { e.preventDefault(); el.input.select(); } }, { once: true }); });
   el.input.addEventListener('blur', () => { el.omni.classList.remove('focused'); closeDrop(); syncOmni(true); });
   el.input.addEventListener('input', () => { typed = el.input.value; suggest(); });
   el.input.addEventListener('keydown', onOmniKey);

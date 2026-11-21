@@ -1,5 +1,5 @@
 // lintas://settings + the "Clear browsing data" dialog.
-import { h, mount, LANGS, fmtNum, relTime } from '../lib/dom.js';
+import { h, mount, LANGS, fmtNum, relTime, errText } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { S, L, on, call, setSettings, refreshStatus } from '../lib/store.js';
 import { openDialog, toast, confirmDialog } from '../ui/overlay.js';
@@ -17,7 +17,7 @@ export async function clearDataDialog() {
   ], actions: [{ label: 'Cancel', value: false }, { label: 'Clear data', kind: 'primary', primary: true, onClick: async () => {
     const sel = Object.fromEntries(Object.entries(boxes).map(([k, b]) => [k, b.checked]));
     if (!Object.values(sel).some(Boolean)) return false;
-    try { await L().privacy.clearData(sel); } catch (e) { toast('error', e?.message || 'Could not clear the data.'); return false; }
+    try { await L().privacy.clearData(sel); } catch (e) { toast('error', errText(e, 'Could not clear the data.')); return false; }
     toast('success', 'Browsing data cleared'); return true;
   } }] });
 }

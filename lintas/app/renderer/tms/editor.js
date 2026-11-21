@@ -1,7 +1,7 @@
 // lintas://tms/file/<projectId>/<fileId> — the segment editor (two-column grid + CAT pane).
 // Large files stay fast: segments are fetched in pages (offset/limit) and rows use content-visibility so
 // only what is on screen is laid out and painted.
-import { h, mount, clear, fmtNum, fmtPct, relTime, debounce, isMod } from '../lib/dom.js';
+import { h, mount, clear, fmtNum, fmtPct, relTime, debounce, isMod, errText } from '../lib/dom.js';
 import { icon, STATUSES, STATUS_LABEL, STATUS_ICON } from '../lib/icons.js';
 import { S, L, call, on, modLabel } from '../lib/store.js';
 import { segBar, statusIcon, langPair, matchBadge, emptyState, iconBtn, withBusy } from '../ui/widgets.js';
@@ -232,17 +232,19 @@ export default function tmsEditor(el, ctx) {
       const a = st.ai.get(s.id) || {};
       mount(aiBox,
         a.error ? h('div.msg.err', a.error) : null,
+        a.pending ? h('div.row.muted', h('span.spinner'), a.pending === 'review' ? 'Reviewing the translation…' : 'Writing a suggestion…') : null,
         a.suggest ? h('div.ai-card', h('div.ai-text', { dir: 'auto' }, a.suggest.target), a.suggest.rationale ? h('div.ai-why', a.suggest.rationale) : null,
           h('div.ai-meta', h('span', `${a.suggest.usedMatches || 0} TM matches · ${a.suggest.usedTerms || 0} terms used`), h('span.grow'), h('button.btn.sm.primary', { type: 'button', onClick: () => setTarget(a.suggest.target) }, 'Insert'))) : null,
         a.review ? h('div.ai-card', h('div.row', h('span.chip', { class: a.review.verdict === 'ok' ? 'ok' : 'warn' }, icon(a.review.verdict === 'ok' ? 'circleCheck' : 'warning'), a.review.verdict === 'ok' ? 'Looks good' : 'Revise'), h('span.muted', { style: { fontSize: '12px' } }, 'AI review')),
           (a.review.issues || []).map((i) => h('div.ai-issue', h('div.hd', h('span.sev.sev-' + i.severity), `${i.category} · ${i.severity}`), h('div', { dir: 'auto' }, i.explanation), i.suggestion ? h('div.muted', { dir: 'auto' }, 'Suggestion: ' + i.suggestion) : null)),
           a.review.revised ? [h('div.ai-text', { dir: 'auto' }, a.review.revised), h('div.ai-meta', h('span.grow'), h('button.btn.sm.primary', { type: 'button', onClick: () => setTarget(a.review.revised) }, 'Use revision'))] : null) : null,
-        !a.suggest && !a.review && !a.error ? h('div.cat-none', S.status.hasApiKey ? 'Suggestions are proposals only — nothing is written until you insert it.' : ['Add a Claude API key to use AI. ', h('a', { role: 'link', tabIndex: 0, onClick: () => openInternal('lintas://settings') }, 'Open settings')]) : null);
+        !a.suggest && !a.review && !a.error && !a.pending ? h('div.cat-none', S.status.hasApiKey ? 'Suggestions are proposals only — nothing is written until you insert it.' : ['Add a Claude API key to use AI. ', h('a', { role: 'link', tabIndex: 0, onClick: () => openInternal('lintas://settings') }, 'Open settings')]) : null);
     };
     const runAi = (btnEl, kind) => withBusy(btnEl, async () => {
-      await flush(); const a = st.ai.get(s.id) || {}; st.ai.set(s.id, a); a.error = null;
-      try { a[kind] = await L().ai[kind](pid, fid, s.id); } catch (e) { a.error = e?.message || 'The AI request failed.'; }
-      if (st.activeId === s.id) drawAi();
+      await flush(); const a = st.ai.get(s.id) || {}; st.ai.set(s.id, a); a.error = null; a.pending = kind; st.redrawAi?.();
+      try { a[kind] = await L().ai[kind](pid, fid, s.id); } catch (e) { a.error = errText(e, 'The AI request failed.'); }
+      a.pending = null;
+      if (st.activeId === s.id) st.redrawAi?.(); // the pane may have been rebuilt meanwhile
     });
     sugBtn.addEventListener('click', () => runAi(sugBtn, 'suggest')); revBtn.addEventListener('click', () => { if (!(ta?.value || s.target)) return toast('info', 'There is no translation to review yet.'); runAi(revBtn, 'review'); });
     mount(cat,
@@ -256,7 +258,7 @@ export default function tmsEditor(el, ctx) {
         h('dt', 'Origin'), h('dd', { tm: 'Translation memory', 'mt-ai': 'AI suggestion', human: 'Typed by a translator' }[s.origin] || '—'),
         h('dt', 'Updated'), h('dd', s.updatedAt ? relTime(s.updatedAt) : '—'))),
       h('div', { style: { height: '16px', flex: 'none' } }));
-    drawAi();
+    st.redrawAi = drawAi; drawAi();
     let lk = st.lookups.get(s.id);
     if (!lk) { lk = await call(L().tms.lookup(pid, s.source), { silent: true }); if (lk) st.lookups.set(s.id, lk); }
     if (st.activeId !== s.id) return;
@@ -289,7 +291,7 @@ export default function tmsEditor(el, ctx) {
   }
   async function extractTerms(button) {
     await withBusy(button, async () => {
-      let r; try { r = await L().ai.extractTerms(pid, fid); } catch (e) { return toast('error', e?.message || 'Term extraction failed.'); }
+      let r; try { r = await L().ai.extractTerms(pid, fid); } catch (e) { return toast('error', errText(e, 'Term extraction failed.')); }
       const tbId = st.project?.termbaseIds?.[0];
       const { openDialog } = await import('../ui/overlay.js');
       openDialog({ title: 'Proposed terms', width: 640, content: [h('p', 'Proposals from this file. Nothing is saved until you add a term.'),
