@@ -143,12 +143,13 @@ try {
     const wc = webContents.getAllWebContents().find(w => w.getURL() === pageUrl);
     await wc.executeJavaScript(`window.__got = new Promise(r => addEventListener('message', e => r(e.data))); window.open(${JSON.stringify(idpUrl)}, 'signin', 'width=480,height=600'); 1`, true);
     const got = await Promise.race([wc.executeJavaScript('window.__got', true), new Promise(r => setTimeout(() => r('timeout'), 10000))]);
-    await new Promise(r => setTimeout(r, 1200));
-    return { got, windows: BrowserWindow.getAllWindows().length };
+    // The provider closes its popup 300 ms after answering; give a slow machine time to finish closing it
+    for (let i = 0; i < 80 && BrowserWindow.getAllWindows().length > 1; i++) await new Promise(r => setTimeout(r, 100));
+    return { got, windows: BrowserWindow.getAllWindows().length, open: BrowserWindow.getAllWindows().map(w => w.webContents.getURL()) };
   }, [`http://127.0.0.1:${port}/`, `http://localhost:${idp.address().port}/oauth`]);
   idp.close();
   assert.equal(popupResult.got, 'signed-in:true', JSON.stringify(popupResult));
-  assert.equal(popupResult.windows, 1, 'the popup closed itself');
+  assert.equal(popupResult.windows, 1, 'the popup closed itself: ' + JSON.stringify(popupResult.open));
   assert.equal((await L(() => lintas.tabs.list())).length, tabCount, 'a sized popup does not open a tab');
 
   // Web panels: Gmail docks in the side panel as its own web view, beside the page
