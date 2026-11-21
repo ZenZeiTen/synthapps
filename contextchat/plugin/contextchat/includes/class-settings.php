@@ -107,6 +107,13 @@ class ContextChat_Settings {
 			'si_effort'          => 'low',
 			'si_max_tokens'      => 1024,
 			'si_daily_cap_cents' => 1000,
+			// The SI chat in the panel. Off until an administrator turns it on (design plan section 17).
+			'si_enabled'            => false,
+			'si_business_name'      => '',
+			'si_handoff_email'      => '',
+			'si_agent_translation'  => '',
+			'si_agent_interpreting' => '',
+			'si_idle_minutes'       => 3,
 		);
 	}
 
@@ -234,6 +241,14 @@ class ContextChat_Settings {
 		$out['si_daily_cap_cents'] = array_key_exists( 'si_daily_cap_usd', $input )
 			? self::cents( $input, 'si_daily_cap_usd', $d['si_daily_cap_cents'] )
 			: self::int( $input, 'si_daily_cap_cents', 10, 100000, $d['si_daily_cap_cents'] );
+
+		$out['si_enabled']            = self::bool( $input, 'si_enabled' );
+		$out['si_business_name']      = self::text( $input, 'si_business_name', 80 );
+		$email                        = sanitize_email( (string) self::val( $input, 'si_handoff_email', '' ) );
+		$out['si_handoff_email']      = is_email( $email ) ? $email : '';
+		$out['si_agent_translation']  = in_array( sanitize_key( (string) self::val( $input, 'si_agent_translation', '' ) ), $agent_ids, true ) ? sanitize_key( (string) self::val( $input, 'si_agent_translation', '' ) ) : '';
+		$out['si_agent_interpreting'] = in_array( sanitize_key( (string) self::val( $input, 'si_agent_interpreting', '' ) ), $agent_ids, true ) ? sanitize_key( (string) self::val( $input, 'si_agent_interpreting', '' ) ) : '';
+		$out['si_idle_minutes']       = self::int( $input, 'si_idle_minutes', 1, 30, $d['si_idle_minutes'] );
 
 		self::save_api_key( $input );
 
