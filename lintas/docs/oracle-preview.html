@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Oracle — design preview</title>
+<link rel="stylesheet" href="../app/renderer/styles/base.css">
+<link rel="stylesheet" href="../app/renderer/styles/oracle.css">
+<style>
+  /* Preview scaffolding only — nothing here ships. The panel is exactly 384 x 820. */
+  body { overflow: auto; display: flex; align-items: flex-start; gap: 24px; background: var(--frame); }
+  .pv-panel { flex: none; width: 384px; height: 820px; display: flex; flex-direction: column; background: var(--surface); }
+  .pv-side { flex: 1; min-width: 260px; max-width: 420px; padding: 20px 20px 20px 0; display: grid; gap: 16px; align-content: start; user-select: text; }
+  .pv-side h1 { font-size: var(--fs-16); }
+  .pv-side fieldset { margin: 0; padding: 10px 12px 12px; border: 1px solid var(--border); border-radius: var(--r-lg); display: flex; flex-wrap: wrap; gap: 6px; }
+  .pv-side legend { padding: 0 6px; font-size: var(--fs-11); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+  .pv-side .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+  .pv-side p { color: var(--text-2); line-height: 1.5; }
+  .pv-wide { width: 720px; }
+</style>
+</head>
+<body>
+
+<div class="pv-panel" id="panel">
+  <div class="oracle" id="oracle" data-state="idle">
+    <div class="o-bg" aria-hidden="true">
+      <i class="o-bg-paper"></i><i class="o-bg-scene"></i><i class="o-bg-motes"></i>
+      <i class="o-bg-corner tl"></i><i class="o-bg-corner br"></i>
+    </div>
+
+    <header class="o-head">
+      <span class="o-crest" aria-hidden="true"></span>
+      <div class="o-title">
+        <h2 class="o-name">AI Oracle</h2>
+        <span class="o-tag">Many Minds. One Guiding Light.</span>
+      </div>
+      <div class="o-actions">
+        <button class="o-act" type="button" id="memBtn" aria-pressed="false" title="Memory" aria-label="Memory">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4Z"/></svg><span>Memory</span></button>
+        <button class="o-act" type="button" title="New conversation" aria-label="New conversation">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><span>New</span></button>
+      </div>
+      <i class="o-trim" aria-hidden="true"></i>
+    </header>
+
+    <div class="o-context">
+      <span class="fav-letter" style="background:#2F8F83">k</span>
+      <span class="o-context-title" dir="auto">Kintsugi: the art of golden repair</span>
+      <span class="o-context-host">kogei.example</span>
+    </div>
+
+    <div class="o-note warn" id="keyNote" hidden>
+      <b>AI is not set up yet.</b> Add your Claude API key to ask the Oracle about this page.
+      <button class="o-btn" type="button" style="display:flex">Open settings</button>
+    </div>
+
+    <!-- view: empty -->
+    <div class="o-log" id="logEmpty" role="log" aria-live="polite" hidden>
+      <div class="o-empty">
+        <span class="o-empty-kicker">Ancient Wisdom. Infinite Intelligence.</span>
+        <h3>Ask about this page</h3>
+        <p>The Oracle reads the page, checks what it remembers, and answers with numbered citations like <span class="cite">3</span> that jump to the paragraph they come from.</p>
+        <div class="o-chips">
+          <button class="o-chip" type="button">Summarise this page</button>
+          <button class="o-chip" type="button">List the key terms with translations</button>
+          <button class="o-chip" type="button">What are the main claims?</button>
+          <button class="o-chip" type="button">Explain this for a general reader</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- view: conversation -->
+    <div class="o-log" id="logChat" role="log" aria-live="polite">
+      <div class="o-msg user" dir="auto">What makes kintsugi different from an ordinary repair, and where did it start?</div>
+
+      <div class="o-steps" role="list">
+        <div class="o-step" role="listitem" data-status="done"><span class="o-step-ic" aria-hidden="true"></span><span class="o-step-title">Read the page</span><span class="o-step-sum">42 paragraphs</span></div>
+        <div class="o-step" role="listitem" data-status="done"><span class="o-step-ic" aria-hidden="true"></span><span class="o-step-title">Recalled what you saved before</span><span class="o-step-sum">1 note about Japanese ceramics</span></div>
+        <div class="o-step" role="listitem" data-status="error"><span class="o-step-ic" aria-hidden="true"></span><span class="o-step-title">Searched the web</span><span class="o-step-sum">The search service did not respond.</span></div>
+        <div class="o-step" role="listitem" data-status="denied"><span class="o-step-ic" aria-hidden="true"></span><span class="o-step-title">Open the museum page in a new tab</span></div>
+        <div class="o-step" role="listitem" data-status="running"><span class="o-step-ic" aria-hidden="true"></span><span class="o-step-title">Searching the page for “urushi”…</span></div>
+      </div>
+
+      <div class="o-msg ai">
+        <div class="o-who">Oracle</div>
+        <div class="o-body md">
+          <p>Kintsugi mends broken ceramics with <b>urushi lacquer dusted with gold</b>, so the break stays visible instead of being hidden <button class="cite" type="button">4</button>. An ordinary repair tries to erase the damage; kintsugi treats it as part of the object’s history <button class="cite" type="button">7</button>.</p>
+          <ul>
+            <li>It grew out of Japanese tea culture in the late 15th century <button class="cite" type="button">2</button>.</li>
+            <li>The lacquer cures slowly, so one repair can take weeks <button class="cite" type="button">11</button>.</li>
+          </ul>
+        </div>
+        <div class="o-cites">
+          <button class="o-cite" type="button" title="Show on the page"><b>[4]</b><span dir="auto">“…the seams are filled with lacquer and finished in powdered gold, drawing the eye to the fracture…”</span></button>
+          <button class="o-cite" type="button" title="Show on the page"><b>[7]</b><span dir="auto">“Rather than disguise the break, the craftsman records it.”</span></button>
+        </div>
+      </div>
+
+      <div class="o-approval" role="group" aria-label="Permission needed" data-state="pending" id="approval">
+        <span class="o-approval-kicker">Permission needed</span>
+        <div class="o-approval-head">Save this page for offline reading</div>
+        <p class="o-approval-detail">The Oracle wants to add “Kintsugi: the art of golden repair” to your offline list. Nothing leaves your computer.</p>
+        <div class="o-approval-actions">
+          <button class="o-btn primary" type="button" data-allow="1">Allow</button>
+          <button class="o-btn" type="button" data-allow="0">Don’t allow</button>
+        </div>
+        <div class="o-approval-result"></div>
+      </div>
+
+      <div class="o-msg ai" data-streaming>
+        <div class="o-who">Oracle</div>
+        <div class="o-body md"><p>The page also mentions two related techniques</p></div>
+      </div>
+
+      <div class="o-msg err" role="alert">The Oracle lost its connection. Check your network and ask again.</div>
+    </div>
+
+    <!-- view: memory -->
+    <div class="o-memory" id="memory">
+      <div class="o-memory-head">
+        <h3>What the Oracle remembers</h3>
+        <button class="o-btn danger" type="button">Forget all</button>
+      </div>
+      <p class="o-memory-hint">Saved on this computer. The Oracle may recall these in later conversations.</p>
+      <ul class="o-memory-list">
+        <li class="o-memory-item"><p class="o-memory-text" dir="auto">You are translating a ceramics catalogue from Japanese into English and Indonesian.</p><time class="o-memory-date">Saved 18 Nov 2026</time>
+          <button class="o-icon-btn" type="button" aria-label="Forget this" title="Forget this"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></li>
+        <li class="o-memory-item"><p class="o-memory-text" dir="auto">Prefer “lacquer” over “varnish” for urushi.</p><time class="o-memory-date">Saved 12 Nov 2026</time>
+          <button class="o-icon-btn" type="button" aria-label="Forget this" title="Forget this"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></li>
+      </ul>
+    </div>
+
+    <div class="o-foot" id="foot">
+      <div class="o-wisp-slot" id="wispSlot"></div>
+      <!-- council.el is inserted here -->
+      <form class="o-composer" id="composer">
+        <textarea rows="1" placeholder="Ask the Oracle about this page…" aria-label="Ask the Oracle about this page" dir="auto"></textarea>
+        <button class="o-send" type="submit" aria-label="Send" title="Send (Enter)"></button>
+        <button class="o-stop" type="button" aria-label="Stop" title="Stop"></button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<aside class="pv-side">
+  <h1>AI Oracle — design preview</h1>
+  <p>Static mock built from the markup contract in <code>docs/oracle-design.md</code>. Query string: <code>?view=chat|empty|memory&amp;theme=dark&amp;state=…&amp;roles=research,memory&amp;wide=1&amp;key=0</code>.</p>
+  <fieldset><legend>Theme</legend>
+    <button class="btn sm" data-theme-set="light">Day</button><button class="btn sm" data-theme-set="dark">Night</button></fieldset>
+  <fieldset><legend>View</legend>
+    <button class="btn sm" data-view="empty">Empty state</button><button class="btn sm" data-view="chat">Conversation</button><button class="btn sm" data-view="memory">Memory</button>
+    <button class="btn sm" id="keyBtn" aria-pressed="false">“Needs API key” note</button><button class="btn sm" id="wideBtn" aria-pressed="false">720 px wide</button></fieldset>
+  <fieldset><legend>Mascot state</legend>
+    <button class="btn sm" data-wisp="idle">Idle</button><button class="btn sm" data-wisp="thinking">Thinking</button><button class="btn sm" data-wisp="speaking">Speaking</button><button class="btn sm" data-wisp="error">Error</button>
+    <button class="btn sm" id="cycleBtn">Cycle</button></fieldset>
+  <fieldset><legend>Active roles (2+ in one answer = council mode)</legend>
+    <button class="btn sm" data-role="research" aria-pressed="false">Research</button><button class="btn sm" data-role="planning" aria-pressed="false">Planning</button>
+    <button class="btn sm" data-role="memory" aria-pressed="false">Memory</button><button class="btn sm" data-role="action" aria-pressed="false">Action</button>
+    <button class="btn sm" id="newRun">New run (clear)</button></fieldset>
+  <fieldset><legend>Dragon</legend>
+    <button class="btn sm" id="dragonBtn">Manifest dragon</button><span class="muted" id="dragonMsg"></span></fieldset>
+</aside>
+
+<script type="module">
+  import { createWisp, createCouncil, resetManifestLimit, ROLES } from '../app/renderer/ui/oracle-wisp.js';
+
+  const $ = (q) => document.querySelector(q);
+  const $$ = (q) => [...document.querySelectorAll(q)];
+  const q = new URLSearchParams(location.search);
+  const oracle = $('#oracle');
+
+  const wisp = createWisp({ size: 75 });
+  $('#wispSlot').append(wisp.el);
+  const council = createCouncil();
+  $('#foot').insertBefore(council.el, $('#composer'));
+
+  // ---- theme, view
+  const setTheme = (t) => { document.documentElement.dataset.theme = t; $$('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.themeSet === t)); };
+  const setView = (v) => {
+    oracle.dataset.view = v === 'memory' ? 'memory' : 'chat';
+    $('#logEmpty').hidden = v !== 'empty';
+    $('#logChat').hidden = v !== 'chat';
+    $('#memBtn').setAttribute('aria-pressed', v === 'memory');
+    $$('[data-view]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === v));
+    if (v === 'empty') { newRun(); setState('idle'); } else if (v === 'chat' && !active.size) demoRun();
+  };
+
+  // ---- mascot + council, driven the way oracle.js will drive them
+  const active = new Set();
+  const used = new Set();
+  let state = 'idle';
+  const syncRoles = () => {
+    wisp.setRoles(active);
+    council.update(Object.fromEntries(ROLES.map((r) => [r, active.has(r) ? 'active' : used.has(r) ? 'done' : 'idle'])));
+    $$('[data-role]').forEach((b) => b.setAttribute('aria-pressed', active.has(b.dataset.role)));
+  };
+  function setState(s) {
+    state = s; wisp.setState(s);
+    oracle.dataset.state = s === 'thinking' || s === 'speaking' ? 'running' : 'idle';
+    $$('[data-wisp]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.wisp === s));
+  }
+  function newRun() { active.clear(); used.clear(); council.reset(); wisp.setRoles(active); setState('idle'); syncRoles(); }
+  function demoRun() {
+    newRun(); setState('thinking');
+    for (const r of (q.get('roles') || 'research,memory').split(',').filter((r) => ROLES.includes(r))) { active.add(r); used.add(r); }
+    syncRoles();
+  }
+
+  $$('[data-theme-set]').forEach((b) => b.addEventListener('click', () => setTheme(b.dataset.themeSet)));
+  $$('[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+  $$('[data-wisp]').forEach((b) => b.addEventListener('click', () => setState(b.dataset.wisp)));
+  $$('[data-role]').forEach((b) => b.addEventListener('click', () => { const r = b.dataset.role; if (active.has(r)) active.delete(r); else { active.add(r); used.add(r); } syncRoles(); }));
+  $('#newRun').addEventListener('click', newRun);
+  $('#cycleBtn').addEventListener('click', () => { const all = ['idle', 'thinking', 'speaking', 'error']; setState(all[(all.indexOf(state) + 1) % all.length]); });
+  $('#memBtn').addEventListener('click', () => setView(oracle.dataset.view === 'memory' ? 'chat' : 'memory'));
+  $('#keyBtn').addEventListener('click', (e) => { const n = $('#keyNote'); n.hidden = !n.hidden; e.currentTarget.setAttribute('aria-pressed', !n.hidden); });
+  $('#wideBtn').addEventListener('click', (e) => { const on = $('#panel').classList.toggle('pv-wide'); e.currentTarget.setAttribute('aria-pressed', on); });
+  $('#dragonBtn').addEventListener('click', () => {
+    resetManifestLimit(); // preview only: the app keeps the 15-minute limit
+    $('#dragonMsg').textContent = wisp.manifest() ? 'Playing (4 s)' : 'Skipped (reduced motion or hidden window)';
+  });
+  $('#approval').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-allow]'); if (!b) return;
+    const ok = b.dataset.allow === '1';
+    e.currentTarget.dataset.state = ok ? 'allowed' : 'denied';
+    e.currentTarget.querySelector('.o-approval-result').textContent = ok ? 'Allowed' : 'Not allowed';
+  });
+  $('#composer').addEventListener('submit', (e) => e.preventDefault());
+
+  setTheme(q.get('theme') === 'dark' ? 'dark' : 'light');
+  if (q.get('key') === '0') $('#keyNote').hidden = false;
+  if (q.get('wide')) $('#panel').classList.add('pv-wide');
+  setView(['empty', 'chat', 'memory'].includes(q.get('view')) ? q.get('view') : 'chat');
+  if (q.get('state')) setState(q.get('state'));
+  if (q.get('scroll') === 'end') $('#logChat').scrollTop = 1e6;
+  window.oraclePreview = { wisp, council, setState, setView, setTheme };
+</script>
+</body>
+</html>

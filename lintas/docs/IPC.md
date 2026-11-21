@@ -213,6 +213,12 @@ Results are suggestions; nothing is written to a file until the user accepts it.
 | `ai.ask(tabId, question, { history? })` | `{ answer (markdown), citations: [{ n, quote }] }` — answers about the open page; cites paragraph numbers as `[3]`; `ai.highlight(tabId, n)` scrolls the page to paragraph n and flashes it |
 | `ai.extractTerms(projectId, fileId)` | `{ terms: [{ source, target, note, frequency }] }` — proposals only; the user adds them |
 | `ai.usage()` | `{ inputTokens, outputTokens, requests, since }` this session |
+| `oracle.ask(tabId, text, { history })` | `{ runId }` — starts an AI Oracle run about the page in `tabId`. `history`: `[{ role: 'user'\|'assistant', content }]`. Progress arrives as `oracle` events with this `runId` |
+| `oracle.approve(runId, callId, allow)` | `true` if the approval was waiting, else `false`. `allow` `true` runs the action; `false` declines it |
+| `oracle.stop(runId)` | `true` if the run was still going and is now stopped, else `false` |
+| `oracle.memory()` | `[{ id, text, savedAt }]` — what Oracle remembers, newest first |
+| `oracle.forget(id \| '*')` | `[{ id, text, savedAt }]` — the memories left after removing one by `id`; `'*'` removes all |
+| `oracle` event (`lintas.on('oracle', ev)`) | `ev.runId` plus `ev.type`: `role` (`role`, `state` active/idle, `detail`); `tool` (`callId`, `name`, `title`, `status` running/done/error/denied, `summary?`); `approval` (`callId`, `name`, `title`, `detail`); `text` (`delta`); `done` (`answer`, `citations`, `usage`, `roles`); `error` (`message`) |
 
 ## Native context menu items (main builds the menu)
 

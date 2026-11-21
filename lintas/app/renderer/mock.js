@@ -608,6 +608,40 @@ export function installMock() {
         : [{ source: 'account', target: 'akun', note: '', frequency: 4 }, { source: 'transaction data', target: 'data transaksi', note: '', frequency: 2 }, { source: 'email address', target: 'alamat email', note: 'KBBI: "email" tidak baku; klien memakai "email".', frequency: 2 }] }; },
       async usage() { return clone(usage); },
     },
+    oracle: (() => {
+      // Preview of AI Oracle: a short scripted run that follows docs/oracle-contract.md.
+      const runs = new Map(); const memories = [{ id: 'm1', text: 'Prefers British spelling in English translations.', savedAt: new Date(now - DAY).toISOString() }];
+      const ev = (runId, e) => { if (runs.get(runId)?.stopped) return; emit('oracle', { runId, ...e }); };
+      return {
+        async ask(tid, text) { aiGate(); const t = T(tid); if (t.kind !== 'web' || t.error) throw new Error('Open a web page to ask about it.');
+          const runId = id('run'); const run = { stopped: false, approve: null }; runs.set(runId, run); const pg = pageFor(t.url); (async () => {
+            const say = async (type, e, ms = 350) => { ev(runId, { type, ...e }); await delay(ms); };
+            await say('role', { role: 'planning', state: 'active', detail: 'Understanding your question' }, 600);
+            await say('role', { role: 'planning', state: 'idle', detail: '' }, 100);
+            await say('role', { role: 'research', state: 'active', detail: 'Reading the page' }, 100);
+            await say('tool', { callId: 'c1', name: 'page_read', title: 'Read the page', status: 'running' }, 700);
+            await say('tool', { callId: 'c1', name: 'page_read', title: 'Read the page', status: 'done', summary: `Read ${pg.paras.length} paragraphs` }, 100);
+            await say('role', { role: 'research', state: 'idle', detail: '' }, 100);
+            if (/remember|ingat/i.test(text)) {
+              await say('approval', { callId: 'c2', name: 'memory_save', title: 'Save to memory', detail: 'Remember: ' + text.slice(0, 120) }, 0);
+              const ok = await new Promise((r) => { run.approve = r; });
+              if (run.stopped) return;
+              if (ok) { memories.unshift({ id: id('m'), text: text.slice(0, 200), savedAt: new Date().toISOString() }); await say('tool', { callId: 'c2', name: 'memory_save', title: 'Save to memory', status: 'done', summary: 'Saved' }, 100); }
+              else await say('tool', { callId: 'c2', name: 'memory_save', title: 'Save to memory', status: 'denied', summary: 'You declined' }, 100);
+            }
+            const answer = `Let's explore that. This page is about **${pg.title}** [1]. ${pg.paras.length > 1 ? 'It adds supporting details [2].' : ''}`;
+            for (const w of answer.match(/\S+\s*/g)) await say('text', { delta: w }, 45);
+            if (run.stopped) return;
+            const cites = [1, 2].filter((n) => n <= pg.paras.length).map((n) => ({ n, quote: pg.paras[n - 1].slice(0, 240) }));
+            ev(runId, { type: 'done', answer, citations: cites, usage: { inputTokens: 1800, outputTokens: 120 }, roles: /remember|ingat/i.test(text) ? ['research', 'planning', 'memory'] : ['research', 'planning'] }); runs.delete(runId);
+          })();
+          return { runId }; },
+        async approve(runId, callId, allow) { const r = runs.get(runId); if (r?.approve) { r.approve(!!allow); r.approve = null; return true; } return false; },
+        async stop(runId) { const r = runs.get(runId); if (!r) return false; emit('oracle', { runId, type: 'error', message: 'Stopped.' }); r.stopped = true; r.approve?.(false); runs.delete(runId); return true; },
+        async memory() { return clone(memories); },
+        async forget(mid) { if (mid === '*') memories.length = 0; else { const i = memories.findIndex((m) => m.id === mid); if (i >= 0) memories.splice(i, 1); } return clone(memories); },
+      };
+    })(),
     /* preview-only helpers used by the chrome when the mock is active */
     __preview: {
       bounds: null, visible: true,

@@ -155,7 +155,22 @@ does not let apps change the default themselves.
 - MQM-style review and term extraction.
 - Translate the open page in place: TM matches first, termbase enforced, one click
   to restore the original.
-- Ask about the page and get answers with clickable paragraph citations.
+- AI Oracle in the side panel replaces the old Assistant. It is a chat about the page in the
+  active tab, where Claude works through tools:
+  - it reads and searches the page, and answers with clickable paragraph citations;
+  - it can search the web when the page cannot answer;
+  - it lists your open tabs and offline library, and checks your translation memory,
+    termbases and its own memory;
+  - it asks you to Allow before it changes anything: opening a tab, saving a page offline,
+    changing a translation project, or remembering something;
+  - the Council of Minds shows which part is working (Research, Planning, Memory or Action),
+    only while that work really happens;
+  - the Jade Wisp mascot has Day and Night looks, and its animation is turned off when
+    reduced motion is on;
+  - the Memory view shows what Oracle remembers, and lets you forget one item or all of it;
+  - private tabs are never read or listed;
+  - page text and search results are treated as data, not instructions;
+  - Oracle has not yet been tested against the live Claude API by the developers.
 - The key is stored encrypted with the operating system's keychain and is sent only
   to `api.anthropic.com`. Everything else in Lintas works without a key.
 
