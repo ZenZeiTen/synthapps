@@ -93,7 +93,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: lintas-windows
-          path: lintas/dist/Lintas-*.exe
+          # Only the per-architecture files; electron-builder also makes a combined x64+ARM64 file
+          path: |
+            lintas/dist/Lintas-*-x64.exe
+            lintas/dist/Lintas-*-arm64.exe
           if-no-files-found: error
 
   release:
@@ -113,7 +116,7 @@ jobs:
           VERSION: ${{ needs.check.outputs.version }}
         run: |
           cd out
-          sha256sum Lintas-*.exe > SHA256SUMS.txt
+          sha256sum Lintas-*-x64.exe Lintas-*-arm64.exe > SHA256SUMS.txt
           cat SHA256SUMS.txt
           cd ..
           {
@@ -131,7 +134,7 @@ jobs:
           TAG: ${{ needs.check.outputs.tag }}
           VERSION: ${{ needs.check.outputs.version }}
         run: |
-          gh release create "$TAG" out/Lintas-*.exe out/SHA256SUMS.txt \
+          gh release create "$TAG" out/Lintas-*-x64.exe out/Lintas-*-arm64.exe out/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Lintas $VERSION" \
