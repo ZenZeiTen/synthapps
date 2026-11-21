@@ -15,6 +15,9 @@ require $plugin . '/includes/class-analytics.php';
 require $plugin . '/includes/si/class-si-pricing.php';
 require $plugin . '/includes/si/class-si-router.php';
 require $plugin . '/includes/si/class-si-secrets.php';
+require $plugin . '/includes/si/class-countries.php';
+require $plugin . '/includes/si/class-price-engine.php';
+require $plugin . '/includes/class-installer.php';
 
 // Just enough of WordPress's hook and plugin API for ContextChat_Updates.
 define( 'CONTEXTCHAT_FILE', $plugin . '/contextchat.php' );
@@ -302,6 +305,82 @@ check( 'updates: only the same-named plugin is dropped from offers', array_keys(
 check( 'updates: the same-named plugin is dropped from no_update', $out->no_update, array() );
 check( 'updates: a missing transient stays missing', apply_filters( 'site_transient_update_plugins', false ), false );
 check( 'updates: header opts out of WordPress.org updates', false !== strpos( file_get_contents( CONTEXTCHAT_FILE ), "\n * Update URI:        false\n" ), true );
+
+// Price engine: the shared vectors (design plan section 7.5) must match exactly.
+$countries = new ContextChat_Countries();
+$engine    = new ContextChat_Price_Engine( ContextChat_Price_Engine::seed(), $countries, function ( $ymd ) {
+	return 'EST-' . $ymd . '-TEST';
+} );
+foreach ( json_decode( file_get_contents( dirname( __DIR__ ) . '/fixtures/prices.json' ), true ) as $case ) {
+	$result = $engine->quote( $case['input'], '2026-11-21' );
+	$got    = array();
+	foreach ( $case['expected'] as $key => $value ) {
+		$got[ $key ] = isset( $result[ $key ] ) ? $result[ $key ] : null;
+	}
+	check( 'price: ' . $case['name'], $got, $case['expected'] );
+}
+$p2 = $engine->quote( array( 'package' => 'sworn', 'source_lang' => 'id', 'target_lang' => 'en', 'pages' => 3, 'documents' => 2, 'legalisation' => 'apostille' ), '2026-11-21' );
+check( 'price: P2 lines as in section 7.3', array_map( function ( $l ) {
+	return array( $l['label'], $l['qty'], $l['unit_price'], $l['amount'] );
+}, $p2['lines'] ), array( array( 'Terjemahan tersumpah Indonesia → Inggris', 3, 125000, 375000 ), array( 'Apostille', 2, 700000, 1400000 ) ) );
+check( 'price: reference uses the date', $p2['reference'], 'EST-20261121-TEST' );
+check( 'price: notes say estimate, final pages and new-client deposit', array_slice( $p2['notes'], 0, 3 ), array( 'estimate', 'final_pages_from_output', 'new_client_deposit' ) );
+$en = $engine->quote( array( 'package' => 'regular', 'source_lang' => 'en', 'target_lang' => 'id', 'pages' => 2, 'documents' => 1 ), '2026-11-21', 'en' );
+check( 'price: English labels', $en['lines'][0]['label'] . ' / ' . $en['lines'][0]['unit'], 'Regular translation English → Indonesian / pages' );
+$p8 = $engine->quote( array( 'package' => 'sworn', 'source_lang' => 'en', 'target_lang' => 'id', 'pages' => 2, 'documents' => 1, 'legalisation' => 'ministry_embassy' ), '2026-11-21' );
+check( 'price: ministry and embassy are two lines', array_column( $p8['lines'], 'amount' ), array( 250000, 700000, 1500000 ) );
+check( 'price: the discount never touches legalisation (P3)', array( $p3 = $engine->quote( array( 'package' => 'sworn', 'source_lang' => 'id', 'target_lang' => 'en', 'pages' => 20, 'documents' => 20, 'legalisation' => 'apostille' ), '2026-11-21' ), $p3['legalisation_total'] )[1], 14000000 );
+check( 'price: express is flagged for the team', $engine->quote( array( 'package' => 'regular', 'source_lang' => 'id', 'target_lang' => 'en', 'pages' => 1, 'documents' => 1, 'speed' => 'same_day' ), '2026-11-21' )['team_reasons'], array( 'express' ) );
+check( 'price: unavailable names the pair', $engine->quote( array( 'package' => 'sworn', 'source_lang' => 'zh', 'target_lang' => 'en', 'pages' => 1, 'documents' => 1 ), '2026-11-21' ), array( 'status' => 'unavailable', 'reason' => 'package_not_offered', 'pair' => 'Mandarin → Inggris' ) );
+check( 'price: a pair missing from the table', $engine->quote( array( 'package' => 'regular', 'source_lang' => 'ja', 'target_lang' => 'ko', 'pages' => 1, 'documents' => 1 ), '2026-11-21' )['reason'], 'pair_not_offered' );
+check( 'price: invalid input lists every bad field', $engine->quote( array( 'package' => 'gold', 'source_lang' => 'xx', 'target_lang' => 'en', 'pages' => '-2', 'documents' => 'two' ), '2026-11-21' )['errors'], array( 'package', 'source_lang', 'pages', 'documents' ) );
+check( 'price: pages given as a numeric string are accepted', $engine->quote( array( 'package' => 'regular', 'source_lang' => 'id', 'target_lang' => 'en', 'pages' => '3', 'documents' => '1' ), '2026-11-21' )['total'], 150000 );
+
+// Legalisation route from the destination country (section 7.4).
+$route = function ( $country, $date = '2026-11-21' ) use ( $engine ) {
+	$r = $engine->quote( array( 'package' => 'sworn', 'source_lang' => 'id', 'target_lang' => 'en', 'pages' => 1, 'documents' => 1, 'destination_country' => $country ), $date );
+	return array( $r['status'], $r['legalisation'], $r['country'] );
+};
+check( 'route: Australia takes the apostille', $route( 'Australia' ), array( 'ok', 'apostille', 'AU' ) );
+check( 'route: Uni Emirat Arab takes ministry and embassy', $route( 'Uni Emirat Arab' ), array( 'ok', 'ministry_embassy', 'AE' ) );
+check( 'route: an unknown country goes to the team', $route( 'Narnia' ), array( 'needs_team', '', '' ) );
+check( 'route: Thailand before its entry into force (2027-02-28)', $route( 'Thailand', '2027-02-27' )[1], 'ministry_embassy' );
+check( 'route: Thailand from its entry into force', $route( 'Thailand', '2027-02-28' )[1], 'apostille' );
+check( 'route: Hong Kong is covered through China', $route( 'Hongkong' )[1], 'apostille' );
+check( 'route: Curaçao is covered through the Netherlands', $route( 'Curaçao' ), array( 'ok', 'apostille', 'CW' ) );
+check( 'route: a document for Indonesia needs no legalisation', $route( 'Indonesia' ), array( 'ok', 'none', 'ID' ) );
+check( 'route: an explicit "none" wins over the country', $engine->quote( array( 'package' => 'sworn', 'source_lang' => 'id', 'target_lang' => 'en', 'pages' => 1, 'documents' => 1, 'destination_country' => 'Australia', 'legalisation' => 'none' ), '2026-11-21' )['legalisation_total'], 0 );
+
+// Country spellings, in Indonesian and English (T-07).
+$spellings = array(
+	'Jerman' => 'DE', 'Germany' => 'DE', 'Belanda' => 'NL', 'Holland' => 'NL', 'the Netherlands' => 'NL',
+	'Amerika Serikat' => 'US', 'USA' => 'US', 'Inggris' => 'GB', 'United Kingdom' => 'GB', 'Korea Selatan' => 'KR',
+	'korea' => 'KR', 'Jepang' => 'JP', 'Tiongkok' => 'CN', 'Cina' => 'CN', 'UEA' => 'AE', 'Arab Saudi' => 'SA',
+	'Turki' => 'TR', 'Türkiye' => 'TR', 'Vietnam' => 'VN', 'Selandia Baru' => 'NZ', 'Prancis' => 'FR', 'Perancis' => 'FR',
+	'Kanada' => 'CA', 'Swiss' => 'CH', 'Singapura' => 'SG', 'ke Australia' => 'AU', 'kedutaan Jerman' => 'DE',
+	'universitas di Belanda' => 'NL', 'AU' => 'AU', 'Mars' => '', 'Jerman atau Belanda' => '', '' => '',
+);
+$got = array();
+foreach ( $spellings as $spelling => $code ) {
+	$got[ $spelling ] = $countries->resolve( $spelling );
+}
+check( 'countries: ' . count( $spellings ) . ' spellings map to the right code, or none', $got, $spellings );
+check( 'countries: the bundled Apostille list has 147 parties and territories', $countries->member_count(), 147 );
+check( 'countries: names in Indonesian', $countries->name( 'DE', 'id' ) . ', ' . $countries->name( 'DE', 'en' ), 'Jerman, Germany' );
+
+// Price table seed: the live price page on 2026-11-21.
+$seed = ContextChat_Price_Engine::seed();
+check( 'seed: 32 language pairs', count( $seed['rates'] ), 32 );
+check( 'seed: sworn is not offered for these pairs', array_keys( array_filter( $seed['rates'], function ( $r ) {
+	return null === $r['sworn'];
+} ) ), array( 'zh-en', 'ja-en', 'ko-en', 'de-en', 'fr-en', 'es-en', 'it-id', 'it-en', 'nl-en', 'ru-en' ) );
+check( 'seed: published amounts include rates and add-ons', array_values( array_intersect( array( 125000, 150000, 700000, 1500000, 2200000 ), $engine->published_amounts() ) ), array( 125000, 150000, 700000, 1500000, 2200000 ) );
+
+// IDs.
+check( 'ulid: 26 characters of Crockford base32', (bool) preg_match( '/^[0-9A-HJKMNP-TV-Z]{26}$/', ContextChat_Installer::ulid() ), true );
+check( 'ulid: the time part sorts', strcmp( substr( ContextChat_Installer::ulid( 1000 ), 0, 10 ), substr( ContextChat_Installer::ulid( 2000 ), 0, 10 ) ) < 0, true );
+check( 'ulid: a known time', substr( ContextChat_Installer::ulid( 1469918176385 ), 0, 10 ), '01ARYZ6S41' );
+check( 'reference: easy-to-read alphabet', (bool) preg_match( '/^EST-20261121-[2-9A-HJKMNP-TV-Z]{4}$/', ContextChat_Price_Engine::reference( '20261121' ) ), true );
 
 echo "\n{$count} checks, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

@@ -17,6 +17,14 @@ if ( ! get_option( 'contextchat_settings' ) || $before < 1 ) {
 	fwrite( STDERR, "Expected settings and recorded clicks before uninstalling.\n" );
 	exit( 1 );
 }
+// The SI chat tables (2.0) are created with the plugin.
+$si_tables = array( 'conversations', 'messages', 'quotes', 'events' );
+foreach ( $si_tables as $name ) {
+	if ( null === $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}contextchat_{$name}" ) ) { // phpcs:ignore
+		fwrite( STDERR, "Expected the {$name} table before uninstalling.\n" );
+		exit( 1 );
+	}
+}
 
 define( 'WP_UNINSTALL_PLUGIN', 'contextchat/contextchat.php' );
 include WP_PLUGIN_DIR . '/contextchat/uninstall.php';
@@ -34,9 +42,14 @@ $wpdb->suppress_errors( true );
 if ( null !== $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ) ) { // phpcs:ignore -- null means the table is gone.
 	$left[] = 'clicks table';
 }
+foreach ( $si_tables as $name ) {
+	if ( null !== $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}contextchat_{$name}" ) ) { // phpcs:ignore
+		$left[] = "{$name} table";
+	}
+}
 
 if ( $left ) {
 	fwrite( STDERR, 'Uninstall left behind: ' . implode( ', ', $left ) . "\n" );
 	exit( 1 );
 }
-echo "ok - uninstall removed settings, post meta and the clicks table ({$before} clicks)\n";
+echo "ok - uninstall removed settings, post meta, the clicks table ({$before} clicks) and the SI tables\n";

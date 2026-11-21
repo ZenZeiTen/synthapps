@@ -1,0 +1,168 @@
+{
+ "version": "2026-11-21",
+ "source_url": "https://www.nusalexia.co.id/daftar-harga/",
+ "fetched_at": "2026-11-21",
+ "currency": "IDR",
+ "unit": "translated A4 page",
+ "rates": {
+  "id-en": {
+   "regular": 50000,
+   "sworn": 125000
+  },
+  "en-id": {
+   "regular": 50000,
+   "sworn": 125000
+  },
+  "zh-id": {
+   "regular": 225000,
+   "sworn": 340000
+  },
+  "id-zh": {
+   "regular": 275000,
+   "sworn": 415000
+  },
+  "zh-en": {
+   "regular": 300000,
+   "sworn": null
+  },
+  "ja-id": {
+   "regular": 225000,
+   "sworn": 340000
+  },
+  "id-ja": {
+   "regular": 275000,
+   "sworn": 415000
+  },
+  "ja-en": {
+   "regular": 300000,
+   "sworn": null
+  },
+  "ko-id": {
+   "regular": 200000,
+   "sworn": 300000
+  },
+  "id-ko": {
+   "regular": 250000,
+   "sworn": 375000
+  },
+  "ko-en": {
+   "regular": 275000,
+   "sworn": null
+  },
+  "de-id": {
+   "regular": 200000,
+   "sworn": 300000
+  },
+  "id-de": {
+   "regular": 225000,
+   "sworn": 340000
+  },
+  "de-en": {
+   "regular": 250000,
+   "sworn": null
+  },
+  "fr-id": {
+   "regular": 200000,
+   "sworn": 300000
+  },
+  "id-fr": {
+   "regular": 225000,
+   "sworn": 340000
+  },
+  "fr-en": {
+   "regular": 250000,
+   "sworn": null
+  },
+  "es-id": {
+   "regular": 175000,
+   "sworn": 265000
+  },
+  "id-es": {
+   "regular": 200000,
+   "sworn": 300000
+  },
+  "es-en": {
+   "regular": 200000,
+   "sworn": null
+  },
+  "it-id": {
+   "regular": 175000,
+   "sworn": null
+  },
+  "it-en": {
+   "regular": 200000,
+   "sworn": null
+  },
+  "nl-id": {
+   "regular": 225000,
+   "sworn": 340000
+  },
+  "id-nl": {
+   "regular": 275000,
+   "sworn": 415000
+  },
+  "nl-en": {
+   "regular": 250000,
+   "sworn": null
+  },
+  "ar-id": {
+   "regular": 250000,
+   "sworn": 375000
+  },
+  "id-ar": {
+   "regular": 300000,
+   "sworn": 450000
+  },
+  "ru-id": {
+   "regular": 225000,
+   "sworn": 340000
+  },
+  "id-ru": {
+   "regular": 275000,
+   "sworn": 415000
+  },
+  "ru-en": {
+   "regular": 250000,
+   "sworn": null
+  },
+  "pt-id": {
+   "regular": 225000,
+   "sworn": 340000
+  },
+  "id-pt": {
+   "regular": 275000,
+   "sworn": 415000
+  }
+ },
+ "legalisation": {
+  "ministry": 700000,
+  "embassy": 1500000,
+  "apostille": 700000
+ },
+ "terminology_per_hour": 150000,
+ "express_percent": {
+  "standard": 100,
+  "next_day": 150,
+  "same_day": 200
+ },
+ "volume_discounts": [
+  {
+   "min_documents": 40,
+   "percent": 10
+  },
+  {
+   "min_documents": 20,
+   "percent": 5
+  }
+ ],
+ "deposit": {
+  "min_total": 1000000,
+  "percent": 50
+ },
+ "min_pages": 1,
+ "revisions": {
+  "count": 3,
+  "days": 7
+ },
+ "valid_days": 7
+}

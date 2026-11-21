@@ -17,11 +17,14 @@ function contextchat_uninstall_site() {
 	delete_option( 'contextchat_db_version' );
 	delete_option( 'contextchat_si_key' );
 	delete_option( 'contextchat_si_usage' );
+	delete_option( 'contextchat_si_db_version' );
 	wp_clear_scheduled_hook( 'contextchat_prune' );
 	delete_post_meta_by_key( '_contextchat_hide' );
 	delete_post_meta_by_key( '_contextchat_message' );
 
-	$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'contextchat_clicks' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared -- fixed table name.
+	foreach ( array( 'clicks', 'conversations', 'messages', 'quotes', 'events' ) as $contextchat_table ) {
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'contextchat_' . $contextchat_table ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared -- fixed table names.
+	}
 }
 
 if ( is_multisite() ) {

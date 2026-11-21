@@ -36,13 +36,17 @@ require_once CONTEXTCHAT_DIR . 'includes/class-woocommerce.php';
 require_once CONTEXTCHAT_DIR . 'includes/class-admin.php';
 require_once CONTEXTCHAT_DIR . 'includes/class-admin-analytics.php';
 require_once CONTEXTCHAT_DIR . 'includes/class-updates.php';
+require_once CONTEXTCHAT_DIR . 'includes/class-installer.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-si-pricing.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-si-secrets.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-si-client.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-si-router.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-si.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-countries.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-price-engine.php';
 
 register_activation_hook( __FILE__, array( 'ContextChat_Analytics', 'activate' ) );
+register_activation_hook( __FILE__, array( 'ContextChat_Installer', 'install' ) );
 register_deactivation_hook( __FILE__, array( 'ContextChat_Analytics', 'deactivate' ) );
 
 add_action(
@@ -51,6 +55,7 @@ add_action(
 		load_plugin_textdomain( 'contextchat', false, dirname( plugin_basename( CONTEXTCHAT_FILE ) ) . '/languages' );
 
 		add_action( 'init', array( 'ContextChat_Settings', 'register' ) );
+		ContextChat_Installer::maybe_install();
 		ContextChat_Analytics::init();
 		ContextChat_Frontend::init();
 		ContextChat_Meta_Box::init();

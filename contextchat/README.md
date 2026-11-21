@@ -95,7 +95,14 @@ ContextChat 2.0 adds an SI (Synthesized Intelligence) assistant to the chat pane
 
 Requests use `anthropic-version: 2026-10-21` and `output_config.effort` (default `low`, enough for chat). `max_tokens` defaults to 1,024 rather than the plan's 400, because Haiku 5.5 thinks by default and thinking counts toward `max_tokens`. The code is in `includes/si/`: `class-si-router.php` (routing, pure PHP), `class-si-client.php` (the HTTP call), `class-si-secrets.php` (the key), `class-si-pricing.php` and `class-si.php` (settings, spend meter, the test endpoint `POST /wp-json/contextchat/v1/admin/si-test`, administrators only).
 
-Nothing reaches visitors yet: the chat, price engine, guard, validator and the rest of the plan follow in later parts.
+The second part adds what the chat will quote from. None of it is shown to visitors yet:
+
+- **Price engine** (`includes/si/class-price-engine.php`, pure PHP). It is the only place a translation price is calculated: whole rupiah as integers, the express surcharge and volume discount applied together with one round-half-up step, the discount on the translation fee only, never on legalisation, and a 50% deposit from Rp 1.000.000. It returns `ok`, `unavailable` (the pair or package is not offered) or `needs_team` (express, corporate work over 40 documents, or a destination country it cannot place), with the lines, totals and an `EST-YYYYMMDD-XXXX` reference. `assets/js/price-engine.js` is a browser copy, and both run the vectors in `tests/fixtures/prices.json`.
+- **Price table** (`data/price-table.nusalexia.json`), taken from https://www.nusalexia.co.id/daftar-harga/ on 21 November 2026.
+- **Legalisation route** (`includes/si/class-countries.php`). Apostille for a party to the Apostille Convention, ministry plus embassy legalisation otherwise, none for Indonesia. The parties come only from `data/apostille-members.json`, built from the official HCCH status table (https://www.hcch.net/en/instruments/conventions/status-table/?cid=41) and its territorial extensions on 21 November 2026, with each party's entry-into-force date. No objection notice names Indonesia, and none was raised against Indonesia's accession, so the Convention applies between Indonesia and every listed party. Review the list at least once a year. Country names in English and Indonesian (`data/countries.json`) come from the Unicode CLDR data in PHP's `intl`, plus common spellings such as "UEA", "Korsel" and "Holland".
+- **Tables** for conversations, messages, quotes and events (`includes/class-installer.php`), created on activation and whenever the schema version (`contextchat_si_db_version`) changes. Deleting the plugin removes them.
+
+The guard, validator, knowledge, chat endpoints and the chat itself follow in later parts.
 
 ## Translations
 
@@ -114,7 +121,7 @@ npm test           # PHP and JavaScript unit tests (no WordPress needed)
 npm run test:e2e   # browser tests against a real WordPress site
 ```
 
-The PHP and JavaScript template engines are checked against the same cases in `tests/fixtures/templates.json`, so the link built on the server and the one built in the browser always say the same thing.
+The PHP and JavaScript template engines are checked against the same cases in `tests/fixtures/templates.json`, so the link built on the server and the one built in the browser always say the same thing. The two price engines share `tests/fixtures/prices.json` in the same way.
 
 The browser tests build a throwaway WordPress 6.5 site on SQLite (from the `@wp-playground/wordpress-builds` npm package, so neither MySQL nor wordpress.org is needed), start PHP's built-in server, and drive Chromium through: rule routing, the Indonesian translation, editing the message, campaign tags, hidden pages, the product button, phones, opening hours, a delayed button with and without JavaScript, direct mode, saving settings through the admin form, the settings tabs and repeaters, the analytics screen and its time zone handling, endpoint validation and rate limiting, a cached WordPress.org update offer for the `contextchat` folder (which must show as `none` in `wp plugin list`), and finally a clean uninstall. Any PHP notice from the plugin fails the run. The update-offer check needs WP-CLI: set `WP_CLI` (for example `WP_CLI="php wp-cli.phar"`) or have `wp` on your PATH; without it the check is skipped. CI always runs it.
 
