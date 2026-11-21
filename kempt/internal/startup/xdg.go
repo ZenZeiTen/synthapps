@@ -36,7 +36,7 @@ func NewXDG() *XDG {
 }
 
 type desktopFile struct {
-	path, source string
+	name, path, source string
 	content      string
 }
 
@@ -63,7 +63,7 @@ func (x *XDG) read(out map[string]desktopFile, dir, source string) {
 		if err != nil {
 			continue
 		}
-		out[e.Name()] = desktopFile{path: p, source: source, content: string(b)}
+		out[e.Name()] = desktopFile{name: e.Name(), path: p, source: source, content: string(b)}
 	}
 }
 
@@ -169,9 +169,10 @@ func (x *XDG) Set(ctx context.Context, id string, enabled bool) (Item, error) {
 	if err := os.MkdirAll(x.UserDir, 0o755); err != nil {
 		return Item{}, err
 	}
-	p := filepath.Join(x.UserDir, name)
+	// The override takes the file name the folder listing gave, not the request's text.
+	p := filepath.Join(x.UserDir, f.name)
 	if err := os.WriteFile(p, []byte(c), 0o644); err != nil {
 		return Item{}, err
 	}
-	return x.item(name, desktopFile{path: p, source: "autostart-user", content: c}), nil
+	return x.item(f.name, desktopFile{name: f.name, path: p, source: "autostart-user", content: c}), nil
 }

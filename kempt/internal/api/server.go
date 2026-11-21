@@ -57,7 +57,7 @@ type Config struct {
 type server struct {
 	Config
 	mu    sync.Mutex
-	found map[string]bool // files a search showed: the only ones that may be recycled
+	found map[string]string // files a search showed, keyed by path: the only ones that may be recycled
 }
 
 // NewDesktop returns the handler for the desktop window.
@@ -68,7 +68,7 @@ func NewDesktop(c Config) http.Handler {
 	if c.Health == nil {
 		c.Health = health.Check
 	}
-	s := &server{Config: c, found: map[string]bool{}}
+	s := &server{Config: c, found: map[string]string{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/mode", s.mode)
 	mux.HandleFunc("GET /api/i18n/{lang}", func(w http.ResponseWriter, r *http.Request) {
@@ -519,13 +519,16 @@ func (s *server) startJob(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, 400, "bad_request", "err.recycle.none", nil)
 			return
 		}
+		// Recycle the paths as the search recorded them, never the request's own text.
+		paths := make([]string, 0, len(in.Paths))
 		for _, p := range in.Paths {
-			if !s.allowed(p) {
+			known, ok := s.searched(p)
+			if !ok {
 				s.fail(w, r, 403, "not_found_by_search", "err.recycle.notSearched", nil)
 				return
 			}
+			paths = append(paths, known)
 		}
-		paths := append([]string(nil), in.Paths...)
 		id = s.Jobs.Start(kind, fprog, func(ctx context.Context) (any, error) { return s.recycle(ctx, paths, &fp), nil })
 	case "health":
 		lang := s.lang(r)
@@ -567,14 +570,21 @@ func (s *server) allow(paths ...string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, p := range paths {
-		s.found[p] = true
+		s.found[p] = p
 	}
 }
 
-func (s *server) allowed(p string) bool {
+// searched returns the path a search recorded for p, if it recorded one.
+func (s *server) searched(p string) (string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.found[p]
+	known, ok := s.found[p]
+	return known, ok
+}
+
+func (s *server) allowed(p string) bool {
+	_, ok := s.searched(p)
+	return ok
 }
 
 type itemResult struct {
