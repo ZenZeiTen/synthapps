@@ -1,5 +1,10 @@
 Lintas is a fast, secure desktop browser (Chromium engine) that works online and offline, with a built-in Translation Management System, Claude AI features, Chrome extensions and a Claude Desktop (MCP) connection.
 
+## New in 0.5.1
+
+- **Fixed: signing in to Claude in Chrome.** claude.ai hands the sign-in to the extension with a direct message from the page, which Lintas did not support, so Claude stayed signed out. Pages that an extension allows (its "externally_connectable" list) can now message it, as in Chrome.
+- **Fixed: "A JavaScript error occurred in the main process"** (`Cannot read properties of undefined (reading 'isDestroyed')`) when an extension restarted, for example Claude in Chrome after signing in. A tab whose page ends now reloads, and a tab showing the extension's own page closes, as in Chrome.
+
 ## New in 0.5.0
 
 - **AI Oracle in the side panel.** It replaces the Assistant. Oracle is an agent about the page in the active tab: it reads and searches the page, can search the web, checks your translation memory, termbases and its own memory, and lists your tabs and offline library. It needs your own Claude API key, as before.

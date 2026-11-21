@@ -27,6 +27,12 @@ export function applySignInIdentity(wc) {
 }
 
 /** Only web schemes navigate inside the page; mail and phone links go to the system. */
+/** A tab's page, or null when it has none or it was destroyed (Electron then leaves view.webContents undefined). */
+export function liveContents(t) {
+  const wc = t?.view?.webContents;
+  return wc && !wc.isDestroyed() ? wc : null;
+}
+
 export function guardNavigation(wc) {
   wc.on('will-navigate', (e) => {
     const u = e.url;
@@ -74,7 +80,7 @@ export class TabManager {
 
   active() { return this.tabs.find(t => t.id === this.activeId) || null; }
 
-  byContents(wc) { return this.tabs.find(t => t.view && t.view.webContents === wc) || null; }
+  byContents(wc) { return this.tabs.find(t => t.view && liveContents(t) === wc) || null; }
 
   serialize(t) {
     const wc = t.view?.webContents;
@@ -138,7 +144,7 @@ export class TabManager {
   }
 
   ensureView(t) {
-    if (t.view && !t.view.webContents.isDestroyed()) return t.view;
+    if (liveContents(t)) return t.view;
     const view = new WebContentsView({
       webPreferences: {
         partition: t.private ? this.partitions.private : this.partitions.normal,
@@ -168,7 +174,8 @@ export class TabManager {
     this.activeId = id;
     if (t.lazy) this.loadWeb(t, t.url);
     this.changed();
-    if (t.view && !t.error && t.kind === 'web') { t.view.webContents.focus(); this.onActivate(t.view.webContents, t); }
+    const wc = liveContents(t);
+    if (wc && !t.error && t.kind === 'web') { wc.focus(); this.onActivate(wc, t); }
   }
 
   close(id) {
@@ -180,8 +187,8 @@ export class TabManager {
       if (this.closed.length > 25) this.closed.shift();
     }
     this.tabs.splice(i, 1);
-    if (t.view && this.attached === t.view) { this.win.contentView.removeChildView(t.view); this.attached = null; }
-    if (t.view && !t.view.webContents.isDestroyed()) t.view.webContents.close();
+    if (t.view && this.attached === t.view) { try { this.win.contentView.removeChildView(t.view); } catch {} this.attached = null; }
+    liveContents(t)?.close();
     if (this.activeId === id) {
       const next = this.tabs[i] || this.tabs[i - 1];
       if (next) this.activeId = next.id;
@@ -244,8 +251,9 @@ export class TabManager {
 
   wcOf(id) {
     const t = this.get(id);
-    if (t.kind !== 'web' || !t.view) throw new Error('This tab does not show a web page.');
-    return t.view.webContents;
+    const wc = t.kind === 'web' ? liveContents(t) : null;
+    if (!wc) throw new Error('This tab does not show a web page.');
+    return wc;
   }
 
   back(id) { const wc = this.wcOf(id); if (wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack(); }
@@ -305,7 +313,7 @@ export class TabManager {
 
   layout() {
     const t = this.active();
-    const want = t && t.kind === 'web' && !t.error && this.viewVisible && t.view && !t.view.webContents.isDestroyed() ? t.view : null;
+    const want = t && t.kind === 'web' && !t.error && this.viewVisible && liveContents(t) ? t.view : null;
     if (this.attached && this.attached !== want) {
       try { this.win.contentView.removeChildView(this.attached); } catch {}
       this.attached = null;
@@ -344,6 +352,16 @@ export class TabManager {
 
   wire(t) {
     const wc = t.view.webContents;
+    const view = t.view;
+    // The page can end without the tab closing: an extension that reloads or is removed takes its
+    // pages with it (for example Claude in Chrome restarting after sign-in). Forget the dead page at
+    // once; then close a tab that showed the extension's own page, as Chrome does, or reload any other.
+    wc.once('destroyed', () => {
+      if (t.view !== view) return;
+      if (this.attached === view) { try { this.win.contentView.removeChildView(view); } catch {} this.attached = null; }
+      t.view = null; t.loading = false;
+      setImmediate(() => this.pageGone(t));
+    });
     const update = () => this.changed();
     wc.on('did-start-loading', () => { t.loading = true; update(); });
     wc.on('did-stop-loading', () => { t.loading = false; update(); });
@@ -471,8 +489,17 @@ export class TabManager {
     Menu.buildFromTemplate(items).popup({ window: this.win });
   }
 
+  pageGone(t) {
+    if (this.quitting || !this.win || this.win.isDestroyed() || !this.tabs.includes(t) || t.view) return;
+    if (/^chrome-extension:/i.test(t.url || '')) { this.close(t.id); return; }
+    t.lazy = true;
+    if (t.id === this.activeId) this.loadWeb(t, t.url);
+    else this.changed();
+  }
+
   destroyAll() {
-    for (const t of this.tabs) if (t.view && !t.view.webContents.isDestroyed()) t.view.webContents.close();
+    this.quitting = true;
+    for (const t of this.tabs) liveContents(t)?.close();
   }
 }
 

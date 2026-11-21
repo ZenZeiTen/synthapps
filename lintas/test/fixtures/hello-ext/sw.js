@@ -62,3 +62,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 if (chrome.commands && chrome.commands.onCommand) chrome.commands.onCommand.addListener((name, tab) => {
   if (tab && tab.id >= 0) chrome.scripting.executeScript({ target: { tabId: tab.id }, func: (n) => { document.documentElement.dataset.lintasCmd = n; }, args: [name] });
 });
+
+// Messages from web pages listed in "externally_connectable" (how claude.ai signs in Claude in Chrome)
+chrome.runtime.onMessageExternal.addListener((msg, sender, reply) => {
+  if (msg && msg.ping) { setTimeout(() => reply({ pong: msg.ping, origin: sender.origin, inTab: !!(sender.tab && sender.tab.id >= 0) }), 10); return true; }
+  return false;
+});

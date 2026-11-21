@@ -69,6 +69,9 @@ does not let apps change the default themselves.
   the group's name in the tab's tooltip.
 - Keyboard shortcuts from an extension's manifest (`commands`) work, except where they
   would take one of Lintas's own shortcuts, as in Chrome.
+- Web pages an extension lists in `externally_connectable` can message it with
+  `chrome.runtime.sendMessage(extensionId, message)`; the extension gets them in
+  `runtime.onMessageExternal`, as in Chrome. claude.ai signs in Claude in Chrome this way.
 - Native messaging (`runtime.connectNative`, `runtime.sendNativeMessage`) starts the programs
   that other browsers would: Lintas looks for the program's registration where Chrome, Edge,
   Chromium and Brave keep it (on Windows, in the registry), and in its own
