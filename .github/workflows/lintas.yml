@@ -1,8 +1,9 @@
 name: lintas
 
-# Tests Lintas (unit tests, then the real Electron app end to end under Xvfb) and
-# builds installers for Linux (AppImage, deb), Windows (installer, portable) and
-# macOS (dmg, zip) as downloadable artifacts. The builds are not code-signed.
+# Lintas runs on Windows only here: unit tests and a check that the preload bundle is current,
+# then the Windows installers (installer and portable) as downloadable artifacts. No Linux or macOS
+# runners are used. The end-to-end test of the real app (test/app.smoke.mjs) is run by hand before a
+# release. The builds are not code-signed.
 on:
   pull_request:
     paths:
@@ -21,11 +22,12 @@ permissions:
 jobs:
   test:
     name: Tests
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 20
     defaults:
       run:
         working-directory: lintas
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,45 +36,30 @@ jobs:
       - run: npm ci
       - run: npm test
       - name: Preload bundle is up to date
-        run: node scripts/build-preload.mjs && git diff --exit-code app/preload/chrome.bundle.cjs
-      - run: npm install --no-save playwright@1
-      - run: sudo apt-get update && sudo apt-get install -y xvfb
-      - run: xvfb-run -a node test/app.smoke.mjs
+        run: node scripts/build-preload.mjs && git diff --exit-code --ignore-cr-at-eol app/preload/chrome.bundle.cjs
 
   build:
-    name: Build (${{ matrix.os }})
+    name: Build (windows-latest)
     needs: test
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: --linux
-          - os: windows-latest
-            target: --win
-          - os: macos-latest
-            target: --mac
+    runs-on: windows-latest
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: lintas
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - run: npm ci
-      - run: npx electron-builder ${{ matrix.target }} --publish never
+      - run: npx electron-builder --win --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
       - uses: actions/upload-artifact@v4
         with:
-          name: lintas-${{ runner.os }}
+          name: lintas-windows
           path: |
-            lintas/dist/*.AppImage
-            lintas/dist/*.deb
-            lintas/dist/*.exe
-            lintas/dist/*.dmg
-            lintas/dist/*.zip
+            lintas/dist/Lintas-*-x64.exe
+            lintas/dist/Lintas-*-arm64.exe
           if-no-files-found: error

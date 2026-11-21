@@ -18,6 +18,11 @@ on:
 permissions:
   contents: read
 
+# Every job runs on windows-latest (no Linux or macOS runners), with bash as the shell.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: lintas-release
   cancel-in-progress: false
@@ -25,7 +30,7 @@ concurrency:
 jobs:
   check:
     name: Check version
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     outputs:
       version: ${{ steps.v.outputs.version }}
       tag: ${{ steps.v.outputs.tag }}
@@ -49,7 +54,7 @@ jobs:
     name: Tests
     needs: check
     if: needs.check.outputs.exists == 'false'
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 20
     defaults:
       run:
@@ -61,9 +66,6 @@ jobs:
           node-version: "22"
       - run: npm ci
       - run: npm test
-      - run: npm install --no-save playwright@1
-      - run: sudo apt-get update && sudo apt-get install -y xvfb
-      - run: xvfb-run -a node test/app.smoke.mjs
 
   windows:
     name: Build for Windows
@@ -102,7 +104,7 @@ jobs:
   release:
     name: Publish release
     needs: [check, windows]
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: write
     steps:
