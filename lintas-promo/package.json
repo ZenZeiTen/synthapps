@@ -11,6 +11,7 @@
   "dependencies": {
     "@react-three/fiber": "^9.8.2",
     "@remotion/cli": "4.0.545",
+    "@remotion/media": "4.0.545",
     "@remotion/sfx": "4.0.545",
     "@remotion/three": "4.0.545",
     "@remotion/transitions": "4.0.545",
