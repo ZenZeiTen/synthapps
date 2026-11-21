@@ -56,7 +56,7 @@ export function setPanel(patch) {
   emit('panel');
 }
 export function loadPanelPrefs() {
-  try { const p = JSON.parse(localStorage.getItem('lintas.panel') || 'null'); if (p) Object.assign(S.panel, { view: p.view || 'assistant', width: Math.min(640, Math.max(320, p.width || 384)), open: !!p.open }); } catch { /* ignore */ }
+  try { const p = JSON.parse(localStorage.getItem('lintas.panel') || 'null'); if (p) Object.assign(S.panel, { view: p.view && p.view !== 'ext' ? p.view : 'assistant', width: Math.min(900, Math.max(320, p.width || 384)), open: !!p.open && p.view !== 'ext' }); } catch { /* ignore */ }
 }
 export function openPanel(view, intent) {
   if (intent) S.panelIntent = { view, ...intent };

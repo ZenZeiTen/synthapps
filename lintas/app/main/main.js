@@ -98,6 +98,8 @@ function createWindow() {
   // With "minimize to the notification area" on, a minimized window leaves the taskbar
   win.on('minimize', () => { if (data.settings().minimizeToTray && tray) win.hide(); });
   win.webContents.on('will-navigate', e => e.preventDefault());
+  // Extension shortcuts (manifest "commands") also work while the address bar or a panel has focus
+  win.webContents.on('before-input-event', (e, input) => { if (extensions?.commandKey(input)) e.preventDefault(); });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.loadURL('lintas-ui://app/index.html');
 
@@ -108,9 +110,13 @@ function createWindow() {
       if (!t.private && extensions) extensions.addTab(wc);
     },
     onActivate: (wc, t) => { if (!t.private && extensions) extensions.selectTab(wc); },
+    extras: (t) => extensions ? extensions.tabExtras(t) : {},
+    commandKey: (input) => !!extensions?.commandKey(input),
   });
 
-  webPanels = new WebPanels({ win, ses: session.fromPartition(PARTITIONS.normal), tabs });
+  webPanels = new WebPanels({ win, ses: session.fromPartition(PARTITIONS.normal), tabs,
+    resolve: (key) => extensions?.panelTarget(key) || null, onGone: (key) => extensions?.forgetPanel(key),
+    commandKey: (input) => !!extensions?.commandKey(input) });
   win.on('close', () => { tabs.persist(); store.flushAll(); });
   win.on('closed', () => { win = null; });
   nativeTheme.on('updated', () => {
@@ -270,6 +276,7 @@ function registerIpc() {
   handle('webpanel.reload', id => webPanels.reload(String(id)));
   handle('webpanel.home', id => webPanels.home(String(id)));
   handle('webpanel.openInTab', id => webPanels.openInTab(String(id)));
+  handle('extpanel.close', key => { if (typeof key === 'string' && key.startsWith('ext:')) extensions.closePanel(key); });
 
   handle('tabs.list', () => tabs.list());
   handle('tabs.create', (o = {}) => tabs.create(o));
@@ -741,7 +748,7 @@ app.whenReady().then(async () => {
     ses.setSpellCheckerLanguages(['en-US', 'id'].filter(l => ses.availableSpellCheckerLanguages.includes(l)));
   }
   seedSample();
-  extensions = new Extensions({ ses: session.fromPartition(PARTITIONS.normal), dataDir: app.getPath('userData'), getWin: () => win, getTabs: () => tabs });
+  extensions = new Extensions({ ses: session.fromPartition(PARTITIONS.normal), dataDir: app.getPath('userData'), getWin: () => win, getTabs: () => tabs, getPanels: () => webPanels, emit });
   try { await extensions.init(); } catch (e) { console.error('Chrome extension support failed to start:', e); }
   bridge = new Bridge({ dataDir: app.getPath('userData'), run: mcpTool });
   await syncBridge();

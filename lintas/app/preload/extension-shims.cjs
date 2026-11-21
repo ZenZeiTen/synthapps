@@ -4,8 +4,9 @@
 //   chrome.tabs.captureVisibleTab
 //   chrome.pageCapture.saveAsMHTML
 //   chrome.userScripts.register / unregister / getScripts / update / configureWorld
-//   chrome.sidePanel (shown as a tab), chrome.offscreen, chrome.debugger, chrome.alarms
-//   chrome.tabGroups and chrome.declarativeNetRequest as inert stand-ins (no groups, rules not applied)
+//   chrome.sidePanel (docked beside the page), chrome.offscreen, chrome.debugger, chrome.alarms
+//   chrome.tabGroups and chrome.tabs.group / ungroup, chrome.runtime.getContexts
+//   chrome.declarativeNetRequest as an inert stand-in (rules accepted, not applied)
 // The main process checks the extension's manifest permissions on every call.
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -44,6 +45,12 @@ function install(call, extErr, subscribe) {
     configureWorld: api('userScripts.configureWorld'),
   });
 
+  // window.close() from an extension page in a side panel or a tab: Lintas closes the panel or tab, as Chrome does.
+  if (typeof window !== 'undefined' && window === window.top && typeof window.close === 'function') {
+    const close = window.close.bind(window);
+    try { window.close = () => { Promise.resolve(call('window.close', [])).then((done) => { if (!done) close(); }, () => close()); }; } catch {}
+  }
+
   // --- events delivered from the main process ---
   const event = () => {
     const ls = new Set();
@@ -52,14 +59,18 @@ function install(call, extErr, subscribe) {
   };
   const events = {};
   const ev = (name) => (events[name] ||= event());
-  if (subscribe) subscribe((name, args) => { if (events[name]) events[name]._fire(...(args || [])); });
+  if (subscribe) {
+    subscribe((name, args) => { if (events[name]) events[name]._fire(...(args || [])); });
+    // Register for events nobody asked for, such as tab groups changing.
+    Promise.resolve(call('events.hello', [])).catch(() => {});
+  }
   const ok = (v) => (...args) => { const cb = typeof args[args.length - 1] === 'function' ? args.pop() : null; const r = typeof v === 'function' ? v(...args) : v; if (cb) { cb(r); return; } return Promise.resolve(r); };
   const fail = (msg) => (...args) => { const cb = typeof args[args.length - 1] === 'function' ? args.pop() : null; if (!cb) return Promise.reject(new Error(msg));
     try { Object.defineProperty(chrome.runtime, 'lastError', { value: { message: msg }, configurable: true }); } catch {} try { cb(); } finally { try { delete chrome.runtime.lastError; } catch {} } };
 
   define('sidePanel', {
-    setOptions: api('sidePanel.setOptions'), getOptions: api('sidePanel.getOptions'), open: api('sidePanel.open'),
-    setPanelBehavior: ok(undefined), getPanelBehavior: ok({ openPanelOnActionClick: false }),
+    setOptions: api('sidePanel.setOptions'), getOptions: api('sidePanel.getOptions'), open: api('sidePanel.open'), close: api('sidePanel.close'),
+    setPanelBehavior: api('sidePanel.setPanelBehavior'), getPanelBehavior: api('sidePanel.getPanelBehavior'),
   });
   define('offscreen', {
     createDocument: api('offscreen.createDocument'), hasDocument: api('offscreen.hasDocument'), closeDocument: api('offscreen.closeDocument'),
@@ -70,14 +81,13 @@ function install(call, extErr, subscribe) {
     onEvent: ev('debugger.onEvent'), onDetach: ev('debugger.onDetach'),
   });
 
-  // Tab groups do not exist in Lintas: tabs are never in a group, and grouping is refused.
   define('tabGroups', {
     TAB_GROUP_ID_NONE: -1,
     Color: { GREY: 'grey', BLUE: 'blue', RED: 'red', YELLOW: 'yellow', GREEN: 'green', PINK: 'pink', PURPLE: 'purple', CYAN: 'cyan', ORANGE: 'orange' },
-    query: ok([]), get: fail('Tab groups are not available in Lintas.'), update: fail('Tab groups are not available in Lintas.'), move: fail('Tab groups are not available in Lintas.'),
-    onCreated: event(), onUpdated: event(), onRemoved: event(), onMoved: event(),
+    query: api('tabGroups.query'), get: api('tabGroups.get'), update: api('tabGroups.update'), move: api('tabGroups.move'),
+    onCreated: ev('tabGroups.onCreated'), onUpdated: ev('tabGroups.onUpdated'), onRemoved: ev('tabGroups.onRemoved'), onMoved: ev('tabGroups.onMoved'),
   });
-  define('tabs', { group: fail('Tab groups are not available in Lintas.'), ungroup: ok(undefined) });
+  define('tabs', { group: api('tabs.group'), ungroup: api('tabs.ungroup'), TAB_ID_NONE: -1 });
 
   // chrome.alarms, kept by timers in this page or worker.
   const alarms = new Map();
@@ -120,8 +130,10 @@ function install(call, extErr, subscribe) {
   if (chrome.runtime) {
     for (const [k, v] of Object.entries({
       ContextType: { TAB: 'TAB', POPUP: 'POPUP', BACKGROUND: 'BACKGROUND', OFFSCREEN_DOCUMENT: 'OFFSCREEN_DOCUMENT', SIDE_PANEL: 'SIDE_PANEL', DEVELOPER_TOOLS: 'DEVELOPER_TOOLS' },
-      getContexts: ok([]),
     })) if (!(k in chrome.runtime)) { try { chrome.runtime[k] = v; } catch {} }
+    // Electron's own getContexts does not know Lintas's side panels, offscreen pages or tabs, so this one replaces it.
+    try { Object.defineProperty(chrome.runtime, 'getContexts', { value: api('runtime.getContexts'), configurable: true, writable: true, enumerable: true }); }
+    catch { try { chrome.runtime.getContexts = api('runtime.getContexts'); } catch {} }
   }
 }
 

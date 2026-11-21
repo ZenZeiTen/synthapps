@@ -36,9 +36,23 @@
     "sidePanel",
     "offscreen",
     "alarms",
-    "tabGroups"
+    "tabGroups",
+    "scripting",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "<all_urls>"
-  ]
+  ],
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "commands": {
+    "lintas-test": {
+      "suggested_key": {
+        "default": "Alt+Shift+Y"
+      },
+      "description": "Marks the page (end-to-end test)"
+    }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApX+seusGXR7htE2LSOrWFiNqaoJEJiFd5TBz+bc1YIYPyMiCCEjHWfMdEcTKpuo3einw3YhrfsD+gYuBacEyYWaYCSsU6L4VgbNoKPV8I+DRtbB5lE/1CjSY22RSEUQQJxLewd88myOH0c+MQc/RoGYtNLqpOilrALrGtBdMI7IHNg5QbncvebyM0zvIYS9UxSMvM3wr1sdH8jZqdnlESyhyaF9qaz+xQHEcIox7mFjAvVRv4pYW2WthFSrUXmIfDeNq2kYOReJFuAj3Pm5nTdF8m6KLcZQIbxdnnkiUXaK+1PMauY1eaKxHn7ERYjtu4PkOSKHaMUO3bW1cdbH/cQIDAQAB"
 }

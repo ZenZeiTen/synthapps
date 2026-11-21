@@ -261,3 +261,11 @@ button.list-row { border: 0; background: transparent; width: 100%; text-align: l
 .pv-body p.pv-flash { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); }
 .pv-body mark { background: #FFE27A; color: #1b2229; border-radius: 2px; } .pv-body mark.cur { background: #FF9A3D; }
 .pv-translated { font: 600 12px var(--font-ui); display: inline-block; padding: 4px 10px; border-radius: 999px; margin-bottom: 14px; background: var(--accent-soft); color: var(--accent-text); }
+
+/* Tab groups: Chrome's group colours, as a line along the bottom of each tab in the group */
+.tab[data-group="grey"] { --group: #5f6368; } .tab[data-group="blue"] { --group: #1a73e8; } .tab[data-group="red"] { --group: #d93025; }
+.tab[data-group="yellow"] { --group: #f9ab00; } .tab[data-group="green"] { --group: #188038; } .tab[data-group="pink"] { --group: #d01884; }
+.tab[data-group="purple"] { --group: #a142f4; } .tab[data-group="cyan"] { --group: #007b83; } .tab[data-group="orange"] { --group: #fa903e; }
+.tab-group-line { position: absolute !important; left: 6px; right: 6px; bottom: 1px; height: 3px; border-radius: 3px; background: var(--group, var(--accent)); pointer-events: none; z-index: 3; }
+/* An extension's own side panel button */
+.sp-ext-btn img { width: 16px; height: 16px; display: block; }

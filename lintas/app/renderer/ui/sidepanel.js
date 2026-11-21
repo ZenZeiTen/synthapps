@@ -1,4 +1,5 @@
-// Right-hand side panel: Assistant · Translate · Terms · Offline. Resizable; sits beside the page (never over it).
+// Right-hand side panel: Assistant · Translate · Terms · Offline, web panels (Gmail, Calendar) and
+// Chrome extension side panels. Resizable; sits beside the page (never over it).
 import { h, mount, hostOf, LANGS, langName, fmtBytes, relTime, debounce, errText } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { renderMarkdown } from '../lib/markdown.js';
@@ -10,7 +11,8 @@ import { openInternal } from './toolbar.js';
 
 const VIEWS = [['assistant', 'Assistant', 'sparkle'], ['translate', 'Translate', 'translate'], ['terms', 'Terms', 'book'], ['offline', 'Offline', 'saveOffline']];
 const APPS = [['gmail', 'Gmail', 'mail'], ['calendar', 'Google Calendar', 'calendar']];
-let root, body, tabsEl, lastKey = '';
+let root, body, tabsEl, extBtn, lastKey = '';
+let lastActiveId = null, restoreView = null;   // extension side panels: which tab we followed, the view to return to
 const chats = new Map();       // tabId -> [{ role, text, citations, error }]
 const mem = { targetLang: null, projectId: '', lookupText: '', termbaseId: '', termQuery: '' };
 let projects = null, termbases = null;
@@ -21,6 +23,9 @@ export function initSidePanel() {
   tabsEl = h('div.sp-tabs', { role: 'tablist' }, VIEWS.map(([id, label, ic]) => h('button', { type: 'button', role: 'tab', title: label, 'aria-label': label, dataset: { view: id }, onClick: () => setPanel({ view: id }) }, icon(ic), h('span.sp-tab-label', label))));
   // Web panels (Gmail, Calendar): icon buttons after the built-in tabs
   for (const [id, label, ic] of APPS) tabsEl.appendChild(h('button.sp-app-btn', { type: 'button', role: 'tab', title: label, 'aria-label': label, dataset: { view: 'app:' + id }, onClick: () => setPanel({ view: 'app:' + id }) }, icon(ic)));
+  // The active tab's extension side panel (for example Claude), when one is open
+  extBtn = h('button.sp-app-btn.sp-ext-btn', { type: 'button', role: 'tab', hidden: true, dataset: { view: 'ext' }, onClick: () => openExtView() });
+  tabsEl.appendChild(extBtn);
   body = h('div.sp-body', { role: 'tabpanel' });
   mount(root, handle, h('div.sp-head', tabsEl, iconBtn('close', `Close side panel (${modLabel()}Shift+E)`, () => setPanel({ open: false }), 'sm')), body);
 
@@ -33,23 +38,69 @@ export function initSidePanel() {
   });
   handle.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') setPanel({ width: clampW(S.panel.width + 24) }); else if (e.key === 'ArrowRight') setPanel({ width: clampW(S.panel.width - 24) }); });
 
-  on('panel', () => sync(true)); on('tabs', () => sync(false)); on('offline-changed', () => { if (S.panel.view === 'offline') sync(true); });
+  on('panel', () => sync(true)); on('tabs', () => { followTab(); sync(false); });
+  L().on('extpanel-open', () => { if (activeTab()?.extPanel) openExtView(); }); on('offline-changed', () => { if (S.panel.view === 'offline') sync(true); });
   on('status', () => sync(true));
   sync(true);
 }
 const clampW = (w) => Math.round(Math.max(320, Math.min(900, Math.min(window.innerWidth - 420, w))));
 
+/* ================= Extension side panels ================= */
+// Like Chrome: a panel opened for one tab shows while that tab is active; closing it ends its page.
+function followTab() {
+  const t = activeTab();
+  const id = t?.id ?? null, switched = id !== lastActiveId;
+  lastActiveId = id;
+  if (S.panel.view === 'ext' && !t?.extPanel) { setPanel({ open: false, view: restoreView || 'assistant' }); return; }
+  if (switched && t?.extPanel && !(S.panel.open && S.panel.view === 'ext')) openExtView();
+}
+function openExtView() {
+  if (S.panel.view !== 'ext') restoreView = S.panel.view;
+  setPanel({ open: true, view: 'ext' });
+}
+function closeExtPanel() {
+  const key = activeTab()?.extPanel?.key;
+  setPanel({ open: false, view: restoreView || 'assistant' });
+  if (key) call(L().extpanel.close(key), { silent: true });
+}
+function viewExt(t) {
+  const p = t?.extPanel;
+  if (!p) return mount(body, emptyState('puzzle', 'No extension panel', 'This tab has no extension side panel open.'));
+  hideApp();
+  appId = p.key;
+  appSlot = h('div.sp-app-slot', { 'aria-label': p.name });
+  const bar = h('div.sp-app-bar',
+    h('span.sp-app-name', extIcon(p.extId), h('span.ellipsis', p.name)), h('span.grow'),
+    iconBtn('close', 'Close ' + p.name, () => closeExtPanel(), 'sm'));
+  mount(body, h('div.sp-app', bar, appSlot));
+  appObserver = new ResizeObserver(() => requestAnimationFrame(reportApp));
+  appObserver.observe(appSlot);
+  window.addEventListener('resize', reportApp);
+  requestAnimationFrame(reportApp);
+}
+const extIcon = (extId) => {
+  const img = h('img', { src: `crx://extension-icon/${extId}/32/2?partition=persist:lintas`, alt: '', width: 16, height: 16 });
+  img.addEventListener('error', () => img.replaceWith(icon('puzzle', 16)), { once: true });
+  return img;
+};
+
 function sync(force) {
+  // The panel was closed (button or shortcut) while it showed an extension: that ends the extension's page.
+  if (!S.panel.open && S.panel.view === 'ext') { closeExtPanel(); return; }
   root.hidden = !S.panel.open;
   root.style.width = clampW(S.panel.width) + 'px';
-  if (!S.panel.open || !String(S.panel.view).startsWith('app:')) hideApp();
+  if (!S.panel.open || !(String(S.panel.view).startsWith('app:') || S.panel.view === 'ext')) hideApp();
+  const ep = activeTab()?.extPanel;
+  extBtn.hidden = !ep;
+  if (ep && extBtn.dataset.key !== ep.key) { extBtn.dataset.key = ep.key; extBtn.title = ep.name; extBtn.setAttribute('aria-label', ep.name); mount(extBtn, extIcon(ep.extId)); }
   if (!S.panel.open) { lastKey = ''; return; }
   for (const b of tabsEl.children) b.setAttribute('aria-selected', String(b.dataset.view === S.panel.view));
   const t = activeTab();
-  const key = [S.panel.view, t?.id, t?.url, t?.translated?.targetLang, t?.offlineCopy?.id, !!t?.error, !!t?.loading && S.panel.view === 'offline'].join('|');
+  const key = [S.panel.view, t?.id, t?.extPanel?.key, S.panel.view === 'ext' ? '' : t?.url, t?.translated?.targetLang, t?.offlineCopy?.id, !!t?.error, !!t?.loading && S.panel.view === 'offline'].join('|');
   const intent = S.panelIntent && S.panelIntent.view === S.panel.view ? S.panelIntent : null;
   if (!force && !intent && key === lastKey) return;
   lastKey = key; if (intent) S.panelIntent = null;
+  if (S.panel.view === 'ext') return viewExt(t);
   if (String(S.panel.view).startsWith('app:')) return viewApp(S.panel.view.slice(4));
   ({ assistant: viewAssistant, translate: viewTranslate, terms: viewTerms, offline: viewOffline }[S.panel.view] || viewAssistant)(t, intent);
 }

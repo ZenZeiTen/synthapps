@@ -25,6 +25,7 @@ const groups = {
   claude: ['status', 'connect'],
   importer: ['detect', 'run', 'fromFile'],
   webpanel: ['apps', 'show', 'reload', 'home', 'openInTab'],
+  extpanel: ['close'],
   ai: ['suggest', 'review', 'extractTerms', 'translatePage', 'restorePage', 'translateText', 'ask', 'highlight', 'selection', 'usage'],
 };
 

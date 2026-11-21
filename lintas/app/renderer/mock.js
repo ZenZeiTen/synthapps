@@ -514,6 +514,7 @@ export function installMock() {
       async remove(oid) { offlinePages = offlinePages.filter((o) => o.id !== oid); for (const t of tabs) if (t.offlineCopy?.id === oid) t.offlineCopy = null; changed(); },
     },
     webpanel: { async apps() { return [{ id: 'gmail', name: 'Gmail', icon: 'mail' }, { id: 'calendar', name: 'Calendar', icon: 'calendar' }]; }, async show(id) { return { id, url: null }; }, async reload() {}, async home() {}, async openInTab() {} },
+    extpanel: { async close() {} },
     importer: { async detect() { return [{ id: 'chrome', name: 'Google Chrome', kind: 'chromium', profiles: [{ id: 'Default', name: 'Person 1', path: '' }] }, { id: 'firefox', name: 'Mozilla Firefox', kind: 'firefox', profiles: [{ id: 'p', name: 'default-release', path: '' }] }]; }, async run() { return { source: 'Google Chrome (Person 1)', bookmarks: 42, history: 1280, settings: ['searchEngine'] }; }, async fromFile() { return null; } },
     app: { async status() { return clone(status); }, async defaultBrowser() { return { isDefault: false, canSetDirectly: false }; }, async makeDefault() { return { isDefault: false, canSetDirectly: false, openedSettings: true }; } },
     settings: {

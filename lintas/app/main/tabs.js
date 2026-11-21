@@ -45,8 +45,10 @@ const INTERNAL_TITLES = {
 let nextId = 1;
 
 export class TabManager {
-  constructor({ win, data, emit, partitions, onContents, onActivate, isMac }) {
+  constructor({ win, data, emit, partitions, onContents, onActivate, isMac, extras, commandKey }) {
     this.win = win;
+    this.commandKey = commandKey;             // (input) => true when an extension shortcut ran
+    this.extras = extras || (() => ({}));  // (tab) => extra fields for the interface (tab group, extension side panel)
     this.data = data;
     this.emit = emit;
     this.partitions = partitions;      // { normal, private } partition names
@@ -99,6 +101,7 @@ export class TabManager {
       offlineCopy: copy ? { id: copy.id, savedAt: copy.savedAt } : null,
       bookmarked: url ? this.data.isBookmarked(url) : false,
       translated: t.translated || null,
+      ...this.extras(t),
     };
   }
 
@@ -386,6 +389,12 @@ export class TabManager {
   }
 
   handleKey(e, input, t) {
+    this.builtinKey(e, input, t);
+    // Then extension shortcuts (manifest "commands"), such as Claude's Ctrl+E
+    if (!e.defaultPrevented && this.commandKey?.(input)) e.preventDefault();
+  }
+
+  builtinKey(e, input, t) {
     if (input.type !== 'keyDown') return;
     const mod = this.isMac ? input.meta : input.control;
     const k = input.key.length === 1 ? input.key.toLowerCase() : input.key;
