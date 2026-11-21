@@ -26,7 +26,8 @@ compares the two.
 
 ## Get started on Windows
 
-1. Download `Kempt.exe` from the [releases](https://github.com/ZenZeiTen/synthapps/releases?q=kempt).
+1. Download `Kempt.exe` from the [latest release](https://github.com/ZenZeiTen/synthapps/releases/tag/kempt-v1.0.0)
+   (or browse [all Kempt releases](https://github.com/ZenZeiTen/synthapps/releases?q=kempt)).
    No installer and no administrator rights are needed.
 2. Double-click it. Kempt opens in its own window and measures your PC. Nothing changes until
    you press a button.
