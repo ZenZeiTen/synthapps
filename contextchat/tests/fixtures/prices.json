@@ -1,0 +1,331 @@
+[
+	{
+		"name": "P1 regular id→en, 1 page, 1 doc",
+		"input": {
+			"package": "regular",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 1,
+			"documents": 1
+		},
+		"expected": {
+			"status": "ok",
+			"total": 50000,
+			"deposit": 0
+		}
+	},
+	{
+		"name": "P2 sworn id→en, 3 pages, 2 docs, apostille",
+		"input": {
+			"package": "sworn",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 3,
+			"documents": 2,
+			"legalisation": "apostille"
+		},
+		"expected": {
+			"status": "ok",
+			"total": 1775000,
+			"deposit": 887500,
+			"translation_total": 375000,
+			"legalisation_total": 1400000
+		}
+	},
+	{
+		"name": "P3 sworn id→en, 20 pages, 20 docs, apostille",
+		"input": {
+			"package": "sworn",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 20,
+			"documents": 20,
+			"legalisation": "apostille"
+		},
+		"expected": {
+			"status": "ok",
+			"total": 16375000,
+			"deposit": 8187500,
+			"translation_total": 2375000,
+			"discount": 125000
+		}
+	},
+	{
+		"name": "P4 sworn id→en, 2 pages, 1 doc, next day",
+		"input": {
+			"package": "sworn",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 2,
+			"documents": 1,
+			"speed": "next_day"
+		},
+		"expected": {
+			"status": "needs_team",
+			"total": 375000,
+			"deposit": 0,
+			"express_surcharge": 125000
+		}
+	},
+	{
+		"name": "P5 sworn id→ja, 1 page, 1 doc, same day",
+		"input": {
+			"package": "sworn",
+			"source_lang": "id",
+			"target_lang": "ja",
+			"pages": 1,
+			"documents": 1,
+			"speed": "same_day"
+		},
+		"expected": {
+			"status": "needs_team",
+			"total": 830000
+		}
+	},
+	{
+		"name": "P6 regular en→id, 40 pages, 40 docs",
+		"input": {
+			"package": "regular",
+			"source_lang": "en",
+			"target_lang": "id",
+			"pages": 40,
+			"documents": 40
+		},
+		"expected": {
+			"status": "ok",
+			"total": 1800000,
+			"deposit": 900000,
+			"discount": 200000
+		}
+	},
+	{
+		"name": "P7 sworn zh→en",
+		"input": {
+			"package": "sworn",
+			"source_lang": "zh",
+			"target_lang": "en",
+			"pages": 1,
+			"documents": 1
+		},
+		"expected": {
+			"status": "unavailable"
+		}
+	},
+	{
+		"name": "P8 sworn en→id, 2 pages, 1 doc, ministry and embassy",
+		"input": {
+			"package": "sworn",
+			"source_lang": "en",
+			"target_lang": "id",
+			"pages": 2,
+			"documents": 1,
+			"legalisation": "ministry_embassy"
+		},
+		"expected": {
+			"status": "ok",
+			"total": 2450000,
+			"deposit": 1225000
+		}
+	},
+	{
+		"name": "P9 regular id→es, 19 pages, 19 docs (no discount)",
+		"input": {
+			"package": "regular",
+			"source_lang": "id",
+			"target_lang": "es",
+			"pages": 19,
+			"documents": 19
+		},
+		"expected": {
+			"status": "ok",
+			"total": 3800000,
+			"discount": 0
+		}
+	},
+	{
+		"name": "P10 regular id→es, 20 pages, 20 docs (5% discount)",
+		"input": {
+			"package": "regular",
+			"source_lang": "id",
+			"target_lang": "es",
+			"pages": 20,
+			"documents": 20
+		},
+		"expected": {
+			"status": "ok",
+			"total": 3800000,
+			"discount": 200000
+		}
+	},
+	{
+		"name": "P11 sworn es→id, 21 pages, 21 docs, next day",
+		"input": {
+			"package": "sworn",
+			"source_lang": "es",
+			"target_lang": "id",
+			"pages": 21,
+			"documents": 21,
+			"speed": "next_day"
+		},
+		"expected": {
+			"status": "needs_team",
+			"total": 7930125
+		}
+	},
+	{
+		"name": "P12 sworn it→id",
+		"input": {
+			"package": "sworn",
+			"source_lang": "it",
+			"target_lang": "id",
+			"pages": 1,
+			"documents": 1
+		},
+		"expected": {
+			"status": "unavailable"
+		}
+	},
+	{
+		"name": "P13 sworn id→ar, 1 page, 1 doc",
+		"input": {
+			"package": "sworn",
+			"source_lang": "id",
+			"target_lang": "ar",
+			"pages": 1,
+			"documents": 1
+		},
+		"expected": {
+			"status": "ok",
+			"total": 450000,
+			"deposit": 0
+		}
+	},
+	{
+		"name": "P14 regular id→en, 0 pages",
+		"input": {
+			"package": "regular",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 0,
+			"documents": 1
+		},
+		"expected": {
+			"status": "invalid"
+		}
+	},
+	{
+		"name": "P15 sworn id→en, 8 pages, 8 docs (deposit boundary)",
+		"input": {
+			"package": "sworn",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 8,
+			"documents": 8
+		},
+		"expected": {
+			"status": "ok",
+			"total": 1000000,
+			"deposit": 500000
+		}
+	},
+	{
+		"name": "Unknown pair: regular ja→ko",
+		"input": {
+			"package": "regular",
+			"source_lang": "ja",
+			"target_lang": "ko",
+			"pages": 1,
+			"documents": 1
+		},
+		"expected": {
+			"status": "unavailable"
+		}
+	},
+	{
+		"name": "Same language both sides",
+		"input": {
+			"package": "regular",
+			"source_lang": "en",
+			"target_lang": "en",
+			"pages": 1,
+			"documents": 1
+		},
+		"expected": {
+			"status": "invalid"
+		}
+	},
+	{
+		"name": "Unknown speed",
+		"input": {
+			"package": "regular",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 1,
+			"documents": 1,
+			"speed": "tomorrow"
+		},
+		"expected": {
+			"status": "invalid"
+		}
+	},
+	{
+		"name": "Fractional pages are refused",
+		"input": {
+			"package": "regular",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 1.5,
+			"documents": 1
+		},
+		"expected": {
+			"status": "invalid"
+		}
+	},
+	{
+		"name": "Legalisation for fewer documents than translated",
+		"input": {
+			"package": "sworn",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 4,
+			"documents": 4,
+			"legalisation": "apostille",
+			"legal_documents": 1
+		},
+		"expected": {
+			"status": "ok",
+			"total": 1200000,
+			"deposit": 600000
+		}
+	},
+	{
+		"name": "Corporate over 40 documents goes to the team",
+		"input": {
+			"package": "regular",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 41,
+			"documents": 41,
+			"matter": "corporate"
+		},
+		"expected": {
+			"status": "needs_team",
+			"total": 1845000
+		}
+	},
+	{
+		"name": "Just under the deposit threshold",
+		"input": {
+			"package": "regular",
+			"source_lang": "id",
+			"target_lang": "en",
+			"pages": 19,
+			"documents": 1
+		},
+		"expected": {
+			"status": "ok",
+			"total": 950000,
+			"deposit": 0
+		}
+	}
+]
