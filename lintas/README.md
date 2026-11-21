@@ -72,6 +72,11 @@ does not let apps change the default themselves.
 - Web pages an extension lists in `externally_connectable` can message it with
   `chrome.runtime.sendMessage(extensionId, message)`; the extension gets them in
   `runtime.onMessageExternal`, as in Chrome. claude.ai signs in Claude in Chrome this way.
+- An extension's own pages (and frames inside them) reach the sites in its host permissions with
+  the user's cookies for those sites, as in Chrome. Claude in Chrome's panel uses the claude.ai
+  session this way.
+- `chrome.windows.create({ type: 'popup' })` opens a real popup window. Extension buttons work on
+  Lintas's own pages too: such a tab gets an empty page for the extension to work with.
 - Native messaging (`runtime.connectNative`, `runtime.sendNativeMessage`) starts the programs
   that other browsers would: Lintas looks for the program's registration where Chrome, Edge,
   Chromium and Brave keep it (on Windows, in the registry), and in its own

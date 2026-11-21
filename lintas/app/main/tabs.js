@@ -491,6 +491,7 @@ export class TabManager {
 
   pageGone(t) {
     if (this.quitting || !this.win || this.win.isDestroyed() || !this.tabs.includes(t) || t.view) return;
+    if (t.kind === 'internal') { this.changed(); return; }
     if (/^chrome-extension:/i.test(t.url || '')) { this.close(t.id); return; }
     t.lazy = true;
     if (t.id === this.activeId) this.loadWeb(t, t.url);

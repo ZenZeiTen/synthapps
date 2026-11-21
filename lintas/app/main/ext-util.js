@@ -69,3 +69,37 @@ export function matchesTitle(pattern, title) {
   return new RegExp('^' + pattern.split('*').map(x => x.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$', 'i').test(title);
 }
 
+
+/**
+ * One Set-Cookie header line as the details for Electron's cookies.set(), or { remove, name } when the
+ * line deletes the cookie, or null when it cannot be used.
+ */
+export function parseSetCookie(line, url, now = Date.now()) {
+  const parts = String(line).split(';');
+  const first = parts.shift() || '';
+  const eq = first.indexOf('=');
+  if (eq < 1) return null;
+  const name = first.slice(0, eq).trim(), value = first.slice(eq + 1).trim();
+  if (!name) return null;
+  const c = { url, name, value, sameSite: 'unspecified' };
+  let expires = null, maxAge = null;
+  for (const part of parts) {
+    const i = part.indexOf('=');
+    const k = (i < 0 ? part : part.slice(0, i)).trim().toLowerCase();
+    const v = i < 0 ? '' : part.slice(i + 1).trim();
+    if (k === 'domain' && v) c.domain = v;
+    else if (k === 'path' && v.startsWith('/')) c.path = v;
+    else if (k === 'secure') c.secure = true;
+    else if (k === 'httponly') c.httpOnly = true;
+    else if (k === 'samesite') c.sameSite = { none: 'no_restriction', lax: 'lax', strict: 'strict' }[v.toLowerCase()] || 'unspecified';
+    else if (k === 'max-age' && /^-?\d+$/.test(v)) maxAge = Number(v);
+    else if (k === 'expires') { const t = Date.parse(v); if (!Number.isNaN(t)) expires = t; }
+  }
+  const end = maxAge != null ? now + maxAge * 1000 : expires;
+  if (end != null) {
+    if (end <= now) return { remove: true, name };
+    c.expirationDate = end / 1000;
+  }
+  if (c.sameSite === 'no_restriction' && !c.secure) return null;
+  return c;
+}
