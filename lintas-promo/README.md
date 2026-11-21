@@ -13,7 +13,7 @@ A 90-second, 1920×1080, 30 fps promotional video for [Lintas](../lintas), built
 | AI Oracle with the 3D Jade Wisp | 15 s | `S6Oracle.tsx` |
 | Extensions, Claude in Chrome, Claude Desktop | 12 s | `S7Ext.tsx` |
 | Secure by design | 8 s | `S8Secure.tsx` |
-| Outro: download and version | 9 s | `S9Outro.tsx` |
+| Outro: logo, "Free for Windows · Version 0.5.1", "A Nusalexia product" | 9 s | `S9Outro.tsx` |
 
 Eight 0.5-second transitions overlap the scenes, so the total is exactly 90 s.
 
