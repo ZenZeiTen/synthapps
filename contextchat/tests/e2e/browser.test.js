@@ -946,7 +946,7 @@ test( 'Prices, Privacy and Conversations: edited prices are quoted, the privacy 
 	await shot( page, 'conversations-list', '.wrap' );
 	await page.click( 'a:has-text("' + reference + '")' );
 	assert.match( await page.locator( '.ctxc-conv-messages' ).textContent(), /Ijazah 2 halaman/ );
-	assert.equal( ( await page.locator( '.ctxc-conv-messages' ).textContent() ).includes( 'files.example.com' ), false, 'refused messages are not stored' );
+	assert.doesNotMatch( await page.locator( '.ctxc-conv-messages' ).textContent(), /files\.example\.com/, 'refused messages are not stored' );
 	assert.match( await page.locator( '.ctxc-conv-summary' ).textContent(), /Rp 2\.460\.000/ );
 	await shot( page, 'conversation-transcript', '.wrap' );
 	const exportUrl = await page.locator( 'a:has-text("Export JSON")' ).getAttribute( 'href' );
