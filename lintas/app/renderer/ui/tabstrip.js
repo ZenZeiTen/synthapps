@@ -56,9 +56,11 @@ function tabEl(t) {
   const title = tabTitle(t);
   const ic = t.loading ? h('span.spinner') : t.private && t.kind === 'internal' ? icon('private') : t.kind === 'internal' ? icon(tabIconName(t)) : t.error ? icon('alert') : favicon(t.favicon, t.url, t.favicon ? null : 'globe');
   const el = h('div.tab', {
-    class: [t.active && 'active', t.pinned && 'pinned', t.private && 'private'].filter(Boolean).join(' '), role: 'tab', 'aria-selected': String(!!t.active), tabIndex: t.active ? 0 : -1,
-    title: title + (t.kind === 'web' ? '\n' + t.url : '') + (t.private ? '\nPrivate tab' : ''), dataset: { id: t.id },
+    class: [t.active && 'active', t.pinned && 'pinned', t.private && 'private', t.group && 'grouped'].filter(Boolean).join(' '), role: 'tab', 'aria-selected': String(!!t.active), tabIndex: t.active ? 0 : -1,
+    title: title + (t.kind === 'web' ? '\n' + t.url : '') + (t.private ? '\nPrivate tab' : '') + (t.group ? '\nGroup: ' + (t.group.title || 'Unnamed group') : ''), dataset: { id: t.id, group: t.group?.color || '' },
   },
+    // Tab groups (made by extensions, such as Claude's group of the tabs it works in): a coloured line under the tab
+    t.group ? h('i.tab-group-line', { 'aria-hidden': 'true' }) : null,
     t.active ? [h('i.curve.l'), h('i.curve.r')] : null,
     h('span.tab-icon', ic),
     h('span.tab-title', { dir: 'auto' }, title),

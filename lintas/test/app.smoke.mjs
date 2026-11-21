@@ -18,6 +18,12 @@ fs.writeFileSync(path.join(chromeProfile, 'Bookmarks'), JSON.stringify({ roots: 
 fs.writeFileSync(path.join(chromeProfile, 'Preferences'), JSON.stringify({ default_search_provider_data: { template_url_data: { keyword: 'bing.com' } } }));
 // A small MV3 extension (content script + toolbar action), loaded as an unpacked extension.
 fs.writeFileSync(path.join(dataDir, 'unpacked-extensions.json'), JSON.stringify([path.resolve(import.meta.dirname, 'fixtures/hello-ext')]));
+// A native messaging host registered in Lintas's own folder, allowed for the test extension (its ID comes from the manifest key)
+const hostDir = path.join(dataDir, 'NativeMessagingHosts');
+fs.mkdirSync(hostDir, { recursive: true });
+const hostExe = path.join(hostDir, 'echo-host.sh');
+fs.writeFileSync(hostExe, `#!/bin/sh\nexec "${process.execPath}" "${path.resolve(import.meta.dirname, 'fixtures/echo-host.cjs')}" "$@"\n`, { mode: 0o755 });
+fs.writeFileSync(path.join(hostDir, 'com.lintas.test_echo.json'), JSON.stringify({ name: 'com.lintas.test_echo', description: 'Echo host for the test', path: hostExe, type: 'stdio', allowed_origins: ['chrome-extension://fenpfjggfaejmpbinaajochaceelkfml/'] }));
 
 function mcpCall(tool, args = {}) {
   return new Promise((resolve, reject) => {
@@ -98,6 +104,22 @@ try {
     assert.equal(sw.alarm, 'tick');
     assert.equal(sw.debugger1plus1, 2);
     assert.equal(sw.groupColor, 'blue');
+    // Tab groups: created with Chrome's first colour, renamed and recoloured, found, then gone with their last tab
+    assert.deepEqual(sw.group, { created: 'grey', title: 'Test group', color: 'green', tabInGroup: true, queried: 1, removed: 'Test group', after: -1 }, JSON.stringify(sw.group));
+    // Side panel: docked for the tab (a SIDE_PANEL context), closed again by the extension
+    assert.equal(sw.panel, 1, 'side panel context: ' + JSON.stringify(sw));
+    assert.equal(sw.panelAfterClose, 0);
+    assert.ok(sw.background >= 1, 'background context');
+    assert.deepEqual(sw.native, { text: 'Halo “dunia” ✓', size: 300000, by: 'echo-host', origin: 'chrome-extension://fenpfjggfaejmpbinaajochaceelkfml/' }, 'native messaging: ' + JSON.stringify(sw.native));
+    // Extension keyboard shortcut (manifest "commands") reaches the extension
+    const cmd = await app.evaluate(async ({ webContents }, url) => {
+      const wc = webContents.getAllWebContents().find(w => w.getURL() === url);
+      wc.sendInputEvent({ type: 'keyDown', keyCode: 'Y', modifiers: ['alt', 'shift'] });
+      wc.sendInputEvent({ type: 'keyUp', keyCode: 'Y', modifiers: ['alt', 'shift'] });
+      for (let i = 0; i < 50; i++) { const v = await wc.executeJavaScript('document.documentElement.dataset.lintasCmd || ""'); if (v) return v; await new Promise(r => setTimeout(r, 100)); }
+      return null;
+    }, `http://127.0.0.1:${port}/`);
+    assert.equal(cmd, 'lintas-test');
     assert.match(sw.redirect, /^https:\/\/[a-p]{32}\.chromiumapp\.org\/cb$/);
     assert.equal(sw.capture, 'data:image/jpeg;base64,');
     assert.equal(sw.mhtml, 'multipart/related');

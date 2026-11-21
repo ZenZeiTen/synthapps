@@ -1,5 +1,13 @@
 Lintas is a fast, secure desktop browser (Chromium engine) that works online and offline, with a built-in Translation Management System, Claude AI features, Chrome extensions and a Claude Desktop (MCP) connection.
 
+## New in 0.4.0
+
+- **Claude in Chrome works in Lintas.** The Claude extension's panel now opens beside the page, like Chrome's side panel, instead of in a separate tab, so you can watch Claude work on the page. A panel opened for one tab shows while that tab is active, as in Chrome.
+- **Tab groups.** Extensions can group tabs (Claude puts the tabs it works in into an orange "Claude" group). A group shows as a coloured line under its tabs.
+- **Extension keyboard shortcuts**, such as Claude's Ctrl+E to open and close its panel.
+- **Connection to Claude Desktop and Claude Code (native messaging).** Lintas now finds the programs these apps register for Chrome or Edge, and passes long messages and non-English text through intact. Before, long messages broke the connection.
+- Signing in to Claude in the extension and letting Claude act on pages have not been tested with a real account. If something does not work, please report what you see.
+
 ## New in 0.3.0
 
 - **Gmail and Google Calendar in the side panel**, like the sidebar apps in Opera and Edge: click the envelope or calendar icon at the top of the side panel. They use your normal browsing profile, so signing in to Gmail there signs you in to Google in your tabs too (private tabs stay separate). Each keeps its place when you switch, and *Open in a tab* moves it to a full tab.
@@ -48,7 +56,7 @@ Get-FileHash .\Lintas-Setup-<version>-x64.exe -Algorithm SHA256
 ## Known limits
 
 - No automatic updates yet: download the new version from this page and install it over the old one. Your data is kept.
-- Chrome extensions: many work, but not all. Tab groups and network rule sets are not supported. Background workers get Lintas's extra Chrome APIs only with the normal sandbox. Smartling Context Capture loads and captures pages; signing in to Smartling has not been tested.
+- Chrome extensions: many work, but not all. Network rule sets (declarativeNetRequest) are accepted but not applied. Background workers get Lintas's extra Chrome APIs only with the normal sandbox. Smartling Context Capture loads and captures pages; signing in to Smartling has not been tested.
 - AI features need your own Claude API key (Settings > AI).
 
 Full details: [lintas/README.md](https://github.com/ZenZeiTen/synthapps/blob/main/lintas/README.md).

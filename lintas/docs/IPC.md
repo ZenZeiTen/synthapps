@@ -34,7 +34,9 @@ so the renderer must tell main where it may draw it:
   blocked: number,           // trackers/ads blocked on this page
   zoom: number,              // 1 = 100 %
   error: { code, description }|null,   // navigation failure (renderer shows an error page)
-  offlineCopy: { id, savedAt }|null }  // a saved copy exists for this URL
+  offlineCopy: { id, savedAt }|null,  // a saved copy exists for this URL
+  group: { id, title, color, collapsed }|null,   // tab group made by an extension
+  extPanel: { key, extId, name }|null }          // extension side panel shown for this tab
 ```
 Internal URLs: `lintas://newtab`, `lintas://tms`, `lintas://tms/project/<id>`,
 `lintas://tms/file/<projectId>/<fileId>`, `lintas://offline`, `lintas://history`,
@@ -64,6 +66,7 @@ Events (subscribe with `lintas.on(event, handler)`, which returns an unsubscribe
 | `online` | `{ online: bool }` |
 | `shortcut` | `{ name }` — keyboard shortcuts caught in a web page: `focus-omnibox`, `find`, `new-tab`, `close-tab`, `reopen-tab`, `next-tab`, `prev-tab`, `toggle-panel`, `open-tms` |
 | `toast` | `{ kind: "info"|"success"|"error", message }` |
+| `extpanel-open` | `{ tabId, key }` — an extension opened its side panel (chrome.sidePanel.open) |
 
 `permissions.answer(requestId, { allow: bool, remember: bool })` answers a prompt.
 
@@ -117,6 +120,8 @@ saved too.
 | `webpanel.apps()` | `[{ id, name, icon }]`: Gmail and Calendar |
 | `webpanel.show(id \| null, bounds)` | Docks web panel `id` at `bounds` (window coordinates) or hides it |
 | `webpanel.reload(id)`, `webpanel.home(id)`, `webpanel.openInTab(id)` | Panel toolbar actions |
+| `webpanel.show('ext:tab:<tab>' \| 'ext:win:<extension>', bounds)` | Docks an extension's side panel (the key comes from the tab list's `extPanel.key`) |
+| `extpanel.close(key)` | Closes an extension's side panel and ends its page |
 
 Setting `minimizeToTray` (boolean): minimizing hides the window to the notification area.
 | `settings.get()` | `Settings` |

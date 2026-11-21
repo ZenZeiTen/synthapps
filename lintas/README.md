@@ -59,9 +59,20 @@ does not let apps change the default themselves.
   extension's manifest permissions checked on every call:
   `identity.launchWebAuthFlow` and `identity.getRedirectURL` (sign-in through a provider's
   web page), `tabs.captureVisibleTab`, `pageCapture.saveAsMHTML`, `userScripts`,
-  `debugger`, `offscreen`, `alarms` and `sidePanel`. A side panel opens as a tab, because
-  Lintas has no extension side panel. `tabGroups` and `declarativeNetRequest` exist only as
-  stand-ins so extensions start: there are no tab groups, and network rules are not applied.
+  `debugger`, `offscreen`, `alarms`, `sidePanel`, `tabGroups` with `tabs.group` and
+  `tabs.ungroup`, and `runtime.getContexts`. `declarativeNetRequest` exists only as a
+  stand-in so extensions start: rules are accepted but not applied.
+- Extension side panels dock in Lintas's side panel, beside the page, as in Chrome: a panel
+  opened for one tab shows while that tab is active, and closing it ends its page. Extension
+  pages can close their own panel or tab with `window.close()`.
+- Tab groups made by extensions show as a coloured line under each tab in the group, with
+  the group's name in the tab's tooltip.
+- Keyboard shortcuts from an extension's manifest (`commands`) work, except where they
+  would take one of Lintas's own shortcuts, as in Chrome.
+- Native messaging (`runtime.connectNative`, `runtime.sendNativeMessage`) starts the programs
+  that other browsers would: Lintas looks for the program's registration where Chrome, Edge,
+  Chromium and Brave keep it (on Windows, in the registry), and in its own
+  `NativeMessagingHosts` folder.
 - Background workers only get these APIs when Lintas runs with Chromium's sandbox, which is
   the normal case. Started with `--no-sandbox` (needed as root), Electron skips the scripts
   that add them ([electron/electron#54322](https://github.com/electron/electron/issues/54322)),
@@ -69,9 +80,8 @@ does not let apps change the default themselves.
 - Extensions run in normal tabs, never in private ones.
 - Not every Chrome extension works. Lintas is not Google Chrome, so extensions that need
   APIs Electron lacks fail or run in part. Examples: `identity.getAuthToken` (Google
-  account sign-in), native messaging, `offscreen`, `declarativeNetRequest` rule sets, and Manifest V2 features
-  Chrome itself has removed. Password managers that need native messaging also
-  will not work.
+  account sign-in), `declarativeNetRequest` rule sets, and Manifest V2 features
+  Chrome itself has removed.
 
 **Smartling Context Capture**
 - Tested with Smartling Context Capture 5.1.2 loaded in Lintas: it installs, its toolbar
@@ -84,10 +94,14 @@ does not let apps change the default themselves.
   registered is the same as in Chrome.
 
 **Claude extension (Claude in Chrome)**
-- Tested with version 1.0.107: it starts, and its toolbar button opens Claude's panel in a
-  tab, showing its sign-in screen. Signing in and letting Claude act on pages have not been
-  tested, because that needs a paid Claude account. Its links to the Claude desktop apps
-  (native messaging) do not work.
+- Tested with version 1.0.107 running in Lintas: its toolbar button opens Claude's panel
+  beside the page, Claude puts the tab in its orange "Claude" tab group, the panel follows its
+  tab when you switch tabs, and Ctrl+E reaches Claude's own toggle. The sign-in hand-back
+  (claude.ai sending you back to the extension) reaches the extension.
+- Its link to Claude Desktop and Claude Code uses native messaging, which now works when
+  those apps have registered themselves for Chrome or Edge.
+- Not tested: signing in with a real account and letting Claude act on pages, because that
+  needs a paid Claude account.
 
 **Claude Desktop (MCP)**
 - Settings → Claude Desktop → *Allow Claude Desktop to use Lintas*, then *Add Lintas to
