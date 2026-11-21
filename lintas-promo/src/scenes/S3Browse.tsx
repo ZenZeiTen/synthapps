@@ -6,7 +6,7 @@ import { Ring, Stage, StageItem } from "../components/Shot";
 
 const items: StageItem[] = [
   { src: "newtab", ar: 1.6, start: 20, end: 125, zoom: [1, 1.08], fx: [0.5, 0.5], fy: [0.5, 0.45] },
-  { src: "omnibox", ar: 1.6, start: 110, end: 215, zoom: [1.0, 1.35], fx: [0.5, 0.3], fy: [0.2, 0.2] },
+  { src: "omnibox", ar: 1.6, start: 110, end: 215, zoom: [1.0, 1.2], fx: [0.5, 0.5], fy: [0.25, 0.2] },
   {
     src: "trackers",
     ar: 1.6,
@@ -22,9 +22,9 @@ const items: StageItem[] = [
     ar: 1.6,
     start: 275,
     end: 400,
-    zoom: [1.0, 1.15],
+    zoom: [1.5, 1.9],
     fx: [0.5, 0.5],
-    fy: [0.5, 0.55],
+    fy: [0.55, 0.62],
     overlay: <Ring x={32.5} y={56.5} size={0} wPct={35} hPct={7.2} at={305} />,
   },
 ];

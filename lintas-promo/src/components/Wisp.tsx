@@ -31,9 +31,9 @@ const WispModel: React.FC<{ scale: number; offsetY: number }> = ({
       <mesh scale={pulse}>
         <sphereGeometry args={[0.95, 48, 48]} />
         <meshStandardMaterial
-          color="#2aa882"
+          color="#14795c"
           emissive={C.jade}
-          emissiveIntensity={emissive}
+          emissiveIntensity={emissive * 0.55}
           roughness={0.35}
         />
       </mesh>
@@ -105,7 +105,7 @@ export const Wisp: React.FC<{
     <ambientLight intensity={0.55} />
     <directionalLight position={[3, 4, 5]} intensity={1.6} />
     <directionalLight position={[-4, -2, 3]} intensity={0.6} color={C.gold} />
-    <pointLight position={[0, 0, 0]} intensity={18} distance={7} color={C.jade2} />
+    <pointLight position={[0, 0, 0]} intensity={6} distance={7} color={C.jade2} />
     <WispModel scale={scale} offsetY={offsetY} />
   </ThreeCanvas>
 );

@@ -98,7 +98,7 @@ export const S4Translate: React.FC = () => {
               }}
             >
               <Shot src="translate" ar={1.6} boxW={BW} boxH={BH} zoom={z} fx={px} fy={py}>
-                <Ring x={79} y={64.5} size={0} wPct={14.5} hPct={5.8} at={282} />
+                <Ring x={74} y={62} size={0} wPct={10.4} hPct={4.6} at={282} />
               </Shot>
             </div>
             {wipe > 0 && wipe < 100 ? (

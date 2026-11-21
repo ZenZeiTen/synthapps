@@ -28,7 +28,7 @@ export const S5Tms: React.FC = () => {
     <AbsoluteFill>
       <Backdrop />
       <div style={{ position: "absolute", left: 96, top: 110, width: 840 }}>
-        <Headline text="Your TMS lives in your browser." accent={[1, 2]} />
+        <Headline text="Your TMS lives in your browser." accent={[1, 5]} />
         <ChipColumn top={34}>
           <Chip icon="grid" text="A full Translation Management System, built in" at={108} />
           <Chip icon="pencil" text="CAT editor with fuzzy TM matches" at={238} />
