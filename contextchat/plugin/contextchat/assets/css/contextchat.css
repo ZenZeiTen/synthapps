@@ -228,6 +228,8 @@
 	gap: 12px;
 }
 
+.ctxc-body[hidden] { display: none; }
+
 .ctxc .ctxc-bubble {
 	position: relative;
 	align-self: flex-start;
@@ -458,4 +460,257 @@ a.ctxc-inline:focus {
 
 @media (prefers-reduced-motion: reduce) {
 	.ctxc-inline { transition: none; }
+}
+
+/* ---------- SI chat (2.0) ---------- */
+
+.ctxc-si {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	background-color: var(--ctxc-wall);
+}
+
+.ctxc-si-log {
+	flex: 1;
+	min-height: 220px;
+	overflow-y: auto;
+	padding: 14px 14px 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	background-image: radial-gradient(rgba(0, 0, 0, 0.035) 1px, transparent 1px);
+	background-size: 14px 14px;
+}
+
+.ctxc-si-log:focus-visible { outline: 2px solid var(--ctxc-color); outline-offset: -2px; }
+
+.ctxc-si-sr {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.ctxc .ctxc-si-notice {
+	margin: 0;
+	padding: 8px 10px;
+	font-size: 12.5px;
+	line-height: 1.45;
+	text-align: center;
+	color: var(--ctxc-muted);
+	background: color-mix(in srgb, var(--ctxc-surface) 80%, transparent);
+	border-radius: 10px;
+}
+
+.ctxc-si-msg { display: flex; }
+.ctxc-si-msg.is-visitor { justify-content: flex-end; }
+
+.ctxc .ctxc-si-bubble {
+	max-width: 85%;
+	margin: 0;
+	padding: 9px 13px;
+	font-size: 14px;
+	line-height: 1.5;
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+	color: var(--ctxc-text);
+	background: var(--ctxc-surface);
+	border-radius: 4px 14px 14px 14px;
+	box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.12);
+}
+
+.ctxc .is-visitor .ctxc-si-bubble { background: #dcf8c6; border-radius: 14px 4px 14px 14px; }
+.ctxc .is-error .ctxc-si-bubble { background: #fde8e8; color: #8a1c1c; }
+.ctxc .ctxc-si-bubble a { color: inherit; text-decoration: underline; }
+
+.ctxc-si-typing {
+	align-self: flex-start;
+	display: flex;
+	gap: 4px;
+	padding: 12px 14px;
+	background: var(--ctxc-surface);
+	border-radius: 4px 14px 14px 14px;
+	box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.12);
+}
+
+.ctxc-si-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--ctxc-muted);
+	animation: ctxc-si-dot 1.2s ease-in-out infinite;
+}
+
+.ctxc-si-dot:nth-child(2) { animation-delay: 0.15s; }
+.ctxc-si-dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes ctxc-si-dot {
+	0%, 60%, 100% { opacity: 0.3; transform: none; }
+	30% { opacity: 1; transform: translateY(-3px); }
+}
+
+.ctxc-si-card {
+	align-self: stretch;
+	padding: 12px 14px;
+	font-size: 13.5px;
+	color: var(--ctxc-text);
+	background: var(--ctxc-surface);
+	border: 1px solid var(--ctxc-line);
+	border-radius: 14px;
+	box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.08);
+}
+
+.ctxc .ctxc-si-card-title {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	margin: 0 0 8px;
+	font-weight: 700;
+	font-size: 14px;
+}
+
+.ctxc-si-ref { font-weight: 600; font-size: 12px; color: var(--ctxc-muted); letter-spacing: 0.02em; }
+
+.ctxc .ctxc-si-lines {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 6px 12px;
+	margin: 0;
+}
+
+.ctxc .ctxc-si-lines dt { margin: 0; }
+.ctxc .ctxc-si-lines dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ctxc-si-detail { display: block; font-size: 12px; color: var(--ctxc-muted); }
+
+.ctxc .ctxc-si-lines .ctxc-si-total {
+	padding-top: 6px;
+	border-top: 1px solid var(--ctxc-line);
+	font-weight: 700;
+	font-size: 15px;
+}
+
+.ctxc .ctxc-si-note,
+.ctxc .ctxc-si-team,
+.ctxc .ctxc-si-hours,
+.ctxc .ctxc-si-agent {
+	margin: 8px 0 0;
+	font-size: 12px;
+	line-height: 1.45;
+	color: var(--ctxc-muted);
+}
+
+.ctxc .ctxc-si-team { color: #7a5600; }
+
+.ctxc-si-edit-label { display: block; margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--ctxc-muted); }
+
+.ctxc .ctxc-si-summary {
+	width: 100%;
+	margin: 0;
+	padding: 8px 10px;
+	font: inherit;
+	font-size: 12.5px;
+	line-height: 1.45;
+	color: var(--ctxc-text);
+	background: var(--ctxc-wall);
+	border: 1px solid var(--ctxc-line);
+	border-radius: 10px;
+	resize: vertical;
+}
+
+.ctxc-si-buttons { display: flex; gap: 8px; margin-top: 10px; }
+
+.ctxc .ctxc-si-btn {
+	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 9px 12px;
+	font-weight: 600;
+	font-size: 14px;
+	text-decoration: none;
+	border-radius: 999px;
+	border: 1px solid var(--ctxc-color);
+}
+
+.ctxc .ctxc-si-wa { background: var(--ctxc-color); color: var(--ctxc-icon); }
+.ctxc .ctxc-si-mail { background: transparent; color: var(--ctxc-text); }
+.ctxc .ctxc-si-btn:focus-visible { outline: 3px solid var(--ctxc-color); outline-offset: 2px; }
+
+.ctxc-si-form {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	padding: 10px 12px 12px;
+	background: var(--ctxc-surface);
+	border-top: 1px solid var(--ctxc-line);
+	position: relative;
+}
+
+.ctxc .ctxc-si-input {
+	flex: 1;
+	min-height: 40px;
+	max-height: 120px;
+	margin: 0;
+	padding: 9px 12px 16px;
+	font: inherit;
+	font-size: 14px;
+	line-height: 1.4;
+	color: var(--ctxc-text);
+	background: var(--ctxc-wall);
+	border: 1px solid var(--ctxc-line);
+	border-radius: 18px;
+	resize: none;
+}
+
+.ctxc .ctxc-si-input:focus { outline: none; border-color: var(--ctxc-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ctxc-color) 30%, transparent); }
+
+.ctxc-si-count {
+	position: absolute;
+	right: 66px;
+	bottom: 14px;
+	font-size: 10.5px;
+	color: var(--ctxc-muted);
+	pointer-events: none;
+}
+
+.ctxc .ctxc-si-send {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: var(--ctxc-color);
+	color: var(--ctxc-icon);
+	cursor: pointer;
+}
+
+.ctxc .ctxc-si-send:disabled { opacity: 0.55; cursor: default; }
+.ctxc .ctxc-si-send:focus-visible { outline: 3px solid var(--ctxc-color); outline-offset: 2px; }
+
+@media (max-width: 480px) {
+	.ctxc.is-open .ctxc-si-log { min-height: 0; }
+	.ctxc .ctxc-si-input { font-size: 16px; } /* No zoom on focus in iOS Safari. */
+}
+
+@media (prefers-color-scheme: dark) {
+	.ctxc .is-visitor .ctxc-si-bubble { background: #005c4b; color: #e9edef; }
+	.ctxc .is-error .ctxc-si-bubble { background: #4a1f1f; color: #f5c6c6; }
+	.ctxc .ctxc-si-team { color: #f3dfa8; }
+	.ctxc-si-log { background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px); }
+	.ctxc .ctxc-si-mail { color: #e9edef; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ctxc-si-dot { animation: none; opacity: 0.7; }
 }

@@ -1213,7 +1213,7 @@ msgstr ""
 msgid "Close chat window"
 msgstr ""
 
-#: includes/class-frontend.php:165
+#: includes/class-frontend.php:165 includes/class-frontend.php:467
 msgid "Your message"
 msgstr ""
 
@@ -1235,6 +1235,43 @@ msgstr ""
 
 #: includes/class-frontend.php:437
 msgid "Offline – replies when we are back"
+msgstr ""
+
+#: includes/class-frontend.php:463
+#, php-format
+msgid "%s SI Assistant"
+msgstr ""
+
+#: includes/class-frontend.php:464
+msgid "Synthesized Intelligence · can hand you to our team"
+msgstr ""
+
+#: includes/class-frontend.php:466
+msgid "Conversation"
+msgstr ""
+
+#: includes/class-frontend.php:468
+msgid "Write a message…"
+msgstr ""
+
+#: includes/class-frontend.php:469
+msgid "Send"
+msgstr ""
+
+#: includes/class-frontend.php:470
+msgid "The SI assistant is writing…"
+msgstr ""
+
+#: includes/class-frontend.php:471
+msgid "You"
+msgstr ""
+
+#: includes/class-frontend.php:472
+msgid "SI assistant"
+msgstr ""
+
+#: includes/class-frontend.php:473
+msgid "The message could not be sent. Please try again."
 msgstr ""
 
 #: includes/class-meta-box.php:78

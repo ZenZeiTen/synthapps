@@ -758,3 +758,110 @@ test( 'SI chat endpoints: start, quote, blocked uploads and IDs, idle offer, han
 	assert.equal( ( await chatApi( 'start', { lang: 'id' } ) ).status, 404 );
 	await page.close();
 } );
+
+test( 'SI chat in the panel: quote card, handoff card, no files, idle offer, resume, and the 1.1 panel as fallback', async () => {
+	const admin = await newPage();
+	await login( admin );
+	await admin.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-si' );
+	await admin.fill( '#ctxc-si_api_key', MOCK_KEY );
+	await admin.check( '#ctxc-si_enabled' );
+	await admin.fill( '#ctxc-si_business_name', 'Nusalexia' );
+	await admin.fill( '#ctxc-si_idle_minutes', '3' );
+	await admin.click( '#submit' );
+	await admin.waitForURL( /settings-updated=true/ );
+
+	const page = await newPage();
+	await page.clock.install();
+	await page.goto( BASE + '/contact/' );
+	assert.equal( await page.locator( 'script[src*="assets/js/chat.js"]' ).count(), 0, 'the chat code is not loaded before the panel opens' );
+	await page.locator( '.ctxc-launcher' ).click();
+	await page.locator( '.ctxc-si-input' ).waitFor();
+	assert.equal( await page.locator( '.ctxc-title' ).textContent(), 'Nusalexia SI Assistant' );
+	assert.equal( await page.locator( '.ctxc-body' ).isHidden(), true, 'the 1.1 message box is replaced' );
+	await page.locator( '.ctxc-si-notice' ).waitFor();
+	assert.match( await page.locator( '.ctxc-si-notice' ).textContent(), /Synthesized Intelligence|Kecerdasan Sintesis/ );
+	assert.equal( await page.locator( '.ctxc-si-msg.is-assistant' ).count(), 1, 'the greeting' );
+	assert.equal( await page.evaluate( () => document.activeElement.className ), 'ctxc-si-input' );
+	await shot( page, 'si-chat-start', '.ctxc-panel' );
+
+	// A file pasted into the box is refused in the browser.
+	await page.evaluate( () => {
+		const dt = new DataTransfer();
+		dt.items.add( new File( [ 'x' ], 'ijazah.pdf', { type: 'application/pdf' } ) );
+		document.querySelector( '.ctxc-si-input' ).dispatchEvent( new ClipboardEvent( 'paste', { clipboardData: dt, bubbles: true, cancelable: true } ) );
+	} );
+	assert.match( await page.locator( '.ctxc-si-msg.is-assistant' ).last().textContent(), /documents can't be sent|tidak bisa dikirim/ );
+
+	// A quote: the reply and the card.
+	await new Promise( ( r ) => setTimeout( r, 1600 ) ); // The server's 1.5-second first-message check runs on real time.
+	mockScript.push(
+		mockTools( [ [ 'get_quote', { package: 'sworn', source_lang: 'id', target_lang: 'en', pages: 3, documents: 2, legalisation: 'apostille' } ] ] ),
+		mockText( 'Untuk terjemahan tersumpah ke bahasa Inggris dengan apostille, estimasinya Rp 1.775.000, Kak. Rinciannya ada di kartu di bawah. Tenggatnya kapan ya, Kak?' )
+	);
+	await page.fill( '.ctxc-si-input', 'Ijazah dan transkrip, 3 halaman, tersumpah ke Inggris, apostille' );
+	assert.equal( await page.locator( '.ctxc-si-count' ).textContent(), '64/1000' );
+	await page.press( '.ctxc-si-input', 'Enter' );
+	await page.locator( '.ctxc-si-quote' ).waitFor();
+	assert.match( await page.locator( '.ctxc-si-msg.is-visitor' ).last().textContent(), /Ijazah dan transkrip/ );
+	assert.match( await page.locator( '.ctxc-si-quote' ).textContent(), /3 halaman × Rp 125\.000.*Rp 375\.000.*Apostille.*Rp 1\.400\.000.*Total.*Rp 1\.775\.000.*DP 50%.*Rp 887\.500/s );
+	assert.match( await page.locator( '.ctxc-si-quote .ctxc-si-note' ).textContent(), /Berlaku 7 hari/ );
+	assert.equal( await page.locator( '.ctxc-si-handoff' ).count(), 0 );
+	await shot( page, 'si-chat-quote', '.ctxc-panel' );
+
+	// Three silent minutes after the quote: the team is offered once.
+	await page.clock.fastForward( '03:01' );
+	await page.locator( '.ctxc-si-handoff' ).waitFor();
+	assert.match( await page.locator( '.ctxc-si-summary' ).inputValue(), /Estimasi: Rp 1\.775\.000 \(DP 50%: Rp 887\.500\)/ );
+
+	// The visitor edits the summary; the WhatsApp button carries the edited text.
+	await page.fill( '.ctxc-si-summary', 'Halo, saya lanjut dari chat. Tenggat: Jumat.' );
+	const popup = page.context().waitForEvent( 'page' );
+	await page.locator( '.ctxc-si-wa' ).click();
+	await popup;
+	assert.equal( textOf( opened.at( -1 ) ), 'Halo, saya lanjut dari chat. Tenggat: Jumat.' );
+	assert.match( await page.locator( '.ctxc-si-mail' ).getAttribute( 'href' ), /^mailto:.*subject=%5BNusalexia%5D%20Terjemahan%20Tersumpah%20-%20EST-/ );
+	await shot( page, 'si-chat-handoff', '.ctxc-panel' );
+	const session = await page.evaluate( () => JSON.parse( sessionStorage.getItem( 'ctxc-si' ) ) );
+	await new Promise( ( r ) => setTimeout( r, 500 ) );
+	assert.ok( chatCheck( session.id ).events.includes( 'handoff_clicked:whatsapp' ) );
+
+	// Reloading the tab resumes the conversation.
+	await page.reload();
+	await page.locator( '.ctxc-launcher' ).click();
+	await page.locator( '.ctxc-si-quote' ).waitFor();
+	assert.equal( await page.locator( '.ctxc-si-msg.is-visitor' ).count(), 1 );
+	assert.equal( await page.evaluate( () => JSON.parse( sessionStorage.getItem( 'ctxc-si' ) ).id ), session.id );
+
+	// Phones: the chat fills the bottom sheet.
+	const phone = await newPage( { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } );
+	await phone.goto( BASE + '/contact/' );
+	await phone.locator( '.ctxc-launcher' ).click();
+	await phone.locator( '.ctxc-si-input' ).waitFor();
+	await phone.waitForFunction( () => document.getElementById( 'ctxc-panel' ).getAnimations().every( ( a ) => a.playState === 'finished' ) );
+	const box = await phone.locator( '.ctxc-panel' ).boundingBox();
+	assert.equal( Math.round( box.width ), 390 );
+	assert.equal( Math.round( box.y + box.height ), 844 );
+	await shot( phone, 'si-chat-phone' );
+
+	// When the SI is switched off, an open page falls back to the 1.1 panel.
+	const fresh = await newPage();
+	await fresh.goto( BASE + '/contact/' );
+	settings( { si_enabled: false } );
+	await fresh.locator( '.ctxc-launcher' ).click();
+	await fresh.waitForFunction( () => ! document.querySelector( '.ctxc-si' ) && ! document.querySelector( '.ctxc-body' ).hidden );
+	assert.equal( await fresh.locator( '#ctxc-composer' ).isVisible(), true );
+	assert.equal( await fresh.locator( '.ctxc-title' ).textContent() === 'Nusalexia SI Assistant', false, 'the 1.1 header is back' );
+	assert.equal( await fresh.locator( '.ctxc-agent' ).first().isVisible(), true );
+	const off = await newPage();
+	await off.goto( BASE + '/contact/' );
+	assert.equal( await off.evaluate( () => 'si' in JSON.parse( document.getElementById( 'contextchat-config' ).textContent ) ), false );
+
+	// Remove the key for the other tests.
+	await admin.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-si' );
+	await admin.check( 'input[name="contextchat_settings[si_api_key_remove]"]' );
+	await admin.click( '#submit' );
+	await admin.waitForURL( /settings-updated=true/ );
+	for ( const p of [ admin, page, phone, fresh, off ] ) {
+		await p.context().close();
+	}
+} );
