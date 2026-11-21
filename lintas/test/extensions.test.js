@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { filterContexts, nextGroupColor, shortcutFor, shortcutMatches, matchesTitle, matchesPattern, parseSetCookie } from '../app/main/ext-util.js';
+import { filterContexts, nextGroupColor, shortcutFor, shortcutMatches, matchesTitle, matchesPattern, parseSetCookie, normalizeSite, narrowPattern, restrictManifest } from '../app/main/ext-util.js';
 import { encodeMessage, createFrameReader, hostManifestPaths, registryKeys, validHostManifest, MAX_FROM_HOST } from '../app/main/native-host.js';
 
 test('new tab groups get Chrome colours in order, least used first', () => {
@@ -112,4 +112,38 @@ test('Set-Cookie lines become cookie details, deletions and refusals', () => {
   assert.deepEqual(parseSetCookie('a=1; Expires=Wed, 01 Jan 2020 00:00:00 GMT', url, now), { remove: true, name: 'a' });
   assert.equal(parseSetCookie('a=1; SameSite=None', url, now), null);
   assert.equal(parseSetCookie('novalue', url, now), null);
+});
+
+test('normalizeSite: hosts from what people type', () => {
+  assert.equal(normalizeSite('https://Claude.ai/new?x=1'), 'claude.ai');
+  assert.equal(normalizeSite('example.com:8080'), 'example.com');
+  assert.equal(normalizeSite('*.example.com'), '*.example.com');
+  assert.equal(normalizeSite(''), null);
+  assert.equal(normalizeSite('not a site'), null);
+  assert.equal(normalizeSite('ex_ample.com'), null);
+});
+
+test('narrowPattern: a pattern limited to one site', () => {
+  assert.equal(narrowPattern('<all_urls>', 'claude.ai'), '*://claude.ai/*');
+  assert.equal(narrowPattern('https://*/*', 'claude.ai'), 'https://claude.ai/*');
+  assert.equal(narrowPattern('https://*.claude.ai/*', 'claude.ai'), 'https://claude.ai/*');
+  assert.equal(narrowPattern('https://*.claude.ai/*', 'docs.claude.ai'), 'https://docs.claude.ai/*');
+  assert.equal(narrowPattern('https://claude.ai/cic/*', 'claude.ai'), 'https://claude.ai/cic/*');
+  assert.equal(narrowPattern('https://claude.ai/*', 'example.com'), null);
+  assert.equal(narrowPattern('https://mail.example.com/*', '*.example.com'), 'https://mail.example.com/*');
+  assert.equal(narrowPattern('https://mail.example.com/*', 'example.com'), null);
+  assert.equal(narrowPattern('file:///*', 'example.com'), null);
+});
+
+test('restrictManifest: host permissions and content scripts only on the chosen sites', () => {
+  const m3 = { manifest_version: 3, permissions: ['tabs', 'storage'], host_permissions: ['<all_urls>'],
+    content_scripts: [{ js: ['a.js'], matches: ['https://claude.ai/*'] }, { js: ['b.js'], matches: ['<all_urls>'], all_frames: true }] };
+  const r = restrictManifest(m3, ['example.com']);
+  assert.deepEqual(r.permissions, ['tabs', 'storage']);
+  assert.deepEqual(r.host_permissions, ['*://example.com/*']);
+  assert.deepEqual(r.content_scripts, [{ js: ['b.js'], matches: ['*://example.com/*'], all_frames: true }]);
+  assert.deepEqual(m3.host_permissions, ['<all_urls>'], 'the original is untouched');
+  const m2 = { manifest_version: 2, permissions: ['storage', 'https://*/*', 'http://*/*'] };
+  assert.deepEqual(restrictManifest(m2, ['claude.ai']).permissions, ['storage', 'https://claude.ai/*', 'http://claude.ai/*']);
+  assert.deepEqual(restrictManifest(m3, []).host_permissions, []);
 });

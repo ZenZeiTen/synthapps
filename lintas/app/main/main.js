@@ -467,6 +467,11 @@ function registerIpc() {
   handle('extensions.installFromStore', input => extensions.installFromStore(input));
   handle('extensions.loadUnpacked', () => extensions.loadUnpacked());
   handle('extensions.remove', id => extensions.remove(id));
+  handle('extensions.setSettings', (id, patch) => {
+    if (typeof id !== 'string' || !patch || typeof patch !== 'object') throw new Error('Bad request.');
+    const { sites, ...rest } = patch;
+    return extensions.setSettings(id, Array.isArray(sites) ? { ...rest, sites: sites.map(String).slice(0, 200) } : rest);
+  });
   handle('extensions.openOptions', id => {
     const e = extensions.list().find(x => x.id === id);
     if (!e?.optionsUrl) throw new Error('This extension has no options page.');

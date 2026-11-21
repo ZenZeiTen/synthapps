@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Lintas site test",
+  "version": "1.0",
+  "description": "Marks pages it runs on (site access test).",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt4shypZOe0OPXVhCiTQFin2pZ+ZnoQ2wesyC5bnht4oZMYpXOx67moyUJilPDceqpRkXGlbuP0DrANR3z+/pKsiSCXL5kwUrR52Onhzk/AuoJuGefZKtlwJehuIrcL8oGDLD1NRNUzCeifQCPGmhCLgpeNhvhtqMcrEB1NkZ/spufX0IEgW3H3hg3bJQckfQ39VKoFrfgkZc6pvBGdvaF2RgCYwIhy6Z6rvDLq75c62bkfH5EGbaAheLxHWVWjDZmP8kLC0hGvzTWJ/r6RjajsKMM9tbwldViI23f/xGu/lGJPeIKIONM9eeQYacVu7fO3jfnVkf+w+lA8zIwluwpwIDAQAB",
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "mark.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

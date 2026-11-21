@@ -18,6 +18,11 @@ fs.writeFileSync(path.join(chromeProfile, 'Bookmarks'), JSON.stringify({ roots: 
 fs.writeFileSync(path.join(chromeProfile, 'Preferences'), JSON.stringify({ default_search_provider_data: { template_url_data: { keyword: 'bing.com' } } }));
 // A small MV3 extension (content script + toolbar action), loaded as an unpacked extension.
 fs.writeFileSync(path.join(dataDir, 'unpacked-extensions.json'), JSON.stringify([path.resolve(import.meta.dirname, 'fixtures/hello-ext')]));
+// A second extension installed the way the Chrome Web Store installs (Extensions/<id>/<version>_0, manifest with a key),
+// which marks every page it runs on: for the per-extension settings (off, file URLs, site access)
+const SITE_EXT = 'kjcilljmdagkddocejdjfjnjnnbnlmni';
+fs.cpSync(path.resolve(import.meta.dirname, 'fixtures/site-ext'), path.join(dataDir, 'Extensions', SITE_EXT, '1.0_0'), { recursive: true });
+fs.writeFileSync(path.join(dataDir, 'local-page.html'), '<!doctype html><title>Local page</title><p>On this computer.</p>');
 // A native messaging host registered in Lintas's own folder, allowed for the test extension (its ID comes from the manifest key)
 const hostDir = path.join(dataDir, 'NativeMessagingHosts');
 fs.mkdirSync(hostDir, { recursive: true });
@@ -299,6 +304,72 @@ try {
   const cap2 = await L(([id, pid]) => lintas.tms.capturePage(id, pid), [tabId, tp.id]);
   const back = (await L(([pid, fid]) => lintas.tms.getFile(pid, fid, {}), [tp.id, cap2.id])).segments.map(x => x.source);
   assert.ok(back.includes('Open the settings page to change your password.'), back.join(' | '));
+
+  // Per-extension settings, as on Chrome's details page: off, file URLs, site access
+  {
+    const siteUrl = `http://127.0.0.1:${port}/`;
+    // Reloads the page until it shows the expected mark: an extension's new content scripts reach pages a moment after it loads
+    const mark = async (url, want) => {
+      let v;
+      for (let i = 0; i < 6; i++) {
+        v = await app.evaluate(async ({ webContents }, url) => {
+          const wc = webContents.getAllWebContents().find(w => w.getURL() === url);
+          if (!wc) return 'no page: ' + webContents.getAllWebContents().map(w => w.getURL()).join(' , ');
+          await new Promise(r => { wc.once('did-stop-loading', r); wc.reload(); });
+          let v = '';
+          for (let i = 0; i < 10; i++) { try { v = await wc.executeJavaScript('document.documentElement.dataset.siteExt || ""'); } catch { v = ''; } if (v) return v; await new Promise(r => setTimeout(r, 100)); }
+          return v;
+        }, url);
+        if (v === want) return v;
+        await new Promise(r => setTimeout(r, 300));
+      }
+      return v;
+    };
+    // Opens a page in the test tab and waits until the page itself (not only the tab's address) shows it
+    const open = async (url) => {
+      await L(([id, u]) => lintas.nav.go(id, u), [tabId, url]);
+      const ok = await app.evaluate(async ({ webContents }, u) => {
+        for (let i = 0; i < 150; i++) { const w = webContents.getAllWebContents().find(x => x.getURL() === u && !x.isLoading()); if (w) return true; await new Promise(r => setTimeout(r, 100)); }
+        return false;
+      }, url);
+      assert.ok(ok, 'opened ' + url);
+    };
+    const setx = (patch) => L(([id, p]) => lintas.extensions.setSettings(id, p), [SITE_EXT, patch]);
+    const row = async () => (await L(() => lintas.extensions.list())).find(x => x.id === SITE_EXT);
+    await open(siteUrl);
+    let r = await row();
+    assert.equal(r.source, 'store', JSON.stringify(r));
+    assert.deepEqual([r.loaded, r.enabled, r.fileAccess, r.private, r.siteAccess], [true, true, false, false, 'all']);
+    assert.equal(await mark(siteUrl, '1'), '1', 'runs on all sites');
+    const backup = path.join(dataDir, 'Extensions', SITE_EXT, '1.0_0', 'lintas-original-manifest.json');
+    r = await setx({ siteAccess: 'sites', sites: ['https://example.com/page'] });
+    assert.deepEqual([r.siteAccess, r.sites], ['sites', ['example.com']]);
+    assert.ok(fs.existsSync(backup), 'the published manifest is kept');
+    assert.equal(await mark(siteUrl, ''), '', 'not on a site it is not allowed on');
+    await setx({ sites: ['example.com', '127.0.0.1'] });
+    assert.equal(await mark(siteUrl, '1'), '1', 'on a site it is allowed on');
+    await setx({ siteAccess: 'all' });
+    assert.ok(!fs.existsSync(backup), 'the published manifest is back');
+    await assert.rejects(setx({ siteAccess: 'sites', sites: ['not a site'] }), /Not a site/);
+    // Turned off: kept in the list, not running; turned on again
+    r = await setx({ enabled: false });
+    assert.deepEqual([r.enabled, r.loaded], [false, false]);
+    assert.equal(await mark(siteUrl, ''), '', 'an extension that is off does not run');
+    r = await setx({ enabled: true });
+    assert.equal(r.loaded, true);
+    assert.equal(await mark(siteUrl, '1'), '1');
+    // File URLs: only when allowed
+    const fileUrl = 'file://' + path.join(dataDir, 'local-page.html');
+    await open(fileUrl);
+    assert.equal(await mark(fileUrl, ''), '', 'no file access by default');
+    await setx({ fileAccess: true });
+    assert.equal(await mark(fileUrl, '1'), '1', 'file access when allowed');
+    await setx({ fileAccess: false });
+    // An unpacked extension keeps the sites of its own manifest
+    const hello = (await L(() => lintas.extensions.list())).find(e => e.name === 'Lintas test extension');
+    await assert.rejects(L(id => lintas.extensions.setSettings(id, { siteAccess: 'sites', sites: ['example.com'] }), hello.id), /Web Store/);
+    await open(siteUrl);
+  }
 
   // Offline library
   const saved = await L(id => lintas.offline.save(id), tabId);

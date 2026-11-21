@@ -13,11 +13,13 @@ import { dialog, ipcMain, session as electronSession, BrowserWindow } from 'elec
 import { ElectronChromeExtensions } from 'electron-chrome-extensions';
 import { popupWindowOptions, liveContents } from './tabs.js';
 import { installNativeMessaging } from './native-messaging.js';
-import { GROUP_COLORS, filterContexts, nextGroupColor, shortcutFor, shortcutMatches, matchesTitle, matchesPattern, parseSetCookie } from './ext-util.js';
+import { GROUP_COLORS, filterContexts, nextGroupColor, shortcutFor, shortcutMatches, matchesTitle, matchesPattern, parseSetCookie, normalizeSite, restrictManifest } from './ext-util.js';
 export { matchesPattern };
 import { installChromeWebStore, installExtension, uninstallExtension } from 'electron-chrome-web-store';
 
 const ID = /^[a-p]{32}$/;
+// Beside a Web Store extension limited to some sites: its manifest as published (no leading "_": Chromium reserves those names)
+const ORIGINAL_MANIFEST = 'lintas-original-manifest.json';
 const SHIMS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'preload', 'extension-shims.cjs');
 const USER_SCRIPT_WORLD = 2100; // isolated worlds 2100+ are used for extension user scripts
 export class Extensions {
@@ -30,8 +32,8 @@ export class Extensions {
     this.groups = new Map();       // tab group id -> { id, title, color, collapsed }
     this.nextGroupId = 1;
     this.tabPanels = new Map();    // tab webContents id -> { extId, url, name }: side panels opened for one tab
-    this.windowPanel = null;
-    this.panelContents = new Set(); // webContents ids of pages shown in extension side panels (not tabs)       // { extId, url, name }: a side panel opened for the whole window
+    this.windowPanel = null;       // { extId, url, name }: a side panel opened for the whole window
+    this.panelContents = new Set(); // webContents ids of pages shown in extension side panels (not tabs)
     this.panelBehavior = new Map(); // extension id -> { openPanelOnActionClick }
     this.listeners = new Map();    // extension id -> Set of senders for chrome.* events
     this.docIds = new Map();       // webContents id -> { contextId, documentId }
@@ -39,6 +41,11 @@ export class Extensions {
     this.externalPending = new Map(); // message id -> a web page's sendMessage waiting for the extension's reply
     this.extensionsPath = path.join(dataDir, 'Extensions');
     this.unpackedFile = path.join(dataDir, 'unpacked-extensions.json');
+    // The user's choices per extension (on/off, file URLs, private tabs, site access), as in Chrome's details page
+    this.settingsFile = path.join(dataDir, 'extension-settings.json');
+    try { this.prefs = JSON.parse(fs.readFileSync(this.settingsFile, 'utf8')) || {}; } catch { this.prefs = {}; }
+    this.known = new Map();        // extension id -> { path, type: 'store' | 'unpacked' }, loaded or turned off
+    this.loading = new Set();      // ids Lintas is loading itself (others are Web Store installs and updates)
     // Our shims must load before electron-chrome-extensions' preload, which freezes `chrome`.
     ses.registerPreloadScript({ id: 'lintas-ext-shims-frame', type: 'frame', filePath: SHIMS });
     ses.registerPreloadScript({ id: 'lintas-ext-shims-sw', type: 'service-worker', filePath: SHIMS });
@@ -699,9 +706,13 @@ export class Extensions {
     this.installShims();
     // The browser interface runs in the default session; extension icons load from crx://.
     ElectronChromeExtensions.handleCRXProtocol(electronSession.defaultSession);
+    // An install or update from the Web Store loads the extension itself; apply the user's settings to it.
+    this.ses.extensions.on('extension-loaded', (_e, ext) => this.loadedElsewhere(ext));
     await installChromeWebStore({
       session: this.ses,
       extensionsPath: this.extensionsPath,
+      // Lintas loads installed extensions itself, with each one's settings (turned off, file URLs, site access)
+      loadExtensions: false,
       allowUnpackedExtensions: false,
       beforeInstall: async (d) => {
         const perms = [...(d.manifest?.permissions || []), ...(d.manifest?.host_permissions || [])].map(String);
@@ -713,9 +724,128 @@ export class Extensions {
         return { action: r.response === 0 ? 'allow' : 'deny' };
       },
     });
-    for (const dir of this.unpackedDirs()) {
-      try { await this.ses.extensions.loadExtension(dir, { allowFileAccess: false }); } catch (e) { console.error('Could not load unpacked extension', dir, e.message); }
+    for (const { id, dir } of this.storeDirs()) {
+      try { await this.loadOne(dir, 'store', id); } catch (e) { console.error('Could not load extension', id, e.message); }
     }
+    for (const dir of this.unpackedDirs()) {
+      try { await this.loadOne(dir, 'unpacked', this.idForPath(dir)); } catch (e) { console.error('Could not load unpacked extension', dir, e.message); }
+    }
+  }
+
+  // ---------- per-extension settings ----------
+
+  setting(id) {
+    const s = (id && this.prefs[id]) || {};
+    return { enabled: s.enabled !== false, fileAccess: !!s.fileAccess, private: !!s.private,
+      siteAccess: s.siteAccess === 'sites' ? 'sites' : 'all', sites: Array.isArray(s.sites) ? s.sites.filter(x => typeof x === 'string') : [] };
+  }
+
+  savePrefs() { fs.writeFileSync(this.settingsFile, JSON.stringify(this.prefs, null, 1), { mode: 0o600 }); }
+
+  idForPath(dir) {
+    const p = path.resolve(dir);
+    return Object.keys(this.prefs).find(id => this.prefs[id]?.path && path.resolve(this.prefs[id].path) === p) || null;
+  }
+
+  remember(id, dir, type) {
+    this.known.set(id, { path: dir, type });
+    if (this.prefs[id]?.path !== dir) { this.prefs[id] = { ...(this.prefs[id] || {}), path: dir }; try { this.savePrefs(); } catch {} }
+  }
+
+  /** Web Store extensions on disk: Extensions/<id>/<version>_0/, the newest version of each. */
+  storeDirs() {
+    const out = [];
+    let ids = [];
+    try { ids = fs.readdirSync(this.extensionsPath).filter(x => ID.test(x)); } catch { return out; }
+    const num = (v) => String(v).split(/[._]/).map(n => parseInt(n, 10) || 0);
+    const newer = (a, b) => { const x = num(a), y = num(b); for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+    for (const id of ids) {
+      let best = null;
+      for (const v of fs.readdirSync(path.join(this.extensionsPath, id))) {
+        const dir = path.join(this.extensionsPath, id, v);
+        if (fs.existsSync(path.join(dir, 'manifest.json')) && (!best || newer(v, path.basename(best)))) best = dir;
+      }
+      if (best) out.push({ id, dir: best });
+    }
+    return out;
+  }
+
+  /** "On specific sites": the manifest Electron loads keeps only those sites; the original is kept beside it. */
+  applySiteAccess(dir, s) {
+    const man = path.join(dir, 'manifest.json'), orig = path.join(dir, ORIGINAL_MANIFEST);
+    if (s.siteAccess === 'sites') {
+      if (!fs.existsSync(orig)) fs.copyFileSync(man, orig);
+      fs.writeFileSync(man, JSON.stringify(restrictManifest(JSON.parse(fs.readFileSync(orig, 'utf8')), s.sites), null, 2));
+    } else if (fs.existsSync(orig)) { fs.copyFileSync(orig, man); fs.rmSync(orig, { force: true }); }
+  }
+
+  originalManifest(dir) {
+    for (const f of [ORIGINAL_MANIFEST, 'manifest.json']) { try { return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch {} }
+    return null;
+  }
+
+  async loadOne(dir, type, id) {
+    if (id) this.known.set(id, { path: dir, type });
+    const s = this.setting(id);
+    if (id && !s.enabled) return null;
+    if (type === 'store' && id) this.applySiteAccess(dir, s);
+    // Electron's "extension-loaded" for this load is ours (it can arrive after loadExtension resolves)
+    this.loading.add(id || path.resolve(dir));
+    let ext;
+    try { ext = await this.ses.extensions.loadExtension(dir, { allowFileAccess: s.fileAccess }); }
+    catch (e) { this.loading.delete(id || path.resolve(dir)); throw e; }
+    if (!id) { this.loading.delete(path.resolve(dir)); }
+    this.remember(ext.id, dir, type);
+    if (!id && !this.setting(ext.id).enabled) { this.unload(ext.id); return null; }
+    if (ext.manifest?.manifest_version === 3 && ext.manifest.background?.service_worker) {
+      this.ses.serviceWorkers.startWorkerForScope(ext.url).catch(() => {});
+    }
+    return ext;
+  }
+
+  /** A Web Store install or update loaded an extension: apply the user's settings to it. */
+  loadedElsewhere(ext) {
+    if (this.loading.delete(ext.id) || this.loading.delete(path.resolve(ext.path))) return;
+    const type = this.known.get(ext.id)?.type || (ext.manifest?.key ? 'store' : 'unpacked');
+    this.remember(ext.id, ext.path, type);
+    const s = this.setting(ext.id);
+    if (!s.enabled || s.fileAccess || s.siteAccess === 'sites') setTimeout(() => this.reload(ext.id).catch(e => console.error('Could not apply extension settings', e.message)), 0);
+  }
+
+  /** Ends an extension's pages and panels and unloads it; its files and data stay. */
+  unload(id) {
+    for (const [wcId, p] of [...this.tabPanels]) if (p.extId === id) this.closePanel('ext:tab:' + wcId);
+    if (this.windowPanel?.extId === id) this.closePanel('ext:win:' + id);
+    if (this.ses.extensions.getExtension(id)) this.ses.extensions.removeExtension(id);
+  }
+
+  async reload(id) {
+    const k = this.known.get(id);
+    if (!k) return;
+    this.unload(id);
+    await this.loadOne(k.path, k.type, id);
+  }
+
+  /** Changes an extension's settings, as on Chrome's details page, and reloads it if needed. */
+  async setSettings(id, patch = {}) {
+    const k = this.known.get(id);
+    if (!k) throw new Error('No such extension.');
+    const before = this.setting(id);
+    const next = { ...before };
+    for (const key of ['enabled', 'fileAccess', 'private']) if (key in patch) next[key] = !!patch[key];
+    if ('siteAccess' in patch) next.siteAccess = patch.siteAccess === 'sites' ? 'sites' : 'all';
+    if ('sites' in patch) {
+      const bad = (patch.sites || []).filter(x => !normalizeSite(x));
+      if (bad.length) throw new Error(`Not a site: ${bad[0]}. Use a name such as example.com or *.example.com.`);
+      next.sites = [...new Set((patch.sites || []).map(normalizeSite))];
+    }
+    if (k.type !== 'store' && (next.siteAccess !== 'all')) throw new Error('Site access can be limited for Chrome Web Store extensions. An unpacked extension uses the sites in its own manifest.');
+    this.prefs[id] = { ...(this.prefs[id] || {}), ...next, path: k.path };
+    this.savePrefs();
+    const sitesChanged = next.siteAccess !== before.siteAccess || (next.siteAccess === 'sites' && next.sites.join() !== before.sites.join());
+    if (!next.enabled) this.unload(id);
+    else if (!before.enabled || next.fileAccess !== before.fileAccess || sitesChanged) await this.reload(id);
+    return this.list().find(x => x.id === id) || null;
   }
 
   addTab(wc) {
@@ -738,14 +868,27 @@ export class Extensions {
 
   list() {
     const unpacked = new Set(this.unpackedDirs().map(d => path.resolve(d)));
-    return this.ses.extensions.getAllExtensions().map(e => ({
-      id: e.id, name: e.name, version: e.version,
-      description: e.manifest?.description || '',
-      manifestVersion: e.manifest?.manifest_version || null,
-      source: unpacked.has(path.resolve(e.path)) ? 'unpacked' : 'store',
-      optionsUrl: e.manifest?.options_ui?.page || e.manifest?.options_page ? `${e.url}${e.manifest.options_ui?.page || e.manifest.options_page}` : null,
-      permissions: [...(e.manifest?.permissions || []), ...(e.manifest?.host_permissions || [])].map(String),
-    }));
+    const out = [];
+    const ids = new Set([...this.ses.extensions.getAllExtensions().map(e => e.id), ...this.known.keys()]);
+    for (const id of ids) {
+      const e = this.ses.extensions.getExtension(id);
+      const dir = e?.path || this.known.get(id)?.path;
+      if (!dir || !fs.existsSync(dir)) continue;
+      const m = this.originalManifest(dir) || e?.manifest || {};
+      const store = this.known.get(id)?.type === 'store' || (!unpacked.has(path.resolve(dir)) && !!m.key);
+      const options = m.options_ui?.page || m.options_page;
+      out.push({
+        id, name: e?.name || localName(dir, m, m.name) || id, version: e?.version || m.version || '',
+        description: localName(dir, m, m.description) || '',
+        manifestVersion: m.manifest_version || null,
+        source: store ? 'store' : 'unpacked',
+        loaded: !!e,
+        optionsUrl: e && options ? `${e.url}${options}` : null,
+        permissions: [...(m.permissions || []), ...(m.host_permissions || [])].map(String),
+        ...this.setting(id),
+      });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /** Install from the Chrome Web Store by ID or store URL. */
@@ -761,20 +904,38 @@ export class Extensions {
     if (r.canceled || !r.filePaths[0]) return null;
     const dir = r.filePaths[0];
     if (!fs.existsSync(path.join(dir, 'manifest.json'))) throw new Error('That folder has no manifest.json, so it is not an extension.');
-    const ext = await this.ses.extensions.loadExtension(dir, { allowFileAccess: false });
+    const ext = await this.loadOne(dir, 'unpacked', this.idForPath(dir));
     this.saveUnpacked([...new Set([...this.unpackedDirs(), dir])]);
-    return { id: ext.id, name: ext.name };
+    return ext ? { id: ext.id, name: ext.name } : null;
   }
 
   async remove(id) {
     const ext = this.ses.extensions.getExtension(id);
-    if (!ext) return;
+    const dir = ext?.path || this.known.get(id)?.path;
+    if (!dir) return;
+    this.unload(id);
     const dirs = this.unpackedDirs();
-    if (dirs.some(d => path.resolve(d) === path.resolve(ext.path))) {
-      this.ses.extensions.removeExtension(id);
-      this.saveUnpacked(dirs.filter(d => path.resolve(d) !== path.resolve(ext.path)));
+    if (dirs.some(d => path.resolve(d) === path.resolve(dir))) {
+      this.saveUnpacked(dirs.filter(d => path.resolve(d) !== path.resolve(dir)));
     } else {
       await uninstallExtension(id, { session: this.ses, extensionsPath: this.extensionsPath });
     }
+    this.known.delete(id);
+    delete this.prefs[id];
+    try { this.savePrefs(); } catch {}
   }
+}
+
+/** A manifest string that may be "__MSG_name__", read from the extension's default locale. */
+function localName(dir, m, value) {
+  const k = /^__MSG_(.+)__$/.exec(String(value || ''))?.[1];
+  if (!k) return value || '';
+  for (const loc of [m.default_locale, 'en'].filter(Boolean)) {
+    try {
+      const msgs = JSON.parse(fs.readFileSync(path.join(dir, '_locales', loc, 'messages.json'), 'utf8'));
+      const hit = Object.entries(msgs).find(([n]) => n.toLowerCase() === k.toLowerCase());
+      if (hit) return hit[1].message || '';
+    } catch {}
+  }
+  return '';
 }
