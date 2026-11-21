@@ -120,6 +120,12 @@ try {
       return null;
     }, `http://127.0.0.1:${port}/`);
     assert.equal(cmd, 'lintas-test');
+    // A web page listed in the extension's externally_connectable can message it, and gets its reply
+    const ext = await app.evaluate(async ({ webContents }, url) => {
+      const wc = webContents.getAllWebContents().find(w => w.getURL() === url);
+      return wc.executeJavaScript(`chrome.runtime.sendMessage('fenpfjggfaejmpbinaajochaceelkfml', { ping: 'hi' })`, true);
+    }, `http://127.0.0.1:${port}/`);
+    assert.deepEqual(ext, { pong: 'hi', origin: `http://127.0.0.1:${port}`, inTab: true }, JSON.stringify(ext));
     assert.match(sw.redirect, /^https:\/\/[a-p]{32}\.chromiumapp\.org\/cb$/);
     assert.equal(sw.capture, 'data:image/jpeg;base64,');
     assert.equal(sw.mhtml, 'multipart/related');
@@ -151,6 +157,26 @@ try {
   assert.equal(popupResult.got, 'signed-in:true', JSON.stringify(popupResult));
   assert.equal(popupResult.windows, 1, 'the popup closed itself: ' + JSON.stringify(popupResult.open));
   assert.equal((await L(() => lintas.tabs.list())).length, tabCount, 'a sized popup does not open a tab');
+
+  // A page that ends without its tab closing (an extension reloading takes its pages with it) must
+  // not crash Lintas: a web page reloads in the same tab, an extension's own page closes its tab.
+  const before = (await L(() => lintas.tabs.list())).length;
+  const gone = await app.evaluate(async ({ webContents }, url) => {
+    const wc = webContents.getAllWebContents().find(w => w.getURL() === url);
+    const id = wc.id;
+    wc.close();
+    for (let i = 0; i < 50; i++) { const again = webContents.getAllWebContents().find(w => w.getURL() === url && w.id !== id); if (again) return 'reloaded'; await new Promise(r => setTimeout(r, 100)); }
+    return 'not reloaded';
+  }, `http://127.0.0.1:${port}/`);
+  assert.equal(gone, 'reloaded');
+  assert.equal((await L(() => lintas.tabs.list())).length, before, 'the tab stays open');
+  const exts2 = await L(() => lintas.extensions.list());
+  const extTab = await L(u => lintas.tabs.create({ url: u }), `chrome-extension://${exts2.find(e => e.name === 'Lintas test extension').id}/panel.html`);
+  await new Promise(r => setTimeout(r, 1500));
+  await app.evaluate(({ webContents }) => { webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html'))?.close(); });
+  await new Promise(r => setTimeout(r, 800));
+  assert.ok(!(await L(() => lintas.tabs.list())).some(t => t.id === extTab.id), 'a tab whose extension page ended is closed');
+  await L(id => lintas.tabs.activate(id), tabId);
 
   // Web panels: Gmail docks in the side panel as its own web view, beside the page
   const viewsNow = () => app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows().find(x => x.isVisible()) || BrowserWindow.getAllWindows()[0]; return w.contentView.children.filter(c => c.webContents && c.webContents !== w.webContents).map(c => c.getBounds()); });

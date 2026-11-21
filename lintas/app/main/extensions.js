@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { dialog, ipcMain, session as electronSession, BrowserWindow } from 'electron';
 import { ElectronChromeExtensions } from 'electron-chrome-extensions';
-import { popupWindowOptions } from './tabs.js';
+import { popupWindowOptions, liveContents } from './tabs.js';
 import { installNativeMessaging } from './native-messaging.js';
 import { GROUP_COLORS, filterContexts, nextGroupColor, shortcutFor, shortcutMatches, matchesTitle, matchesPattern } from './ext-util.js';
 export { matchesPattern };
@@ -34,6 +34,7 @@ export class Extensions {
     this.panelBehavior = new Map(); // extension id -> { openPanelOnActionClick }
     this.listeners = new Map();    // extension id -> Set of senders for chrome.* events
     this.docIds = new Map();       // webContents id -> { contextId, documentId }
+    this.externalPending = new Map(); // message id -> a web page's sendMessage waiting for the extension's reply
     this.extensionsPath = path.join(dataDir, 'Extensions');
     this.unpackedFile = path.join(dataDir, 'unpacked-extensions.json');
     // Our shims must load before electron-chrome-extensions' preload, which freezes `chrome`.
@@ -79,6 +80,9 @@ export class Extensions {
     const extIdOf = (url) => { const m = /^chrome-extension:\/\/([a-p]{32})\//.exec(url || ''); return m ? m[1] : null; };
     // Each sender returns false once its page or worker is gone.
     ipcMain.handle('lintas-ext', (e, name, args) => { const wc = e.sender; return this.shimCall(extIdOf(e.senderFrame?.url), name, args, (ev, a) => { try { if (wc.isDestroyed()) return false; wc.send('lintas-ext-event', ev, a); return true; } catch { return false; } }, e.senderFrame === wc.mainFrame ? wc : null); });
+    // Web pages an extension lists in "externally_connectable" can message it (claude.ai → Claude in Chrome)
+    ipcMain.on('lintas-ext-connectable', (e) => { e.returnValue = this.connectableIds(e.senderFrame?.url); });
+    ipcMain.handle('lintas-ext-external', (e, extId, message) => this.deliverExternal(e, String(extId), message));
     const seen = new Set();
     this.ses.serviceWorkers.on('running-status-changed', ({ versionId }) => {
       if (seen.has(versionId)) return;
@@ -99,9 +103,10 @@ export class Extensions {
 
   tabWebContents(tabId) {
     const tabs = this.getTabs();
-    const t = tabId != null ? tabs.tabs.find(x => x.view && x.view.webContents.id === Number(tabId)) : tabs.active();
-    if (!t?.view) throw new Error('No tab with id ' + tabId + '.');
-    return t.view.webContents;
+    const t = tabId != null ? tabs.tabs.find(x => liveContents(x)?.id === Number(tabId)) : tabs.active();
+    const wc = liveContents(t);
+    if (!wc) throw new Error('No tab with id ' + tabId + '.');
+    return wc;
   }
 
   async shimCall(extId, name, args = [], send = () => {}, page = null) {
@@ -120,6 +125,14 @@ export class Extensions {
         const tabs = this.getTabs(); const t = tabs?.byContents(page);
         if (t) { tabs.close(t.id); return true; }
         return false;
+      }
+      case 'runtime.externalReply': {
+        const [id, response, handled] = args;
+        const p = this.externalPending.get(String(id));
+        if (!p || p.extId !== extId) return;
+        if (handled) p.finish(response ?? undefined);
+        else if (--p.left <= 0) p.finish(undefined);
+        return;
       }
       case 'runtime.getContexts': return filterContexts(this.contexts(ext), args[0] && typeof args[0] === 'object' ? args[0] : {});
       // chrome.sidePanel: shown in Lintas's side panel, beside the page, for one tab or the whole window.
@@ -266,7 +279,7 @@ export class Extensions {
       }
       case 'debugger.getTargets': {
         this.requirePermission(ext, 'debugger');
-        return this.getTabs().tabs.filter(x => x.view && !x.private).map(x => ({ type: 'page', id: String(x.view.webContents.id), tabId: x.view.webContents.id, attached: x.view.webContents.debugger.isAttached(), title: x.title || '', url: x.url || '' }));
+        return this.getTabs().tabs.filter(x => liveContents(x) && !x.private).map(x => { const wc = liveContents(x); return { type: 'page', id: String(wc.id), tabId: wc.id, attached: wc.debugger.isAttached(), title: x.title || '', url: x.url || '' }; });
       }
       case 'tabs.captureVisibleTab': {
         this.requirePermission(ext, '<all_urls>', 'activeTab');
@@ -339,9 +352,52 @@ export class Extensions {
     }
   }
 
+  // ---------- messages from web pages (externally_connectable) ----------
+
+  /** Extensions that accept messages from this page: its address matches their externally_connectable.matches. */
+  connectableIds(url) {
+    if (!/^https?:/i.test(url || '')) return [];
+    return this.ses.extensions.getAllExtensions()
+      .filter(x => (x.manifest?.externally_connectable?.matches || []).some(p => matchesPattern(String(p), url)))
+      .map(x => x.id);
+  }
+
+  /** chrome.runtime.sendMessage(extensionId, message) from a web page → the extension's runtime.onMessageExternal. */
+  async deliverExternal(e, extId, message) {
+    const noReceiver = () => new Error('Could not establish connection. Receiving end does not exist.');
+    const frame = e.senderFrame;
+    const url = frame?.url || '';
+    if (!this.connectableIds(url).includes(extId)) throw noReceiver();
+    const ext = this.ses.extensions.getExtension(extId);
+    const wc = e.sender;
+    const t = this.getTabs()?.byContents(wc);
+    let tab;
+    try { if (t && !t.private) tab = this.api.api.tabs.getTabDetails(wc); } catch {}
+    const sender = { url, origin: new URL(url).origin, frameId: frame === wc.mainFrame ? 0 : (frame?.routingId ?? -1), ...(tab ? { tab } : {}) };
+    let targets = [...(this.listeners.get(extId) || [])];
+    if (!targets.length) {
+      // As in Chrome, a message wakes the extension's background worker.
+      try { await this.ses.serviceWorkers.startWorkerForScope(ext.url); } catch {}
+      for (let i = 0; i < 30 && !this.listeners.get(extId)?.size; i++) await new Promise(r => setTimeout(r, 100));
+      targets = [...(this.listeners.get(extId) || [])];
+    }
+    const id = randomUUID();
+    return new Promise((resolve, reject) => {
+      const p = { extId, left: 0, done: false };
+      const timer = setTimeout(() => p.finish(undefined), 5 * 60_000);
+      p.finish = (v, err) => { if (p.done) return; p.done = true; clearTimeout(timer); this.externalPending.delete(id); err ? reject(err) : resolve(v); };
+      this.externalPending.set(id, p);
+      for (const send of targets) {
+        if (send('runtime.onMessageExternal', [message, sender, id]) === false) this.listeners.get(extId)?.delete(send);
+        else p.left++;
+      }
+      if (!p.left) p.finish(undefined, noReceiver());
+    });
+  }
+
   // ---------- tabs as extensions see them ----------
 
-  tabByChromeId(id) { return this.getTabs()?.tabs.find(x => x.view && !x.view.webContents.isDestroyed() && x.view.webContents.id === Number(id)) || null; }
+  tabByChromeId(id) { return this.getTabs()?.tabs.find(x => liveContents(x)?.id === Number(id)) || null; }
   windowId() { const w = this.getWin(); return w && !w.isDestroyed() ? w.id : -1; }
 
   assignTabDetails(details, wc) {
@@ -384,7 +440,7 @@ export class Extensions {
 
   runCommand(ext, name) {
     const t = this.getTabs()?.active();
-    const wc = t && !t.private && t.view && !t.view.webContents.isDestroyed() ? t.view.webContents : null;
+    const wc = t && !t.private ? liveContents(t) : null;
     if (name === '_execute_action' || name === '_execute_browser_action') {
       try { this.api.api.browserAction.activateClick({ extensionId: ext.id, tabId: wc ? wc.id : -1 }); } catch {}
       return;
@@ -526,7 +582,7 @@ export class Extensions {
       list.push({ contextType, contextId: d.contextId, tabId, windowId: win, documentId: d.documentId, frameId: 0, documentUrl, documentOrigin: origin, incognito: false });
     };
     for (const [key, view] of this.getPanels()?.views || []) if (key.startsWith('ext:')) add('SIDE_PANEL', view.webContents, key.startsWith('ext:tab:') ? Number(key.slice(8)) : -1, windowId, this.panelTarget(key)?.url);
-    for (const t of this.getTabs()?.tabs || []) if (t.view && !t.private) add('TAB', t.view.webContents, t.view.webContents.id, windowId);
+    for (const t of this.getTabs()?.tabs || []) { const wc = liveContents(t); if (wc && !t.private) add('TAB', wc, wc.id, windowId); }
     const off = this.offscreen?.get(ext.id);
     if (off && !off.isDestroyed()) add('OFFSCREEN_DOCUMENT', off.webContents, -1, -1);
     try {

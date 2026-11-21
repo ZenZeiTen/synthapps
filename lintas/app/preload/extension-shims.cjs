@@ -55,12 +55,16 @@ function install(call, extErr, subscribe) {
   const event = () => {
     const ls = new Set();
     return { addListener: (f) => { if (typeof f === 'function') ls.add(f); }, removeListener: (f) => { ls.delete(f); }, hasListener: (f) => ls.has(f), hasListeners: () => ls.size > 0,
+      _list: () => ls,
       _fire: (...a) => { for (const f of [...ls]) { try { f(...a); } catch (e) { console.error(e); } } } };
   };
   const events = {};
   const ev = (name) => (events[name] ||= event());
   if (subscribe) {
-    subscribe((name, args) => { if (events[name]) events[name]._fire(...(args || [])); });
+    subscribe((name, args) => {
+      if (name === 'runtime.onMessageExternal') return deliverExternal(...(args || []));
+      if (events[name]) events[name]._fire(...(args || []));
+    });
     // Register for events nobody asked for, such as tab groups changing.
     Promise.resolve(call('events.hello', [])).catch(() => {});
   }
@@ -131,7 +135,33 @@ function install(call, extErr, subscribe) {
     for (const [k, v] of Object.entries({
       ContextType: { TAB: 'TAB', POPUP: 'POPUP', BACKGROUND: 'BACKGROUND', OFFSCREEN_DOCUMENT: 'OFFSCREEN_DOCUMENT', SIDE_PANEL: 'SIDE_PANEL', DEVELOPER_TOOLS: 'DEVELOPER_TOOLS' },
     })) if (!(k in chrome.runtime)) { try { chrome.runtime[k] = v; } catch {} }
-    // Electron's own getContexts does not know Lintas's side panels, offscreen pages or tabs, so this one replaces it.
+    // Messages from web pages the extension lists in "externally_connectable" (claude.ai hands its
+  // sign-in to Claude in Chrome this way). Electron does not deliver these, so Lintas does: the
+  // first listener that answers (sendResponse, or a returned promise) gives the page its reply.
+  const external = event();
+  const nativeExternal = chrome.runtime && chrome.runtime.onMessageExternal;
+  const deliverExternal = (message, sender, id) => {
+    let done = false, waiting = false;
+    const reply = (r) => { if (done) return; done = true; Promise.resolve(call('runtime.externalReply', [id, r === undefined ? null : r, true])).catch(() => {}); };
+    for (const f of [...external._list()]) {
+      try {
+        const r = f(message, sender, reply);
+        if (r === true) waiting = true;
+        else if (r && typeof r.then === 'function') { waiting = true; r.then(reply, () => reply(undefined)); }
+      } catch (e) { console.error(e); }
+    }
+    if (!waiting && !done) { done = true; Promise.resolve(call('runtime.externalReply', [id, null, false])).catch(() => {}); }
+  };
+  if (chrome.runtime && subscribe) {
+    const wrapped = {
+      addListener: (f) => { external.addListener(f); try { nativeExternal && nativeExternal.addListener(f); } catch {} },
+      removeListener: (f) => { external.removeListener(f); try { nativeExternal && nativeExternal.removeListener(f); } catch {} },
+      hasListener: (f) => external.hasListener(f), hasListeners: () => external.hasListeners(),
+    };
+    try { Object.defineProperty(chrome.runtime, 'onMessageExternal', { value: wrapped, configurable: true, writable: true, enumerable: true }); } catch {}
+  }
+
+  // Electron's own getContexts does not know Lintas's side panels, offscreen pages or tabs, so this one replaces it.
     try { Object.defineProperty(chrome.runtime, 'getContexts', { value: api('runtime.getContexts'), configurable: true, writable: true, enumerable: true }); }
     catch { try { chrome.runtime.getContexts = api('runtime.getContexts'); } catch {} }
   }
@@ -146,5 +176,34 @@ if (isExtension && contextBridge.executeInMainWorld) {
     contextBridge.executeInMainWorld({ func: install, args: [call, null, subscribe] });
   } catch (e) {
     try { contextBridge.executeInMainWorld({ func: install, args: [() => Promise.reject(new Error('Not available.')), String(e && e.message), null] }); } catch {}
+  }
+}
+
+// Web pages: chrome.runtime.sendMessage(extensionId, message) for the extensions whose manifest lists
+// this page under "externally_connectable" (as in Chrome; other pages get nothing). The main process
+// checks the page's address again on every message.
+function installPage(ids, send) {
+  const chrome = globalThis.chrome || (globalThis.chrome = {});
+  const runtime = chrome.runtime || (chrome.runtime = {});
+  if (runtime.sendMessage) return;
+  runtime.sendMessage = (...args) => {
+    const cb = typeof args[args.length - 1] === 'function' ? args.pop() : null;
+    const [extensionId, message] = args;
+    const p = typeof extensionId === 'string' && ids.includes(extensionId)
+      ? Promise.resolve(send(extensionId, message))
+      : Promise.reject(new Error('Could not establish connection. Receiving end does not exist.'));
+    if (!cb) return p;
+    p.then((r) => cb(r), (e) => {
+      try { Object.defineProperty(runtime, 'lastError', { value: { message: String((e && e.message) || e) }, configurable: true }); } catch {}
+      try { cb(); } finally { try { delete runtime.lastError; } catch {} }
+    });
+  };
+}
+
+if (!isExtension && typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && contextBridge.executeInMainWorld) {
+  let ids = [];
+  try { ids = ipcRenderer.sendSync('lintas-ext-connectable') || []; } catch {}
+  if (Array.isArray(ids) && ids.length) {
+    try { contextBridge.executeInMainWorld({ func: installPage, args: [ids, (id, message) => ipcRenderer.invoke('lintas-ext-external', id, message)] }); } catch {}
   }
 }
