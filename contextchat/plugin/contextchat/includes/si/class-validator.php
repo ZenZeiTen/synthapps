@@ -130,6 +130,9 @@ class ContextChat_Validator {
 		$patterns = array(
 			'/(?<![\p{L}])(?:Rp\.?|IDR)\s*' . $number . '(?![\p{L}])/iu',
 			'/(?<![\d.,])' . $number . '\s*(?:rupiah|IDR)(?![\p{L}])/iu',
+			// Without "Rp": "125rb", "1,5 jt" and amounts grouped in thousands ("total 1.775.000").
+			'/(?<![\p{L}\d.,])(\d[\d.,]*)\s*(rb|ribu|jt|juta)(?![\p{L}])/iu',
+			'/(?<![\p{L}\d.,\/-])(\d{1,3}(?:\.\d{3})+)(?![\d.,]*\d)()/u',
 		);
 		$seen = array();
 		foreach ( $patterns as $i => $pattern ) {
@@ -143,6 +146,13 @@ class ContextChat_Validator {
 				}
 				$seen[ $offset ] = true;
 				$value           = self::parse( $m[1][0], isset( $m[2] ) && -1 !== $m[2][1] ? strtolower( $m[2][0] ) : '' );
+				if ( 3 === $i ) {
+					// A bare grouped number is an amount only if it is large and not a count ("1.000 karakter").
+					$after = substr( $text, $offset + strlen( $m[1][0] ), 24 );
+					if ( null === $value || $value < 10000 || preg_match( '/^\s*(karakter|kata|halaman|hlm|dokumen|token|orang|kali|characters|words|pages|documents|people|times)\b/iu', $after ) ) {
+						continue;
+					}
+				}
 				if ( null !== $value ) {
 					$found[] = $value;
 				}
@@ -195,7 +205,8 @@ class ContextChat_Validator {
 	 */
 	private static function strip_links( $text, array $ctx ) {
 		$site  = isset( $ctx['site_host'] ) ? strtolower( preg_replace( '/^www\./i', '', (string) $ctx['site_host'] ) ) : '';
-		$email = isset( $ctx['email'] ) ? strtolower( (string) $ctx['email'] ) : '';
+		$email  = isset( $ctx['email'] ) ? strtolower( (string) $ctx['email'] ) : '';
+		$phones = isset( $ctx['phones'] ) ? array_values( array_filter( array_map( 'strval', (array) $ctx['phones'] ) ) ) : array();
 
 		// Email addresses (with or without mailto:).
 		$text = preg_replace_callback(
@@ -210,12 +221,17 @@ class ContextChat_Validator {
 		// Web links and bare domains with a path.
 		$text = preg_replace_callback(
 			'~(?:https?://|www\.)[^\s<>"\']+|\b(?:[a-z0-9-]+\.)+[a-z]{2,}/[^\s<>"\']*~i',
-			function ( $m ) use ( $site ) {
+			function ( $m ) use ( $site, $phones ) {
 				$url  = rtrim( $m[0], '.,;:!?)' );
 				$tail = substr( $m[0], strlen( $url ) );
 				$host = strtolower( (string) parse_url( preg_match( '~^https?://~i', $url ) ? $url : 'http://' . $url, PHP_URL_HOST ) );
 				$host = preg_replace( '/^www\./', '', $host );
-				if ( 'wa.me' === $host || ( '' !== $site && ( $host === $site || substr( $host, -strlen( $site ) - 1 ) === '.' . $site ) ) ) {
+				if ( 'wa.me' === $host ) {
+					// Only the site's own WhatsApp numbers, when they are known.
+					$number = preg_replace( '/\D/', '', (string) parse_url( preg_match( '~^https?://~i', $url ) ? $url : 'http://' . $url, PHP_URL_PATH ) );
+					return ( ! $phones || in_array( $number, $phones, true ) ) ? $m[0] : $tail;
+				}
+				if ( '' !== $site && ( $host === $site || substr( $host, -strlen( $site ) - 1 ) === '.' . $site ) ) {
 					return $m[0];
 				}
 				return $tail;

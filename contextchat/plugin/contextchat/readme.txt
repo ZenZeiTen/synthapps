@@ -62,11 +62,15 @@ Other filters: `contextchat_message`, `contextchat_agents`, `contextchat_should_
 
 == External services ==
 
-ContextChat 2.0 is adding an SI (Synthesized Intelligence) assistant that uses Anthropic's Claude API. In this development version only the connection test on the ContextChat → SI screen contacts it, and only when an administrator presses "Test connection" after adding their own API key.
+ContextChat 2.0 adds an SI (Synthesized Intelligence) assistant that uses Anthropic's Claude API. It is off by default and needs the site's own API key.
 
 * **Service:** Anthropic API, https://api.anthropic.com/v1/messages
-* **What is sent:** the test message typed on the SI screen and the site's API key. Nothing about visitors is sent.
-* **When:** only when an administrator runs the test. Nothing is sent before an API key is added.
+* **What is sent:**
+  * **When an administrator presses "Test connection":** the test message typed on the SI screen.
+  * **When the SI chat is on:** each visitor message that passed ContextChat's checks, the last 20 messages of that conversation, the address of the page the chat started on, the details collected so far, and the assistant's instructions (the voice guide, the knowledge entries and the price table set in ContextChat).
+  * **Always:** the site's API key, in a request header.
+* **What is never sent:** messages that ContextChat blocks (file links, ID and card numbers), IP addresses and cookies.
+* **When:** nothing is sent until an administrator adds an API key and either turns on the SI chat or runs the connection test.
 * Anthropic's terms: https://www.anthropic.com/legal/commercial-terms
 * Anthropic's privacy policy: https://www.anthropic.com/legal/privacy
 

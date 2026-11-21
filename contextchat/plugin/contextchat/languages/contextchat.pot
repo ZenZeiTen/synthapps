@@ -193,7 +193,7 @@ msgid "Attempt %1$d: %2$s, %3$s, %4$d ms, %5$d tokens in, %6$d tokens out, about
 msgstr ""
 
 #. translators: 1: dollars spent today, 2: daily cap in dollars.
-#: includes/class-admin.php:81 includes/class-admin.php:661
+#: includes/class-admin.php:81 includes/class-admin.php:678
 #, php-format
 msgid "Spent today: about $%1$s of $%2$s."
 msgstr ""
@@ -230,11 +230,11 @@ msgstr ""
 msgid "SI"
 msgstr ""
 
-#: includes/class-admin.php:133 includes/class-admin.php:806
+#: includes/class-admin.php:133 includes/class-admin.php:823
 msgid "Knowledge"
 msgstr ""
 
-#: includes/class-admin.php:134 includes/class-admin.php:918
+#: includes/class-admin.php:134 includes/class-admin.php:935
 msgid "Voice"
 msgstr ""
 
@@ -414,7 +414,7 @@ msgstr ""
 msgid "Chat panel"
 msgstr ""
 
-#: includes/class-admin.php:261 includes/class-admin.php:886
+#: includes/class-admin.php:261 includes/class-admin.php:903
 msgid "Title"
 msgstr ""
 
@@ -422,7 +422,7 @@ msgstr ""
 msgid "Subtitle"
 msgstr ""
 
-#: includes/class-admin.php:263 includes/class-admin.php:1025
+#: includes/class-admin.php:263 includes/class-admin.php:1042
 msgid "Greeting"
 msgstr ""
 
@@ -650,7 +650,7 @@ msgstr ""
 msgid "e.g. Visa pages"
 msgstr ""
 
-#: includes/class-admin.php:460 includes/class-admin.php:963
+#: includes/class-admin.php:460 includes/class-admin.php:980
 msgid "When"
 msgstr ""
 
@@ -763,7 +763,7 @@ msgid "SI (Synthesized Intelligence)"
 msgstr ""
 
 #: includes/class-admin.php:588
-msgid "ContextChat 2.0 adds an SI assistant to the chat panel, powered by Anthropic's Claude models. This tab holds the API key, chooses which models answer, and caps what the site spends each day. The assistant itself arrives in a later 2.0 update: until then, nothing is sent to Anthropic unless you press \"Test connection\"."
+msgid "ContextChat 2.0 adds an SI assistant to the chat panel, powered by Anthropic's Claude models. This tab turns it on, holds the API key, chooses which models answer, and caps what the site spends each day. Nothing is sent to Anthropic until the SI chat is turned on, except when you press \"Test connection\"."
 msgstr ""
 
 #: includes/class-admin.php:590
@@ -801,346 +801,394 @@ msgid "Stored encrypted with a key derived from AUTH_KEY in wp-config.php. For m
 msgstr ""
 
 #: includes/class-admin.php:627
-msgid "Model routing"
+msgid "SI chat in the panel"
 msgstr ""
 
 #: includes/class-admin.php:628
-msgid "In automatic mode the fast model writes every reply. When a reply fails ContextChat's checks, is declined or is cut off, the stronger model writes it again. Most chats only ever use the fast model."
+msgid "When this is on and a key is saved, visitors chat with the SI in the panel: it answers from the Knowledge tab, collects the details your team needs, gives estimates from the price table, and hands the chat to your team on WhatsApp or by email with a summary. When it is off, the panel works as before. Chat text is sent to Anthropic for processing; mention this in your privacy policy."
+msgstr ""
+
+#: includes/class-admin.php:631
+msgid "Turn on the SI chat"
+msgstr ""
+
+#: includes/class-admin.php:631
+msgid "Off after updating, so an update never changes your site by surprise."
+msgstr ""
+
+#: includes/class-admin.php:632
+msgid "Business name"
+msgstr ""
+
+#: includes/class-admin.php:632
+msgid "How the SI names your business, e.g. Nusalexia. Empty: the site title."
 msgstr ""
 
 #: includes/class-admin.php:633
-msgid "Routing"
+msgid "Email for handoffs"
 msgstr ""
 
-#: includes/class-admin.php:635
-msgid "Automatic: fast model first, stronger model when a reply fails a check (recommended)"
+#: includes/class-admin.php:633
+msgid "Where the \"Email\" button writes to, e.g. info@nusalexia.co.id. Empty: the site's admin email."
 msgstr ""
 
-#: includes/class-admin.php:636
-msgid "Fast model only (lowest cost, no retry)"
+#: includes/class-admin.php:634
+msgid "First available agent"
 msgstr ""
 
-#: includes/class-admin.php:637
-msgid "Stronger model for every reply (highest cost)"
+#: includes/class-admin.php:638
+msgid "Agent for translation"
+msgstr ""
+
+#: includes/class-admin.php:639
+msgid "Agent for interpreting"
 msgstr ""
 
 #: includes/class-admin.php:640
-msgid "Fast model"
-msgstr ""
-
-#: includes/class-admin.php:640
-msgid "Writes every reply in automatic mode. Default: claude-haiku-5-5."
-msgstr ""
-
-#: includes/class-admin.php:641
-msgid "Stronger model"
-msgstr ""
-
-#: includes/class-admin.php:641
-msgid "Writes a reply again when the fast model's reply cannot be used. Default: claude-sonnet-5-5."
+msgid "Offer the team after silence (minutes)"
 msgstr ""
 
 #: includes/class-admin.php:644
-msgid "Thinking effort"
+msgid "Model routing"
 msgstr ""
 
-#: includes/class-admin.php:646
-msgid "Low (fastest replies; enough for chat)"
+#: includes/class-admin.php:645
+msgid "In automatic mode the fast model writes every reply. When a reply fails ContextChat's checks, is declined or is cut off, the stronger model writes it again. Most chats only ever use the fast model."
 msgstr ""
 
-#: includes/class-admin.php:647
-msgid "Medium"
+#: includes/class-admin.php:650
+msgid "Routing"
 msgstr ""
 
-#: includes/class-admin.php:648
-msgid "High (slower, more thorough)"
+#: includes/class-admin.php:652
+msgid "Automatic: fast model first, stronger model when a reply fails a check (recommended)"
 msgstr ""
 
-#: includes/class-admin.php:651
-msgid "Longest reply (tokens)"
+#: includes/class-admin.php:653
+msgid "Fast model only (lowest cost, no retry)"
 msgstr ""
 
 #: includes/class-admin.php:654
+msgid "Stronger model for every reply (highest cost)"
+msgstr ""
+
+#: includes/class-admin.php:657
+msgid "Fast model"
+msgstr ""
+
+#: includes/class-admin.php:657
+msgid "Writes every reply in automatic mode. Default: claude-haiku-5-5."
+msgstr ""
+
+#: includes/class-admin.php:658
+msgid "Stronger model"
+msgstr ""
+
+#: includes/class-admin.php:658
+msgid "Writes a reply again when the fast model's reply cannot be used. Default: claude-sonnet-5-5."
+msgstr ""
+
+#: includes/class-admin.php:661
+msgid "Thinking effort"
+msgstr ""
+
+#: includes/class-admin.php:663
+msgid "Low (fastest replies; enough for chat)"
+msgstr ""
+
+#: includes/class-admin.php:664
+msgid "Medium"
+msgstr ""
+
+#: includes/class-admin.php:665
+msgid "High (slower, more thorough)"
+msgstr ""
+
+#: includes/class-admin.php:668
+msgid "Longest reply (tokens)"
+msgstr ""
+
+#: includes/class-admin.php:671
 msgid "Daily spending cap (USD)"
 msgstr ""
 
-#: includes/class-admin.php:666
+#: includes/class-admin.php:683
 msgid "When the cap is reached, no more requests are sent until the next day (site time zone). Costs are estimated from Anthropic's published prices."
 msgstr ""
 
-#: includes/class-admin.php:672 includes/class-admin.php:678
+#: includes/class-admin.php:689 includes/class-admin.php:695
 msgid "Test connection"
 msgstr ""
 
-#: includes/class-admin.php:673
+#: includes/class-admin.php:690
 msgid "Sends one message to Anthropic with the saved key and settings, and shows which model answered. Save your changes first. A test costs a fraction of a cent and counts toward the daily cap."
 msgstr ""
 
-#: includes/class-admin.php:675
+#: includes/class-admin.php:692
 msgid "Test message"
 msgstr ""
 
-#: includes/class-admin.php:676
+#: includes/class-admin.php:693
 msgid "Hello! What is a sworn translation?"
 msgstr ""
 
-#: includes/class-admin.php:677
+#: includes/class-admin.php:694
 msgid "Treat the first reply as failing a check, to see the stronger model take over"
 msgstr ""
 
-#: includes/class-admin.php:692
+#: includes/class-admin.php:709
 msgid "answered"
 msgstr ""
 
-#: includes/class-admin.php:693
+#: includes/class-admin.php:710
 msgid "reply failed a check"
 msgstr ""
 
-#: includes/class-admin.php:694
+#: includes/class-admin.php:711
 msgid "declined to answer"
 msgstr ""
 
-#: includes/class-admin.php:695
+#: includes/class-admin.php:712
 msgid "reply cut off"
 msgstr ""
 
-#: includes/class-admin.php:696
+#: includes/class-admin.php:713
 msgid "empty reply"
 msgstr ""
 
-#: includes/class-admin.php:697
+#: includes/class-admin.php:714
 msgid "model not found"
 msgstr ""
 
-#: includes/class-admin.php:698
+#: includes/class-admin.php:715
 msgid "Anthropic busy or unreachable, tried twice"
 msgstr ""
 
-#: includes/class-admin.php:699
+#: includes/class-admin.php:716
 msgid "API key refused"
 msgstr ""
 
-#: includes/class-admin.php:700
+#: includes/class-admin.php:717
 msgid "Anthropic account spend limit reached"
 msgstr ""
 
-#: includes/class-admin.php:701
+#: includes/class-admin.php:718
 msgid "request refused as invalid"
 msgstr ""
 
-#: includes/class-admin.php:702
+#: includes/class-admin.php:719
 msgid "daily spending cap reached"
 msgstr ""
 
-#: includes/class-admin.php:703
+#: includes/class-admin.php:720
 msgid "no API key saved"
 msgstr ""
 
-#: includes/class-admin.php:704
+#: includes/class-admin.php:721
 msgid "unexpected error"
 msgstr ""
 
-#: includes/class-admin.php:807
+#: includes/class-admin.php:824
 msgid "The SI states facts about your services, process and policies only from these entries. Prices are not entered here: they come from the price table, and every total is calculated in code. Leave out anything private, such as tax numbers, bank accounts, staff names and client names."
 msgstr ""
 
-#: includes/class-admin.php:811
+#: includes/class-admin.php:828
 msgid "Using the bundled entries, taken from the Nusalexia guidelines and website on 21 November 2026. They follow plugin updates until you change them; after that, your own copy is kept."
 msgstr ""
 
-#: includes/class-admin.php:813
+#: includes/class-admin.php:830
 msgid "Using your saved entries."
 msgstr ""
 
-#: includes/class-admin.php:823
+#: includes/class-admin.php:840
 msgid "That is more than about 30,000 tokens, which makes every reply slower and more expensive. Consider shortening entries."
 msgstr ""
 
-#: includes/class-admin.php:836
+#: includes/class-admin.php:853
 msgid "Add entry"
 msgstr ""
 
-#: includes/class-admin.php:839
+#: includes/class-admin.php:856
 msgid "Import and export"
 msgstr ""
 
-#: includes/class-admin.php:842
+#: includes/class-admin.php:859
 msgid "Export"
 msgstr ""
 
-#: includes/class-admin.php:844
+#: includes/class-admin.php:861
 msgid "The saved entries as JSON, for a backup or another site."
 msgstr ""
 
-#: includes/class-admin.php:847
+#: includes/class-admin.php:864
 msgid "Import"
 msgstr ""
 
-#: includes/class-admin.php:849
+#: includes/class-admin.php:866
 msgid "Paste exported JSON here and save to replace all entries."
 msgstr ""
 
-#: includes/class-admin.php:852
+#: includes/class-admin.php:869
 msgid "Bundled entries"
 msgstr ""
 
-#: includes/class-admin.php:853
+#: includes/class-admin.php:870
 msgid "Replace all entries with the bundled ones when saving"
 msgstr ""
 
-#: includes/class-admin.php:889 includes/class-admin.php:1002
+#: includes/class-admin.php:906 includes/class-admin.php:1019
 msgid "Language"
 msgstr ""
 
-#: includes/class-admin.php:891 includes/class-admin.php:963 includes/class-admin.php:1004
+#: includes/class-admin.php:908 includes/class-admin.php:980 includes/class-admin.php:1021
 msgid "Indonesian"
 msgstr ""
 
-#: includes/class-admin.php:892 includes/class-admin.php:963 includes/class-admin.php:1005
+#: includes/class-admin.php:909 includes/class-admin.php:980 includes/class-admin.php:1022
 msgid "English"
 msgstr ""
 
-#: includes/class-admin.php:895
+#: includes/class-admin.php:912
 msgid "Tags"
 msgstr ""
 
-#: includes/class-admin.php:898
+#: includes/class-admin.php:915
 msgid "Source address"
 msgstr ""
 
-#: includes/class-admin.php:901
+#: includes/class-admin.php:918
 msgid "Text"
 msgstr ""
 
-#: includes/class-admin.php:905
+#: includes/class-admin.php:922
 msgid "Remove entry"
 msgstr ""
 
-#: includes/class-admin.php:919
+#: includes/class-admin.php:936
 msgid "How the SI writes. Empty fields use the bundled defaults."
 msgstr ""
 
-#: includes/class-admin.php:923
+#: includes/class-admin.php:940
 msgid "Voice guide (Indonesian)"
 msgstr ""
 
-#: includes/class-admin.php:927
+#: includes/class-admin.php:944
 msgid "Voice guide (English)"
 msgstr ""
 
-#: includes/class-admin.php:931
+#: includes/class-admin.php:948
 msgid "Names never to mention"
 msgstr ""
 
-#: includes/class-admin.php:933
+#: includes/class-admin.php:950
 msgid "One per line: the names of staff and anyone else the SI must never name. A reply that contains one is rejected. The list starts empty so that no name is published in the plugin itself."
 msgstr ""
 
-#: includes/class-admin.php:936
+#: includes/class-admin.php:953
 msgid "Extra banned words"
 msgstr ""
 
-#: includes/class-admin.php:938
+#: includes/class-admin.php:955
 msgid "One per line, on top of the built-in list (\"AI\", \"kecerdasan buatan\", \"gue\", \"lo\", \"gak\", \"nggak\" and emoji)."
 msgstr ""
 
-#: includes/class-admin.php:941
+#: includes/class-admin.php:958
 msgid "Bundled voice"
 msgstr ""
 
-#: includes/class-admin.php:942
+#: includes/class-admin.php:959
 msgid "Go back to the bundled voice when saving"
 msgstr ""
 
-#: includes/class-admin.php:946
+#: includes/class-admin.php:963
 msgid "Example replies"
 msgstr ""
 
-#: includes/class-admin.php:947
+#: includes/class-admin.php:964
 msgid "The SI copies the style of these replies. The first one is the reference reply."
 msgstr ""
 
-#: includes/class-admin.php:957
+#: includes/class-admin.php:974
 msgid "Add example"
 msgstr ""
 
-#: includes/class-admin.php:960
+#: includes/class-admin.php:977
 msgid "Fixed replies"
 msgstr ""
 
-#: includes/class-admin.php:961
+#: includes/class-admin.php:978
 msgid "Sent without asking the model: greetings, blocked messages, limits and errors."
 msgstr ""
 
-#: includes/class-admin.php:999
+#: includes/class-admin.php:1016
 msgid "Situation"
 msgstr ""
 
-#: includes/class-admin.php:1008
+#: includes/class-admin.php:1025
 msgid "Reply"
 msgstr ""
 
-#: includes/class-admin.php:1012
+#: includes/class-admin.php:1029
 msgid "Remove example"
 msgstr ""
 
-#: includes/class-admin.php:1026
+#: includes/class-admin.php:1043
 msgid "Privacy notice before the first message"
 msgstr ""
 
-#: includes/class-admin.php:1027
+#: includes/class-admin.php:1044
 msgid "The model is busy or failed"
 msgstr ""
 
-#: includes/class-admin.php:1028
+#: includes/class-admin.php:1045
 msgid "Too many messages"
 msgstr ""
 
-#: includes/class-admin.php:1029
+#: includes/class-admin.php:1046
 msgid "Tried to send a file or file link"
 msgstr ""
 
-#: includes/class-admin.php:1030
+#: includes/class-admin.php:1047
 msgid "Sent an ID or card number"
 msgstr ""
 
-#: includes/class-admin.php:1031
+#: includes/class-admin.php:1048
 msgid "Message too long"
 msgstr ""
 
-#: includes/class-admin.php:1032
+#: includes/class-admin.php:1049
 msgid "Message could not be read"
 msgstr ""
 
-#: includes/class-admin.php:1033
+#: includes/class-admin.php:1050
 msgid "No information on a question"
 msgstr ""
 
-#: includes/class-admin.php:1034
+#: includes/class-admin.php:1051
 msgid "Asked for a staff name"
 msgstr ""
 
-#: includes/class-admin.php:1035
+#: includes/class-admin.php:1052
 msgid "Asked for the SI's instructions"
 msgstr ""
 
-#: includes/class-admin.php:1036
+#: includes/class-admin.php:1053
 msgid "Conversation too long"
 msgstr ""
 
-#: includes/class-admin.php:1037
+#: includes/class-admin.php:1054
 msgid "Daily spending cap reached"
 msgstr ""
 
-#: includes/class-admin.php:1038
+#: includes/class-admin.php:1055
 msgid "A reply failed its checks twice"
 msgstr ""
 
-#: includes/class-admin.php:1039
+#: includes/class-admin.php:1056
 msgid "Handoff outside opening hours"
 msgstr ""
 
-#: includes/class-admin.php:1040
+#: includes/class-admin.php:1057
 msgid "Offer after 3 minutes of silence"
 msgstr ""
 
@@ -1233,7 +1281,7 @@ msgstr ""
 msgid "Hi! I'm interested in {product_name} ({product_price}). {page_url}"
 msgstr ""
 
-#: includes/class-settings.php:254
+#: includes/class-settings.php:269
 msgid "The stored API key was removed."
 msgstr ""
 

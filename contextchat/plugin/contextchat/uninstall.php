@@ -21,6 +21,7 @@ function contextchat_uninstall_site() {
 	delete_option( 'contextchat_si_salt' );
 	delete_option( 'contextchat_si_knowledge' );
 	delete_option( 'contextchat_si_voice' );
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'contextchat_si_lock_' ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	wp_clear_scheduled_hook( 'contextchat_prune' );
 	delete_post_meta_by_key( '_contextchat_hide' );
 	delete_post_meta_by_key( '_contextchat_message' );

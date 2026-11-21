@@ -24,6 +24,9 @@ function option( action, name, value ) {
 // that was asked for, so the tests can see which model ContextChat routed to.
 const MOCK_KEY = 'sk-ant-api03-e2eTestKey-0123456789abcdef';
 const mockRequests = [];
+// Scripted replies for the chat tests: each entry is a function( body ) returning the response body,
+// or { status, data } for an error. When the script is empty the mock answers with a greeting.
+const mockScript = [];
 let mockServer;
 function startMock() {
 	mockServer = http.createServer( ( req, res ) => {
@@ -38,6 +41,12 @@ function startMock() {
 				res.end( JSON.stringify( { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } } ) );
 				return;
 			}
+			if ( mockScript.length ) {
+				const out = mockScript.shift()( body );
+				res.statusCode = out.status || 200;
+				res.end( JSON.stringify( out.data || out ) );
+				return;
+			}
 			const name = body.model.includes( 'sonnet' ) ? 'Sonnet' : 'Haiku';
 			res.end( JSON.stringify( {
 				id: 'msg_test', type: 'message', role: 'assistant', model: body.model, stop_reason: 'end_turn',
@@ -47,6 +56,32 @@ function startMock() {
 		} );
 	} );
 	return new Promise( ( resolve ) => mockServer.listen( 0, '127.0.0.1', resolve ) );
+}
+
+function chatCheck( id ) {
+	return JSON.parse( execFileSync( 'php', [ path.join( __dirname, 'chat-check.php' ), SITE, id ] ).toString() );
+}
+
+function mockText( text ) {
+	return ( body ) => ( {
+		id: 'msg_t', type: 'message', role: 'assistant', model: body.model, stop_reason: 'end_turn',
+		content: [ { type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text } ],
+		usage: { input_tokens: 300, output_tokens: 40, cache_read_input_tokens: 4000 },
+	} );
+}
+
+function mockTools( calls ) {
+	return ( body ) => ( {
+		id: 'msg_t', type: 'message', role: 'assistant', model: body.model, stop_reason: 'tool_use',
+		content: [ { type: 'thinking', thinking: '', signature: 's' } ].concat( calls.map( ( c, i ) => ( { type: 'tool_use', id: 'toolu_' + i, name: c[ 0 ], input: c[ 1 ] } ) ) ),
+		usage: { input_tokens: 300, output_tokens: 60, cache_creation_input_tokens: 4000 },
+	} );
+}
+
+async function chatApi( route, body, method = 'POST', headers = {} ) {
+	const url = BASE + '/wp-json/contextchat/v1/chat/' + route + ( method === 'GET' ? '?' + new URLSearchParams( body ) : '' );
+	const res = await fetch( url, { method, headers: Object.assign( { 'Content-Type': 'application/json' }, headers ), body: method === 'GET' ? undefined : JSON.stringify( body ) } );
+	return { status: res.status, json: await res.json(), cache: res.headers.get( 'cache-control' ) };
 }
 
 function settings( changes ) {
@@ -594,5 +629,132 @@ test( 'Knowledge and Voice tabs: the bundled entries load, edits save, and the b
 	await page.waitForURL( /settings-updated=true/ );
 	assert.deepEqual( option( 'get', 'contextchat_si_knowledge' ), [], 'the bundle is used again' );
 	assert.deepEqual( option( 'get', 'contextchat_si_voice' ), [] );
+	await page.close();
+} );
+
+test( 'SI chat endpoints: start, quote, blocked uploads and IDs, idle offer, handoff, resume, cap', async () => {
+	// Off by default: the endpoints refuse.
+	assert.equal( ( await chatApi( 'start', { lang: 'id' } ) ).status, 404 );
+
+	const page = await newPage();
+	await login( page );
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-si' );
+	await page.fill( '#ctxc-si_api_key', MOCK_KEY );
+	await page.check( '#ctxc-si_enabled' );
+	await page.fill( '#ctxc-si_business_name', 'Nusalexia' );
+	await page.fill( '#ctxc-si_handoff_email', 'info@nusalexia.co.id' );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+	assert.equal( option( 'get', 'contextchat_settings' ).si_enabled, true );
+
+	const start = await chatApi( 'start', { lang: 'id', page: BASE + '/kontak/?nik=3201234567890001#x', device: 'desktop' } );
+	assert.equal( start.status, 201 );
+	const { conversation_id: id, token } = start.json;
+	assert.match( id, /^[0-9A-HJKMNP-TV-Z]{26}$/ );
+	assert.match( token, /^[0-9a-f]{64}$/ );
+	assert.match( start.json.reference, /^CC-\d{8}-[2-9A-HJKMNP-TV-Z]{4}$/ );
+	assert.match( start.json.greeting, /asisten SI Nusalexia/ );
+	assert.match( start.json.notice, /Kecerdasan Sintesis/ );
+	assert.equal( chatCheck( id ).conversation.token_hash, undefined, 'the helper hides the hash' );
+	assert.equal( start.cache, 'no-store, private' );
+	assert.equal( chatCheck( id ).conversation.page_url, '/kontak/', 'only the path is kept' );
+
+	// Too fast for a person: refused without asking the model.
+	mockRequests.length = 0;
+	const fast = await chatApi( 'message', { conversation_id: id, token, text: 'Halo' } );
+	assert.equal( fast.status, 429 );
+	assert.equal( mockRequests.length, 0 );
+	await new Promise( ( r ) => setTimeout( r, 1600 ) );
+
+	// A quote turn: tool calls, then a reply with the quote's total; the card comes with it.
+	mockScript.push(
+		mockTools( [
+			[ 'record_intake', { service: 'translation', fields: { document_types: [ 'ijazah', 'transkrip' ], source_lang: 'id', target_lang: 'en', documents_count: 2, pages_count: 3, sworn: true, destination: 'Australia' } } ],
+			[ 'get_quote', { package: 'sworn', source_lang: 'id', target_lang: 'en', pages: 3, documents: 2, destination_country: 'Australia', legalisation: 'auto' } ],
+		] ),
+		mockText( 'Untuk terjemahan tersumpah ijazah dan transkrip ke bahasa Inggris dengan apostille, estimasinya Rp 1.775.000, Kak. Rinciannya ada di kartu di bawah. Tenggatnya kapan ya, Kak?' )
+	);
+	const quoted = await chatApi( 'message', { conversation_id: id, token, text: 'Saya mau terjemahkan ijazah dan transkrip ke bahasa Inggris, 2 dokumen 3 halaman, tersumpah, untuk kuliah di Australia' } );
+	assert.equal( quoted.status, 200 );
+	assert.match( quoted.json.reply, /Rp 1\.775\.000/ );
+	assert.equal( quoted.json.quote.total, 1775000 );
+	assert.equal( quoted.json.quote.deposit, 887500 );
+	assert.deepEqual( quoted.json.quote.lines.map( ( l ) => l.amount ), [ 375000, 1400000 ] );
+	assert.match( quoted.json.quote.labels.note, /Estimasi/ );
+	assert.equal( quoted.json.handoff, null );
+	assert.equal( mockRequests.length, 2 );
+	const first = mockRequests[ 0 ].body;
+	assert.equal( first.model, 'claude-haiku-5-5' );
+	assert.equal( first.system[ 0 ].cache_control.type, 'ephemeral' );
+	assert.match( first.system[ 1 ].text, /^STATE: service=unknown/ );
+	assert.deepEqual( first.tools.map( ( t ) => t.name ), [ 'record_intake', 'get_quote', 'lookup_knowledge', 'request_handoff' ] );
+	assert.equal( first.messages.at( -1 ).role, 'user' );
+	assert.equal( mockRequests[ 1 ].body.messages.at( -1 ).content[ 1 ].type, 'tool_result' );
+	let saved = chatCheck( id );
+	assert.equal( saved.conversation.status, 'quoted' );
+	assert.equal( saved.conversation.service, 'translation' );
+	assert.equal( saved.quotes[ 0 ].total, '1775000' );
+	assert.ok( Number( saved.conversation.cost_micro_usd ) > 0 );
+
+	// A file link and an ID number never reach the model and are not stored.
+	mockRequests.length = 0;
+	const upload = await chatApi( 'message', { conversation_id: id, token, text: 'Ini filenya https://drive.google.com/file/d/abc/view' } );
+	assert.equal( upload.json.blocked, 'upload' );
+	assert.match( upload.json.reply, /tidak bisa dikirim lewat chat ini/ );
+	assert.match( upload.json.handoff.text, /Ref: EST-/ );
+	const nik = await chatApi( 'message', { conversation_id: id, token, text: 'NIK saya 3201234567890001' } );
+	assert.equal( nik.json.blocked, 'pii' );
+	assert.equal( mockRequests.length, 0 );
+	saved = chatCheck( id );
+	assert.equal( JSON.stringify( saved.messages ).includes( '3201234567890001' ), false );
+	assert.equal( JSON.stringify( saved.messages ).includes( 'drive.google.com' ), false );
+	assert.ok( saved.events.includes( 'blocked_upload:upload,file_host' ) );
+	assert.ok( saved.events.includes( 'blocked_pii:pii,nik' ) );
+
+	// Idle after a quote: the handoff is offered once.
+	const idle = await chatApi( 'idle', { conversation_id: id, token } );
+	assert.match( idle.json.reply, /ringkasannya sudah saya siapkan/ );
+	assert.match( idle.json.handoff.text, /Estimasi: Rp 1\.775\.000 \(DP 50%: Rp 887\.500\)/ );
+	assert.equal( idle.json.handoff.email, 'info@nusalexia.co.id' );
+	assert.equal( ( await chatApi( 'idle', { conversation_id: id, token } ) ).json.handoff, null, 'only once' );
+
+	// Handoff: the visitor's edited text goes into the link.
+	const wa = await chatApi( 'handoff', { conversation_id: id, token, channel: 'whatsapp', text: 'Halo, saya dari chat website. Ref: EST-X' } );
+	assert.match( wa.json.url, /^https:\/\/(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)\// );
+	assert.match( decodeURIComponent( wa.json.url ), /Ref: EST-X/ );
+	const mail = await chatApi( 'handoff', { conversation_id: id, token, channel: 'email' } );
+	assert.match( mail.json.url, /^mailto:info@nusalexia\.co\.id\?subject=%5BNusalexia%5D%20Terjemahan%20Tersumpah%20-%20EST-/ );
+	saved = chatCheck( id );
+	assert.equal( saved.conversation.status, 'handed_off' );
+	assert.ok( saved.events.includes( 'handoff_clicked:whatsapp' ) );
+
+	// Resume in the same tab.
+	const resumed = await chatApi( 'resume', { conversation_id: id, token } );
+	assert.equal( ( await chatApi( 'resume', { conversation_id: id, token }, 'GET' ) ).status, 404, 'no token in addresses' );
+	assert.equal( resumed.json.quote.total, 1775000 );
+	assert.deepEqual( resumed.json.messages.map( ( m ) => m.role ).slice( 0, 3 ), [ 'assistant', 'visitor', 'assistant' ] );
+
+	// Bad tokens and other sites are refused.
+	assert.equal( ( await chatApi( 'message', { conversation_id: id, token: 'f'.repeat( 64 ), text: 'Halo' } ) ).status, 403 );
+	assert.equal( ( await chatApi( 'message', { conversation_id: id, token, text: 'Halo' }, 'POST', { Origin: 'https://evil.example' } ) ).status, 403 );
+	assert.equal( ( await chatApi( 'message', { conversation_id: id, token, text: 'x'.repeat( 5000 ) } ) ).status, 413 );
+
+	// At the daily cap: the fixed reply and the card, without calling the model.
+	const usage = option( 'get', 'contextchat_si_usage' );
+	option( 'set', 'contextchat_si_usage', Object.assign( {}, usage, { micro_usd: 999000000 } ) );
+	mockRequests.length = 0;
+	const capped = await chatApi( 'message', { conversation_id: id, token, text: 'Halo lagi' } );
+	assert.match( capped.json.reply, /tidak tersedia/ );
+	assert.equal( capped.json.handoff.reason, 'busy' );
+	assert.equal( mockRequests.length, 0 );
+	option( 'set', 'contextchat_si_usage', usage );
+
+	// Turn it off again for the other tests.
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-si' );
+	await page.uncheck( '#ctxc-si_enabled' );
+	await page.check( 'input[name="contextchat_settings[si_api_key_remove]"]' );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+	assert.equal( ( await chatApi( 'start', { lang: 'id' } ) ).status, 404 );
 	await page.close();
 } );

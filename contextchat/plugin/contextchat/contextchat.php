@@ -48,6 +48,11 @@ require_once CONTEXTCHAT_DIR . 'includes/si/class-guard.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-validator.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-knowledge.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-voice.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-prompt.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-handoff.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-orchestrator.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-chat-store.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-chat-rest.php';
 
 register_activation_hook( __FILE__, array( 'ContextChat_Analytics', 'activate' ) );
 register_activation_hook( __FILE__, array( 'ContextChat_Installer', 'install' ) );
@@ -68,6 +73,7 @@ add_action(
 		ContextChat_WooCommerce::init();
 		ContextChat_Updates::init();
 		ContextChat_SI::init();
+		ContextChat_Chat_REST::init();
 
 		if ( is_admin() ) {
 			ContextChat_Admin::init();

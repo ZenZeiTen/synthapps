@@ -585,7 +585,7 @@ class ContextChat_Admin {
 		?>
 		<section id="ctxc-tab-si" class="ctxc-tab" data-tab="si" aria-labelledby="ctxc-tablink-si">
 			<h2><?php esc_html_e( 'SI (Synthesized Intelligence)', 'contextchat' ); ?></h2>
-			<p><?php esc_html_e( 'ContextChat 2.0 adds an SI assistant to the chat panel, powered by Anthropic\'s Claude models. This tab holds the API key, chooses which models answer, and caps what the site spends each day. The assistant itself arrives in a later 2.0 update: until then, nothing is sent to Anthropic unless you press "Test connection".', 'contextchat' ); ?></p>
+			<p><?php esc_html_e( 'ContextChat 2.0 adds an SI assistant to the chat panel, powered by Anthropic\'s Claude models. This tab turns it on, holds the API key, chooses which models answer, and caps what the site spends each day. Nothing is sent to Anthropic until the SI chat is turned on, except when you press "Test connection".', 'contextchat' ); ?></p>
 
 			<h3><?php esc_html_e( 'API key', 'contextchat' ); ?></h3>
 			<table class="form-table" role="presentation">
@@ -622,6 +622,23 @@ class ContextChat_Admin {
 						<?php endif; ?>
 					</td>
 				</tr>
+			</table>
+
+			<h3><?php esc_html_e( 'SI chat in the panel', 'contextchat' ); ?></h3>
+			<p><?php esc_html_e( 'When this is on and a key is saved, visitors chat with the SI in the panel: it answers from the Knowledge tab, collects the details your team needs, gives estimates from the price table, and hands the chat to your team on WhatsApp or by email with a summary. When it is off, the panel works as before. Chat text is sent to Anthropic for processing; mention this in your privacy policy.', 'contextchat' ); ?></p>
+			<table class="form-table" role="presentation">
+				<?php
+				self::row_checkbox( 'si_enabled', __( 'Turn on the SI chat', 'contextchat' ), __( 'Off after updating, so an update never changes your site by surprise.', 'contextchat' ) );
+				self::row_text( 'si_business_name', __( 'Business name', 'contextchat' ), __( 'How the SI names your business, e.g. Nusalexia. Empty: the site title.', 'contextchat' ) );
+				self::row_text( 'si_handoff_email', __( 'Email for handoffs', 'contextchat' ), __( 'Where the "Email" button writes to, e.g. info@nusalexia.co.id. Empty: the site\'s admin email.', 'contextchat' ), 'email' );
+				$agent_choices = array( '' => __( 'First available agent', 'contextchat' ) );
+				foreach ( $s['agents'] as $agent ) {
+					$agent_choices[ $agent['id'] ] = ContextChat_Settings::agent_label( $agent );
+				}
+				self::row_select( 'si_agent_translation', __( 'Agent for translation', 'contextchat' ), $agent_choices );
+				self::row_select( 'si_agent_interpreting', __( 'Agent for interpreting', 'contextchat' ), $agent_choices );
+				self::row_number( 'si_idle_minutes', __( 'Offer the team after silence (minutes)', 'contextchat' ), 1, 30 );
+				?>
 			</table>
 
 			<h3><?php esc_html_e( 'Model routing', 'contextchat' ); ?></h3>

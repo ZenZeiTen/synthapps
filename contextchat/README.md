@@ -138,7 +138,30 @@ The fourth part adds what the SI knows and how it writes, with two new tabs:
 
   That list ships empty, so no staff name is published in the plugin; add names in the tab. Every fixed reply and example passes the reply checker (unit-tested).
 
-Both are stored in options that are not autoloaded. The chat endpoints and the chat itself follow in later parts.
+Both are stored in options that are not autoloaded.
+
+The fifth part adds the conversation itself, on the server:
+
+- **Orchestrator** (`includes/si/class-orchestrator.php`). Each visitor turn:
+  - sends the model a cached instruction block (`includes/si/class-prompt.php`: role and limits, the no-name rule, voice and examples, intake and asking rules, handoff rules, the price table's rates and the knowledge entries) and a separate line with the conversation state, plus the last 20 messages;
+  - lets the model use four tools: `record_intake` (keeps only the intake fields of the design plan, cleaned), `get_quote` (the price engine), `lookup_knowledge` and `request_handoff`, for up to 3 tool rounds;
+  - checks the reply with the reply checker, retries once on the stronger model with the reason, and otherwise sends a fixed reply with the handoff card.
+
+  Requests for the instructions or for a person's name get a fixed reply without calling the model. The handoff card is offered when:
+  - the model asks for it;
+  - a quote needs the team (express, large corporate) or the pair is not offered;
+  - an interpreting intake is complete;
+  - the visitor asks for WhatsApp, email or a person, or hesitates about the price (keyword backup);
+  - the API fails, the daily cap is reached, or after 40 visitor messages.
+- **Handoff** (`includes/si/class-handoff.php`). The summary is in the design plan's format, in Indonesian or English, and kept under 1,000 characters for WhatsApp by dropping the least important lines first. The email subject follows the house format `[Nusalexia] Terjemahan Tersumpah - EST-… - Permintaan Penawaran`. The summary goes to the agent chosen for translation or interpreting, else the first available agent, and the email to the address set on the SI tab.
+- **Endpoints** (`includes/si/class-chat-rest.php`): `POST chat/start`, `chat/message`, `chat/handoff`, `chat/idle` and `GET chat/resume` under `/wp-json/contextchat/v1/`.
+  - **Access:** each conversation has a random token, given once and stored only as a SHA-256 hash. Requests from other sites (a foreign `Origin`) and bodies over 4 KB are refused.
+  - **Order of checks:** the rate limits, the 1.5-second first-message check and the guard all run before the model. Blocked messages are not stored.
+  - **When it answers:** only when the SI chat is turned on (SI tab, off after updating) and a key is saved.
+- **Data** goes into the conversations, messages, quotes and events tables, with tokens and cost per conversation.
+- **New filters:** `contextchat_si_enabled`, `contextchat_si_reply`, `contextchat_price_table`, `contextchat_handoff_text`, `contextchat_si_limits`, `contextchat_si_file_hosts`.
+
+The chat in the panel follows in the next part.
 
 ## Translations
 

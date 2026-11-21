@@ -80,7 +80,15 @@ class ContextChat_Guard {
 			return self::verdict( in_array( 'markup', $flags, true ) ? 'markup' : 'empty', '', $flags );
 		}
 
-		$pii = self::pii_kind( $text );
+		// Full-width digits (０-９) count as digits for the ID checks.
+		$digits = preg_replace_callback(
+			'/[\x{FF10}-\x{FF19}]/u',
+			function ( $m ) {
+				return (string) ( mb_ord( $m[0], 'UTF-8' ) - 0xFF10 );
+			},
+			$text
+		);
+		$pii    = self::pii_kind( $digits );
 		if ( '' !== $pii ) {
 			return self::verdict( 'pii', '', array_merge( $flags, array( $pii ) ) );
 		}
@@ -150,11 +158,16 @@ class ContextChat_Guard {
 				// Split numbers must be grouped the way IDs and cards are written (4-4-4-4, 6-6-4,
 				// 4-6-5), so two dates side by side ("2026-11-21 2026-11-22") are not an ID.
 				$groups = array_map( 'strlen', preg_split( '/[ .-]/', $raw ) );
-				if ( count( $groups ) > 1 && ! in_array( $groups, array( array( 4, 4, 4, 4 ), array( 6, 6, 4 ), array( 4, 6, 5 ), array( 4, 4, 4, 4, 3 ), array( 4, 4, 4, 3 ) ), true ) ) {
+				if ( 16 === $len ) {
+					// Any 16-digit run is a NIK, however it is split, unless it reads as two dates.
+					$dates = count( $groups ) > 1 && ! array_diff( $groups, array( 2, 4 ) ) && in_array( 2, $groups, true );
+					if ( ! $dates ) {
+						return 'nik';
+					}
 					continue;
 				}
-				if ( 16 === $len ) {
-					return 'nik';
+				if ( count( $groups ) > 1 && ! in_array( $groups, array( array( 4, 4, 4, 4 ), array( 4, 6, 5 ), array( 4, 4, 4, 4, 3 ), array( 4, 4, 4, 3 ) ), true ) ) {
+					continue;
 				}
 				// Phone numbers: +62…, 62… up to 14 digits, or 08….
 				$phone = '+' === $run[1] || 0 === strpos( $digits, '08' ) || ( 0 === strpos( $digits, '62' ) && $len <= 14 );
@@ -215,7 +228,25 @@ class ContextChat_Guard {
 		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
 		/** This filter is documented in includes/class-analytics.php. */
 		$ip = (string) apply_filters( 'contextchat_client_ip', $ip );
-		return hash_hmac( 'sha256', $ip, self::daily_secret() );
+		return hash_hmac( 'sha256', self::network( $ip ), self::daily_secret() );
+	}
+
+	/**
+	 * The part of an address that identifies a visitor: the whole IPv4 address, or the /64
+	 * network of an IPv6 address (one home or phone usually gets a whole /64).
+	 *
+	 * @param string $ip Address.
+	 * @return string
+	 */
+	public static function network( $ip ) {
+		$packed = @inet_pton( (string) $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- invalid input returns false.
+		if ( false === $packed ) {
+			return (string) $ip;
+		}
+		if ( 16 === strlen( $packed ) && 0 !== strpos( $packed, str_repeat( "\0", 10 ) . "\xff\xff" ) ) {
+			return bin2hex( substr( $packed, 0, 8 ) ) . '::/64';
+		}
+		return inet_ntop( 16 === strlen( $packed ) ? substr( $packed, 12 ) : $packed );
 	}
 
 	/**
@@ -280,6 +311,17 @@ class ContextChat_Rate_Limiter {
 			),
 			$visitor
 		);
+	}
+
+	/**
+	 * Count one other chat request (handoff, idle, resume). False above 30 a minute.
+	 *
+	 * @param string $visitor Hashed address.
+	 * @param int    $now     Unix time.
+	 * @return bool
+	 */
+	public function other( $visitor, $now ) {
+		return $this->take( array( array( 'o', gmdate( 'YmdHi', $now ), 30, 2 * 60 ) ), $visitor );
 	}
 
 	/**

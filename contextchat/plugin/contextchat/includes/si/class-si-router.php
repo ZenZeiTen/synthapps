@@ -150,6 +150,56 @@ class ContextChat_SI_Router {
 	}
 
 	/**
+	 * One model, one request (with a retry when the API is busy), for callers that run their own
+	 * loop, such as the chat's tool rounds. Checks the daily cap first.
+	 *
+	 * @param string $model   Model ID.
+	 * @param array  $request system (string or content blocks), messages, tools.
+	 * @param string $note    Why an earlier draft was rejected, or ''.
+	 * @return array Attempt: outcome ('ok', 'cap_reached', or an error outcome), text, response, usage, cost_micro_usd, served_by, stop_reason.
+	 */
+	public function call( $model, array $request, $note = '' ) {
+		if ( $this->over_cap() ) {
+			return array(
+				'model'          => $model,
+				'served_by'      => '',
+				'outcome'        => 'cap_reached',
+				'reason'         => '',
+				'status'         => 0,
+				'calls'          => 0,
+				'ms'             => 0,
+				'text'           => '',
+				'usage'          => array(),
+				'cost_micro_usd' => 0,
+				'response'       => array(),
+				'stop_reason'    => '',
+			);
+		}
+		$attempt                = $this->attempt( $model, $request, $note );
+		$attempt['stop_reason'] = isset( $attempt['response']['stop_reason'] ) ? (string) $attempt['response']['stop_reason'] : '';
+		return $attempt;
+	}
+
+	/**
+	 * The models to try, in order (public for callers that run their own loop).
+	 *
+	 * @return string[]
+	 */
+	public function models() {
+		return $this->plan();
+	}
+
+	/**
+	 * Whether the model may be asked again after this outcome (escalation to the next model).
+	 *
+	 * @param string $outcome Outcome.
+	 * @return bool
+	 */
+	public static function escalates( $outcome ) {
+		return in_array( $outcome, self::ESCALATE, true );
+	}
+
+	/**
 	 * One model: send, retry once on a transient failure, and classify the outcome.
 	 *
 	 * @param string $model   Model.
@@ -165,12 +215,27 @@ class ContextChat_SI_Router {
 			'messages'      => isset( $request['messages'] ) ? $request['messages'] : array(),
 			'output_config' => array( 'effort' => $c['effort'] ),
 		);
-		$system = isset( $request['system'] ) ? (string) $request['system'] : '';
-		if ( '' !== $note ) {
-			$system .= ( '' !== $system ? "\n\n" : '' ) . 'A previous draft of this reply was rejected by an automatic check (' . $note . '). Write a new reply that avoids the problem.';
-		}
-		if ( '' !== $system ) {
-			$body['system'] = $system;
+		$system   = isset( $request['system'] ) ? $request['system'] : '';
+		$retry_on = '' !== $note ? 'A previous draft of this reply was rejected by an automatic check (' . $note . '). Write a new reply that avoids the problem.' : '';
+		if ( is_array( $system ) ) {
+			// Content blocks, e.g. a cached prefix and the conversation state.
+			if ( '' !== $retry_on ) {
+				$system[] = array(
+					'type' => 'text',
+					'text' => $retry_on,
+				);
+			}
+			if ( $system ) {
+				$body['system'] = $system;
+			}
+		} else {
+			$system = (string) $system;
+			if ( '' !== $retry_on ) {
+				$system .= ( '' !== $system ? "\n\n" : '' ) . $retry_on;
+			}
+			if ( '' !== $system ) {
+				$body['system'] = $system;
+			}
 		}
 		if ( ! empty( $request['tools'] ) ) {
 			$body['tools'] = $request['tools'];
