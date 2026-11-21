@@ -114,7 +114,7 @@ export default function tmsEditor(el, ctx) {
       ta.addEventListener('input', () => { autoGrow(); onType(s); });
       ta.addEventListener('keydown', (e) => onEditorKey(e));
       tcell.appendChild(ta);
-    } else if (s.target) tcell.append(...rich(s.target).map((n) => (typeof n === 'string' ? document.createTextNode(n) : n)));
+    } else if (s.target) mount(tcell, rich(s.target));
     const srcCell = h('div.seg-src', { dir: 'auto', lang: st.project?.sourceLang }, s.key ? h('span.seg-key', s.key) : null, rich(s.source, active ? st.lookups.get(s.id)?.terms : null));
     const stBtn = h('button.st-btn', { type: 'button', title: `${STATUS_LABEL[s.status]} — change status`, 'aria-label': `Status: ${STATUS_LABEL[s.status]}. Change status`, onClick: () => statusMenu(stBtn, s) }, statusIcon(s.status));
     mount(row, h('div.seg-n', String(s.n), s.locked ? icon('lock') : null), srcCell, tcell,
