@@ -96,6 +96,10 @@ export function hardenSession(ses, ctx) {
     const s = ctx.settings();
     const headers = details.requestHeaders;
     if (s.sendDoNotTrack) { headers.DNT = '1'; headers['Sec-GPC'] = '1'; }
+    if (needsFirefoxIdentity(details.url)) {
+      for (const k of Object.keys(headers)) { if (/^sec-ch-ua/i.test(k)) delete headers[k]; else if (/^user-agent$/i.test(k)) delete headers[k]; }
+      headers['User-Agent'] = firefoxUserAgent();
+    } else if (headers['User-Agent'] === firefoxUserAgent()) headers['User-Agent'] = ua; // first request after leaving such a page
     if (s.blockThirdPartyCookies && details.resourceType !== 'mainFrame') {
       const page = details.webContents?.getURL?.() || '';
       if (page && isThirdParty(details.url, page)) delete headers.Cookie;
@@ -195,4 +199,18 @@ export function urlsFromArgs(argv, { cwd = process.cwd(), skip = 1, exists = () 
     if (OPENABLE_FILE.test(full) && exists(full)) out.push(pathToFileURL(full).href);
   }
   return out.slice(0, 20);
+}
+
+/**
+ * Google's sign-in pages refuse browsers built on Electron ("This browser or app may not be
+ * secure"), judging by the Chromium brand list. On those pages only, Lintas identifies itself
+ * as Firefox, as other independent Chromium-based browsers do, so the user can sign in.
+ */
+export function needsFirefoxIdentity(url) {
+  try { const h = new URL(url).hostname; return h === 'accounts.google.com' || h === 'accounts.youtube.com'; } catch { return false; }
+}
+
+export function firefoxUserAgent(platform = process.platform) {
+  const os = platform === 'win32' ? 'Windows NT 10.0; Win64; x64' : platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10.15' : 'X11; Linux x86_64';
+  return `Mozilla/5.0 (${os}; rv:140.0) Gecko/20100101 Firefox/140.0`;
 }

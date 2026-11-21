@@ -2,7 +2,7 @@
 // (lintas://…) are drawn by the browser chrome renderer instead.
 import { WebContentsView, Menu, clipboard, shell } from 'electron';
 import { pathToFileURL } from 'node:url';
-import { resolveInput } from './security.js';
+import { resolveInput, needsFirefoxIdentity, firefoxUserAgent } from './security.js';
 import { stripHash } from './browserdata.js';
 
 const INTERNAL_TITLES = {
@@ -288,6 +288,11 @@ export class TabManager {
     const update = () => this.changed();
     wc.on('did-start-loading', () => { t.loading = true; update(); });
     wc.on('did-stop-loading', () => { t.loading = false; update(); });
+    // Sign-in pages that refuse Electron-based browsers see a Firefox identity (see security.js)
+    const baseUa = wc.getUserAgent();
+    wc.on('did-start-navigation', (e) => {
+      if (e.isMainFrame && !e.isSameDocument) { const want = needsFirefoxIdentity(e.url) ? firefoxUserAgent() : baseUa; if (wc.getUserAgent() !== want) wc.setUserAgent(want); }
+    });
     wc.on('did-start-navigation', (e) => {
       if (!e.isMainFrame || e.isSameDocument) return;
       t.error = null;
