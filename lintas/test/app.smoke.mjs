@@ -45,7 +45,11 @@ const app = await electron.launch({
 });
 const log = [];
 try {
-  const win = await app.firstWindow();
+  // Tabs are pages too, so wait for the browser window itself rather than the first page
+  const isMain = (p) => p.url().startsWith('lintas-ui://app/index.html');
+  let win = null;
+  for (const end = Date.now() + 30000; !win && Date.now() < end; await new Promise(r => setTimeout(r, 200))) win = app.windows().find(isMain) || null;
+  assert.ok(win, 'browser window not found: ' + app.windows().map(p => p.url()).join(', '));
   win.on('console', m => { if (m.type() === 'error') log.push(m.text()); });
   win.on('pageerror', e => log.push('pageerror: ' + e.message));
   await win.waitForFunction(() => !!window.lintas, null, { timeout: 15000 });
