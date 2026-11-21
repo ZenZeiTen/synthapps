@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https: http:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Lintas</title>
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/chrome.css">
+  <link rel="stylesheet" href="styles/pages.css">
+  <link rel="stylesheet" href="styles/tms.css">
+</head>
+<body>
+  <div id="app">
+    <header id="tabstrip" aria-label="Tabs"></header>
+    <div id="toolbar" role="toolbar" aria-label="Navigation"></div>
+    <nav id="bookmarksbar" aria-label="Bookmarks" hidden></nav>
+    <div id="main">
+      <main id="content">
+        <div id="findstrip" hidden></div>
+        <div id="viewport"></div>
+      </main>
+      <aside id="sidepanel" aria-label="Side panel" hidden></aside>
+    </div>
+  </div>
+  <div id="overlays"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
