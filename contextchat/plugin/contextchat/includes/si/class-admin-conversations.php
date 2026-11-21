@@ -149,7 +149,7 @@ class ContextChat_Admin_Conversations {
 		<form method="get" class="ctxc-conv-filters">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<label for="ctxc-conv-ref"><?php esc_html_e( 'Reference', 'contextchat' ); ?></label>
-			<input type="search" id="ctxc-conv-ref" name="reference" value="<?php echo esc_attr( $f['reference'] ); ?>" placeholder="CC-">
+			<input type="search" id="ctxc-conv-ref" name="reference" value="<?php echo esc_attr( $f['reference'] ); ?>" placeholder="CC- / EST-">
 			<label for="ctxc-conv-status"><?php esc_html_e( 'Status', 'contextchat' ); ?></label>
 			<select id="ctxc-conv-status" name="status">
 				<option value=""><?php esc_html_e( 'All', 'contextchat' ); ?></option>

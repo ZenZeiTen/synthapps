@@ -657,8 +657,8 @@ test( 'SI chat endpoints: start, quote, blocked uploads and IDs, idle offer, han
 	assert.match( id, /^[0-9A-HJKMNP-TV-Z]{26}$/ );
 	assert.match( token, /^[0-9a-f]{64}$/ );
 	assert.match( start.json.reference, /^CC-\d{8}-[2-9A-HJKMNP-TV-Z]{4}$/ );
-	assert.match( start.json.greeting, /asisten SI Nusalexia/ );
-	assert.match( start.json.notice, /Kecerdasan Sintesis/ );
+	assert.match( start.json.greeting, /Selamat datang di Nusalexia/ );
+	assert.equal( start.json.notice, '', 'no notice by default' );
 	assert.equal( chatCheck( id ).conversation.token_hash, undefined, 'the helper hides the hash' );
 	assert.equal( start.cache, 'no-store, private' );
 	assert.equal( chatCheck( id ).conversation.page_url, '/kontak/', 'only the path is kept' );
@@ -780,10 +780,12 @@ test( 'SI chat in the panel: quote card, handoff card, no files, idle offer, res
 	assert.equal( await page.locator( 'script[src*="assets/js/chat.js"]' ).count(), 0, 'the chat code is not loaded before the panel opens' );
 	await page.locator( '.ctxc-launcher' ).click();
 	await page.locator( '.ctxc-si-input' ).waitFor();
-	assert.equal( await page.locator( '.ctxc-title' ).textContent(), 'Nusalexia SI Assistant' );
+	assert.equal( await page.locator( '.ctxc-title' ).textContent(), 'Nusalexia', 'just the name' );
+	assert.equal( await page.locator( '.ctxc-subtitle' ).isHidden(), true, 'no subtitle' );
 	assert.equal( await page.locator( '.ctxc-body' ).isHidden(), true, 'the 1.1 message box is replaced' );
-	await page.locator( '.ctxc-si-notice' ).waitFor();
-	assert.match( await page.locator( '.ctxc-si-notice' ).textContent(), /Synthesized Intelligence|Kecerdasan Sintesis/ );
+	await page.locator( '.ctxc-si-msg.is-assistant' ).waitFor();
+	assert.equal( await page.locator( '.ctxc-si-notice' ).count(), 0, 'no notice by default' );
+	assert.doesNotMatch( await page.locator( '.ctxc-panel' ).textContent(), /Synthesized|Sintesis|Anthropic|\bSI\b|Assistant|asisten/i );
 	assert.equal( await page.locator( '.ctxc-si-msg.is-assistant' ).count(), 1, 'the greeting' );
 	assert.equal( await page.evaluate( () => document.activeElement.className ), 'ctxc-si-input' );
 	await shot( page, 'si-chat-start', '.ctxc-panel' );
@@ -854,7 +856,7 @@ test( 'SI chat in the panel: quote card, handoff card, no files, idle offer, res
 	await fresh.locator( '.ctxc-launcher' ).click();
 	await fresh.waitForFunction( () => ! document.querySelector( '.ctxc-si' ) && ! document.querySelector( '.ctxc-body' ).hidden );
 	assert.equal( await fresh.locator( '#ctxc-composer' ).isVisible(), true );
-	assert.equal( await fresh.locator( '.ctxc-title' ).textContent() === 'Nusalexia SI Assistant', false, 'the 1.1 header is back' );
+	assert.equal( await fresh.locator( '.ctxc-subtitle' ).isHidden(), false, 'the 1.1 header is back' );
 	assert.equal( await fresh.locator( '.ctxc-agent' ).first().isVisible(), true );
 	const off = await newPage();
 	await off.goto( BASE + '/contact/' );
@@ -912,7 +914,7 @@ test( 'Prices, Privacy and Conversations: edited prices are quoted, the privacy 
 	// estimate uses the edited rate and, without Australia on the list, ministry and embassy.
 	const start = await chatApi( 'start', { lang: 'id', page: BASE + '/', device: 'desktop' } );
 	assert.equal( start.status, 201 );
-	assert.match( start.json.notice, /Anthropic, penyedia model bahasa di luar Indonesia, dan disimpan di situs ini selama 90 hari/ );
+	assert.equal( start.json.notice, '' );
 	assert.equal( start.json.privacy_url, BASE + '/privacy/' );
 	const { conversation_id: id, token, reference } = start.json;
 	const conv = chatCheck( id ).conversation;
@@ -940,7 +942,11 @@ test( 'Prices, Privacy and Conversations: edited prices are quoted, the privacy 
 	assert.ok( csv.includes( ',2460000,' ), 'with its last estimate' );
 	assert.equal( csv.includes( 'Ijazah' ), false, 'no message text' );
 
-	// Conversations: listed, filtered by reference, readable, exportable, deletable.
+	// Conversations: found by the estimate reference the visitor sees, and by the chat reference;
+	// readable, exportable, deletable.
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat-conversations&reference=' + quoted.json.quote.reference );
+	assert.equal( await page.locator( '.ctxc-conv-table tbody tr' ).count(), 1 );
+	assert.match( await page.locator( '.ctxc-conv-table tbody' ).textContent(), new RegExp( reference ) );
 	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat-conversations&reference=' + reference );
 	assert.equal( await page.locator( '.ctxc-conv-table tbody tr' ).count(), 1 );
 	await shot( page, 'conversations-list', '.wrap' );
@@ -1012,18 +1018,17 @@ test( 'Privacy: with "agree first" on, the chat waits for the visitor\'s agreeme
 	await page.goto( BASE + '/contact/' );
 	await page.locator( '.ctxc-launcher' ).click();
 	await page.locator( '.ctxc-si-agree' ).waitFor();
-	assert.match( await page.locator( '.ctxc-si-notice' ).textContent(), /Anthropic/ );
+	assert.doesNotMatch( await page.locator( '.ctxc-panel' ).textContent(), /Anthropic|Synthesized|Sintesis/ );
 	assert.equal( await page.locator( '.ctxc-si-input' ).isDisabled(), true, 'no typing before agreeing' );
 	assert.equal( await page.locator( '.ctxc-si-msg' ).count(), 0, 'no chat is started yet' );
 	await shot( page, 'si-chat-consent', '.ctxc-panel' );
 	await page.locator( '.ctxc-si-agree' ).click();
 	await page.locator( '.ctxc-si-msg.is-assistant' ).waitFor();
-	await page.locator( '.ctxc-si-noticeref' ).waitFor();
-	const ref = ( await page.locator( '.ctxc-si-noticeref' ).textContent() ).match( /CC-\d{8}-[2-9A-HJKMNP-TV-Z]{4}/ )[ 0 ];
 	assert.equal( await page.locator( '.ctxc-si-input' ).isDisabled(), false );
+	assert.equal( await page.locator( '.ctxc-si-notice' ).count(), 0, 'the empty box that held the button is gone' );
 	const session = await page.evaluate( () => JSON.parse( sessionStorage.getItem( 'ctxc-si' ) || 'null' ) );
 	const saved = chatCheck( session.id );
-	assert.equal( saved.conversation.reference, ref );
+	assert.match( saved.conversation.reference, /^CC-\d{8}-[2-9A-HJKMNP-TV-Z]{4}$/ );
 	assert.ok( saved.events.some( ( e ) => /^consent:(id|en):[0-9a-f]{12}$/.test( e ) ), 'the agreed notice version is recorded' );
 
 	// Back to the earlier settings.

@@ -53,17 +53,17 @@
   {
    "situation": "Ditanya apakah ini orang",
    "lang": "id",
-   "reply": "Saya asisten SI (Kecerdasan Sintesis) Nusalexia, Kak, bukan orang. Kalau Kakak ingin bicara dengan tim kami, saya bisa teruskan lewat WhatsApp atau email."
+   "reply": "Ini chat otomatis Nusalexia, Kak, bukan orang. Kalau Kakak ingin bicara dengan tim kami, bisa saya teruskan lewat WhatsApp atau email."
   }
  ],
  "templates": {
   "greeting": {
-   "id": "Halo, Kak. Saya asisten SI Nusalexia. Dokumen apa yang ingin diterjemahkan, atau ada yang bisa saya bantu?",
-   "en": "Hello, I'm Nusalexia's SI assistant. What would you like translated, or how can I help?"
+   "id": "Halo, Kak. Selamat datang di Nusalexia. Dokumen apa yang ingin diterjemahkan, atau ada yang bisa kami bantu?",
+   "en": "Hello, welcome to Nusalexia. What would you like translated, or how can we help?"
   },
   "notice": {
-   "id": "Percakapan ini dibantu Kecerdasan Sintesis. Teks chat diproses oleh Anthropic, penyedia model bahasa di luar Indonesia, dan disimpan di situs ini selama {retention} untuk layanan pelanggan. Jangan kirim nomor identitas atau dokumen di sini; gunakan WhatsApp atau email.",
-   "en": "This chat is assisted by Synthesized Intelligence. Chat text is processed by Anthropic, a language-model provider outside Indonesia, and kept on this site for {retention} for customer service. Don't send ID numbers or documents here; use WhatsApp or email."
+   "id": "",
+   "en": ""
   },
   "busy": {
    "id": "Maaf, Kak, sistem sedang sibuk. Silakan lanjut lewat WhatsApp atau email di bawah, tim kami akan membantu langsung.",
@@ -106,8 +106,8 @@
    "en": "This chat has grown quite long. To keep things moving, please continue with our team on WhatsApp or by email below."
   },
   "cap_reached": {
-   "id": "Asisten SI sedang tidak tersedia, Kak. Silakan hubungi tim kami lewat WhatsApp atau email.",
-   "en": "The SI assistant isn't available right now. Please contact our team on WhatsApp or by email."
+   "id": "Maaf, Kak, chat sedang tidak tersedia. Silakan hubungi tim kami lewat WhatsApp atau email.",
+   "en": "Sorry, the chat is not available right now. Please contact our team on WhatsApp or by email."
   },
   "fallback": {
    "id": "Maaf, Kak, untuk pertanyaan ini lebih baik tim kami yang menjawab langsung. Silakan lanjut lewat WhatsApp atau email di bawah.",

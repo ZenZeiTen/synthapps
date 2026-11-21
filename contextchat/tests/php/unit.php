@@ -508,6 +508,9 @@ $vctx = array(
 $failed = array();
 foreach ( $voice['templates'] as $key => $texts ) {
 	foreach ( $texts as $lang => $text ) {
+		if ( '' === $text ) {
+			continue; // An empty fixed reply is not shown (the notice, by default).
+		}
 		$r = ContextChat_Validator::check( $text, $vctx );
 		if ( ! $r['ok'] || $r['text'] !== $text ) {
 			$failed[] = $key . '/' . $lang . ': ' . implode( ',', $r['reasons'] );
@@ -521,9 +524,10 @@ foreach ( $voice['examples'] as $i => $ex ) {
 	}
 }
 check( 'voice: every fixed reply and example passes the reply checker', $failed, array() );
-check( 'voice: every fixed reply exists in both languages', count( array_filter( $voice['templates'], function ( $t ) {
+check( 'voice: every fixed reply exists in both languages, except the notice, which is empty by default', count( array_filter( $voice['templates'], function ( $t ) {
 	return '' !== $t['id'] && '' !== $t['en'];
-} ) ), count( $voice['templates'] ) );
+} ) ), count( $voice['templates'] ) - 1 );
+check( 'voice: the chat window names only the business: no notice, no "SI" in the greeting', array( $voice['templates']['notice'], (bool) preg_match( '/\bSI\b|Sintesis|Synthesized|asisten|assistant/i', $voice['templates']['greeting']['id'] . $voice['templates']['greeting']['en'] ) ), array( array( 'id' => '', 'en' => '' ), false ) );
 check( 'voice: the wording never says AI', false === strpos( json_encode( $voice, JSON_UNESCAPED_UNICODE ), ' AI' ), true );
 
 // Orchestrator (T-08): scripted chats against a fake Messages API.

@@ -45,7 +45,7 @@ class ContextChat_Privacy {
 			return '<p>' . $text . '</p>';
 		};
 		$html  = '<p class="privacy-policy-tutorial">' . esc_html__( 'Suggested text for the SI chat of ContextChat. It was checked against Indonesia\'s Personal Data Protection Law (UU 27/2022) and its implementing regulation (PP 33/2026), but it is not legal advice. Fill in the parts in square brackets and have it reviewed before you publish it.', 'contextchat' ) . '</p>';
-		$html .= '<h3>' . esc_html__( 'Chat with our SI assistant', 'contextchat' ) . '</h3>';
+		$html .= '<h3>' . esc_html__( 'Chat on our website', 'contextchat' ) . '</h3>';
 		$html .= $p(
 			/* translators: 1: business name, 2: contact email. */
 			esc_html( sprintf( __( 'The chat on this site is run by %1$s ([company address]). We decide how chat data is used and are responsible for it. Contact: %2$s.', 'contextchat' ), $name, $contact ) )
@@ -65,7 +65,7 @@ class ContextChat_Privacy {
 		$html .= $p(
 			'<strong>' . esc_html__( 'Your rights.', 'contextchat' ) . '</strong> ' .
 			/* translators: %s: contact email. */
-			esc_html( sprintf( __( 'You may ask for information about this processing, a copy of your chat, correction, deletion, or for processing to be paused or limited, and you may object to decisions made only by automated means. The chat gives estimates only; our team confirms every price. Write to %s and quote the chat reference shown at the top of the chat (it starts with CC-). We answer within 3 × 24 hours after checking that the request is yours.', 'contextchat' ), $contact ) )
+			esc_html( sprintf( __( 'You may ask for information about this processing, a copy of your chat, correction, deletion, or for processing to be paused or limited, and you may object to decisions made only by automated means. The chat gives estimates only; our team confirms every price. Write to %s and tell us when you chatted and about what, or quote the estimate reference if you received one (it starts with EST-). We answer within 3 × 24 hours after checking that the request is yours.', 'contextchat' ), $contact ) )
 		);
 		$html .= $p( '<strong>' . esc_html__( 'Security.', 'contextchat' ) . '</strong> ' . esc_html__( 'Chats are stored in our website database and only our administrators can read them. If chat data is ever exposed, we will tell you and the data protection authority in writing within 3 × 24 hours.', 'contextchat' ) );
 		$html .= $p( esc_html__( '[Children: the chat is meant for adults. Decide with your legal review how you identify visitors under 18 and obtain a parent\'s or guardian\'s consent, as PP 33/2026 Article 38 requires.]', 'contextchat' ) );

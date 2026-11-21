@@ -105,6 +105,8 @@
 		}
 		if ( subtitle && si.subtitle ) {
 			subtitle.textContent = si.subtitle;
+		} else if ( subtitle && si.subtitle === '' ) {
+			subtitle.hidden = true;
 		} else if ( ! subtitle && si.subtitle && title ) {
 			subtitle = el( 'p', 'ctxc-subtitle ctxc-si-added', si.subtitle );
 			title.parentNode.appendChild( subtitle );
@@ -120,6 +122,7 @@
 				title.textContent = saved.title;
 			}
 			if ( subtitle ) {
+				subtitle.hidden = false;
 				if ( subtitle.classList.contains( 'ctxc-si-added' ) ) {
 					subtitle.remove();
 				} else if ( saved.subtitle !== null ) {
@@ -179,12 +182,13 @@
 
 		function notice( text, url, ref ) {
 			var existing = log.querySelector( '.ctxc-si-notice' );
-			if ( existing && ref && ! existing.querySelector( '.ctxc-si-noticeref' ) ) {
+			if ( existing && ref && existing.getAttribute( 'data-text' ) && ! existing.querySelector( '.ctxc-si-noticeref' ) ) {
 				// The reference a visitor quotes when asking for a copy or deletion of the chat.
 				existing.appendChild( el( 'span', 'ctxc-si-noticeref', ( t.ref || 'Ref' ) + ': ' + ref ) );
 			}
 			if ( text && ! existing ) {
 				var p = el( 'p', 'ctxc-si-notice', text );
+				p.setAttribute( 'data-text', '1' );
 				if ( url && /^https?:\/\//i.test( url ) ) {
 					var a = el( 'a', '', t.privacy || 'Privacy policy' );
 					a.href = url;
@@ -205,6 +209,18 @@
 			return new Promise( function ( resolve ) {
 				notice( si.notice, si.privacy );
 				var p = log.querySelector( '.ctxc-si-notice' );
+				if ( ! p ) {
+					// No notice text set: the button, and the policy link when there is one.
+					p = el( 'p', 'ctxc-si-notice' );
+					if ( si.privacy && /^https?:\/\//i.test( si.privacy ) ) {
+						var a = el( 'a', '', t.privacy || 'Privacy policy' );
+						a.href = si.privacy;
+						a.target = '_blank';
+						a.rel = 'noopener noreferrer';
+						p.appendChild( a );
+					}
+					log.insertBefore( p, log.firstChild );
+				}
 				var btn = el( 'button', 'ctxc-si-agree', t.agree || 'Agree and start' );
 				btn.type = 'button';
 				input.disabled = true;
@@ -215,6 +231,9 @@
 					btn.disabled = true;
 					setTimeout( function () {
 						btn.remove();
+						if ( ! p.getAttribute( 'data-text' ) && ! p.querySelector( 'a' ) ) {
+							p.remove(); // Only held the button.
+						}
 					}, 0 );
 					input.disabled = false;
 					send.disabled = false;

@@ -166,7 +166,7 @@ The sixth part puts the chat in the panel (`assets/js/chat.js`).
 
 When the SI chat is on, opening the panel loads the chat script, the first time only (about 5 KB gzipped). The chat then takes over the panel body:
 
-- the privacy notice and the greeting;
+- the greeting (and a notice above it, if one is set on the Voice tab; none by default);
 - a message box with a 1,000-character counter (Enter sends, Shift+Enter starts a new line) and a typing indicator;
 - the **quote card**: lines, express surcharge, discount, total, 50% deposit, reference, "estimate" note and 7-day validity;
 - the **handoff card**: the summary the visitor can edit, then WhatsApp and Email buttons, the agent's label, and the hours note when you're offline.
@@ -199,7 +199,7 @@ The seventh part adds the admin screens:
   Also: JSON import and export, a way back to the bundled table, and a warning after 90 days without a check. The Apostille member list is edited as lines (`AU 1995-03-16 Australia`), with a warning after a year. Both are stored only when they differ from the bundled data, so plugin updates keep bringing newer bundled prices until you change them.
 - **Privacy** tab:
   - the keep-for period (30–3650 days, default 365), which sets the expiry of new chats and the daily clean-up;
-  - the privacy policy address, linked under the chat's notice;
+  - the privacy policy address, shown with the "Agree and start" button;
   - the rate limits;
   - the refused file-sharing hosts.
 
@@ -212,9 +212,9 @@ The seventh part adds the admin screens:
 
 The eighth part is the privacy check. [`docs/privacy-draft.md`](docs/privacy-draft.md) goes through Indonesia's Personal Data Protection Law (UU 27/2022) and its implementing regulation (PP 33/2026, in force from 16 January 2027), read from official copies. For each requirement it gives the article, what the plugin does, and what needs a legal decision; the transfer of chat text to Anthropic outside Indonesia comes first. Following it:
 
-- the notice names Anthropic as a language-model provider outside Indonesia;
-- the chat shows its reference, so visitors can quote it in a request for a copy or deletion;
-- an option, **Ask visitors to agree first**, shows the notice with an **Agree and start** button and records the agreement with a fingerprint of the notice;
+- the chat window shows only the business name. There is no notice by default and no mention of SI or Anthropic, at the owner's request. The model introduces itself only as the business, never claims to be a person, and says the chat is answered automatically when asked. Where the transfer is described, and what that means for PP 33/2026 Pasal 164, is in the doc;
+- the Conversations screen finds a chat by the estimate reference (EST-…) a visitor received, as well as by its own reference;
+- an option, **Ask visitors to agree first**, shows an **Agree and start** button (with the notice and the policy link when set) and records the agreement with a fingerprint of what was shown;
 - WordPress's **Settings → Privacy → Policy Guide** offers a suggested policy section, with the site's settings filled in and placeholders for the legal review (`includes/si/class-privacy.php`).
 
 It is a starting point, not legal advice.

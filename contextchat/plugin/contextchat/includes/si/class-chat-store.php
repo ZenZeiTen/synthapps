@@ -222,11 +222,14 @@ class ContextChat_Chat_Store {
 			$args[]  = $filters['to'] . ' 23:59:59';
 		}
 		if ( ! empty( $filters['reference'] ) ) {
-			$where[] = 'reference LIKE %s';
-			$args[]  = '%' . $wpdb->esc_like( (string) $filters['reference'] ) . '%';
+			// The chat's reference (CC-…) or the reference of one of its estimates (EST-…), which
+			// the visitor sees on the estimate card and in the handoff summary.
+			$like    = '%' . $wpdb->esc_like( (string) $filters['reference'] ) . '%';
+			$where[] = '(c.reference LIKE %s OR EXISTS (SELECT 1 FROM %i q WHERE q.conversation_id = c.id AND q.reference LIKE %s))';
+			array_push( $args, $like, ContextChat_Installer::table( 'quotes' ), $like );
 		}
 		$sql   = implode( ' AND ', $where );
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE {$sql}", $args ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed conditions with placeholders.
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i c WHERE {$sql}", $args ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed conditions with placeholders.
 		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT id, reference, created_at, updated_at, expires_at, lang, page_url, device, status, service, handoff_channel, handoff_reason, cost_micro_usd, (SELECT COUNT(*) FROM %i m WHERE m.conversation_id = c.id AND m.role = 'visitor') AS visitor_messages FROM %i c WHERE {$sql} ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d", array_merge( array( ContextChat_Installer::table( 'messages' ) ), $args, array( (int) $per, max( 0, ( (int) $page - 1 ) * (int) $per ) ) ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed conditions with placeholders.
 		return array(
 			'rows'  => is_array( $rows ) ? $rows : array(),

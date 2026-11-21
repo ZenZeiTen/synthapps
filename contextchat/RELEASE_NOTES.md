@@ -25,7 +25,7 @@ Requires WordPress 6.2 or newer and PHP 7.4 or newer. WooCommerce is optional. T
   - when the job needs the team (express, interpreting, a pair you don't offer);
   - when they stay quiet after an estimate.
 - **Safe by default.** Messages with ID numbers, documents or file links are refused before anything is stored or sent. Every reply is checked for amounts, names, promises and length; a reply that fails is written again by the stronger model or replaced by a fixed reply.
-- **Privacy notice** above the chat, saying that chat text is processed by Anthropic outside Indonesia and how long it is kept, with a link to your privacy policy and the chat's reference.
+- **Just your name in the window.** The chat shows your business name, with no notice and no mention of SI or the service behind it. It introduces itself as your business, never claims to be a person, and says the chat is answered automatically if a visitor asks. You can add a notice on the Voice tab, and your privacy policy describes the rest.
 
 ### For administrators
 
