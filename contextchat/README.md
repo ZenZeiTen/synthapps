@@ -102,7 +102,26 @@ The second part adds what the chat will quote from. None of it is shown to visit
 - **Legalisation route** (`includes/si/class-countries.php`). Apostille for a party to the Apostille Convention, ministry plus embassy legalisation otherwise, none for Indonesia. The parties come only from `data/apostille-members.json`, built from the official HCCH status table (https://www.hcch.net/en/instruments/conventions/status-table/?cid=41) and its territorial extensions on 21 November 2026, with each party's entry-into-force date. No objection notice names Indonesia, and none was raised against Indonesia's accession, so the Convention applies between Indonesia and every listed party. Review the list at least once a year. Country names in English and Indonesian (`data/countries.json`) come from the Unicode CLDR data in PHP's `intl`, plus common spellings such as "UEA", "Korsel" and "Holland".
 - **Tables** for conversations, messages, quotes and events (`includes/class-installer.php`), created on activation and whenever the schema version (`contextchat_si_db_version`) changes. Deleting the plugin removes them.
 
-The guard, validator, knowledge, chat endpoints and the chat itself follow in later parts.
+The third part adds the checks on both sides of the model:
+
+- **Guard** (`includes/si/class-guard.php`). Every visitor message is checked before the model sees it. A message is blocked, and neither sent nor stored, when it:
+  - is over 1,000 characters;
+  - is only markup (other markup is stripped and the message flagged);
+  - contains a `data:` URI or a base64-looking run of 200+ characters;
+  - links to a file (`.pdf`, `.docx`, `.jpg` and so on) or a file-sharing host (Google Drive, Dropbox, WeTransfer and others);
+  - contains a 16-digit NIK, a passport-like number, or a 13–19 digit card number that passes the Luhn check.
+
+  Amounts such as "Rp 1.775.000", phone numbers and dates pass. Rate limits default to 8 messages a minute and 80 a day per visitor, 6 new conversations an hour, and 40 messages per conversation. They count per visitor address hashed with HMAC-SHA256 and a secret that changes every day; the address itself is never stored.
+- **Reply checker** (`includes/si/class-validator.php`). Every SI reply is checked before the visitor sees it. A reply is rejected when it:
+  - names a rupiah amount that is not in the latest quote or the published rates, in any spelling ("Rp 1.775.000", "Rp1,775,000", "Rp 125 rb", "Rp 1,5 jt", "1.775.000 rupiah");
+  - names someone on the staff-name list;
+  - is longer than 5 sentences or about 90 words without a quote card;
+  - uses "AI", "kecerdasan buatan", slang such as "gak" or "nggak", or emoji;
+  - makes a promise ("pasti diterima", "dijamin", a promised discount).
+
+  Links other than wa.me, the site's own domain and the team's email address are removed.
+
+Test cases: `tests/fixtures/guard.json` and `tests/fixtures/validator.json`. Knowledge, chat endpoints and the chat itself follow in later parts.
 
 ## Translations
 

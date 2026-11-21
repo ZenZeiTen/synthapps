@@ -18,6 +18,8 @@ require $plugin . '/includes/si/class-si-secrets.php';
 require $plugin . '/includes/si/class-countries.php';
 require $plugin . '/includes/si/class-price-engine.php';
 require $plugin . '/includes/class-installer.php';
+require $plugin . '/includes/si/class-guard.php';
+require $plugin . '/includes/si/class-validator.php';
 
 // Just enough of WordPress's hook and plugin API for ContextChat_Updates.
 define( 'CONTEXTCHAT_FILE', $plugin . '/contextchat.php' );
@@ -381,6 +383,83 @@ check( 'ulid: 26 characters of Crockford base32', (bool) preg_match( '/^[0-9A-HJ
 check( 'ulid: the time part sorts', strcmp( substr( ContextChat_Installer::ulid( 1000 ), 0, 10 ), substr( ContextChat_Installer::ulid( 2000 ), 0, 10 ) ) < 0, true );
 check( 'ulid: a known time', substr( ContextChat_Installer::ulid( 1469918176385 ), 0, 10 ), '01ARYZ6S41' );
 check( 'reference: easy-to-read alphabet', (bool) preg_match( '/^EST-20261121-[2-9A-HJKMNP-TV-Z]{4}$/', ContextChat_Price_Engine::reference( '20261121' ) ), true );
+
+// Guard (design plan section 9.2): true and false positives.
+foreach ( json_decode( file_get_contents( dirname( __DIR__ ) . '/fixtures/guard.json' ), true ) as $case ) {
+	$verdict = ContextChat_Guard::inspect( $case['text'] );
+	$got     = array( 'block' => $verdict['block'] );
+	$want    = array( 'block' => $case['block'] );
+	if ( isset( $case['clean'] ) ) {
+		$got['text']  = $verdict['text'];
+		$want['text'] = $case['clean'];
+	}
+	if ( isset( $case['flag'] ) ) {
+		$got['flag']  = in_array( $case['flag'], $verdict['flags'], true );
+		$want['flag'] = true;
+	}
+	check( 'guard: ' . ( '' === $case['block'] ? 'passes' : 'blocks (' . $case['block'] . ')' ) . ': ' . $case['name'], $got, $want );
+}
+check( 'guard: a blocked message keeps no text', ContextChat_Guard::inspect( 'NIK 3201234567890001' )['text'], '' );
+check( 'guard: an extra file host from settings is blocked', ContextChat_Guard::inspect( 'https://files.example.net/x', array( 'files.example.net' ) )['block'], 'upload' );
+check( 'guard: luhn', array( ContextChat_Guard::luhn( '4111111111111111' ), ContextChat_Guard::luhn( '4111111111111112' ) ), array( true, false ) );
+
+// Rate limits (section 9.1), with an array as the store.
+class Array_Store {
+	public $data = array();
+	public function get( $key ) {
+		return isset( $this->data[ $key ] ) ? $this->data[ $key ] : false;
+	}
+	public function set( $key, $value, $ttl ) {
+		$this->data[ $key ] = $value;
+	}
+}
+$store   = new Array_Store();
+$limiter = new ContextChat_Rate_Limiter( $store );
+$t       = 1795000000; // A fixed minute.
+$t       = $t - ( $t % 60 );
+$allowed = 0;
+for ( $i = 0; $i < 10; $i++ ) {
+	$allowed += $limiter->message( 'visitor-a', $t + $i ) ? 1 : 0;
+}
+check( 'rate: 8 messages a minute, the 9th and 10th refused', $allowed, 8 );
+check( 'rate: another visitor has their own count', $limiter->message( 'visitor-b', $t ), true );
+check( 'rate: the next minute allows messages again', $limiter->message( 'visitor-a', $t + 60 ), true );
+$day = new ContextChat_Rate_Limiter( new Array_Store(), array( 'per_minute' => 1000 ) );
+$n   = 0;
+for ( $i = 0; $i < 85; $i++ ) {
+	$n += $day->message( 'v', $t + $i * 61 ) ? 1 : 0;
+}
+check( 'rate: 80 messages a day', $n, 80 );
+$starts = new ContextChat_Rate_Limiter( new Array_Store() );
+$n      = 0;
+for ( $i = 0; $i < 8; $i++ ) {
+	$n += $starts->start( 'v', $t ) ? 1 : 0;
+}
+check( 'rate: 6 new conversations an hour', $n, 6 );
+$tight = new ContextChat_Rate_Limiter( new Array_Store(), array( 'per_minute' => 2 ) );
+check( 'rate: limits can be changed', array( $tight->message( 'v', $t ), $tight->message( 'v', $t ), $tight->message( 'v', $t ) ), array( true, true, false ) );
+check( 'rate: keys never contain the visitor value', count( array_filter( array_keys( $store->data ), function ( $k ) {
+	return false !== strpos( $k, 'visitor' );
+} ) ), 0 );
+
+// Validator (section 8.6).
+$vfix = json_decode( file_get_contents( dirname( __DIR__ ) . '/fixtures/validator.json' ), true );
+foreach ( $vfix['cases'] as $case ) {
+	$ctx               = $vfix['context'];
+	$ctx['quote_card'] = ! empty( $case['quote_card'] );
+	$result            = ContextChat_Validator::check( $case['text'], $ctx );
+	$got               = array( $result['ok'], $result['reasons'] );
+	$want              = array( $case['ok'], $case['reasons'] );
+	if ( isset( $case['clean'] ) ) {
+		$got[]  = $result['text'];
+		$want[] = $case['clean'];
+	}
+	check( 'validator: ' . ( $case['ok'] ? 'passes' : 'rejects' ) . ': ' . $case['name'], $got, $want );
+}
+check( 'validator: amount formats', ContextChat_Validator::amounts( 'Rp 1.775.000, Rp1,775,000, 1.775.000 rupiah, Rp 125 rb, Rp 1,5 jt, IDR 50.000, Rp 125.000,00, 2 juta rupiah' ), array( 1775000, 1775000, 125000, 1500000, 50000, 125000, 1775000, 2000000 ) );
+check( 'validator: sentences ignore number dots and abbreviations', ContextChat_Validator::sentences( 'Totalnya Rp 1.775.000, Kak. Dokumen ijazah, transkrip, dll. sudah termasuk. Tenggatnya kapan ya, Kak?' ), 3 );
+check( 'validator: a last sentence without a full stop counts', ContextChat_Validator::sentences( 'Satu. Dua' ), 2 );
+check( 'validator: words', ContextChat_Validator::words( 'Estimasinya Rp 1.775.000, Kak.' ), 4 );
 
 echo "\n{$count} checks, {$failures} failed\n";
 exit( $failures ? 1 : 0 );
