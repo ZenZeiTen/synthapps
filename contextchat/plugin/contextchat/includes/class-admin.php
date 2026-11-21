@@ -906,7 +906,7 @@ class ContextChat_Admin {
 					</p></td>
 				</tr>
 				<?php self::row_text( 'si_privacy_url', __( 'Privacy policy address', 'contextchat' ), __( 'Linked under the privacy notice at the top of the chat. Your policy should say that chat text is processed by Anthropic outside Indonesia, why, how long chats are kept, and how visitors can ask for a copy or deletion. Suggested text is in Settings → Privacy → Policy Guide.', 'contextchat' ), 'url' ); ?>
-				<?php self::row_checkbox( 'si_consent', __( 'Ask visitors to agree first', 'contextchat' ), __( 'Shows the privacy notice with an "Agree and start" button before the first message, and records which notice was agreed to and when. Use this if your privacy review chooses consent as the basis for the chat.', 'contextchat' ) ); ?>
+				<?php self::row_checkbox( 'si_consent', __( 'Ask visitors to agree first', 'contextchat' ), __( 'Shows a button before the first message and records the click with what was shown. With a notice set on the Voice tab, it reads "Agree and start"; without one, "Start chatting". Untick to start the chat straight away. Use this, with a notice, if your privacy review chooses consent as the basis for the chat.', 'contextchat' ) ); ?>
 			</table>
 
 			<h3><?php esc_html_e( 'Privacy notice', 'contextchat' ); ?></h3>
