@@ -25,6 +25,7 @@ A curated ecosystem of innovative applications, automation tools, and developer 
 | [kamus-dwibahasa](kamus-dwibahasa/) | Kamus Dwibahasa: a bilingual Indonesian–English dictionary web app built with Next.js, TypeScript and Tailwind CSS |
 | [raycaster](raycaster/) | A modular 3.5D raycasting game engine in TypeScript on the HTML5 Canvas, with a playable dungeon-crawler demo in the style of King's Field, a Blender sprite-baking pipeline and an ElevenLabs audio pipeline. Includes a Claude skill |
 | [lang-forge](lang-forge/) | A Claude skill for designing new programming languages from start to finish: intent, formal spec, grammar, semantics, an implementation scaffold in Python, Rust or JavaScript, and example programs, for language designers and researchers |
+| [lintas](lintas/) | Lintas: a fast, secure desktop browser (Chromium engine) that works online and offline, with a built-in Translation Management System (projects, segment editor, fuzzy translation memory, termbases, QA, analysis, export to the original format) and Claude-powered suggestions, review, in-page translation and page Q&A |
 
 ## Claude Code plugins
 
