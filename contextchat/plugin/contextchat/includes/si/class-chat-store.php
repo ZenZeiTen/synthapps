@@ -71,7 +71,7 @@ class ContextChat_Chat_Store {
 			return null;
 		}
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %s', ContextChat_Installer::table( 'conversations' ), $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		if ( ! $row || ! hash_equals( $row['token_hash'], hash( 'sha256', $token ) ) ) {
+		if ( ! $row || ! hash_equals( $row['token_hash'], hash( 'sha256', $token ) ) || strcmp( $row['expires_at'], gmdate( 'Y-m-d H:i:s' ) ) <= 0 ) {
 			return null;
 		}
 		$state        = json_decode( (string) $row['intake_json'], true );
@@ -182,5 +182,35 @@ class ContextChat_Chat_Store {
 				'created_at'      => gmdate( 'Y-m-d H:i:s' ),
 			)
 		);
+	}
+
+	/**
+	 * Delete conversations past their expiry date, with their messages, quotes and events, in
+	 * batches of 500 (design plan section 10). Runs with the daily clean-up.
+	 *
+	 * @param int $max_batches Batches per run.
+	 * @return int Conversations deleted.
+	 */
+	public static function prune( $max_batches = 20 ) {
+		global $wpdb;
+		$now     = gmdate( 'Y-m-d H:i:s' );
+		$deleted = 0;
+		for ( $b = 0; $b < $max_batches; $b++ ) {
+			$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM %i WHERE expires_at <= %s LIMIT 500', ContextChat_Installer::table( 'conversations' ), $now ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			if ( ! $ids ) {
+				break;
+			}
+			$in = implode( ',', array_fill( 0, count( $ids ), '%s' ) );
+			foreach ( array( 'messages', 'quotes', 'events' ) as $name ) {
+				$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE conversation_id IN ({$in})", array_merge( array( ContextChat_Installer::table( $name ) ), $ids ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
+			}
+			$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE id IN ({$in})", array_merge( array( ContextChat_Installer::table( 'conversations' ) ), $ids ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
+			$deleted += count( $ids );
+		}
+		// Events without a conversation (refused starts) follow the same retention.
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE conversation_id IS NULL AND created_at <= %s', ContextChat_Installer::table( 'events' ), gmdate( 'Y-m-d H:i:s', time() - self::RETENTION_DAYS * 86400 ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// Stale conversation locks.
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE option_name LIKE %s AND option_value < %d', $wpdb->options, $wpdb->esc_like( 'contextchat_si_lock_' ) . '%', time() - 3600 ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $deleted;
 	}
 }

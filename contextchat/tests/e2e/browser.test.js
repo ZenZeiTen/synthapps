@@ -81,7 +81,7 @@ function mockTools( calls ) {
 async function chatApi( route, body, method = 'POST', headers = {} ) {
 	const url = BASE + '/wp-json/contextchat/v1/chat/' + route + ( method === 'GET' ? '?' + new URLSearchParams( body ) : '' );
 	const res = await fetch( url, { method, headers: Object.assign( { 'Content-Type': 'application/json' }, headers ), body: method === 'GET' ? undefined : JSON.stringify( body ) } );
-	return { status: res.status, json: await res.json() };
+	return { status: res.status, json: await res.json(), cache: res.headers.get( 'cache-control' ) };
 }
 
 function settings( changes ) {
@@ -647,7 +647,7 @@ test( 'SI chat endpoints: start, quote, blocked uploads and IDs, idle offer, han
 	await page.waitForURL( /settings-updated=true/ );
 	assert.equal( option( 'get', 'contextchat_settings' ).si_enabled, true );
 
-	const start = await chatApi( 'start', { lang: 'id', page: BASE + '/kontak/', device: 'desktop' } );
+	const start = await chatApi( 'start', { lang: 'id', page: BASE + '/kontak/?nik=3201234567890001#x', device: 'desktop' } );
 	assert.equal( start.status, 201 );
 	const { conversation_id: id, token } = start.json;
 	assert.match( id, /^[0-9A-HJKMNP-TV-Z]{26}$/ );
@@ -656,6 +656,8 @@ test( 'SI chat endpoints: start, quote, blocked uploads and IDs, idle offer, han
 	assert.match( start.json.greeting, /asisten SI Nusalexia/ );
 	assert.match( start.json.notice, /Kecerdasan Sintesis/ );
 	assert.equal( chatCheck( id ).conversation.token_hash, undefined, 'the helper hides the hash' );
+	assert.equal( start.cache, 'no-store, private' );
+	assert.equal( chatCheck( id ).conversation.page_url, '/kontak/', 'only the path is kept' );
 
 	// Too fast for a person: refused without asking the model.
 	mockRequests.length = 0;
@@ -727,7 +729,8 @@ test( 'SI chat endpoints: start, quote, blocked uploads and IDs, idle offer, han
 	assert.ok( saved.events.includes( 'handoff_clicked:whatsapp' ) );
 
 	// Resume in the same tab.
-	const resumed = await chatApi( 'resume', { conversation_id: id, token }, 'GET' );
+	const resumed = await chatApi( 'resume', { conversation_id: id, token } );
+	assert.equal( ( await chatApi( 'resume', { conversation_id: id, token }, 'GET' ) ).status, 404, 'no token in addresses' );
 	assert.equal( resumed.json.quote.total, 1775000 );
 	assert.deepEqual( resumed.json.messages.map( ( m ) => m.role ).slice( 0, 3 ), [ 'assistant', 'visitor', 'assistant' ] );
 

@@ -715,5 +715,35 @@ $agents = array(
 );
 check( 'handoff: the agent set for the service, else the first available one', array( ContextChat_Handoff::agent( $agents, 'c' )['id'], ContextChat_Handoff::agent( $agents, 'a' )['id'], ContextChat_Handoff::agent( $agents, '' )['id'], ContextChat_Handoff::agent( array(), 'x' ) ), array( 'c', 'b', 'b', null ) );
 
+// Review fixes.
+check( 'guard: a 16-digit ID split in any way is blocked', array( ContextChat_Guard::inspect( 'NIK 32012345 67890001' )['block'], ContextChat_Guard::inspect( 'NIK ３２０１２３４５６７８９０００１' )['block'], ContextChat_Guard::inspect( 'Lahir 2026-11-21 2026-11-22' )['block'] ), array( 'pii', 'pii', '' ) );
+check( 'guard: IPv6 visitors are counted by their /64 network, IPv4 by address', array( ContextChat_Guard::network( '2001:db8:1:2:aaaa::1' ) === ContextChat_Guard::network( '2001:db8:1:2:bbbb::9' ), ContextChat_Guard::network( '2001:db8:1:3::1' ) === ContextChat_Guard::network( '2001:db8:1:2::1' ), ContextChat_Guard::network( '203.0.113.7' ), ContextChat_Guard::network( '::ffff:203.0.113.7' ) ), array( true, false, '203.0.113.7', '203.0.113.7' ) );
+check( 'validator: amounts without "Rp"', ContextChat_Validator::amounts( 'total 1.775.000, sekitar 125rb, atau 1,5 jt; batas 1.000 karakter; 2.000 halaman' ), array( 125000, 1500000, 1775000 ) );
+check( 'validator: wa.me links only to the site\'s own numbers', array(
+	ContextChat_Validator::check( 'Hubungi https://wa.me/6285157539889 ya, Kak.', array( 'phones' => array( '6285157539889' ) ) )['text'],
+	ContextChat_Validator::check( 'Hubungi https://wa.me/6281111111111 ya, Kak.', array( 'phones' => array( '6285157539889' ) ) )['text'],
+), array( 'Hubungi https://wa.me/6285157539889 ya, Kak.', 'Hubungi ya, Kak.' ) );
+list( $out, $store, $client ) = $chat( array(
+	si_tool( array( array( 'get_quote', array( 'package' => 'sworn', 'source_lang' => 'id', 'target_lang' => 'en', 'pages' => 3, 'documents' => 2, 'legalisation' => 'apostille' ) ), array( 'request_handoff', array( 'reason' => 'hesitation' ) ) ) ),
+	si_ok( 'Estimasinya Rp 9.999.999, Kak.' ),
+	si_tool( array( array( 'get_quote', array( 'package' => 'sworn', 'source_lang' => 'id', 'target_lang' => 'en', 'pages' => 3, 'documents' => 2, 'legalisation' => 'apostille' ) ) ) ),
+	si_ok( 'Estimasinya Rp 1.775.000, Kak. Rinciannya ada di kartu di bawah.' ),
+), 'Berapa untuk 3 halaman?' );
+check( 'orchestrator: a rejected attempt leaves nothing behind (one quote saved, no stale handoff)', array( $out['model'], count( $store->quotes ), $out['handoff'], $out['quote']['total'] ), array( 'claude-sonnet-5-5', 1, '', 1775000 ) );
+list( $out, , $client ) = $chat( array( si_ok( 'Untuk terjemahan tersumpah, tarifnya', 'max_tokens' ), si_ok( 'Tarif terjemahan tersumpah Indonesia ke Inggris Rp 125.000 per halaman, Kak.' ) ), 'Berapa tarifnya?' );
+check( 'orchestrator: a reply cut off at max_tokens is written again', array( $out['model'], count( $client->sent ) ), array( 'claude-sonnet-5-5', 2 ) );
+list( $out ) = $chat( array(
+	si_tool( array( array( 'get_quote', array( 'package' => 'sworn', 'source_lang' => 'zh', 'target_lang' => 'en', 'pages' => 1, 'documents' => 1 ) ) ) ),
+	si_ok( 'Saya asisten AI.' ),
+	si_tool( array( array( 'get_quote', array( 'package' => 'sworn', 'source_lang' => 'zh', 'target_lang' => 'en', 'pages' => 1, 'documents' => 1 ) ) ) ),
+	si_ok( 'Saya asisten AI.' ),
+), 'Mandarin ke Inggris tersumpah?' );
+check( 'orchestrator: the fallback path never returns a quote card', array( $out['quote'], $out['handoff'], $out['state']['quote'] ), array( null, 'other', null ) );
+list( $out ) = $chat( array(
+	si_tool( array( array( 'record_intake', array( 'service' => array( 'x' ), 'fields' => array( 'matter' => array( 'a' ), 'speed' => array(), 'document_types' => array( 'ijazah', array( 'x' ) ), 'pages_count' => '2' ) ) ), array( 'request_handoff', array( 'reason' => array( 'x' ) ) ) ) ),
+	si_ok( 'Baik, Kak.' ),
+), 'Halo' );
+check( 'orchestrator: odd values from the model are dropped without errors', array( $out['state']['intake'], $out['handoff'] ), array( array( 'document_types' => array( 'ijazah' ), 'pages_count' => 2 ), 'other' ) );
+
 echo "\n{$count} checks, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

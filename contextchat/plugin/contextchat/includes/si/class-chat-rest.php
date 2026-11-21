@@ -24,6 +24,23 @@ class ContextChat_Chat_REST {
 	 */
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
+		add_filter( 'rest_post_dispatch', array( __CLASS__, 'no_store' ), 10, 3 );
+		add_action( ContextChat_Analytics::CRON, array( 'ContextChat_Chat_Store', 'prune' ) );
+	}
+
+	/**
+	 * Chat responses carry a conversation: never let a page cache or CDN keep one.
+	 *
+	 * @param WP_HTTP_Response $response Response.
+	 * @param WP_REST_Server   $server   Server.
+	 * @param WP_REST_Request  $request  Request.
+	 * @return WP_HTTP_Response
+	 */
+	public static function no_store( $response, $server, $request ) {
+		if ( 0 === strpos( (string) $request->get_route(), '/' . self::NS . '/chat/' ) && $response instanceof WP_HTTP_Response ) {
+			$response->header( 'Cache-Control', 'no-store, private' );
+		}
+		return $response;
 	}
 
 	/**
@@ -145,7 +162,7 @@ class ContextChat_Chat_REST {
 			self::NS,
 			'/chat/resume',
 			array(
-				'methods'             => 'GET',
+				'methods'             => 'POST',
 				'callback'            => array( __CLASS__, 'resume' ),
 				'permission_callback' => $open,
 				'args'                => array(
@@ -168,8 +185,15 @@ class ContextChat_Chat_REST {
 		}
 		$origin = $request->get_header( 'origin' );
 		if ( $origin ) {
-			$host = wp_parse_url( $origin, PHP_URL_HOST );
-			if ( ! $host || strtolower( $host ) !== strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) ) {
+			$host    = strtolower( (string) wp_parse_url( $origin, PHP_URL_HOST ) );
+			$allowed = array_filter(
+				array(
+					strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ),
+					strtolower( (string) wp_parse_url( site_url(), PHP_URL_HOST ) ),
+					strtolower( (string) preg_replace( '/:\d+$/', '', (string) $request->get_header( 'host' ) ) ),
+				)
+			);
+			if ( '' === $host || ! in_array( $host, $allowed, true ) ) {
 				return new WP_Error( 'contextchat_origin', 'Requests from other sites are not accepted.', array( 'status' => 403 ) );
 			}
 		}
@@ -194,13 +218,35 @@ class ContextChat_Chat_REST {
 	 * @return ContextChat_Rate_Limiter
 	 */
 	private static function limiter() {
+		return new ContextChat_Rate_Limiter( new ContextChat_Transient_Store(), self::limits() );
+	}
+
+	/**
+	 * Rate limits, with the filter applied.
+	 *
+	 * @return array
+	 */
+	private static function limits() {
 		/**
 		 * Filter the SI chat's rate limits (design plan section 9.1).
 		 *
 		 * @param array $limits per_minute, starts_per_hour, per_day, per_conversation.
 		 */
-		$limits = (array) apply_filters( 'contextchat_si_limits', ContextChat_Guard::LIMITS );
-		return new ContextChat_Rate_Limiter( new ContextChat_Transient_Store(), $limits );
+		return array_merge( ContextChat_Guard::LIMITS, (array) apply_filters( 'contextchat_si_limits', ContextChat_Guard::LIMITS ) );
+	}
+
+	/**
+	 * The site's WhatsApp numbers (main number and agents), the only ones a reply may link to.
+	 *
+	 * @return string[]
+	 */
+	private static function phones() {
+		$s      = ContextChat_Settings::get();
+		$phones = array( (string) $s['phone'] );
+		foreach ( $s['agents'] as $agent ) {
+			$phones[] = (string) $agent['phone'];
+		}
+		return array_values( array_filter( array_unique( $phones ) ) );
 	}
 
 	/**
@@ -216,13 +262,10 @@ class ContextChat_Chat_REST {
 		}
 		$lang = 'en' === $request['lang'] ? 'en' : 'id';
 		if ( ! self::limiter()->start( ContextChat_Guard::visitor_hash(), time() ) ) {
-			self::store()->add_event( null, 'rate_limited', 'start' );
+			self::log_limited( null, 'start' );
 			return self::limited( $lang );
 		}
-		$page = esc_url_raw( (string) $request['page'] );
-		if ( $page && wp_parse_url( $page, PHP_URL_HOST ) !== wp_parse_url( home_url(), PHP_URL_HOST ) ) {
-			$page = '';
-		}
+		$page = self::page_path( (string) $request['page'] );
 		$state            = ContextChat_Orchestrator::new_state( $lang, $page );
 		$state['started'] = (int) floor( microtime( true ) * 1000 );
 		$created          = self::store()->create_conversation(
@@ -276,11 +319,11 @@ class ContextChat_Chat_REST {
 		// Bot check: no first message within 1.5 seconds of opening the chat.
 		$now_ms = (int) floor( microtime( true ) * 1000 );
 		if ( 0 === (int) $state['visitor_messages'] && isset( $state['started'] ) && $now_ms - (int) $state['started'] < ContextChat_Guard::MIN_FIRST_MESSAGE_MS ) {
-			$store->add_event( $conv['id'], 'rate_limited', 'too_fast' );
+			self::log_limited( $conv['id'], 'too_fast' );
 			return self::limited( $lang );
 		}
 		if ( ! self::limiter()->message( ContextChat_Guard::visitor_hash(), time() ) ) {
-			$store->add_event( $conv['id'], 'rate_limited', 'message' );
+			self::log_limited( $conv['id'], 'message' );
 			return self::limited( $lang, $conv, $state );
 		}
 
@@ -320,9 +363,17 @@ class ContextChat_Chat_REST {
 		if ( ! $router ) {
 			return new WP_Error( 'contextchat_si_off', 'The SI chat is not available.', array( 'status' => 404 ) );
 		}
-		$orchestrator = new ContextChat_Orchestrator( $store, $router, self::engine(), self::context() );
+		if ( ! self::lock( $conv['id'] ) ) {
+			// Another message of this conversation is still being answered.
+			return self::limited( $lang );
+		}
+		$orchestrator  = new ContextChat_Orchestrator( $store, $router, self::engine(), self::context() );
 		$conv['state'] = $state;
-		$result        = $orchestrator->turn( $conv, $verdict['text'] );
+		try {
+			$result = $orchestrator->turn( $conv, $verdict['text'] );
+		} finally {
+			self::unlock( $conv['id'] );
+		}
 
 		$reply = $result['reply'];
 		/**
@@ -354,6 +405,10 @@ class ContextChat_Chat_REST {
 		$refused = self::refuse( $request );
 		if ( $refused ) {
 			return $refused;
+		}
+		if ( ! self::limiter()->other( ContextChat_Guard::visitor_hash(), time() ) ) {
+			self::log_limited( null, 'handoff' );
+			return new WP_Error( 'contextchat_limited', 'Too many requests.', array( 'status' => 429 ) );
 		}
 		$store = self::store();
 		$conv  = $store->find( (string) $request['conversation_id'], (string) $request['token'] );
@@ -400,6 +455,10 @@ class ContextChat_Chat_REST {
 		if ( $refused ) {
 			return $refused;
 		}
+		if ( ! self::limiter()->other( ContextChat_Guard::visitor_hash(), time() ) ) {
+			self::log_limited( null, 'idle' );
+			return new WP_Error( 'contextchat_limited', 'Too many requests.', array( 'status' => 429 ) );
+		}
 		$store = self::store();
 		$conv  = $store->find( (string) $request['conversation_id'], (string) $request['token'] );
 		if ( ! $conv ) {
@@ -426,7 +485,7 @@ class ContextChat_Chat_REST {
 	}
 
 	/**
-	 * GET chat/resume: the last 20 messages and the latest quote, for the same browser tab.
+	 * POST chat/resume (POST so the token stays out of addresses and logs): the last 20 messages and the latest quote, for the same browser tab.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
@@ -435,6 +494,10 @@ class ContextChat_Chat_REST {
 		$refused = self::refuse( $request );
 		if ( $refused ) {
 			return $refused;
+		}
+		if ( ! self::limiter()->other( ContextChat_Guard::visitor_hash(), time() ) ) {
+			self::log_limited( null, 'resume' );
+			return new WP_Error( 'contextchat_limited', 'Too many requests.', array( 'status' => 429 ) );
 		}
 		$store = self::store();
 		$conv  = $store->find( (string) $request['conversation_id'], (string) $request['token'] );
@@ -460,6 +523,67 @@ class ContextChat_Chat_REST {
 			),
 			200
 		);
+	}
+
+	/**
+	 * The path of the page the chat started on, or ''. Only the path is kept: a query string or
+	 * fragment is the visitor's to write, so it never reaches the model or the database.
+	 *
+	 * @param string $url Page address sent by the browser.
+	 * @return string
+	 */
+	public static function page_path( $url ) {
+		$url = esc_url_raw( $url );
+		if ( '' === $url || strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) ) !== strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) ) {
+			return '';
+		}
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+		$path = substr( '/' . ltrim( preg_replace( '~[^A-Za-z0-9/_.%-]~', '', $path ), '/' ), 0, 200 );
+		return ContextChat_Guard::inspect( $path )['ok'] ? $path : '/';
+	}
+
+	/**
+	 * Log a refused request, at most once a minute per visitor, so refusals cannot fill the table.
+	 *
+	 * @param string|null $conv_id Conversation.
+	 * @param string      $detail  Which limit.
+	 */
+	private static function log_limited( $conv_id, $detail ) {
+		$key = 'contextchat_si_rlog_' . substr( hash( 'sha256', ContextChat_Guard::visitor_hash() . gmdate( 'YmdHi' ) ), 0, 32 );
+		if ( get_transient( $key ) ) {
+			return;
+		}
+		set_transient( $key, 1, 2 * MINUTE_IN_SECONDS );
+		self::store()->add_event( $conv_id, 'rate_limited', $detail );
+	}
+
+	/**
+	 * Take the conversation's lock, so one conversation never runs two turns at once.
+	 * add_option() is atomic: it fails when the row exists. A lock older than 90 seconds is stale.
+	 *
+	 * @param string $id Conversation ID.
+	 * @return bool
+	 */
+	private static function lock( $id ) {
+		$name = 'contextchat_si_lock_' . $id;
+		if ( add_option( $name, time(), '', false ) ) {
+			return true;
+		}
+		$since = (int) get_option( $name );
+		if ( $since && time() - $since < 90 ) {
+			return false;
+		}
+		delete_option( $name );
+		return add_option( $name, time(), '', false );
+	}
+
+	/**
+	 * Release the conversation's lock.
+	 *
+	 * @param string $id Conversation ID.
+	 */
+	private static function unlock( $id ) {
+		delete_option( 'contextchat_si_lock_' . $id );
 	}
 
 	/**
@@ -546,6 +670,8 @@ class ContextChat_Chat_REST {
 			'site_host' => (string) wp_parse_url( home_url(), PHP_URL_HOST ),
 			'email'     => self::handoff_email(),
 			'today'     => wp_date( 'Y-m-d' ),
+			'phones'    => self::phones(),
+			'max_messages' => (int) self::limits()['per_conversation'],
 		);
 	}
 
@@ -600,7 +726,7 @@ class ContextChat_Chat_REST {
 			'quote'     => is_array( $state['quote'] ) ? $state['quote'] : array(),
 			'reason'    => $reason,
 			'reference' => $conv ? $conv['reference'] : '',
-			'page'      => $state['page'],
+			'page'      => '' !== $state['page'] ? wp_parse_url( home_url(), PHP_URL_HOST ) . $state['page'] : '',
 		);
 		/**
 		 * Filter the handoff summary the visitor sends on WhatsApp or by email.

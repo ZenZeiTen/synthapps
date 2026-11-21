@@ -148,7 +148,8 @@ class ContextChat_Orchestrator {
 		$this->store->add_message( $conv['id'], 'visitor', $text, '' );
 
 		// Turns answered without the model.
-		if ( $state['visitor_messages'] > self::MAX_VISITOR_MESSAGES ) {
+		$max = isset( $this->ctx['max_messages'] ) ? (int) $this->ctx['max_messages'] : self::MAX_VISITOR_MESSAGES;
+		if ( $state['visitor_messages'] > $max ) {
 			return $this->fixed( $conv, $out, 'conversation_limit', 'limit', 'limited' );
 		}
 		if ( preg_match( self::INSTRUCTIONS, $text ) ) {
@@ -169,13 +170,20 @@ class ContextChat_Orchestrator {
 
 		$base = $this->history( $conv['id'] );
 
+		$start_state     = $state;
 		$pending_handoff = '';
 		$quote_this_turn = null;
+		$quotes          = array();
 		$note            = '';
 		$final           = null;
 
 		foreach ( $this->router->models() as $model ) {
-			$messages = $base;
+			// Each model starts from the same state: nothing a rejected attempt did carries over.
+			$state           = $start_state;
+			$pending_handoff = '';
+			$quote_this_turn = null;
+			$quotes          = array();
+			$messages        = $base;
 			for ( $round = 0; $round <= self::MAX_TOOL_ROUNDS; $round++ ) {
 				$request = array(
 					'system'   => ContextChat_Prompt::system( $this->ctx['prefix'], ContextChat_Prompt::state_line( $state ) ),
@@ -189,7 +197,7 @@ class ContextChat_Orchestrator {
 
 				if ( 'cap_reached' === $res['outcome'] || 'spend_limit' === $res['outcome'] ) {
 					$this->store->add_event( $conv['id'], 'cap_reached', $res['outcome'] );
-					$out['state'] = $state;
+					$out['state'] = $start_state;
 					return $this->fixed( $conv, $out, 'cap_reached', 'busy', '' );
 				}
 				if ( 'ok' !== $res['outcome'] ) {
@@ -197,7 +205,7 @@ class ContextChat_Orchestrator {
 					if ( ContextChat_SI_Router::escalates( $res['outcome'] ) ) {
 						continue 2; // Next model.
 					}
-					$out['state'] = $state;
+					$out['state'] = $start_state;
 					return $this->fixed( $conv, $out, 'busy', 'busy', '' );
 				}
 
@@ -215,7 +223,7 @@ class ContextChat_Orchestrator {
 					$results    = array();
 					foreach ( $content as $block ) {
 						if ( isset( $block['type'] ) && 'tool_use' === $block['type'] ) {
-							$results[] = $this->run_tool( $conv, $state, $block, $lang, $pending_handoff, $quote_this_turn );
+							$results[] = $this->run_tool( $state, $block, $lang, $pending_handoff, $quote_this_turn, $quotes );
 						}
 					}
 					$messages[] = array(
@@ -225,7 +233,14 @@ class ContextChat_Orchestrator {
 					continue;
 				}
 
-				$check = ContextChat_Validator::check( $res['text'], $this->validator_ctx( $state, null !== $quote_this_turn ) );
+				if ( 'max_tokens' === $res['stop_reason'] ) {
+					// Cut off mid-reply: try again rather than show half a sentence.
+					$note = 'truncated';
+					$this->store->add_event( $conv['id'], 'validator_reject', 'truncated' );
+					continue 2;
+				}
+				$card  = $quote_this_turn && in_array( $quote_this_turn['status'], array( 'ok', 'needs_team' ), true );
+				$check = ContextChat_Validator::check( $res['text'], $this->validator_ctx( $state, $card ) );
 				if ( $check['ok'] ) {
 					$final = array(
 						'text'  => $check['text'],
@@ -239,10 +254,15 @@ class ContextChat_Orchestrator {
 			}
 		}
 
-		$out['state'] = $state;
 		if ( null === $final ) {
-			$out['quote'] = $quote_this_turn;
-			return $this->fixed( $conv, $out, 'fallback', '' !== $pending_handoff ? $pending_handoff : 'other', '' );
+			// Nothing usable: keep the state from before this turn (apart from the counters) and hand over.
+			$start_state['lang'] = $lang;
+			$out['state']        = $start_state;
+			return $this->fixed( $conv, $out, 'fallback', 'other', '' );
+		}
+		$out['state'] = $state;
+		foreach ( $quotes as $saved ) {
+			$this->store->add_quote( $conv['id'], $saved[0], $saved[1] );
 		}
 
 		// Handoff: the model's request, then the engine's verdict, then the interpreting rule, then keywords.
@@ -378,6 +398,7 @@ class ContextChat_Orchestrator {
 			'email'      => $this->ctx['email'],
 			'names'      => $this->ctx['voice']['names'],
 			'banned'     => $this->ctx['voice']['banned_words'],
+			'phones'     => isset( $this->ctx['phones'] ) ? $this->ctx['phones'] : array(),
 			'quote_card' => $quote_card,
 		);
 	}
@@ -385,15 +406,15 @@ class ContextChat_Orchestrator {
 	/**
 	 * Run one tool call and return its tool_result block.
 	 *
-	 * @param array  $conv    Conversation.
 	 * @param array  $state   State (updated).
 	 * @param array  $block   tool_use block.
 	 * @param string $lang    Language.
 	 * @param string $handoff Pending handoff reason (updated).
 	 * @param mixed  $quote   Quote made this turn (updated).
+	 * @param array  $quotes  Quotes to save if this attempt's reply is accepted (updated).
 	 * @return array
 	 */
-	private function run_tool( array $conv, array &$state, array $block, $lang, &$handoff, &$quote ) {
+	private function run_tool( array &$state, array $block, $lang, &$handoff, &$quote, array &$quotes ) {
 		$input  = isset( $block['input'] ) && is_array( $block['input'] ) ? $block['input'] : array();
 		$name   = isset( $block['name'] ) ? (string) $block['name'] : '';
 		$error  = false;
@@ -416,7 +437,7 @@ class ContextChat_Orchestrator {
 				}
 				$result = $this->engine->quote( $q_in, $this->ctx['today'], $lang );
 				if ( in_array( $result['status'], array( 'ok', 'needs_team' ), true ) ) {
-					$this->store->add_quote( $conv['id'], $result, $q_in );
+					$quotes[]           = array( $result, $q_in );
 					$state['quote']     = $result;
 					$state['quote_ref'] = $result['reference'];
 					if ( '' === $state['service'] ) {
@@ -446,7 +467,7 @@ class ContextChat_Orchestrator {
 				break;
 
 			case 'request_handoff':
-				$reason  = isset( $input['reason'] ) && isset( ContextChat_Handoff::REASONS[ $input['reason'] ] ) ? (string) $input['reason'] : 'other';
+				$reason  = isset( $input['reason'] ) && is_string( $input['reason'] ) && isset( ContextChat_Handoff::REASONS[ $input['reason'] ] ) ? $input['reason'] : 'other';
 				$handoff = $reason;
 				$result  = array( 'shown' => 'A handoff card with WhatsApp and email buttons and a prepared summary is shown under your reply.' );
 				break;
@@ -475,7 +496,7 @@ class ContextChat_Orchestrator {
 	 * @return array Result for the model.
 	 */
 	private function record_intake( array &$state, array $input ) {
-		$service = isset( $input['service'] ) && in_array( $input['service'], array( 'translation', 'interpreting', 'other' ), true ) ? $input['service'] : $state['service'];
+		$service = isset( $input['service'] ) && is_string( $input['service'] ) && in_array( $input['service'], array( 'translation', 'interpreting', 'other' ), true ) ? $input['service'] : $state['service'];
 		if ( '' !== $service && 'other' !== $service ) {
 			$state['service'] = $service;
 		}
@@ -516,6 +537,9 @@ class ContextChat_Orchestrator {
 			$v = is_scalar( $v ) ? trim( preg_replace( '/[\x00-\x1F\x7F<>]+/u', ' ', (string) $v ) ) : '';
 			return mb_substr( $v, 0, $max, 'UTF-8' );
 		};
+		if ( ! is_scalar( $value ) && 'document_types' !== $key ) {
+			return null;
+		}
 		switch ( $key ) {
 			case 'documents_count':
 			case 'pages_count':
@@ -536,11 +560,11 @@ class ContextChat_Orchestrator {
 				$v = strtolower( (string) $value );
 				return in_array( $v, array( 'personal', 'corporate' ), true ) ? $v : null;
 			case 'speed':
-				return in_array( $value, ContextChat_Price_Engine::SPEEDS, true ) ? $value : null;
+				return in_array( (string) $value, ContextChat_Price_Engine::SPEEDS, true ) ? (string) $value : null;
 			case 'legalisation':
-				return in_array( $value, array( 'none', 'apostille', 'ministry_embassy' ), true ) ? $value : null;
+				return in_array( (string) $value, array( 'none', 'apostille', 'ministry_embassy' ), true ) ? (string) $value : null;
 			case 'document_types':
-				$list = is_array( $value ) ? $value : preg_split( '/\s*[,;]\s*/', (string) $value );
+				$list = is_array( $value ) ? array_filter( $value, 'is_scalar' ) : preg_split( '/\s*[,;]\s*/', (string) $value );
 				$list = array_values( array_filter( array_map( $text, array_slice( (array) $list, 0, 20 ) ) ) );
 				return $list ? $list : null;
 			default:
