@@ -7,7 +7,7 @@ import { stripHash } from './browserdata.js';
 
 const INTERNAL_TITLES = {
   newtab: 'New Tab', tms: 'Translation Management', offline: 'Offline library', history: 'History',
-  downloads: 'Downloads', bookmarks: 'Bookmarks', settings: 'Settings',
+  downloads: 'Downloads', bookmarks: 'Bookmarks', settings: 'Settings', extensions: 'Extensions',
 };
 
 let nextId = 1;
@@ -145,7 +145,7 @@ export class TabManager {
       if (this.closed.length > 25) this.closed.shift();
     }
     this.tabs.splice(i, 1);
-    if (this.attached === t.view) { this.win.contentView.removeChildView(t.view); this.attached = null; }
+    if (t.view && this.attached === t.view) { this.win.contentView.removeChildView(t.view); this.attached = null; }
     if (t.view && !t.view.webContents.isDestroyed()) t.view.webContents.close();
     if (this.activeId === id) {
       const next = this.tabs[i] || this.tabs[i - 1];

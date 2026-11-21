@@ -50,7 +50,10 @@ does not let apps change the default themselves.
 - Lintas adds these on top, in extension pages and background workers, with the
   extension's manifest permissions checked on every call:
   `identity.launchWebAuthFlow` and `identity.getRedirectURL` (sign-in through a provider's
-  web page), `tabs.captureVisibleTab`, `pageCapture.saveAsMHTML` and `userScripts`.
+  web page), `tabs.captureVisibleTab`, `pageCapture.saveAsMHTML`, `userScripts`,
+  `debugger`, `offscreen`, `alarms` and `sidePanel`. A side panel opens as a tab, because
+  Lintas has no extension side panel. `tabGroups` and `declarativeNetRequest` exist only as
+  stand-ins so extensions start: there are no tab groups, and network rules are not applied.
 - Background workers only get these APIs when Lintas runs with Chromium's sandbox, which is
   the normal case. Started with `--no-sandbox` (needed as root), Electron skips the scripts
   that add them ([electron/electron#54322](https://github.com/electron/electron/issues/54322)),
@@ -58,7 +61,7 @@ does not let apps change the default themselves.
 - Extensions run in normal tabs, never in private ones.
 - Not every Chrome extension works. Lintas is not Google Chrome, so extensions that need
   APIs Electron lacks fail or run in part. Examples: `identity.getAuthToken` (Google
-  account sign-in), `sidePanel`, `offscreen`, `declarativeNetRequest` rule sets, and Manifest V2 features
+  account sign-in), native messaging, `offscreen`, `declarativeNetRequest` rule sets, and Manifest V2 features
   Chrome itself has removed. Password managers that need native messaging also
   will not work.
 
@@ -71,6 +74,12 @@ does not let apps change the default themselves.
   normal tab and closes when Smartling redirects back.
 - The extension ID matches the Web Store one, so the sign-in redirect URL Smartling has
   registered is the same as in Chrome.
+
+**Claude extension (Claude in Chrome)**
+- Tested with version 1.0.107: it starts, and its toolbar button opens Claude's panel in a
+  tab, showing its sign-in screen. Signing in and letting Claude act on pages have not been
+  tested, because that needs a paid Claude account. Its links to the Claude desktop apps
+  (native messaging) do not work.
 
 **Claude Desktop (MCP)**
 - Settings → Claude Desktop → *Allow Claude Desktop to use Lintas*, then *Add Lintas to

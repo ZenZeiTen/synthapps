@@ -8,7 +8,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { dialog, ipcMain, session as electronSession } from 'electron';
+import { dialog, ipcMain, session as electronSession, BrowserWindow } from 'electron';
 import { ElectronChromeExtensions } from 'electron-chrome-extensions';
 import { installChromeWebStore, installExtension, uninstallExtension } from 'electron-chrome-web-store';
 
@@ -63,7 +63,7 @@ export class Extensions {
     this.userScriptsFile = path.join(path.dirname(this.unpackedFile), 'user-scripts.json');
     try { this.userScripts = JSON.parse(fs.readFileSync(this.userScriptsFile, 'utf8')); } catch { this.userScripts = {}; }
     const extIdOf = (url) => { const m = /^chrome-extension:\/\/([a-p]{32})\//.exec(url || ''); return m ? m[1] : null; };
-    ipcMain.handle('lintas-ext', (e, name, args) => this.shimCall(extIdOf(e.senderFrame?.url), name, args));
+    ipcMain.handle('lintas-ext', (e, name, args) => this.shimCall(extIdOf(e.senderFrame?.url), name, args, (ev, a) => { try { if (!e.sender.isDestroyed()) e.sender.send('lintas-ext-event', ev, a); } catch {} }));
     const seen = new Set();
     this.ses.serviceWorkers.on('running-status-changed', ({ versionId }) => {
       if (seen.has(versionId)) return;
@@ -71,7 +71,7 @@ export class Extensions {
       const id = extIdOf(sw?.scope);
       if (!id) return;
       seen.add(versionId);
-      sw.ipc.handle('lintas-ext', (e, name, args) => this.shimCall(id, name, args));
+      sw.ipc.handle('lintas-ext', (e, name, args) => this.shimCall(id, name, args, (ev, a) => { try { sw.send('lintas-ext-event', ev, a); } catch {} }));
     });
   }
 
@@ -87,10 +87,81 @@ export class Extensions {
     return t.view.webContents;
   }
 
-  async shimCall(extId, name, args = []) {
+  async shimCall(extId, name, args = [], send = () => {}) {
     const ext = extId && this.ses.extensions.getExtension(extId);
     if (!ext) throw new Error('Only extensions can call this API.');
     switch (name) {
+      // chrome.sidePanel: Lintas shows an extension's side panel as a tab next to the page.
+      case 'sidePanel.setOptions': {
+        this.requirePermission(ext, 'sidePanel');
+        const o = args[0] || {};
+        const m = (this.sidePanels ||= new Map());
+        const key = `${extId}:${o.tabId ?? '*'}`;
+        m.set(key, { ...(m.get(key) || {}), ...o });
+        return;
+      }
+      case 'sidePanel.getOptions': {
+        const m = this.sidePanels || new Map();
+        const o = m.get(`${extId}:${args[0]?.tabId ?? '*'}`) || m.get(`${extId}:*`) || {};
+        return { enabled: o.enabled !== false, path: o.path || ext.manifest.side_panel?.default_path, tabId: args[0]?.tabId };
+      }
+      case 'sidePanel.open': {
+        this.requirePermission(ext, 'sidePanel');
+        const m = this.sidePanels || new Map();
+        const o = m.get(`${extId}:${args[0]?.tabId ?? '*'}`) || m.get(`${extId}:*`) || {};
+        const rel = String(o.path || ext.manifest.side_panel?.default_path || '').replace(/^\/+/, '');
+        if (!rel) throw new Error('This extension has no side panel page.');
+        const url = new URL(rel, ext.url).href;
+        if (!url.startsWith(ext.url)) throw new Error('The side panel page must belong to the extension.');
+        const tabs = this.getTabs();
+        const open = tabs.tabs.find(x => x.view && x.url === url);
+        if (open) tabs.activate(open.id); else tabs.create({ url, raw: true });
+        return;
+      }
+      // chrome.offscreen: one hidden page per extension.
+      case 'offscreen.createDocument': {
+        this.requirePermission(ext, 'offscreen');
+        const docs = (this.offscreen ||= new Map());
+        if (docs.has(extId)) throw new Error('Only a single offscreen document may be created.');
+        const url = new URL(String(args[0]?.url || ''), ext.url).href;
+        if (!url.startsWith(ext.url)) throw new Error('The offscreen page must belong to the extension.');
+        const w = new BrowserWindow({ show: false, webPreferences: { session: this.ses, sandbox: true, contextIsolation: true, nodeIntegration: false } });
+        docs.set(extId, w);
+        w.on('closed', () => { if (docs.get(extId) === w) docs.delete(extId); });
+        await w.loadURL(url);
+        return;
+      }
+      case 'offscreen.hasDocument': return !!this.offscreen?.has(extId);
+      case 'offscreen.closeDocument': { const w = this.offscreen?.get(extId); if (w && !w.isDestroyed()) w.destroy(); this.offscreen?.delete(extId); return; }
+      // chrome.debugger, over Electron's own debugger for the tab.
+      case 'debugger.attach': {
+        this.requirePermission(ext, 'debugger');
+        const tabId = args[0]?.tabId;
+        const wc = this.tabWebContents(tabId);
+        if (wc.debugger.isAttached()) throw new Error('Another debugger is already attached to the tab with id: ' + tabId + '.');
+        wc.debugger.attach(/^\d+\.\d+$/.test(String(args[1])) ? String(args[1]) : undefined);
+        const d = (this.debuggees ||= new Map());
+        const onMsg = (e, method, params, sessionId) => send('debugger.onEvent', [{ tabId, ...(sessionId ? { sessionId } : {}) }, method, params]);
+        const onDetach = (e, reason) => { d.delete(wc.id); wc.debugger.off('message', onMsg); send('debugger.onDetach', [{ tabId }, reason === 'target closed' ? 'target_closed' : 'canceled_by_user']); };
+        wc.debugger.on('message', onMsg); wc.debugger.once('detach', onDetach);
+        d.set(wc.id, { extId });
+        return;
+      }
+      case 'debugger.detach': {
+        const wc = this.tabWebContents(args[0]?.tabId);
+        if (this.debuggees?.get(wc.id)?.extId !== extId) throw new Error('Debugger is not attached to the tab with id: ' + args[0]?.tabId + '.');
+        wc.debugger.detach();
+        return;
+      }
+      case 'debugger.sendCommand': {
+        const wc = this.tabWebContents(args[0]?.tabId);
+        if (this.debuggees?.get(wc.id)?.extId !== extId) throw new Error('Debugger is not attached to the tab with id: ' + args[0]?.tabId + '.');
+        return wc.debugger.sendCommand(String(args[1]), args[2] && typeof args[2] === 'object' ? args[2] : {}, args[0]?.sessionId);
+      }
+      case 'debugger.getTargets': {
+        this.requirePermission(ext, 'debugger');
+        return this.getTabs().tabs.filter(x => x.view && !x.private).map(x => ({ type: 'page', id: String(x.view.webContents.id), tabId: x.view.webContents.id, attached: x.view.webContents.debugger.isAttached(), title: x.title || '', url: x.url || '' }));
+      }
       case 'tabs.captureVisibleTab': {
         this.requirePermission(ext, '<all_urls>', 'activeTab');
         const opts = args.find(a => a && typeof a === 'object') || {};

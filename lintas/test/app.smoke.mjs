@@ -94,11 +94,22 @@ try {
   }, `http://127.0.0.1:${port}/`);
   assert.ok(sw && !sw.error, 'background worker reply: ' + JSON.stringify(sw));
   if (SANDBOX) {
-    for (const k of ['windows', 'contextMenus', 'identity', 'pageCapture', 'userScripts']) assert.equal(sw[k], 'object', k + ': ' + JSON.stringify(sw));
+    for (const k of ['windows', 'contextMenus', 'identity', 'pageCapture', 'userScripts', 'sidePanel', 'offscreen', 'debugger', 'alarms', 'tabGroups']) assert.equal(sw[k], 'object', k + ': ' + JSON.stringify(sw));
+    assert.equal(sw.alarm, 'tick');
+    assert.equal(sw.debugger1plus1, 2);
+    assert.equal(sw.groupColor, 'blue');
     assert.match(sw.redirect, /^https:\/\/[a-p]{32}\.chromiumapp\.org\/cb$/);
     assert.equal(sw.capture, 'data:image/jpeg;base64,');
     assert.equal(sw.mhtml, 'multipart/related');
   }
+
+  // Closing a tab that has no web view (an internal page) while another internal page is active
+  const i1 = await L(() => lintas.tabs.create({ url: 'lintas://settings' }));
+  const i2 = await L(() => lintas.tabs.create({ url: 'lintas://extensions' }));
+  assert.equal((await L(() => lintas.tabs.list())).find(t => t.id === i2.id).title, 'Extensions');
+  await L(id => lintas.tabs.close(id), i1.id);
+  await L(id => lintas.tabs.close(id), i2.id);
+  await L(id => lintas.tabs.activate(id), tabId);
 
   // Import from another browser
   const browsers = await L(() => lintas.importer.detect());

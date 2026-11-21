@@ -31,7 +31,12 @@
     "identity",
     "pageCapture",
     "userScripts",
-    "contextMenus"
+    "contextMenus",
+    "debugger",
+    "sidePanel",
+    "offscreen",
+    "alarms",
+    "tabGroups"
   ],
   "host_permissions": [
     "<all_urls>"
