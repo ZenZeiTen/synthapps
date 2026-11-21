@@ -1,7 +1,7 @@
 name: Nalara desktop app
 
-# Builds the double-click executable on each operating system, runs its self-test there, and keeps the files as
-# downloadable artifacts. Pushing a tag named nalara-v* also attaches them to a GitHub release.
+# Builds the double-click Windows executable, runs its self-test there, and keeps it as a downloadable artifact.
+# Pushing a tag named nalara-v* also attaches it to a GitHub release. No Linux or macOS builds: see CLAUDE.md.
 on:
   workflow_dispatch:
   pull_request:
@@ -26,22 +26,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            target: linux-x64
-            file: Nalara-linux-x64
-            package: Nalara-linux-x64.tar.gz
           - os: windows-latest
             target: win-x64
             file: Nalara-win-x64.exe
             package: Nalara-win-x64.exe
-          - os: macos-latest
-            target: darwin-arm64
-            file: Nalara-darwin-arm64
-            package: Nalara-darwin-arm64.zip
-          - os: macos-15-intel
-            target: darwin-x64
-            file: Nalara-darwin-x64
-            package: Nalara-darwin-x64.zip
     defaults:
       run:
         shell: bash
@@ -57,13 +45,6 @@ jobs:
       - run: npm run build:app -- --target ${{ matrix.target }}
       - name: Self-test the executable
         run: ./dist-app/${{ matrix.file }} --check
-      - name: Self-test the packaged Mac app
-        if: startsWith(matrix.target, 'darwin')
-        run: |
-          rm -rf unpacked && mkdir unpacked
-          ditto -x -k dist-app/${{ matrix.package }} unpacked
-          codesign --verify --verbose unpacked/Nalara.app
-          unpacked/Nalara.app/Contents/MacOS/Nalara --check
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.package }}
@@ -92,5 +73,5 @@ jobs:
             gh release create "$GITHUB_REF_NAME" files/*/* \
               --repo "$GITHUB_REPOSITORY" \
               --title "Nalara ${GITHUB_REF_NAME#nalara-v}" \
-              --notes "Double-click executables for Windows, macOS and Linux. See nalara/README.md (Desktop app) for first-run warnings."
+              --notes "Double-click executable for Windows. See nalara/README.md (Desktop app) for first-run warnings."
           fi

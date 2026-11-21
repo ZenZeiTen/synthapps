@@ -8,12 +8,8 @@ on:
       - "retroglot/**"
       - ".github/workflows/retroglot-desktop.yml"
   push:
-    branches: [main]
     tags:
       - "retroglot-v*"
-    paths:
-      - "retroglot/**"
-      - ".github/workflows/retroglot-desktop.yml"
   workflow_dispatch:
 
 permissions:

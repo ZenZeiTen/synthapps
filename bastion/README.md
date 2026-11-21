@@ -66,8 +66,8 @@ bash tests/wordpress-smoke.sh      # real WordPress + MySQL (needs a MySQL serve
 python3 scripts/make-pot.py        # regenerate languages/zenzeiten-bastion.pot
 ```
 
-The smoke test covers the firewall, automatic blocking, agent identity in Protect mode and the traps, login lockout, enumeration, the live endpoint, every admin screen and a backup-and-restore round trip with awkward data (quotes, backslashes, newlines, emoji, serialized arrays) through both WP-CLI and the admin screens. CI (`.github/workflows/bastion.yml`) runs all of these, lints and tests on PHP 7.4 to 8.4, checks the slug is still free on WordPress.org, and builds the zip.
+The smoke test covers the firewall, automatic blocking, agent identity in Protect mode and the traps, login lockout, enumeration, the live endpoint, every admin screen and a backup-and-restore round trip with awkward data (quotes, backslashes, newlines, emoji, serialized arrays) through both WP-CLI and the admin screens. Run all of these, and the lint and tests on PHP 7.4 to 8.4, before pushing. The workflow (`.github/workflows/bastion.yml`) runs only to publish a release: it checks the slug is still free on WordPress.org, builds the zip and publishes it.
 
 ## Release
 
-Change the version in the plugin header, `ZBST_VERSION`, `Stable tag` in `readme.txt`, the changelog and `RELEASE_NOTES.md` together, then run `python3 scripts/make-pot.py`. Then run the workflow with "Publish a release" ticked on `main`, or push a tag `bastion-v<version>`.
+Change the version in the plugin header, `ZBST_VERSION`, `Stable tag` in `readme.txt`, the changelog and `RELEASE_NOTES.md` together, then run `python3 scripts/make-pot.py`. Then run the tests, and run the workflow on `main` or push a tag `bastion-v<version>`.
