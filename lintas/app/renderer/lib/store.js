@@ -8,6 +8,8 @@ export const S = {
   pendingSegment: new Map(),
   /** payload pushed by context-menu events / UI for the side panel views. */
   panelIntent: null,
+  /** titles the renderer gives to internal pages (main leaves them empty). */
+  titles: new Map(),
 };
 
 const subs = new Map();
@@ -71,3 +73,5 @@ export function parseInternal(url) {
   }
   return { page: p[0] || 'newtab' };
 }
+
+export function setTitle(url, title) { if (S.titles.get(url) !== title) { S.titles.set(url, title); emit('titles'); } }
