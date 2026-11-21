@@ -38,32 +38,78 @@ export function icon(name) {
     h('svg:path', { d: paths[name] }));
 }
 
+// ---- language ----
+// The catalog is the same flat JSON the Go side uses (internal/i18n/locales):
+// {{name}} placeholders, plural forms as key_one / key_other (CLDR).
+let lang = 'en';
+let dict = {};
+let fallback = {};
+
+export function currentLang() { return lang; }
+
+// The locale for numbers and dates: Indonesian, or the browser's English.
+export function locale() {
+  if (lang === 'id') return 'id-ID';
+  const n = (navigator.language || 'en-US');
+  return n.toLowerCase().startsWith('en') ? n : 'en-US';
+}
+
+export async function loadLang(l) {
+  const get = async x => { const r = await fetch('/api/i18n/' + x); if (!r.ok) throw new Error('missing catalog ' + x); return r.json(); };
+  fallback = await get('en');
+  lang = l === 'id' ? 'id' : 'en';
+  dict = lang === 'en' ? fallback : await get(lang);
+  document.documentElement.lang = lang;
+}
+
+function fillVars(s, vars) {
+  return vars ? s.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : s;
+}
+
+// t returns the message for key in the chosen language.
+export function t(key, vars) {
+  const s = Object.hasOwn(dict, key) ? dict[key] : Object.hasOwn(fallback, key) ? fallback[key] : key;
+  return fillVars(s, vars);
+}
+
+// tn is t for a count: it picks key_one, key_other ... and sets {{count}}.
+export function tn(key, count, vars) {
+  const cat = new Intl.PluralRules(locale()).select(count);
+  const k = Object.hasOwn(dict, key + '_' + cat) || Object.hasOwn(fallback, key + '_' + cat) ? key + '_' + cat : key + '_other';
+  return t(k, { ...vars, count: num(count) });
+}
+
+export function num(n) { return Number(n).toLocaleString(locale()); }
+
+// bytes: whole KB and MB, one decimal for GB and TB, as the Go side does.
 export function bytes(n) {
   if (!n) return '0 MB';
   const units = [['TB', 2 ** 40], ['GB', 2 ** 30], ['MB', 2 ** 20], ['KB', 2 ** 10]];
   for (const [u, v] of units) {
     if (n >= v) {
       const x = n / v;
-      return (u === 'GB' || u === 'TB' ? x.toFixed(1) : Math.round(x)) + ' ' + u;
+      const s = u === 'GB' || u === 'TB'
+        ? x.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        : Math.round(x).toLocaleString(locale());
+      return s + ' ' + u;
     }
   }
-  return n + ' bytes';
+  return '1 KB';
 }
-
-export function plural(n, one, many) { return `${n.toLocaleString()} ${n === 1 ? one : (many || one + 's')}`; }
 
 export function when(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return '';
   const today = new Date();
-  const sameDay = d.toDateString() === today.toDateString();
-  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return sameDay ? 'Today ' + time : d.toLocaleDateString([], { day: 'numeric', month: 'short', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' }) + ' ' + time;
+  const time = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === today.toDateString()) return t('date.today', { time });
+  const date = d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+  return t('date.at', { date, time });
 }
 
 export function day(iso) {
   const d = new Date(iso);
-  return isNaN(d) ? '' : d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+  return isNaN(d) ? '' : d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ---- toasts ----
@@ -93,14 +139,14 @@ export class ApiError extends Error {
 }
 
 export async function api(method, path, body) {
-  const opt = { method, headers: { Authorization: 'Bearer ' + token } };
+  const opt = { method, headers: { Authorization: 'Bearer ' + token, 'X-Kempt-Lang': lang } };
   if (body !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
   let res;
   try { res = await fetch(path, opt); } catch {
-    throw new ApiError(0, 'offline', 'Kempt has stopped. Open it again from the Start menu or its shortcut.');
+    throw new ApiError(0, 'offline', t('err.offline'));
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error || 'error', data.message || `Request failed (${res.status}).`);
+  if (!res.ok) throw new ApiError(res.status, data.error || 'error', data.message || t('err.requestFailed', { status: res.status }));
   return data;
 }
 
@@ -115,8 +161,8 @@ export function runJob(kind, body, onProgress) {
       await new Promise(r => setTimeout(r, 350));
       const v = await api('GET', '/api/local/jobs/' + id);
       if (v.state === 'running') { onProgress && onProgress(v.progress || {}, v); continue; }
-      if (v.state === 'failed') throw new ApiError(500, 'failed', v.error || 'The task failed.');
-      if (v.state === 'stopped' || stopped) throw new ApiError(499, 'stopped', 'Stopped.');
+      if (v.state === 'failed') throw new ApiError(500, 'failed', v.error || t('err.taskFailed'));
+      if (v.state === 'stopped' || stopped) throw new ApiError(499, 'stopped', t('err.stopped'));
       return v.result;
     }
   })();
@@ -134,5 +180,5 @@ export function working(text) {
 export function errorBox(err, retry) {
   return h('div', { class: 'notice warn', role: 'alert' },
     h('p', null, err.message || String(err)),
-    retry && h('button', { class: 'btn', onclick: retry }, 'Try again'));
+    retry && h('button', { class: 'btn', onclick: retry }, t('ui.tryAgain')));
 }

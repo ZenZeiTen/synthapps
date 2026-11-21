@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -14,6 +13,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/ZenZeiTen/synthapps/kempt/internal/api"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/shell"
 )
 
@@ -91,7 +91,7 @@ func openTarget(target string) error {
 		defer cancel()
 		var ok map[string]bool
 		if err := shell.PowerShellJSON(ctx, repairScript, &ok); err != nil {
-			return errors.New("Windows did not start the repair (the administrator prompt was probably declined)")
+			return api.ErrDeclined
 		}
 		return nil
 	case strings.HasSuffix(target, ".exe"):
@@ -126,7 +126,7 @@ func elevate(exe string, args []string) error {
 	defer cancel()
 	var ok map[string]bool
 	if err := shell.PowerShellJSON(ctx, strings.Replace(elevateScript, "%s", shell.PSData(data), 1), &ok); err != nil {
-		return errors.New("the administrator prompt was declined")
+		return api.ErrDeclined
 	}
 	return nil
 }

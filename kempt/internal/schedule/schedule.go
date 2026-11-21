@@ -38,19 +38,26 @@ var (
 	days   = map[string]bool{"Monday": true, "Tuesday": true, "Wednesday": true, "Thursday": true, "Friday": true, "Saturday": true, "Sunday": true}
 )
 
+// Errors from Validate.
+var (
+	ErrFrequency = errors.New("choose daily or weekly")
+	ErrDay       = errors.New("choose a day of the week")
+	ErrTime      = errors.New("give the time as HH:MM")
+)
+
 // Validate checks a plan from the window.
 func (p Plan) Validate() error {
 	if !p.Enabled {
 		return nil
 	}
 	if p.Frequency != "daily" && p.Frequency != "weekly" {
-		return errors.New("choose daily or weekly")
+		return ErrFrequency
 	}
 	if p.Frequency == "weekly" && !days[p.Day] {
-		return errors.New("choose a day of the week")
+		return ErrDay
 	}
 	if !timeRe.MatchString(p.Time) {
-		return errors.New("give the time as HH:MM")
+		return ErrTime
 	}
 	return nil
 }

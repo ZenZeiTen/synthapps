@@ -6,12 +6,12 @@ package health
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/ZenZeiTen/synthapps/kempt/internal/i18n"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/sysinfo"
 )
 
@@ -102,28 +102,21 @@ type Report struct {
 	Took     string    `json:"took"`
 }
 
-// Check measures this computer and evaluates it.
-func Check(ctx context.Context) Report {
+// Check measures this computer and evaluates it, with text in lang.
+func Check(ctx context.Context, lang string) Report {
 	start := time.Now()
 	f := Facts{Drives: sysinfo.Drives(), Memory: sysinfo.Mem(), Uptime: sysinfo.Uptime()}
 	gather(ctx, &f)
-	return Report{Facts: f, Findings: Evaluate(f, time.Now()), Took: time.Since(start).Round(100 * time.Millisecond).String()}
+	return Report{Facts: f, Findings: Evaluate(f, time.Now(), lang), Took: time.Since(start).Round(100 * time.Millisecond).String()}
 }
 
-// GB formats bytes for people.
-func GB(b int64) string {
-	switch {
-	case b >= 1<<30:
-		return fmt.Sprintf("%.1f GB", float64(b)/(1<<30))
-	case b >= 1<<20:
-		return fmt.Sprintf("%.0f MB", float64(b)/(1<<20))
-	default:
-		return fmt.Sprintf("%.0f KB", float64(b)/(1<<10))
-	}
-}
+// GB formats bytes for people, in English (the command line).
+func GB(b int64) string { return i18n.Bytes("en", b) }
 
 // Evaluate turns measurements into findings, most serious first.
-func Evaluate(f Facts, now time.Time) []Finding {
+func Evaluate(f Facts, now time.Time, lang string) []Finding {
+	t := func(key string, vars ...any) string { return i18n.T(lang, key, vars...) }
+	size := func(b int64) string { return i18n.Bytes(lang, b) }
 	var out []Finding
 	add := func(x Finding) { out = append(out, x) }
 
@@ -132,17 +125,17 @@ func Evaluate(f Facts, now time.Time) []Finding {
 			continue
 		}
 		pct := float64(d.Free) / float64(d.Total) * 100
-		x := Finding{ID: "space:" + d.Path, Area: "Storage", Title: "Free space on " + d.Path,
-			Detail: fmt.Sprintf("%s free of %s (%.0f%%).", GB(d.Free), GB(d.Total), pct), Status: Good}
+		x := Finding{ID: "space:" + d.Path, Area: t("health.area.storage"), Title: t("health.space.title", "drive", d.Path),
+			Detail: t("health.space.detail", "free", size(d.Free), "total", size(d.Total), "percent", i18n.Percent(pct)), Status: Good}
 		switch {
 		case pct < 5 || d.Free < 2<<30:
 			x.Status = Problem
-			x.Advice = "Windows needs free space for updates, the page file and temporary files. Clean caches, then look at your largest files."
-			x.Action = &Action{ID: "go:clean", Label: "Free up space"}
+			x.Advice = t("health.space.advice.problem")
+			x.Action = &Action{ID: "go:clean", Label: t("health.action.freeSpace")}
 		case pct < 12 || d.Free < 10<<30:
 			x.Status = Attention
-			x.Advice = "Getting low. Cleaning caches and old downloads usually gives back several gigabytes."
-			x.Action = &Action{ID: "go:clean", Label: "Free up space"}
+			x.Advice = t("health.space.advice.attention")
+			x.Action = &Action{ID: "go:clean", Label: t("health.action.freeSpace")}
 		}
 		add(x)
 	}
@@ -150,32 +143,31 @@ func Evaluate(f Facts, now time.Time) []Finding {
 	if f.Memory.Total > 0 {
 		used := f.Memory.Total - f.Memory.Available
 		pct := float64(used) / float64(f.Memory.Total) * 100
-		x := Finding{ID: "memory", Area: "Performance", Title: "Memory in use", Status: Info,
-			Detail: fmt.Sprintf("%s of %s in use (%.0f%%).", GB(used), GB(f.Memory.Total), pct)}
-		if top := topNames(f.Procs, 3); top != "" {
-			x.Detail += " Largest: " + top + "."
+		x := Finding{ID: "memory", Area: t("health.area.performance"), Title: t("health.memory.title"), Status: Info,
+			Detail: t("health.memory.detail", "used", size(used), "total", size(f.Memory.Total), "percent", i18n.Percent(pct))}
+		if top := topNames(lang, f.Procs, 3); top != "" {
+			x.Detail += " " + t("health.memory.largest", "list", top)
 		}
 		if pct >= 90 {
 			x.Status = Attention
-			x.Advice = "Memory is nearly full, so Windows is moving data to disk, which feels slow. Close programs you are not using, or turn off startup programs you do not need. Tools that \"free RAM\" only empty Windows' own cache, which makes things slower afterwards."
-			x.Action = &Action{ID: "go:startup", Label: "Review startup programs"}
+			x.Advice = t("health.memory.advice")
+			x.Action = &Action{ID: "go:startup", Label: t("health.action.reviewStartup")}
 		}
 		add(x)
 	}
 
 	if f.Uptime > 0 {
-		days := f.Uptime.Hours() / 24
-		x := Finding{ID: "uptime", Area: "Updates", Title: "Time since last restart", Status: Good,
-			Detail: fmt.Sprintf("%s.", human(f.Uptime))}
-		if days >= 14 {
+		x := Finding{ID: "uptime", Area: t("health.area.updates"), Title: t("health.uptime.title"), Status: Good,
+			Detail: t("health.uptime.detail", "duration", human(lang, f.Uptime))}
+		if f.Uptime.Hours()/24 >= 14 {
 			x.Status = Attention
-			x.Advice = "Restarting finishes installing updates and clears programs that slowly use more memory. With Fast Startup on, shutting down is not a restart: choose Restart."
+			x.Advice = t("health.uptime.advice")
 		}
 		add(x)
 	}
 
 	if w := f.Windows; w != nil {
-		evaluateWindows(w, now, add)
+		evaluateWindows(w, now, lang, add)
 	}
 
 	rank := map[string]int{Problem: 0, Attention: 1, Info: 2, Good: 3}
@@ -183,7 +175,11 @@ func Evaluate(f Facts, now time.Time) []Finding {
 	return out
 }
 
-func evaluateWindows(w *WinFacts, now time.Time, add func(Finding)) {
+func evaluateWindows(w *WinFacts, now time.Time, lang string, add func(Finding)) {
+	t := func(key string, vars ...any) string { return i18n.T(lang, key, vars...) }
+	security := t("health.area.security")
+	openSecurity := &Action{ID: "open:security", Label: t("health.action.openSecurity")}
+
 	// Protection: Microsoft Defender, or another antivirus Windows knows about.
 	other := ""
 	for _, a := range w.AV {
@@ -193,57 +189,62 @@ func evaluateWindows(w *WinFacts, now time.Time, add func(Finding)) {
 			other = a.Name
 		}
 	}
+	av := Finding{ID: "av", Area: security, Title: t("health.av.title")}
 	switch d := w.Defender; {
 	case other != "":
-		add(Finding{ID: "av", Area: "Security", Title: "Virus protection", Status: Good,
-			Detail: other + " is protecting this computer."})
+		av.Status, av.Detail = Good, t("health.av.other", "product", other)
 	case d == nil:
-		add(Finding{ID: "av", Area: "Security", Title: "Virus protection", Status: Info,
-			Detail: "Kempt could not read the protection status.", Action: &Action{ID: "open:security", Label: "Open Windows Security"}})
+		av.Status, av.Detail, av.Action = Info, t("health.av.unknown"), openSecurity
 	case !d.AV || !d.RTP:
-		add(Finding{ID: "av", Area: "Security", Title: "Virus protection", Status: Problem,
-			Detail: "Real-time protection is off.", Advice: "Turn it back on in Windows Security. It is free and built in; no extra antivirus is needed.",
-			Action: &Action{ID: "open:security", Label: "Open Windows Security"}})
+		av.Status, av.Detail, av.Advice, av.Action = Problem, t("health.av.off"), t("health.av.off.advice"), openSecurity
 	case d.SigAge > 7:
-		add(Finding{ID: "av", Area: "Security", Title: "Virus protection", Status: Attention,
-			Detail: fmt.Sprintf("Microsoft Defender is on, but its virus definitions are %d days old.", d.SigAge),
-			Advice: "Connect to the internet and run Windows Update; definitions normally update every day.",
-			Action: &Action{ID: "open:security", Label: "Open Windows Security"}})
+		av.Status, av.Action = Attention, openSecurity
+		av.Detail = i18n.N(lang, "health.av.stale", int64(d.SigAge))
+		av.Advice = t("health.av.stale.advice")
 	default:
-		add(Finding{ID: "av", Area: "Security", Title: "Virus protection", Status: Good,
-			Detail: fmt.Sprintf("Microsoft Defender is on; definitions are %s old.", plural(d.SigAge, "day"))})
+		av.Status = Good
+		av.Detail = t("health.av.ok", "age", i18n.N(lang, "unit.day", int64(d.SigAge)))
 	}
+	add(av)
 
 	if len(w.Firewall) > 0 {
 		var off []string
 		for _, p := range w.Firewall {
 			if !p.Enabled {
-				off = append(off, p.Name)
+				off = append(off, firewallProfile(lang, p.Name))
 			}
 		}
-		x := Finding{ID: "firewall", Area: "Security", Title: "Firewall", Status: Good, Detail: "On for every network type."}
+		x := Finding{ID: "firewall", Area: security, Title: t("health.firewall.title"), Status: Good, Detail: t("health.firewall.ok")}
 		if len(off) > 0 {
 			x.Status = Problem
-			x.Detail = "Off for: " + strings.Join(off, ", ") + "."
-			x.Advice = "The Windows firewall blocks unwanted incoming connections. Turn it on unless another firewall replaces it."
-			x.Action = &Action{ID: "open:firewall", Label: "Open firewall settings"}
+			x.Detail = t("health.firewall.off", "profiles", i18n.List(lang, off))
+			x.Advice = t("health.firewall.advice")
+			x.Action = &Action{ID: "open:firewall", Label: t("health.action.openFirewall")}
 		}
 		add(x)
 	}
 
 	for _, d := range w.Disks {
-		x := Finding{ID: "disk:" + d.Name, Area: "Storage", Title: "Drive health: " + d.Name, Status: Good,
-			Detail: fmt.Sprintf("%s %s, reported %s.", GB(d.Size), strings.TrimSpace(d.Media), strings.ToLower(d.Health))}
-		switch strings.ToLower(d.Health) {
+		state := strings.ToLower(d.Health)
+		stateText := state
+		if k := "health.disk.state." + state; i18n.Has(k) {
+			stateText = t(k)
+		}
+		media := strings.TrimSpace(d.Media)
+		if media == "" || strings.EqualFold(media, "Unspecified") {
+			media = t("health.disk.media.unknown")
+		}
+		x := Finding{ID: "disk:" + d.Name, Area: t("health.area.storage"), Title: t("health.disk.title", "name", d.Name), Status: Good,
+			Detail: t("health.disk.detail", "size", i18n.Bytes(lang, d.Size), "media", media, "state", stateText)}
+		backup := &Action{ID: "open:backup", Label: t("health.action.openBackup")}
+		switch state {
 		case "healthy":
 		case "warning":
-			x.Status = Problem
-			x.Advice = "The drive reports early signs of failure (" + d.Op + "). Back up your files now, then plan to replace it."
-			x.Action = &Action{ID: "open:backup", Label: "Open backup settings"}
+			x.Status, x.Action = Problem, backup
+			x.Advice = t("health.disk.warning", "status", d.Op)
 		case "unhealthy":
-			x.Status = Problem
-			x.Advice = "The drive reports that it is failing (" + d.Op + "). Copy your important files somewhere else today."
-			x.Action = &Action{ID: "open:backup", Label: "Open backup settings"}
+			x.Status, x.Action = Problem, backup
+			x.Advice = t("health.disk.unhealthy", "status", d.Op)
 		default:
 			x.Status = Info
 		}
@@ -251,47 +252,53 @@ func evaluateWindows(w *WinFacts, now time.Time, add func(Finding)) {
 	}
 
 	if w.RebootPending {
-		add(Finding{ID: "reboot", Area: "Updates", Title: "Restart needed", Status: Attention,
-			Detail: "Windows has installed updates that finish on the next restart.",
-			Advice: "Save your work and restart when convenient."})
+		add(Finding{ID: "reboot", Area: t("health.area.updates"), Title: t("health.reboot.title"), Status: Attention,
+			Detail: t("health.reboot.detail"), Advice: t("health.reboot.advice")})
 	}
 
-	if t, err := time.Parse(time.RFC3339, w.LastUpdate); err == nil {
-		age := now.Sub(t)
-		x := Finding{ID: "updates", Area: "Updates", Title: "Windows updates", Status: Good,
-			Detail: "Last update installed " + human(age) + " ago."}
+	if ts, err := time.Parse(time.RFC3339, w.LastUpdate); err == nil {
+		age := now.Sub(ts)
+		x := Finding{ID: "updates", Area: t("health.area.updates"), Title: t("health.updates.title"), Status: Good,
+			Detail: t("health.updates.detail", "duration", human(lang, age))}
 		if age > 60*24*time.Hour {
 			x.Status = Attention
-			x.Advice = "Windows normally installs security updates every month. Check Windows Update for anything stuck or paused."
-			x.Action = &Action{ID: "open:windowsupdate", Label: "Open Windows Update"}
+			x.Advice = t("health.updates.advice")
+			x.Action = &Action{ID: "open:windowsupdate", Label: t("health.action.openWindowsUpdate")}
 		}
 		add(x)
 	}
 
 	if b := w.Battery; b != nil && b.Design > 0 && b.Full > 0 {
 		pct := math.Min(100, float64(b.Full)/float64(b.Design)*100)
-		x := Finding{ID: "battery", Area: "Hardware", Title: "Battery wear", Status: Good,
-			Detail: fmt.Sprintf("The battery holds %.0f%% of its original charge.", pct)}
+		x := Finding{ID: "battery", Area: t("health.area.hardware"), Title: t("health.battery.title"), Status: Good,
+			Detail: t("health.battery.detail", "percent", i18n.Percent(pct))}
 		if pct < 60 {
 			x.Status = Attention
-			x.Advice = "A battery below about 60% of its design capacity runs out much sooner. Replacing it restores the running time; software cannot."
+			x.Advice = t("health.battery.advice")
 		}
 		add(x)
 	}
 
 	if s := w.StorageSense; s != nil && !*s {
-		add(Finding{ID: "storagesense", Area: "Storage", Title: "Storage Sense", Status: Info,
-			Detail: "Off. Storage Sense is Windows' own automatic cleanup of temporary files and the Recycle Bin.",
-			Advice: "Turning it on is a good, free complement to Kempt.", Action: &Action{ID: "open:storagesense", Label: "Open Storage Sense"}})
+		add(Finding{ID: "storagesense", Area: t("health.area.storage"), Title: t("health.storagesense.title"), Status: Info,
+			Detail: t("health.storagesense.detail"), Advice: t("health.storagesense.advice"),
+			Action: &Action{ID: "open:storagesense", Label: t("health.action.openStorageSense")}})
 	}
 
-	add(Finding{ID: "repair", Area: "Repair", Title: "System file check", Status: Info,
-		Detail: "If Windows itself misbehaves (settings that will not open, crashes in Windows components), its own repair tools check every system file against a known-good copy.",
-		Advice: "This runs System File Checker and DISM in a window you can watch. It takes 10 to 30 minutes and needs administrator rights.",
-		Action: &Action{ID: "run:repair", Label: "Check and repair Windows"}})
+	add(Finding{ID: "repair", Area: t("health.area.repair"), Title: t("health.repair.title"), Status: Info,
+		Detail: t("health.repair.detail"), Advice: t("health.repair.advice"),
+		Action: &Action{ID: "run:repair", Label: t("health.action.repair")}})
 }
 
-func topNames(ps []Proc, n int) string {
+// firewallProfile names a firewall profile (Domain, Private, Public).
+func firewallProfile(lang, name string) string {
+	if k := "health.firewall.profile." + strings.ToLower(name); i18n.Has(k) {
+		return i18n.T(lang, k)
+	}
+	return name
+}
+
+func topNames(lang string, ps []Proc, n int) string {
 	var parts []string
 	for i, p := range ps {
 		if i == n {
@@ -299,27 +306,21 @@ func topNames(ps []Proc, n int) string {
 		}
 		name := p.Name
 		if p.Count > 1 {
-			name += fmt.Sprintf(" ×%d", p.Count)
+			name += " ×" + i18n.Number(lang, int64(p.Count))
 		}
-		parts = append(parts, fmt.Sprintf("%s %s", name, GB(p.Mem)))
+		parts = append(parts, name+" "+i18n.Bytes(lang, p.Mem))
 	}
 	return strings.Join(parts, ", ")
 }
 
-func plural(n int, unit string) string {
-	if n == 1 {
-		return "1 " + unit
-	}
-	return fmt.Sprintf("%d %ss", n, unit)
-}
-
-func human(d time.Duration) string {
+// human says how long a duration is: "3 days", "5 hours", "20 minutes".
+func human(lang string, d time.Duration) string {
 	switch h := d.Hours(); {
 	case h >= 48:
-		return plural(int(h/24), "day")
+		return i18n.N(lang, "unit.day", int64(h/24))
 	case h >= 2:
-		return plural(int(h), "hour")
+		return i18n.N(lang, "unit.hour", int64(h))
 	default:
-		return plural(int(d.Minutes()), "minute")
+		return i18n.N(lang, "unit.minute", int64(d.Minutes()))
 	}
 }

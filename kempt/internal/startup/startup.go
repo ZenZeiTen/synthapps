@@ -8,6 +8,8 @@ import (
 	"context"
 	"errors"
 	"strings"
+
+	"github.com/ZenZeiTen/synthapps/kempt/internal/i18n"
 )
 
 // Item is one program that starts when you sign in.
@@ -36,21 +38,13 @@ var ErrNeedsAdmin = errors.New("this program starts for every user of this compu
 // ErrNotFound means no item has that id.
 var ErrNotFound = errors.New("that startup item no longer exists")
 
-// SourceLabel describes where an item is registered.
-func SourceLabel(source string) string {
-	switch source {
-	case "run-user":
-		return "Registry, your account"
-	case "run-machine", "run-machine32":
-		return "Registry, all users"
-	case "folder-user":
-		return "Startup folder, your account"
-	case "folder-machine":
-		return "Startup folder, all users"
-	case "autostart-user":
-		return "Autostart, your account"
-	case "autostart-system":
-		return "Autostart, all users"
+// SourceLabel describes where an item is registered, in English.
+func SourceLabel(source string) string { return SourceLabelIn("en", source) }
+
+// SourceLabelIn describes where an item is registered, in a language.
+func SourceLabelIn(lang, source string) string {
+	if k := "startup.where." + source; i18n.Has(k) {
+		return i18n.T(lang, k)
 	}
 	return source
 }

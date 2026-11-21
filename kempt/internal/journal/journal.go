@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/ZenZeiTen/synthapps/kempt/internal/i18n"
 )
 
 // Undo says how to reverse an entry.
@@ -30,8 +32,13 @@ type Entry struct {
 	Auto    bool      `json:"auto,omitempty"` // done by automatic care
 	Details []string  `json:"details,omitempty"`
 	Undo    *Undo     `json:"undo,omitempty"`
-	Undoes  string    `json:"undoes,omitempty"` // for kind "undo": the entry reversed
-	Undone  bool      `json:"undone,omitempty"` // filled in by List
+	// Msg and Lines are Summary and Details as message keys, so the entry
+	// can be shown in whichever language is chosen when it is read.
+	// Summary and Details keep the English text for older readers.
+	Msg    *i18n.Msg  `json:"msg,omitempty"`
+	Lines  []i18n.Msg `json:"lines,omitempty"`
+	Undoes string     `json:"undoes,omitempty"` // for kind "undo": the entry reversed
+	Undone bool       `json:"undone,omitempty"` // filled in by List
 }
 
 // Journal is the file.
@@ -57,6 +64,17 @@ func (j *Journal) Add(e Entry) (Entry, error) {
 	}
 	if len(e.Details) > 50 {
 		e.Details = append(e.Details[:50], "…")
+	}
+	if len(e.Lines) > 50 {
+		e.Lines = e.Lines[:50]
+	}
+	if e.Msg != nil && e.Summary == "" {
+		e.Summary = i18n.Render("en", *e.Msg)
+	}
+	if len(e.Lines) > 0 && len(e.Details) == 0 {
+		for _, l := range e.Lines {
+			e.Details = append(e.Details, i18n.Render("en", l))
+		}
 	}
 	b, err := json.Marshal(e)
 	if err != nil {
@@ -84,8 +102,12 @@ func (j *Journal) Add(e Entry) (Entry, error) {
 	return e, err
 }
 
-// List returns up to limit entries, newest first, marking undone ones.
-func (j *Journal) List(limit int) ([]Entry, error) {
+// List returns up to limit entries, newest first, marking undone ones, in
+// English.
+func (j *Journal) List(limit int) ([]Entry, error) { return j.ListIn(limit, "en") }
+
+// ListIn is List with summaries and details in a language.
+func (j *Journal) ListIn(limit int, lang string) ([]Entry, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	f, err := os.Open(j.path)
@@ -109,6 +131,25 @@ func (j *Journal) List(limit int) ([]Entry, error) {
 			undone[e.Undoes] = true
 		}
 		all = append(all, e)
+	}
+	summary := map[string]string{}
+	for i := range all {
+		e := &all[i]
+		if e.Msg != nil {
+			e.Summary = i18n.Render(lang, *e.Msg)
+		}
+		if e.Kind == "undo" && e.Undoes != "" {
+			if what, ok := summary[e.Undoes]; ok {
+				e.Summary = i18n.T(lang, "journal.undo", "what", what)
+			}
+		}
+		if len(e.Lines) > 0 {
+			e.Details = e.Details[:0:0]
+			for _, l := range e.Lines {
+				e.Details = append(e.Details, i18n.Render(lang, l))
+			}
+		}
+		summary[e.ID] = e.Summary
 	}
 	out := make([]Entry, 0, limit)
 	for i := len(all) - 1; i >= 0 && len(out) < limit; i-- {

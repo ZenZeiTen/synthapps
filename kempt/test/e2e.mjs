@@ -163,6 +163,49 @@ try {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   assert.equal(overflow, false, 'no sideways scrolling on a narrow window');
 
+  // Indonesian: switch in the window; pages, sizes and earlier history follow.
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.locator('.side-foot').getByRole('button', { name: 'Bahasa Indonesia' }).click();
+  await page.waitForLoadState('load');
+  await page.getByRole('heading', { name: 'PC Anda, apa adanya' }).waitFor({ timeout: 20000 });
+  assert.equal(await page.evaluate(() => document.documentElement.lang), 'id');
+  await page.getByRole('link', { name: /Gambaran umum/ }).waitFor();
+  await page.getByText(/program berjalan saat Anda masuk/).waitFor({ timeout: 20000 });
+  const idShots = [
+    ['overview', 'PC Anda, apa adanya'], ['clean', 'Bersihkan'], ['large', 'File besar'], ['dupes', 'Duplikat'],
+    ['startup', 'Pengaktifan'], ['health', 'Kesehatan'], ['care', 'Perawatan otomatis'],
+    ['history', 'Riwayat'], ['settings', 'Pengaturan'], ['why', 'Yang tidak dilakukan Kempt'],
+  ];
+  for (const [id, title] of idShots) {
+    await page.click(`a[href="#/${id}"]`);
+    await page.getByRole('heading', { level: 1, name: title }).waitFor();
+    if (id === 'clean') await page.getByText('Cache Google Chrome').waitFor({ timeout: 20000 });
+    if (id === 'health') await page.getByText(/Ruang kosong di/).first().waitFor({ timeout: 20000 });
+    if (id === 'history') {
+      await page.getByText('58 MB dikosongkan (5 file)', { exact: true }).waitFor();
+      await page.getByText('1 file (220 MB) dipindahkan ke tempat sampah', { exact: true }).waitFor();
+      await page.getByText('Dibatalkan: Chat dinonaktifkan di Pengaktifan', { exact: true }).waitFor();
+      await page.getByText('Cache Firefox: 8 MB, 1 file', { exact: true }).waitFor();
+    }
+    if (id === 'care') await page.getByText(/crontab Anda/).waitFor();
+    const wide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    assert.equal(wide, false, `no sideways scrolling on ${id} in Indonesian`);
+    const raw = await page.evaluate(() => document.body.innerText.match(/\{\{\w*\}\}|\b(?:[a-z]+\.){1,3}[a-z]+[A-Z]\w*\b/));
+    assert.equal(raw, null, `no placeholder or untranslated key on ${id}: ${raw}`);
+    await shot('id-' + id);
+  }
+  // A search in Indonesian, with sizes in Indonesian number format.
+  await page.click('a[href="#/large"]');
+  await page.getByRole('button', { name: 'Cari file besar' }).click();
+  await page.getByText(/file ditampilkan, dimulai dari yang terbesar/).waitFor({ timeout: 20000 });
+  await shot('id-large-results');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.click('a[href="#/overview"]');
+  await page.getByRole('heading', { name: 'PC Anda, apa adanya' }).waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false, 'phone width in Indonesian');
+  await shot('id-phone');
+
   assert.deepEqual(errors, [], 'no errors in the page');
   console.log('e2e passed');
 } finally {

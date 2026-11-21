@@ -258,7 +258,7 @@ func runHealth(args []string) error {
 	}
 	ctx, cancel := interruptible()
 	defer cancel()
-	rep := health.Check(ctx)
+	rep := health.Check(ctx, "en")
 	if *asJSON {
 		return printJSON(rep)
 	}

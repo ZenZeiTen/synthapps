@@ -30,7 +30,7 @@ func TestEvaluateCommon(t *testing.T) {
 		Uptime: 20 * 24 * time.Hour,
 		Procs:  []Proc{{Name: "chrome", Mem: 3 * gb, Count: 24}, {Name: "Teams", Mem: gb}},
 	}
-	got := Evaluate(f, time.Now())
+	got := Evaluate(f, time.Now(), "en")
 	m := byID(got)
 	if m[`space:C:\`].Status != Attention || m[`space:D:\`].Status != Good || m[`space:E:\`].Status != Problem {
 		t.Fatalf("space: %+v", got)
@@ -63,7 +63,7 @@ func TestEvaluateWindows(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
-	m := byID(Evaluate(Facts{Windows: &w}, now))
+	m := byID(Evaluate(Facts{Windows: &w}, now, "en"))
 	checks := map[string]string{
 		"av": Attention, "firewall": Problem, "disk:Samsung SSD 980": Good, "disk:WDC HDD": Problem,
 		"reboot": Attention, "updates": Attention, "battery": Attention, "storagesense": Info, "repair": Info,
@@ -86,7 +86,7 @@ func TestEvaluateWindows(t *testing.T) {
 		State int    `json:"state"`
 	}{Name: "Bitdefender Antivirus", State: 266240})
 	w.Defender.RTP = false
-	if f := byID(Evaluate(Facts{Windows: &w}, now))["av"]; f.Status != Good || !strings.Contains(f.Detail, "Bitdefender") {
+	if f := byID(Evaluate(Facts{Windows: &w}, now, "en"))["av"]; f.Status != Good || !strings.Contains(f.Detail, "Bitdefender") {
 		t.Fatalf("third-party antivirus %+v", f)
 	}
 }

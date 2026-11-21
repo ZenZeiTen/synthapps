@@ -21,6 +21,7 @@ compares the two.
 | **Automatic care** | A daily or weekly Task Scheduler task that runs the same cleanup. No background program. |
 | **History** | Everything Kempt changed. Startup and privacy changes can be undone. |
 | **Settings** | **Start at Windows startup** opens Kempt when you sign in. **Minimize to desktop and stick to taskbar** makes that startup window open minimized on the taskbar. Both are off by default. |
+| **Language** | English and Bahasa Indonesia. Kempt starts in the language Windows uses and can be switched in the sidebar or in Settings; History entries follow the language you choose. |
 | **What Kempt won't do** | Why there is no registry cleaner, RAM booster, internet booster, driver updater or PC score. |
 
 ## Get started on Windows
@@ -54,7 +55,7 @@ kempt-cli updates              programs with a newer version
 kempt-cli recycle FILE...      move files to the Recycle Bin
 ```
 
-Add `--json` to `scan`, `health`, `startup` or `updates` for machine-readable output.
+Add `--json` to `scan`, `health`, `startup` or `updates` for machine-readable output. The command line is in English.
 
 ## Linux
 

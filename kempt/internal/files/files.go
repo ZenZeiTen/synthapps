@@ -44,18 +44,25 @@ func SkipDir(path, name string) bool {
 	return runtime.GOOS != "windows" && strings.HasPrefix(n, ".")
 }
 
+// Errors from CheckSearchRoot.
+var (
+	ErrNotAbsolute = errors.New("give a full folder path")
+	ErrNoFolder    = errors.New("that folder does not exist")
+	ErrIsFile      = errors.New("that is a file, not a folder")
+)
+
 // CheckSearchRoot accepts a folder to search: it must exist and be a real
 // folder. Searching is read-only, so a drive root is allowed.
 func CheckSearchRoot(root string) error {
 	if !filepath.IsAbs(root) {
-		return errors.New("give a full folder path")
+		return ErrNotAbsolute
 	}
 	fi, err := os.Stat(root)
 	if err != nil {
-		return errors.New("that folder does not exist")
+		return ErrNoFolder
 	}
 	if !fi.IsDir() {
-		return errors.New("that is a file, not a folder")
+		return ErrIsFile
 	}
 	return nil
 }

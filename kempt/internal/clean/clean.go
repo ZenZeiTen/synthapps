@@ -59,8 +59,11 @@ func NewEngine(elevated bool) *Engine {
 		BinSize: fsx.RecycleBinSize, EmptyBin: fsx.EmptyRecycleBin}
 }
 
-// Catalog lists the categories for this system.
+// Catalog lists the categories for this system, in English.
 func (e *Engine) Catalog() []Category { return Catalog(e.Env) }
+
+// CatalogIn lists the categories with their text in a language.
+func (e *Engine) CatalogIn(lang string) []Category { return CatalogIn(e.Env, lang) }
 
 // Find returns the category with this id.
 func (e *Engine) Find(id string) (Category, bool) {

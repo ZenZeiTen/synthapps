@@ -34,7 +34,18 @@ in step when a script changes.
   privacy change writes a journal entry with `Undo`.
 - **No third-party code**, Go or JS. The CSP forbids inline script and style attributes: build
   DOM with `h()`/`fill()` from `web/js/ui.js`; set sizes through `el.style` (CSSOM), not strings.
-- Sizes: Go `health.GB` and JS `bytes()` format the same way (MB whole, GB one decimal).
+- **Text lives in `internal/i18n/locales/en.json` and `id.json`** (flat i18next v4 JSON:
+  `{{name}}` placeholders, plural keys `_one`/`_other`; Indonesian has only `_other`). The Go side
+  uses `i18n.T`/`i18n.N`, the window `t()`/`tn()` from `ui.js`; the window loads the same files from
+  `/api/i18n/{lang}`. Never put user-facing text in code. A new key goes into both files;
+  `TestCatalogsMatch` fails otherwise. Indonesian follows the termbase in
+  `docs/l10n/termbase-id.md` (Windows terms from the Microsoft Terminology Collection).
+- **History entries store message keys** (`journal.Entry.Msg`/`Lines`, `i18n.M`/`MN`), not text,
+  so they read in the language chosen later. `i18n.Ref` marks an argument that is itself a key.
+- The request language is `X-Kempt-Lang` (the window), else the saved setting, else
+  `Accept-Language`. `/api/mode` ignores the header: it tells the window which language to load.
+- Sizes: `i18n.Bytes` and JS `bytes()` format the same way (MB whole, GB one decimal, the
+  language's decimal mark).
 - The version is set once, in `main.go`.
 
 ## Layout
@@ -52,6 +63,7 @@ in step when a script changes.
 | `internal/privacy` | Per-user Windows switches |
 | `internal/schedule` | Task Scheduler task for `Kempt.exe care` |
 | `internal/autostart` | Kempt's own "Start at Windows startup" entry (HKCU Run value / XDG file) |
+| `internal/i18n` | Message catalogs (`locales/*.json`), plurals, number and size formats, stored messages |
 | `internal/journal` | `journal.jsonl` with undo |
 | `internal/jobs` | Background jobs with progress for the window |
 | `internal/api` | HTTP API: key, Host and Origin checks, routes |

@@ -55,7 +55,7 @@ These are real needs, and Kempt keeps them:
 | Health | Scan results and a fix button | Real measurements: free space per drive, drive health as the drive reports it, Defender or other antivirus, firewall per profile, last Windows update, pending restart, battery wear, memory. "Check and repair Windows" runs Microsoft's own SFC and DISM in a window you can watch |
 | Privacy | Clears traces, "anti-tracking" | The per-account Windows switches the Settings app writes (advertising ID, suggestions, silent app installs and others), each linked to its Settings page and undoable |
 | Size and install | Store package with in-app purchases | One 7 MB program, no installer, no account, nothing sent anywhere |
-| Language | 36 languages | English only (a known gap; see section 5) |
+| Language | 36 languages | English and Indonesian, with Windows terms checked against the Microsoft Terminology Collection |
 
 ## 4. How Kempt is built
 
@@ -78,8 +78,9 @@ These are real needs, and Kempt keeps them:
 
 ## 5. Known limits
 
-- English only. The interface strings are in `web/js/app.js` and the Go packages; translating
-  them, starting with Indonesian, is the most useful next step.
+- Two languages, English and Indonesian. Every string lives in `internal/i18n/locales/*.json`;
+  adding a language means adding one file there (and its plural rule in `internal/i18n`). The
+  command line stays in English.
 - Kempt does not measure how much each startup program delays sign-in (Task Manager's
   "Startup impact" comes from data Windows does not expose to other programs).
 - The Windows-specific parts (PowerShell scripts, Recycle Bin, Task Scheduler) are tested on a

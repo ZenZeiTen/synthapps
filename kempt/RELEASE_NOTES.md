@@ -17,4 +17,6 @@ The first release.
 - **History** of every change, with undo for startup and privacy changes.
 - **Settings**: start at Windows startup, and open that startup window minimized on the taskbar.
   Both are off by default.
+- **Bahasa Indonesia**: the whole window, health findings, errors and History, with Windows
+  terms as Indonesian Windows shows them. Kempt starts in the language Windows uses.
 - A command line (`kempt-cli.exe`) and a Linux build.

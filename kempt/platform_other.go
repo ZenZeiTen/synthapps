@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"syscall"
+
+	"github.com/ZenZeiTen/synthapps/kempt/internal/api"
 )
 
 func opener() string {
@@ -44,5 +46,5 @@ func openTarget(target string) error {
 func reveal(path string) error { return exec.Command(opener(), filepath.Dir(path)).Start() }
 
 func elevate(exe string, args []string) error {
-	return errors.New("run Kempt with sudo to clean folders that belong to the system")
+	return api.ErrNoElevation
 }

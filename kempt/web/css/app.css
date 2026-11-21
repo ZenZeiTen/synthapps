@@ -76,6 +76,11 @@ a { color: var(--spruce); }
 .nav a small { color: var(--muted); font-weight: 400; }
 .nav hr { border: 0; border-top: 1px solid var(--line); margin: 8px 10px; }
 .side-foot { margin-top: auto; padding: 10px; color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+.lang { display: flex; flex-wrap: wrap; gap: 6px; }
+.side-foot .lang { gap: 0; flex-wrap: nowrap; }
+.side-foot .lang .btn { padding: 3px 8px; min-height: 28px; font-size: 12.5px; white-space: nowrap; border-radius: 0; }
+.side-foot .lang .btn:first-child { border-radius: var(--radius-s) 0 0 var(--radius-s); }
+.side-foot .lang .btn:last-child { border-radius: 0 var(--radius-s) var(--radius-s) 0; margin-left: -1px; }
 .side-foot .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
 main { padding: 34px 44px 80px; min-width: 0; }

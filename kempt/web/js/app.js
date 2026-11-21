@@ -1,4 +1,4 @@
-import { h, fill, icon, bytes, plural, when, day, toast, api, runJob, working, errorBox } from './ui.js';
+import { h, fill, icon, bytes, num, when, day, toast, api, runJob, working, errorBox, t, tn, loadLang, currentLang } from './ui.js';
 
 const state = {
   mode: null,
@@ -18,7 +18,8 @@ const main = document.getElementById('main');
 const nav = document.getElementById('nav');
 const isWin = () => state.mode && state.mode.os === 'windows';
 const feat = k => state.mode && state.mode.features && state.mode.features[k];
-const binName = () => (isWin() ? 'Recycle Bin' : 'trash');
+// The Recycle Bin on Windows, the trash elsewhere.
+const bin = () => t(isWin() ? 'word.recycleBin' : 'word.trash');
 
 // ---------------------------------------------------------------- data
 
@@ -60,30 +61,30 @@ function canGo(ids) {
 // ---------------------------------------------------------------- navigation
 
 const pages = [
-  { id: 'overview', title: 'Overview' },
-  { id: 'clean', title: 'Clean up' },
-  { id: 'large', title: 'Large files' },
-  { id: 'dupes', title: 'Duplicates' },
+  { id: 'overview' },
+  { id: 'clean' },
+  { id: 'large' },
+  { id: 'dupes' },
   { sep: true },
-  { id: 'startup', title: 'Startup' },
-  { id: 'updates', title: 'App updates', when: () => feat('updates') },
-  { id: 'health', title: 'Health' },
-  { id: 'privacy', title: 'Privacy', when: () => feat('privacy') },
+  { id: 'startup' },
+  { id: 'updates', when: () => feat('updates') },
+  { id: 'health' },
+  { id: 'privacy', when: () => feat('privacy') },
   { sep: true },
-  { id: 'care', title: 'Automatic care' },
-  { id: 'history', title: 'History' },
-  { id: 'settings', title: 'Settings', when: () => feat('autostart') },
-  { id: 'why', title: 'What Kempt won’t do' },
+  { id: 'care' },
+  { id: 'history' },
+  { id: 'settings', when: () => feat('autostart') },
+  { id: 'why' },
 ];
 
 function badge(id) {
   if (id === 'clean' && state.scans) { const n = canGo(); return n ? bytes(n) : ''; }
-  if (id === 'startup' && state.startup) return String(state.startup.filter(i => i.enabled).length);
+  if (id === 'startup' && state.startup) return num(state.startup.filter(i => i.enabled).length);
   if (id === 'health' && state.health) {
     const n = state.health.findings.filter(f => f.status === 'problem' || f.status === 'attention').length;
-    return n ? String(n) : '';
+    return n ? num(n) : '';
   }
-  if (id === 'updates' && state.updates) return state.updates.length ? String(state.updates.length) : '';
+  if (id === 'updates' && state.updates) return state.updates.length ? num(state.updates.length) : '';
   return '';
 }
 
@@ -91,7 +92,7 @@ function updateNav() {
   const cur = route();
   fill(nav, pages.filter(p => !p.when || p.when()).map(p => p.sep ? h('hr') :
     h('a', { href: '#/' + p.id, 'aria-current': p.id === cur ? 'page' : false },
-      h('span', null, p.title), h('small', null, badge(p.id)))));
+      h('span', null, t('nav.' + p.id)), h('small', null, badge(p.id)))));
 }
 
 const views = {};
@@ -132,11 +133,11 @@ function actionButton(a) {
 // ---------------------------------------------------------------- overview
 
 views.overview = async (page, alive) => {
-  header(page, 'Your PC, as it is', 'Kempt measures, explains what it found and changes nothing until you say so.');
-  const ribbon = h('section', { class: 'ribbon-wrap', 'aria-label': 'System drive' }, working('Measuring caches and leftovers…'));
+  header(page, t('overview.title'), t('overview.lede'));
+  const ribbon = h('section', { class: 'ribbon-wrap', 'aria-label': t('overview.driveLabel') }, working(t('overview.measuring')));
   const receipt = h('div');
-  const list = h('ul', { class: 'ledger', 'aria-label': 'What Kempt found' });
-  page.append(ribbon, receipt, h('h2', null, 'What needs a look'), list);
+  const list = h('ul', { class: 'ledger', 'aria-label': t('overview.foundLabel') });
+  page.append(ribbon, receipt, h('h2', null, t('overview.needsLook')), list);
   if (state.lastReceipt) receipt.append(state.lastReceipt);
 
   const healthP = checkHealth().catch(e => e);
@@ -155,17 +156,15 @@ views.overview = async (page, alive) => {
   if (!alive()) return;
   if (Array.isArray(st)) {
     const on = st.filter(i => i.enabled).length;
-    items.push(simpleRow(plural(on, 'program') + ' start when you sign in',
-      'Each one adds to the wait before your desktop is ready. Turn off the ones you do not need right away.',
-      h('a', { class: 'btn', href: '#/startup' }, 'Review startup')));
+    items.push(simpleRow(tn('overview.startup', on), t('overview.startup.sub'),
+      h('a', { class: 'btn', href: '#/startup' }, t('overview.startup.button'))));
   }
-  const bin = scans['recycle-bin'];
-  if (bin && bin.bytes > 0) {
-    items.push(simpleRow(`${bytes(bin.bytes)} in the ${binName()}`,
-      'Kempt never empties it on its own. Empty it when you are sure you will not want those files back.',
-      h('a', { class: 'btn', href: '#/clean' }, 'Review')));
+  const b = scans['recycle-bin'];
+  if (b && b.bytes > 0) {
+    items.push(simpleRow(t('overview.bin', { size: bytes(b.bytes), bin: bin() }), t('overview.bin.sub'),
+      h('a', { class: 'btn', href: '#/clean' }, t('overview.bin.button'))));
   }
-  if (!items.length) items.push(h('li', { class: 'empty' }, 'Nothing needs your attention right now.'));
+  if (!items.length) items.push(h('li', { class: 'empty' }, t('overview.nothing')));
   fill(list, items);
 };
 
@@ -178,35 +177,35 @@ function drawRibbon(box, rep, scans, receipt) {
   if (d && d.total > 0) {
     const used = d.total - d.free;
     const pct = v => Math.max(0, Math.min(100, v / d.total * 100));
-    const usedEl = h('span', { class: 'used', title: 'In use' });
-    const goEl = h('span', { class: 'can-go' + (go ? '' : ' none'), title: 'Can go' });
+    const usedEl = h('span', { class: 'used', title: t('overview.legend.inUse.short') });
+    const goEl = h('span', { class: 'can-go' + (go ? '' : ' none'), title: t('overview.legend.canGo.short') });
     usedEl.style.width = pct(Math.max(0, used - go)) + '%';
     goEl.style.width = pct(Math.min(go, used)) + '%';
     parts.push(
-      h('div', { class: 'ribbon', role: 'img', 'aria-label': `Drive ${d.path}: ${bytes(used)} used, ${bytes(go)} of it can go, ${bytes(d.free)} free` },
+      h('div', { class: 'ribbon', role: 'img', 'aria-label': t('overview.ribbon.label', { drive: d.path, used: bytes(used), go: bytes(go), free: bytes(d.free) }) },
         usedEl, goEl, h('span', { class: 'free' })),
       h('div', { class: 'legend' },
-        h('span', null, h('i', { class: 'used' }), `In use ${bytes(Math.max(0, used - go))}`),
-        h('span', null, h('i', { class: 'can-go' }), `Can go ${bytes(go)}`),
-        h('span', null, h('i', { class: 'free' }), `Free ${bytes(d.free)} of ${bytes(d.total)} on ${d.path}`)));
+        h('span', null, h('i', { class: 'used' }), t('overview.legend.inUse', { size: bytes(Math.max(0, used - go)) })),
+        h('span', null, h('i', { class: 'can-go' }), t('overview.legend.canGo', { size: bytes(go) })),
+        h('span', null, h('i', { class: 'free' }), t('overview.legend.free', { free: bytes(d.free), total: bytes(d.total), drive: d.path }))));
   }
-  const tidy = h('button', { class: 'btn primary', disabled: !go, onclick: () => tidyUp(tidy, ids, box, receipt) }, 'Tidy up');
+  const tidy = h('button', { class: 'btn primary', disabled: !go, onclick: () => tidyUp(tidy, ids, box, receipt) }, t('overview.tidy'));
   fill(box,
     h('div', { class: 'ribbon-head' },
       h('span', { class: 'big' }, bytes(go)),
-      h('span', null, go ? 'of caches and leftovers can go without losing anything you made.' : 'Nothing to tidy right now.')),
+      h('span', null, go ? t('overview.canGo') : t('overview.nothingToTidy'))),
     parts,
     h('div', { class: 'toolbar' }, tidy,
-      h('a', { class: 'btn quiet', href: '#/clean' }, 'See what this includes'),
-      h('span', { class: 'muted small' }, `Covers ${plural(state.care.length, 'kind')} of files, chosen in Automatic care.`)));
+      h('a', { class: 'btn quiet', href: '#/clean' }, t('overview.seeWhat')),
+      h('span', { class: 'muted small' }, tn('overview.covers', state.care.length))));
 }
 
 async function tidyUp(btn, ids, box, receipt) {
   btn.disabled = true;
-  const w = working('Removing files…');
+  const w = working(t('progress.removing'));
   btn.after(w);
   try {
-    const r = await runJob('clean', { ids }, p => w.set(`Removing files… ${plural(p.files || 0, 'file')}, ${bytes(p.bytes || 0)}`));
+    const r = await runJob('clean', { ids }, p => w.set(tn('progress.removingCount', p.files || 0, { size: bytes(p.bytes || 0) })));
     state.lastReceipt = receiptFor(r.results);
     state.scanJob = null;
     state.healthJob = null;
@@ -220,13 +219,13 @@ function receiptFor(results) {
   const skipped = results.reduce((n, r) => n + r.skipped, 0);
   const lines = results.filter(r => r.removed || r.status === 'in-use' || r.status === 'admin').map(r => {
     const c = cat(r.id) || { name: r.id };
-    if (r.status === 'in-use') return `${c.name}: skipped, close ${c.app} first`;
-    if (r.status === 'admin') return `${c.name}: skipped, needs administrator`;
-    return `${c.name}: ${bytes(r.freed)}`;
+    if (r.status === 'in-use') return t('receipt.inUse', { name: c.name, app: c.app });
+    if (r.status === 'admin') return t('receipt.admin', { name: c.name });
+    return t('receipt.line', { name: c.name, size: bytes(r.freed) });
   });
   return h('div', { class: 'receipt', role: 'status' },
-    h('h3', null, removed ? `Freed ${bytes(freed)}` : 'Nothing was removed'),
-    h('div', { class: 'muted small' }, `${plural(removed, 'file')} removed` + (skipped ? `, ${plural(skipped, 'file')} left because a program was using them` : '') + '. Recorded in History.'),
+    h('h3', null, removed ? t('receipt.freed', { size: bytes(freed) }) : t('receipt.nothing')),
+    h('div', { class: 'muted small' }, tn('receipt.removed', removed) + (skipped ? ' ' + tn('receipt.skipped', skipped) : '') + ' ' + t('receipt.recorded')),
     lines.length ? h('ul', null, lines.map(l => h('li', null, l))) : null);
 }
 
@@ -249,15 +248,15 @@ function findingRow(f) {
 
 const statusChip = (s, c) => ({
   ready: null,
-  empty: h('span', { class: 'chip' }, 'Nothing to remove'),
-  missing: h('span', { class: 'chip' }, c.group === 'browsers' ? 'Not installed' : 'Nothing here'),
-  'in-use': h('span', { class: 'chip warn' }, `Close ${c.app} first`),
-  admin: h('span', { class: 'chip warn' }, 'Needs administrator'),
+  empty: h('span', { class: 'chip' }, t('clean.status.empty')),
+  missing: h('span', { class: 'chip' }, c.group === 'browsers' ? t('clean.status.notInstalled') : t('clean.status.nothingHere')),
+  'in-use': h('span', { class: 'chip warn' }, t('clean.status.inUse', { app: c.app })),
+  admin: h('span', { class: 'chip warn' }, t('clean.status.admin')),
 }[s.status]);
 
 views.clean = async (page, alive) => {
-  header(page, 'Clean up', 'Caches and leftovers that programs recreate on their own. Your documents, photos, passwords, cookies and browsing history are never part of this.');
-  const body = h('div', null, working('Measuring…'));
+  header(page, t('clean.title'), t('clean.lede'));
+  const body = h('div', null, working(t('clean.measuring')));
   page.append(body);
   let scans;
   try { scans = await scan(); } catch (e) { if (alive()) fill(body, errorBox(e, render)); return; }
@@ -265,27 +264,27 @@ views.clean = async (page, alive) => {
 
   const chosen = new Set(state.categories.filter(c => scans[c.id] && scans[c.id].status === 'ready' && c.kind !== 'bin' && scans[c.id].bytes > 0).map(c => c.id));
   const total = h('strong');
-  const go = h('button', { class: 'btn primary' }, 'Clean selected');
+  const go = h('button', { class: 'btn primary' }, t('clean.cleanSelected'));
   const refresh = () => {
     const sum = [...chosen].reduce((n, id) => n + (scans[id] ? scans[id].bytes : 0), 0);
     total.textContent = bytes(sum);
     go.disabled = chosen.size === 0;
   };
-  const groups = [['system', 'Windows and programs'], ['browsers', 'Browser caches'], ['bin', 'Deleted files']];
+  const groups = [['system', isWin() ? 'clean.group.system' : 'clean.group.systemUnix'], ['browsers', 'clean.group.browsers'], ['bin', 'clean.group.bin']];
   const lists = groups.map(([g, label]) => {
     const cs = state.categories.filter(c => c.group === g);
     if (!cs.length) return null;
-    return [h('div', { class: 'group-label' }, g === 'system' && !isWin() ? 'System and programs' : label),
+    return [h('div', { class: 'group-label' }, t(label)),
       h('ul', { class: 'ledger' }, cs.map(c => categoryRow(c, scans[c.id] || { status: 'missing', bytes: 0, files: 0 }, chosen, refresh)))];
   });
   go.addEventListener('click', async () => {
     const ids = [...chosen];
-    if (ids.includes('recycle-bin') && !confirm(`Empty the ${binName()}? Files in it cannot be restored afterwards.`)) return;
+    if (ids.includes('recycle-bin') && !confirm(t('clean.confirmBin', { bin: bin() }))) return;
     go.disabled = true;
-    const w = working('Removing files…');
+    const w = working(t('progress.removing'));
     fill(result, w);
     try {
-      const r = await runJob('clean', { ids }, p => w.set(`Removing files… ${plural(p.files || 0, 'file')}, ${bytes(p.bytes || 0)}${p.now ? ' (' + p.now + ')' : ''}`));
+      const r = await runJob('clean', { ids }, p => w.set(tn('progress.removingCount', p.files || 0, { size: bytes(p.bytes || 0) }) + (p.now ? ' (' + p.now + ')' : '')));
       state.lastReceipt = receiptFor(r.results);
       state.scanJob = null;
       state.healthJob = null;
@@ -296,39 +295,39 @@ views.clean = async (page, alive) => {
   const result = h('div');
   if (state.lastReceipt) result.append(state.lastReceipt);
   fill(body,
-    h('div', { class: 'toolbar' }, go, h('span', null, 'Selected: ', total),
+    h('div', { class: 'toolbar' }, go, h('span', null, t('ui.selected'), ' ', total),
       h('span', { class: 'grow' }),
-      h('button', { class: 'btn quiet', onclick: () => { state.scanJob = null; state.lastReceipt = null; render(); } }, 'Measure again')),
+      h('button', { class: 'btn quiet', onclick: () => { state.scanJob = null; state.lastReceipt = null; render(); } }, t('clean.measureAgain'))),
     result, lists,
     isWin() ? h('div', { class: 'notice' },
-      h('p', null, h('strong', null, 'Windows Update leftovers and old Windows versions')),
-      h('p', null, 'Windows’ own Disk Cleanup knows which of these are safe to remove. Choose “Clean up system files” there.'),
+      h('p', null, h('strong', null, t('clean.diskCleanup.title'))),
+      h('p', null, t('clean.diskCleanup.text')),
       h('div', { class: 'toolbar' },
-        h('button', { class: 'btn', onclick: () => action('open:diskcleanup') }, 'Open Disk Cleanup'),
-        h('button', { class: 'btn quiet', onclick: () => action('open:storagesense') }, 'Storage Sense settings'))) : null);
+        h('button', { class: 'btn', onclick: () => action('open:diskcleanup') }, t('clean.diskCleanup.open')),
+        h('button', { class: 'btn quiet', onclick: () => action('open:storagesense') }, t('clean.storageSense.open')))) : null);
   refresh();
 };
 
 function categoryRow(c, s, chosen, refresh) {
   const ready = s.status === 'ready' && (s.bytes > 0 || s.files > 0);
-  const box = h('input', { type: 'checkbox', checked: chosen.has(c.id), disabled: !ready, 'aria-label': 'Include ' + c.name,
+  const box = h('input', { type: 'checkbox', checked: chosen.has(c.id), disabled: !ready, 'aria-label': t('clean.include', { name: c.name }),
     onchange: e => { e.target.checked ? chosen.add(c.id) : chosen.delete(c.id); refresh(); } });
   const more = h('div', { class: 'row-more', hidden: true },
     h('dl', null,
-      h('dt', null, 'What it is'), h('dd', null, c.what),
-      h('dt', null, 'Why it is safe'), h('dd', null, c.safe),
-      c.cost ? [h('dt', null, 'What you give up'), h('dd', null, c.cost)] : null,
-      c.minAgeDays ? [h('dt', null, 'Left alone'), h('dd', null, `Files changed in the last ${plural(c.minAgeDays, 'day')}.`)] : null),
-    s.largest && s.largest.length ? [h('p', null, 'Largest files:'),
+      h('dt', null, t('clean.what')), h('dd', null, c.what),
+      h('dt', null, t('clean.safe')), h('dd', null, c.safe),
+      c.cost ? [h('dt', null, t('clean.cost')), h('dd', null, c.cost)] : null,
+      c.minAgeDays ? [h('dt', null, t('clean.leftAlone')), h('dd', null, tn('clean.leftAlone.days', c.minAgeDays))] : null),
+    s.largest && s.largest.length ? [h('p', null, t('clean.largest')),
       h('table', { class: 'files' }, h('tbody', null, s.largest.map(f => h('tr', null,
         h('td', { class: 'path' }, f.path), h('td', { class: 'size' }, bytes(f.size)),
-        h('td', null, h('button', { class: 'btn quiet', onclick: () => action('reveal', f.path) }, 'Show'))))))] : null);
-  const exp = h('button', { class: 'expander', 'aria-expanded': 'false', 'aria-label': 'Details for ' + c.name,
+        h('td', null, h('button', { class: 'btn quiet', onclick: () => action('reveal', f.path) }, t('ui.show')))))))] : null);
+  const exp = h('button', { class: 'expander', 'aria-expanded': 'false', 'aria-label': t('clean.details', { name: c.name }),
     onclick: () => { more.hidden = !more.hidden; exp.setAttribute('aria-expanded', String(!more.hidden)); } }, icon('chevron'));
   return h('li', null,
     h('div', { class: 'row-main' }, box,
       h('div', { class: 'row-title' }, h('h3', null, c.name),
-        h('div', { class: 'sub' }, s.files ? plural(s.files, 'file') : c.what, ' ', statusChip(s, c))),
+        h('div', { class: 'sub' }, s.files ? tn('unit.file', s.files) : c.what, ' ', statusChip(s, c))),
       h('span', { class: 'amount' + (s.bytes ? '' : ' zero') }, s.status === 'missing' ? '' : bytes(s.bytes)), exp),
     more);
 }
@@ -337,55 +336,65 @@ function categoryRow(c, s, chosen, refresh) {
 
 async function folderPicker(onRun, label) {
   if (!state.folders) state.folders = await api('GET', '/api/local/folders');
-  const input = h('input', { type: 'text', value: state.folders.home, 'aria-label': 'Folder to search', spellcheck: 'false' });
-  const pick = h('select', { 'aria-label': 'Common folders', onchange: e => { input.value = e.target.value; } },
-    state.folders.folders.map(f => h('option', { value: f.path }, f.label)));
+  const input = h('input', { type: 'text', value: state.folders.home, 'aria-label': t('files.folder'), spellcheck: 'false' });
+  const pick = h('select', { 'aria-label': t('files.commonFolders'), onchange: e => { input.value = e.target.value; } },
+    state.folders.folders.map(f => h('option', { value: f.path }, folderLabel(f))));
   return { input, row: [pick, input, h('button', { class: 'btn primary', onclick: () => onRun(input.value.trim()) }, label)] };
 }
 
+// Folder names come from the server in English; known ones are translated.
+function folderLabel(f) {
+  const known = { 'Your files': 'files.folder.home', Downloads: 'files.folder.downloads', Desktop: 'files.folder.desktop',
+    Documents: 'files.folder.documents', Pictures: 'files.folder.pictures', Videos: 'files.folder.videos', Music: 'files.folder.music' };
+  if (Object.hasOwn(known, f.label)) return t(known[f.label]);
+  if (f.label.startsWith('Drive ')) return t('files.folder.drive', { drive: f.label.slice(6) });
+  return f.label;
+}
+
 views.large = async (page, alive) => {
-  header(page, 'Large files', 'The biggest files in a folder, so you can decide what you still need. Programs, Windows and app data are left out of the search.');
-  const min = h('select', { 'aria-label': 'Smallest size' },
-    [[100, '100 MB and up'], [500, '500 MB and up'], [1024, '1 GB and up'], [50, '50 MB and up']].map(([v, t]) => h('option', { value: v }, t)));
+  header(page, t('large.title'), t('large.lede'));
+  const min = h('select', { 'aria-label': t('files.minSize') },
+    [[100, 100 * 2 ** 20], [500, 500 * 2 ** 20], [1024, 2 ** 30], [50, 50 * 2 ** 20]].map(([v, b]) => h('option', { value: v }, t('files.andUp', { size: bytes(b) }))));
   const out = h('div');
-  const picker = await folderPicker(root => search(root), 'Find large files');
+  const picker = await folderPicker(root => search(root), t('large.find'));
   if (!alive()) return;
   page.append(h('div', { class: 'toolbar' }, picker.row, min), out);
 
   async function search(root) {
-    const w = working('Searching…');
-    const stop = h('button', { class: 'btn quiet' }, 'Stop');
+    const w = working(t('files.searching'));
+    const stop = h('button', { class: 'btn quiet' }, t('ui.stop'));
     fill(out, h('div', { class: 'toolbar' }, w, stop));
-    const job = runJob('large', { root, minMB: Number(min.value) }, p => w.set(`Searching… ${plural(p.files || 0, 'file')} looked at`));
+    const job = runJob('large', { root, minMB: Number(min.value) }, p => w.set(tn('files.searchingCount', p.files || 0)));
     stop.onclick = () => job.cancel();
     try {
       const r = await job;
       if (alive()) showFiles(out, r.files, r.searched);
-    } catch (e) { if (alive()) fill(out, e.code === 'stopped' ? h('p', { class: 'empty' }, 'Search stopped.') : errorBox(e)); }
+    } catch (e) { if (alive()) fill(out, e.code === 'stopped' ? h('p', { class: 'empty' }, t('files.stopped')) : errorBox(e)); }
   }
 };
 
 function showFiles(out, list, searched) {
-  if (!list.length) { fill(out, h('p', { class: 'empty' }, `No files that large among ${plural(searched || 0, 'file')}.`)); return; }
+  if (!list.length) { fill(out, h('p', { class: 'empty' }, tn('large.none', searched || 0))); return; }
   const chosen = new Set();
-  const total = h('strong', null, '0 MB');
-  const btn = h('button', { class: 'btn', disabled: true }, `Move to ${binName()}`);
+  const total = h('strong', null, bytes(0));
+  const btn = h('button', { class: 'btn', disabled: true }, t('files.moveToBin', { bin: bin() }));
   const upd = () => {
     total.textContent = bytes(list.filter(f => chosen.has(f.path)).reduce((n, f) => n + f.size, 0));
     btn.disabled = !chosen.size;
   };
   btn.onclick = () => recycle([...chosen], () => showFiles(out, list.filter(f => !chosen.has(f.path)), searched));
   fill(out,
-    h('div', { class: 'toolbar' }, btn, h('span', null, 'Selected: ', total), h('span', { class: 'grow' }),
-      h('span', { class: 'muted small' }, `${plural(list.length, 'file')} shown, largest first`)),
+    h('div', { class: 'toolbar' }, btn, h('span', null, t('ui.selected'), ' ', total), h('span', { class: 'grow' }),
+      h('span', { class: 'muted small' }, tn('large.shown', list.length))),
     h('table', { class: 'files' },
-      h('thead', null, h('tr', null, h('th', null, h('span', { class: 'sr' }, 'Select')), h('th', null, 'File'), h('th', null, 'Changed'), h('th', null, 'Size'), h('th', null, h('span', { class: 'sr' }, 'Show')))),
+      h('thead', null, h('tr', null, h('th', null, h('span', { class: 'sr' }, t('files.col.select'))), h('th', null, t('files.col.file')),
+        h('th', null, t('files.col.changed')), h('th', null, t('files.col.size')), h('th', null, h('span', { class: 'sr' }, t('ui.show'))))),
       h('tbody', null, list.map(f => h('tr', null,
-        h('td', null, h('input', { type: 'checkbox', 'aria-label': 'Select ' + f.path, onchange: e => { e.target.checked ? chosen.add(f.path) : chosen.delete(f.path); upd(); } })),
+        h('td', null, h('input', { type: 'checkbox', 'aria-label': t('files.select', { path: f.path }), onchange: e => { e.target.checked ? chosen.add(f.path) : chosen.delete(f.path); upd(); } })),
         h('td', { class: 'path' }, f.path),
         h('td', { class: 'date' }, day(f.modified)),
         h('td', { class: 'size' }, bytes(f.size)),
-        h('td', null, h('button', { class: 'btn quiet', onclick: () => action('reveal', f.path) }, 'Show')))))));
+        h('td', null, h('button', { class: 'btn quiet', onclick: () => action('reveal', f.path) }, t('ui.show'))))))));
 }
 
 async function recycle(paths, after) {
@@ -393,40 +402,40 @@ async function recycle(paths, after) {
     const r = await runJob('recycle', { paths });
     const ok = r.results.filter(x => x.ok).length;
     const bad = r.results.filter(x => !x.ok);
-    toast(`Moved ${plural(ok, 'file')} (${bytes(r.bytes)}) to the ${binName()}.` + (bad.length ? ` ${bad.length} could not be moved: ${bad[0].message}` : ''), bad.length ? 'error' : '');
+    toast(tn('files.moved', ok, { size: bytes(r.bytes), bin: bin() }) + (bad.length ? ' ' + tn('files.notMoved', bad.length, { reason: bad[0].message }) : ''), bad.length ? 'error' : '');
     state.scanJob = null;
     after();
   } catch (e) { toast(e.message, 'error'); }
 }
 
 views.dupes = async (page, alive) => {
-  header(page, 'Duplicates', 'Files with exactly the same contents, compared byte for byte. Kempt marks the oldest copy to keep; you choose which copies go.');
-  const min = h('select', { 'aria-label': 'Smallest size' },
-    [[1024, '1 MB and up'], [100, '100 KB and up'], [10240, '10 MB and up'], [102400, '100 MB and up']].map(([v, t]) => h('option', { value: v }, t)));
+  header(page, t('dupes.title'), t('dupes.lede'));
+  const min = h('select', { 'aria-label': t('files.minSize') },
+    [[1024, 2 ** 20], [100, 100 * 2 ** 10], [10240, 10 * 2 ** 20], [102400, 100 * 2 ** 20]].map(([v, b]) => h('option', { value: v }, t('files.andUp', { size: bytes(b) }))));
   const out = h('div');
-  const picker = await folderPicker(root => search(root), 'Find duplicates');
+  const picker = await folderPicker(root => search(root), t('dupes.find'));
   if (!alive()) return;
   page.append(h('div', { class: 'toolbar' }, picker.row, min), out);
 
   async function search(root) {
-    const w = working('Comparing…');
-    const stop = h('button', { class: 'btn quiet' }, 'Stop');
+    const w = working(t('dupes.comparing'));
+    const stop = h('button', { class: 'btn quiet' }, t('ui.stop'));
     fill(out, h('div', { class: 'toolbar' }, w, stop));
-    const job = runJob('dupes', { root, minKB: Number(min.value) }, p => w.set(`Comparing… ${plural(p.files || 0, 'file')} looked at`));
+    const job = runJob('dupes', { root, minKB: Number(min.value) }, p => w.set(tn('dupes.comparingCount', p.files || 0)));
     stop.onclick = () => job.cancel();
     try {
       const r = await job;
       if (alive()) showDupes(out, r.groups, r.searched);
-    } catch (e) { if (alive()) fill(out, e.code === 'stopped' ? h('p', { class: 'empty' }, 'Search stopped.') : errorBox(e)); }
+    } catch (e) { if (alive()) fill(out, e.code === 'stopped' ? h('p', { class: 'empty' }, t('files.stopped')) : errorBox(e)); }
   }
 };
 
 function showDupes(out, groups, searched) {
-  if (!groups.length) { fill(out, h('p', { class: 'empty' }, `No duplicates among ${plural(searched || 0, 'file')}.`)); return; }
+  if (!groups.length) { fill(out, h('p', { class: 'empty' }, tn('dupes.none', searched || 0))); return; }
   const chosen = new Set();
   for (const g of groups) g.files.slice(1).forEach(f => chosen.add(f.path));
   const total = h('strong');
-  const btn = h('button', { class: 'btn' }, `Move selected copies to ${binName()}`);
+  const btn = h('button', { class: 'btn' }, t('dupes.move', { bin: bin() }));
   const sizeOf = new Map(groups.flatMap(g => g.files.map(f => [f.path, g.size])));
   const upd = () => {
     total.textContent = bytes([...chosen].reduce((n, p) => n + (sizeOf.get(p) || 0), 0));
@@ -435,22 +444,22 @@ function showDupes(out, groups, searched) {
   btn.onclick = () => {
     // Never let every copy of a file go.
     const all = groups.find(g => g.files.every(f => chosen.has(f.path)));
-    if (all) { toast('Keep at least one copy of every file: ' + all.files[0].path, 'error'); return; }
+    if (all) { toast(t('dupes.keepOne', { path: all.files[0].path }), 'error'); return; }
     recycle([...chosen], () => showDupes(out, groups.map(g => ({ ...g, files: g.files.filter(f => !chosen.has(f.path)) })).filter(g => g.files.length > 1), searched));
   };
   const wasted = groups.reduce((n, g) => n + g.wasted, 0);
   fill(out,
-    h('div', { class: 'toolbar' }, btn, h('span', null, 'Selected: ', total), h('span', { class: 'grow' }),
-      h('span', { class: 'muted small' }, `${plural(groups.length, 'set')} of duplicates, ${bytes(wasted)} in extra copies`)),
+    h('div', { class: 'toolbar' }, btn, h('span', null, t('ui.selected'), ' ', total), h('span', { class: 'grow' }),
+      h('span', { class: 'muted small' }, tn('dupes.summary', groups.length, { size: bytes(wasted) }))),
     groups.map(g => h('section', { class: 'dup' },
-      h('header', null, h('h3', null, `${plural(g.files.length, 'copy', 'copies')} of ${bytes(g.size)}`), h('span', { class: 'muted small' }, `${bytes(g.wasted)} in extra copies`)),
+      h('header', null, h('h3', null, tn('dupes.group', g.files.length, { size: bytes(g.size) })), h('span', { class: 'muted small' }, t('dupes.extra', { size: bytes(g.wasted) }))),
       h('table', { class: 'files' }, h('tbody', null, g.files.map((f, i) => {
         const tr = h('tr', { class: chosen.has(f.path) ? '' : 'keep' },
-          h('td', null, h('input', { type: 'checkbox', checked: chosen.has(f.path), 'aria-label': 'Move ' + f.path,
+          h('td', null, h('input', { type: 'checkbox', checked: chosen.has(f.path), 'aria-label': t('dupes.moveOne', { path: f.path }),
             onchange: e => { e.target.checked ? chosen.add(f.path) : chosen.delete(f.path); tr.className = e.target.checked ? '' : 'keep'; upd(); } })),
-          h('td', { class: 'path' }, f.path, i === 0 ? h('span', { class: 'chip good' }, ' Oldest copy') : null),
+          h('td', { class: 'path' }, f.path, i === 0 ? [' ', h('span', { class: 'chip good' }, t('dupes.oldest'))] : null),
           h('td', { class: 'date' }, day(f.modified)),
-          h('td', null, h('button', { class: 'btn quiet', onclick: () => action('reveal', f.path) }, 'Show')));
+          h('td', null, h('button', { class: 'btn quiet', onclick: () => action('reveal', f.path) }, t('ui.show'))));
         return tr;
       }))))));
   upd();
@@ -459,24 +468,22 @@ function showDupes(out, groups, searched) {
 // ---------------------------------------------------------------- startup
 
 views.startup = async (page, alive) => {
-  header(page, 'Startup', isWin()
-    ? 'Programs that start when you sign in. Kempt uses the same switch as Task Manager, so turning one off is always reversible and nothing is deleted.'
-    : 'Programs that start when you sign in, from the autostart folders. Turning one off writes a personal override; nothing is deleted.');
-  const body = h('div', null, working('Reading startup programs…'));
+  header(page, t('startup.title'), isWin() ? t('startup.lede') : t('startup.lede.unix'));
+  const body = h('div', null, working(t('startup.reading')));
   page.append(body);
   const items = await loadStartup();
   if (!alive()) return;
-  if (!items.length) { fill(body, h('p', { class: 'empty' }, 'No programs start when you sign in.')); return; }
+  if (!items.length) { fill(body, h('p', { class: 'empty' }, t('startup.none'))); return; }
   fill(body,
     h('ul', { class: 'ledger' }, items.map(it => {
-      const sw = h('input', { type: 'checkbox', class: 'switch', checked: it.enabled, 'aria-label': (it.enabled ? 'Turn off ' : 'Turn on ') + it.name,
+      const sw = h('input', { type: 'checkbox', class: 'switch', checked: it.enabled, 'aria-label': t(it.enabled ? 'startup.turnOff' : 'startup.turnOn', { name: it.name }),
         disabled: it.admin && !state.mode.elevated,
         onchange: async e => {
           sw.disabled = true;
           try {
             const r = await api('POST', '/api/local/startup', { id: it.id, enabled: e.target.checked });
             it.enabled = r.enabled;
-            toast(`${it.name} ${r.enabled ? 'will start' : 'will no longer start'} when you sign in.`);
+            toast(t(r.enabled ? 'startup.willStart' : 'startup.willNotStart', { name: it.name }));
             updateNav();
           } catch (err) { e.target.checked = !e.target.checked; toast(err.message, 'error'); }
           sw.disabled = false;
@@ -484,25 +491,25 @@ views.startup = async (page, alive) => {
       return h('li', null, h('div', { class: 'row-main' }, sw,
         h('div', { class: 'row-title' }, h('h3', null, it.name),
           h('div', { class: 'sub', title: it.command }, [it.publisher, it.where].filter(Boolean).join(', '),
-            it.missing ? h('span', { class: 'chip warn' }, ' Program file is missing') : null,
-            it.admin && !state.mode.elevated ? h('span', { class: 'chip' }, ' All users: needs administrator') : null)),
-        h('span'), h('span', { class: 'muted small' }, it.enabled ? 'On' : 'Off')));
+            it.missing ? [' ', h('span', { class: 'chip warn' }, t('startup.missing'))] : null,
+            it.admin && !state.mode.elevated ? [' ', h('span', { class: 'chip' }, t('startup.allUsers'))] : null)),
+        h('span'), h('span', { class: 'muted small' }, t(it.enabled ? 'ui.on' : 'ui.off'))));
     })),
-    h('p', { class: 'muted small' }, 'Changes take effect the next time you sign in.' + (isWin() ? ' Task Manager and Settings › Apps › Startup show the same state.' : '')));
+    h('p', { class: 'muted small' }, t('startup.note') + (isWin() ? ' ' + t('startup.note.win') : '')));
 };
 
 // ---------------------------------------------------------------- app updates
 
 views.updates = async (page, alive) => {
-  header(page, 'App updates', 'Kempt asks winget, the package manager built into Windows, which of your programs have a newer version, and installs them from the same sources Microsoft uses.');
+  header(page, t('updates.title'), t('updates.lede'));
   const out = h('div');
   page.append(out);
   if (!feat('winget')) {
-    out.append(h('div', { class: 'notice warn' }, h('p', null, 'winget is missing. It comes with “App Installer” from the Microsoft Store; install or update that, then open this page again.')));
+    out.append(h('div', { class: 'notice warn' }, h('p', null, t('updates.noWinget'))));
     return;
   }
   const check = async () => {
-    fill(out, working('Asking winget for updates. This can take a minute…'));
+    fill(out, working(t('updates.checking')));
     try {
       const r = await runJob('updates');
       state.updates = r.updates || [];
@@ -515,58 +522,58 @@ views.updates = async (page, alive) => {
 
 function showUpdates(out, check) {
   const ups = state.updates;
-  if (!ups.length) { fill(out, h('p', { class: 'empty' }, 'Every program winget knows about is up to date.'), h('button', { class: 'btn', onclick: check }, 'Check again')); return; }
+  if (!ups.length) { fill(out, h('p', { class: 'empty' }, t('updates.none')), h('button', { class: 'btn', onclick: check }, t('ui.checkAgain'))); return; }
   const chosen = new Set(ups.filter(u => !u.truncated).map(u => u.id));
-  const btn = h('button', { class: 'btn primary' }, 'Update selected');
+  const btn = h('button', { class: 'btn primary' }, t('updates.updateSelected'));
   const result = h('div');
   btn.onclick = async () => {
     btn.disabled = true;
-    const w = working('Updating…');
+    const w = working(t('updates.updating'));
     fill(result, w);
     try {
-      const r = await runJob('upgrade', { ids: [...chosen] }, p => w.set(`Updating ${p.now || ''}… (${p.files || 0} of ${chosen.size} done). Some installers ask for permission.`));
+      const r = await runJob('upgrade', { ids: [...chosen] }, p => w.set(t('updates.progress', { name: p.now || '', done: num(p.files || 0), total: num(chosen.size) })));
       const ok = r.results.filter(x => x.ok);
-      fill(result, h('div', { class: 'receipt' }, h('h3', null, `Updated ${plural(ok.length, 'program')}`),
-        h('ul', null, r.results.map(x => h('li', null, `${x.id}: ${x.ok ? 'updated' : 'not updated. ' + (x.message || '').split('\n').pop()}`)))));
+      fill(result, h('div', { class: 'receipt' }, h('h3', null, tn('updates.updated', ok.length)),
+        h('ul', null, r.results.map(x => h('li', null, x.ok ? t('updates.line.ok', { id: x.id }) : t('updates.line.failed', { id: x.id, reason: (x.message || '').split('\n').pop() }))))));
       state.updates = ups.filter(u => !ok.some(x => x.id === u.id));
       updateNav();
     } catch (e) { fill(result, errorBox(e)); }
     btn.disabled = false;
   };
-  fill(out, h('div', { class: 'toolbar' }, btn, h('button', { class: 'btn quiet', onclick: check }, 'Check again')), result,
+  fill(out, h('div', { class: 'toolbar' }, btn, h('button', { class: 'btn quiet', onclick: check }, t('ui.checkAgain'))), result,
     h('ul', { class: 'ledger' }, ups.map(u => h('li', null, h('div', { class: 'row-main' },
-      h('input', { type: 'checkbox', checked: chosen.has(u.id), disabled: u.truncated, 'aria-label': 'Update ' + u.name,
+      h('input', { type: 'checkbox', checked: chosen.has(u.id), disabled: u.truncated, 'aria-label': t('updates.update', { name: u.name }),
         onchange: e => { e.target.checked ? chosen.add(u.id) : chosen.delete(u.id); btn.disabled = !chosen.size; } }),
       h('div', { class: 'row-title' }, h('h3', null, u.name), h('div', { class: 'sub' }, u.id,
-        u.truncated ? h('span', { class: 'chip' }, ' Name too long for winget’s list; update it from the program itself') : null)),
+        u.truncated ? [' ', h('span', { class: 'chip' }, t('updates.truncated'))] : null)),
       h('span', { class: 'muted' }, u.version), h('span', { class: 'amount' }, u.available))))));
 }
 
 // ---------------------------------------------------------------- health
 
 views.health = async (page, alive) => {
-  header(page, 'Health', 'The things that decide whether this PC is in good shape: space, drives, protection, updates and memory. No made-up score.');
-  const body = h('div', null, working('Running a checkup…'));
-  const again = h('button', { class: 'btn quiet', onclick: () => { state.healthJob = null; render(); } }, 'Check again');
+  header(page, t('health.title'), t('health.lede'));
+  const body = h('div', null, working(t('health.running')));
+  const again = h('button', { class: 'btn quiet', onclick: () => { state.healthJob = null; render(); } }, t('ui.checkAgain'));
   page.append(h('div', { class: 'toolbar' }, again), body);
   const rep = await checkHealth();
   if (!alive()) return;
   const procs = rep.facts.procs || [];
   fill(body,
     h('ul', { class: 'ledger' }, rep.findings.map(findingRow)),
-    procs.length ? [h('h2', null, 'Using the most memory'),
+    procs.length ? [h('h2', null, t('health.memoryTitle')),
       h('table', { class: 'files' }, h('tbody', null, procs.map(p => h('tr', null,
-        h('td', null, p.name, p.count > 1 ? h('span', { class: 'muted' }, ` (${p.count} processes)`) : null),
+        h('td', null, p.name, p.count > 1 ? h('span', { class: 'muted' }, ' ' + tn('health.processes', p.count)) : null),
         h('td', { class: 'size' }, bytes(p.mem)))))),
-      h('p', { class: 'muted small' }, 'Memory a program holds is not wasted. It only matters when memory is nearly full; then close what you are not using.')] : null,
-    h('p', { class: 'muted small' }, 'Checked ' + when(new Date().toISOString()) + '.'));
+      h('p', { class: 'muted small' }, t('health.memoryNote'))] : null,
+    h('p', { class: 'muted small' }, t('health.checked', { when: when(new Date().toISOString()) })));
 };
 
 // ---------------------------------------------------------------- privacy
 
 views.privacy = async (page, alive) => {
-  header(page, 'Privacy', 'Switches Windows keeps for your account. Kempt changes the same values the Settings app does, and each one links to its page there.');
-  const body = h('div', null, working('Reading settings…'));
+  header(page, t('privacy.title'), t('privacy.lede'));
+  const body = h('div', null, working(t('privacy.reading')));
   page.append(body);
   const r = await api('GET', '/api/local/privacy');
   if (!alive()) return;
@@ -576,21 +583,23 @@ views.privacy = async (page, alive) => {
         sw.disabled = true;
         try {
           const x = await api('POST', '/api/local/privacy', { id: s.id, on: e.target.checked });
-          toast(`${x.title}: ${x.on ? 'on' : 'off'}.`);
+          toast(t(x.on ? 'privacy.isOn' : 'privacy.isOff', { name: x.title }));
         } catch (err) { e.target.checked = !e.target.checked; toast(err.message, 'error'); }
         sw.disabled = false;
       } });
     return h('li', null, h('div', { class: 'row-main' }, sw,
       h('div', { class: 'row-title' }, h('h3', null, s.title), h('div', { class: 'sub' }, s.what)),
       h('span'),
-      s.settings ? h('button', { class: 'btn quiet', onclick: () => action('settings:' + s.settings) }, 'Open in Settings') : h('span')));
-  })), h('p', { class: 'muted small' }, 'Some changes show after you sign out and in again. Every change is in History, where you can undo it.'));
+      s.settings ? h('button', { class: 'btn quiet', onclick: () => action('settings:' + s.settings) }, t('privacy.openSettings')) : h('span')));
+  })), h('p', { class: 'muted small' }, t('privacy.note')));
 };
 
 // ---------------------------------------------------------------- automatic care
 
+const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 views.care = async (page, alive) => {
-  header(page, 'Automatic care', 'Kempt can tidy the same caches on a schedule, using Windows Task Scheduler. Nothing of Kempt runs in the background in between.');
+  header(page, t('care.title'), t('care.lede'));
   const settings = await api('GET', '/api/local/settings');
   if (!alive()) return;
   const chosen = new Set(settings.careCategories);
@@ -598,94 +607,97 @@ views.care = async (page, alive) => {
     try {
       const r = await api('PUT', '/api/local/settings', { careCategories: [...chosen] });
       state.care = r.careCategories;
-      toast('Saved. Tidy up and automatic care use these kinds.');
+      toast(t('care.saved'));
     } catch (e) { toast(e.message, 'error'); }
   };
   const kinds = h('ul', { class: 'ledger' }, state.categories.filter(c => c.kind !== 'bin').map(c => h('li', null,
     h('label', { class: 'row-main no-check check' },
-      h('span', { class: 'row-title' }, h('h3', null, c.name), h('span', { class: 'sub' }, c.admin ? 'Only when Kempt runs as administrator' : c.what)),
+      h('span', { class: 'row-title' }, h('h3', null, c.name), h('span', { class: 'sub' }, c.admin ? t('care.adminOnly') : c.what)),
       h('span'),
       h('input', { type: 'checkbox', checked: chosen.has(c.id), onchange: e => { e.target.checked ? chosen.add(c.id) : chosen.delete(c.id); saveKinds(); } })))));
 
   const plan = h('div');
-  page.append(h('h2', null, 'When'), plan, h('h2', null, 'What it removes'),
-    h('p', { class: 'muted' }, `Also used by Tidy up on the overview. The ${binName()} is never emptied automatically, and anything a program has open is skipped.`), kinds);
+  page.append(h('h2', null, t('care.when')), plan, h('h2', null, t('care.whatTitle')),
+    h('p', { class: 'muted' }, t('care.whatNote', { bin: bin() })), kinds);
 
   if (!feat('schedule')) {
-    plan.append(h('div', { class: 'notice' }, h('p', null, 'Scheduling uses Windows Task Scheduler. On this system, add this line to your crontab (crontab -e) for a weekly run on Sunday at 11:00:'),
+    plan.append(h('div', { class: 'notice' }, h('p', null, t('care.cron')),
       h('p', null, h('code', null, '0 11 * * 0 kempt care'))));
     return;
   }
-  plan.append(working('Reading Task Scheduler…'));
+  plan.append(working(t('care.reading')));
   let p;
   try { p = await api('GET', '/api/local/schedule'); } catch (e) { if (alive()) fill(plan, errorBox(e)); return; }
   if (!alive()) return;
-  const on = h('input', { type: 'checkbox', class: 'switch', checked: p.enabled, 'aria-label': 'Automatic care' });
-  const freq = h('select', null, h('option', { value: 'weekly', selected: p.frequency !== 'daily' }, 'Every week'), h('option', { value: 'daily', selected: p.frequency === 'daily' }, 'Every day'));
-  const dayEl = h('select', null, ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => h('option', { value: d, selected: (p.day || 'Sunday') === d }, d)));
-  const time = h('input', { type: 'text', value: p.time || '11:00', 'aria-label': 'Time', inputmode: 'numeric', pattern: '[0-2][0-9]:[0-5][0-9]' });
-  const save = h('button', { class: 'btn primary' }, 'Save');
+  const on = h('input', { type: 'checkbox', class: 'switch', checked: p.enabled, 'aria-label': t('care.title') });
+  const freq = h('select', null,
+    h('option', { value: 'weekly', selected: p.frequency !== 'daily' }, t('care.weekly')),
+    h('option', { value: 'daily', selected: p.frequency === 'daily' }, t('care.daily')));
+  const dayEl = h('select', null, weekdays.map(d => h('option', { value: d, selected: (p.day || 'Sunday') === d }, t('day.' + d.toLowerCase()))));
+  const time = h('input', { type: 'text', value: p.time || '11:00', 'aria-label': t('care.time'), inputmode: 'numeric', pattern: '[0-2][0-9]:[0-5][0-9]' });
+  const save = h('button', { class: 'btn primary' }, t('ui.save'));
   const sync = () => { dayEl.disabled = freq.value === 'daily' || !on.checked; freq.disabled = time.disabled = !on.checked; };
   on.onchange = freq.onchange = sync;
   save.onclick = async () => {
     save.disabled = true;
     try {
       const r = await api('PUT', '/api/local/schedule', { enabled: on.checked, frequency: freq.value, day: dayEl.value, time: time.value.trim() });
-      toast(r.enabled ? 'Automatic care is on.' + (r.nextRun ? ' Next run: ' + when(r.nextRun) + '.' : '') : 'Automatic care is off.');
+      toast(r.enabled ? t('care.isOn') + (r.nextRun ? ' ' + t('care.nextRun', { when: when(r.nextRun) }) + '.' : '') : t('care.isOff'));
       render();
     } catch (e) { toast(e.message, 'error'); save.disabled = false; }
   };
   fill(plan,
     h('div', { class: 'form-grid' },
-      h('label', null, 'Automatic care'), h('div', null, on),
-      h('label', null, 'How often'), freq,
-      h('label', null, 'Day'), dayEl,
-      h('label', null, 'Time (24-hour)'), time),
+      h('label', null, t('care.title')), h('div', null, on),
+      h('label', null, t('care.howOften')), freq,
+      h('label', null, t('care.day')), dayEl,
+      h('label', null, t('care.time')), time),
     h('div', { class: 'toolbar' }, save,
-      p.nextRun ? h('span', { class: 'muted small' }, 'Next run: ' + when(p.nextRun)) : null,
-      p.lastRun ? h('span', { class: 'muted small' }, 'Last run: ' + when(p.lastRun)) : null),
-    p.enabled ? h('p', { class: 'muted small' }, 'If you move Kempt to another folder, save this again so the task finds it.') : null);
+      p.nextRun ? h('span', { class: 'muted small' }, t('care.nextRun', { when: when(p.nextRun) })) : null,
+      p.lastRun ? h('span', { class: 'muted small' }, t('care.lastRun', { when: when(p.lastRun) })) : null),
+    p.enabled ? h('p', { class: 'muted small' }, t('care.moved')) : null);
   sync();
 };
 
 // ---------------------------------------------------------------- settings
 
 views.settings = async (page, alive) => {
-  header(page, 'Settings', 'How Kempt itself starts. Both are off unless you turn them on.');
-  const body = h('div', null, working('Reading settings…'));
+  header(page, t('settings.title'), t('settings.lede'));
+  const body = h('div', null, working(t('settings.reading')));
   page.append(body);
   let st = await api('GET', '/api/local/app');
   if (!alive()) return;
+  const startName = isWin() ? t('settings.startup.win') : t('settings.startup.unix');
   const draw = () => {
     const change = async (key, value, sw) => {
       sw.disabled = true;
       try {
         st = await api('PUT', '/api/local/app', { [key]: value });
         toast(key === 'startup'
-          ? (st.startup ? 'Kempt will start when you sign in.' : 'Kempt will no longer start when you sign in.')
-          : (st.minimized ? 'Kempt will open minimized on the taskbar at startup.' : 'Kempt will open its window normally at startup.'));
+          ? t(st.startup ? 'settings.startup.on' : 'settings.startup.off')
+          : t(st.minimized ? 'settings.minimized.on' : 'settings.minimized.off'));
       } catch (e) { toast(e.message, 'error'); }
       if (alive()) draw();
     };
-    const startup = h('input', { type: 'checkbox', class: 'switch', checked: st.startup, 'aria-label': isWin() ? 'Start at Windows startup' : 'Start when you sign in',
+    const startup = h('input', { type: 'checkbox', class: 'switch', checked: st.startup, 'aria-label': startName,
       onchange: e => change('startup', e.target.checked, e.target) });
-    const mini = h('input', { type: 'checkbox', class: 'switch', checked: st.minimized, 'aria-label': 'Minimize to desktop and stick to taskbar',
+    const mini = h('input', { type: 'checkbox', class: 'switch', checked: st.minimized, 'aria-label': t('settings.minimized'),
       disabled: !st.minimizedSupported || !st.startup,
       onchange: e => change('minimized', e.target.checked, e.target) });
     fill(body, h('ul', { class: 'ledger' },
       h('li', null, h('div', { class: 'row-main' }, startup,
-        h('div', { class: 'row-title' }, h('h3', null, isWin() ? 'Start at Windows startup' : 'Start when you sign in'),
-          h('div', { class: 'sub' }, isWin()
-            ? 'Kempt opens when you sign in to Windows. It is listed as “Kempt” under Startup, here and in Task Manager, and nothing is cleaned until you ask.'
-            : 'Kempt opens when you sign in. It adds one file, kempt.desktop, to your autostart folder.')),
-        h('span'), h('span', { class: 'muted small' }, st.startup ? 'On' : 'Off'))),
+        h('div', { class: 'row-title' }, h('h3', null, startName),
+          h('div', { class: 'sub' }, isWin() ? t('settings.startup.sub.win') : t('settings.startup.sub.unix'))),
+        h('span'), h('span', { class: 'muted small' }, t(st.startup ? 'ui.on' : 'ui.off')))),
       h('li', null, h('div', { class: 'row-main' }, mini,
-        h('div', { class: 'row-title' }, h('h3', null, 'Minimize to desktop and stick to taskbar'),
+        h('div', { class: 'row-title' }, h('h3', null, t('settings.minimized')),
           h('div', { class: 'sub' }, !st.minimizedSupported
-            ? 'Only available on Windows.'
-            : 'When Kempt starts with Windows, its window opens minimized and stays on the taskbar until you click it.' + (st.startup ? '' : ' Turn on Start at Windows startup first.'))),
-        h('span'), h('span', { class: 'muted small' }, st.minimized ? 'On' : 'Off')))),
-      h('p', { class: 'muted small' }, 'Closing the window still closes Kempt. Both changes are recorded in History.'));
+            ? t('settings.minimized.windowsOnly')
+            : t('settings.minimized.sub') + (st.startup ? '' : ' ' + t('settings.minimized.needsStartup')))),
+        h('span'), h('span', { class: 'muted small' }, t(st.minimized ? 'ui.on' : 'ui.off'))))),
+      h('h2', null, t('settings.language')),
+      languagePicker(),
+      h('p', { class: 'muted small' }, t('settings.note')));
   };
   draw();
 };
@@ -693,59 +705,71 @@ views.settings = async (page, alive) => {
 // ---------------------------------------------------------------- history
 
 views.history = async (page, alive) => {
-  header(page, 'History', 'Everything Kempt changed, newest first. Startup and privacy changes can be undone here.');
+  header(page, t('history.title'), t('history.lede'));
   const r = await api('GET', '/api/local/journal');
   if (!alive()) return;
-  if (!r.entries.length) { page.append(h('p', { class: 'empty' }, 'Nothing yet. Every change Kempt makes will be listed here.')); return; }
+  if (!r.entries.length) { page.append(h('p', { class: 'empty' }, t('history.empty'))); return; }
   page.append(h('div', null, r.entries.map(e => h('div', { class: 'entry' + (e.undone ? ' undone' : '') },
     h('time', { datetime: e.time }, when(e.time)),
-    h('div', null, h('div', { class: 'what' }, e.summary, e.auto ? h('span', { class: 'chip' }, ' Automatic care') : null),
-      e.details && e.details.length ? h('ul', null, e.details.slice(0, 8).map(d => h('li', null, d)), e.details.length > 8 ? h('li', null, `and ${e.details.length - 8} more`) : null) : null),
+    h('div', null, h('div', { class: 'what' }, e.summary, e.auto ? [' ', h('span', { class: 'chip' }, t('history.auto'))] : null),
+      e.details && e.details.length ? h('ul', null, e.details.slice(0, 8).map(d => h('li', null, d)), e.details.length > 8 ? h('li', null, tn('history.more', e.details.length - 8)) : null) : null),
     e.undo && !e.undone ? h('button', { class: 'btn', onclick: async ev => {
       ev.target.disabled = true;
-      try { await api('POST', '/api/local/undo', { id: e.id }); state.startup = null; toast('Undone.'); render(); }
+      try { await api('POST', '/api/local/undo', { id: e.id }); state.startup = null; toast(t('history.undone')); render(); }
       catch (err) { toast(err.message, 'error'); ev.target.disabled = false; }
-    } }, 'Undo') : h('span')))));
+    } }, t('history.undo')) : h('span')))));
 };
 
 // ---------------------------------------------------------------- honest notes
 
 views.why = page => {
-  header(page, 'What Kempt won’t do', 'All-in-one “PC optimizers” bundle many features. Some help; these do not, so Kempt leaves them out.');
-  const notes = [
-    ['Clean the registry', 'Unused registry entries take a few kilobytes and do not slow Windows down. Removing the wrong one can break a program or Windows itself, and Microsoft does not support registry cleaners (support article KB2563254).'],
-    ['“Free up” or “boost” RAM', 'Windows fills spare memory with a cache of files you are likely to open next and gives it back the instant a program needs it. Emptying it makes the next things you open slower. When memory really is full, the fix is to close programs or turn off ones that start with Windows, which Kempt shows you.'],
-    ['Speed up your internet by 300%', 'Windows has tuned its network settings automatically since Windows Vista. Your connection speed is set by your provider, your Wi-Fi signal and the site you visit, not by a setting a tool can change.'],
-    ['Update drivers from its own database', 'Third-party driver updaters can install the wrong driver for your hardware. Windows Update delivers drivers tested for your PC, and your PC maker’s support page has the rest.'],
-    ['Give your PC a score or an “AI mode”', 'A single number hides what is going on. Kempt shows each measurement with what it means and what to do about it.'],
-    ['Replace your antivirus', 'Microsoft Defender is built in, updates itself and is enough for most people. Kempt checks that it, or the antivirus you chose, is switched on.'],
-    ['Run in the background or nag you to upgrade', 'Kempt runs only while its window is open, or when the task you scheduled starts it. It starts with Windows only if you turn that on in Settings. There is no paid version, no advertising and no data sent anywhere.'],
-  ];
-  page.append(h('ul', { class: 'why' }, notes.map(([t, p]) => h('li', null, h('h3', null, t), h('p', null, p)))));
+  header(page, t('why.title'), t('why.lede'));
+  const notes = ['registry', 'ram', 'internet', 'drivers', 'score', 'antivirus', 'background'];
+  page.append(h('ul', { class: 'why' }, notes.map(n => h('li', null, h('h3', null, t('why.' + n + '.title')), h('p', null, t('why.' + n + '.text'))))));
 };
+
+// ---------------------------------------------------------------- language
+
+// Language names are written in their own language so anyone can find theirs.
+const languageNames = { en: 'English', id: 'Bahasa Indonesia' };
+
+function languagePicker() {
+  const langs = (state.mode && state.mode.languages) || ['en', 'id'];
+  return h('div', { class: 'lang', role: 'group', 'aria-label': t('settings.language') },
+    langs.map(l => h('button', { class: 'btn' + (l === currentLang() ? ' primary' : ''), lang: l, 'aria-pressed': String(l === currentLang()),
+      onclick: async () => {
+        if (l === currentLang()) return;
+        try { await api('PUT', '/api/local/app', { lang: l }); location.reload(); }
+        catch (e) { toast(e.message, 'error'); }
+      } }, languageNames[l] || l)));
+}
 
 // ---------------------------------------------------------------- start
 
 async function start() {
   try {
     state.mode = await api('GET', '/api/mode');
+    await loadLang(state.mode.lang);
     const c = await api('GET', '/api/local/categories');
     state.categories = c.categories;
     state.care = c.care;
   } catch (e) {
-    fill(main, h('div', { class: 'page' }, h('h1', null, 'Kempt is not connected'), errorBox(e)));
+    fill(main, h('div', { class: 'page' }, h('h1', null, t('app.notConnected')), errorBox(e)));
     return;
   }
+  document.title = 'Kempt';
+  nav.setAttribute('aria-label', t('nav.label'));
   const foot = document.getElementById('foot');
   fill(foot,
-    state.mode.elevated ? h('span', null, 'Running as administrator') : null,
+    state.mode.elevated ? h('span', null, t('app.elevated')) : null,
     feat('elevate') ? h('button', { class: 'btn', onclick: async () => {
-      try { await api('POST', '/api/local/elevate'); fill(main, h('div', { class: 'page' }, h('h1', null, 'Restarting as administrator'), h('p', { class: 'lede' }, 'A new Kempt window opens in a moment. You can close this one.'))); }
+      try { await api('POST', '/api/local/elevate'); fill(main, h('div', { class: 'page' }, h('h1', null, t('app.restarting')), h('p', { class: 'lede' }, t('app.restarting.text')))); }
       catch (e) { toast(e.message, 'error'); }
-    } }, 'Restart as administrator') : null,
+    } }, t('app.restartAdmin')) : null,
+    languagePicker(),
     h('div', { class: 'row' },
       h('span', null, 'Kempt ' + state.mode.version),
-      h('button', { class: 'btn quiet', onclick: async () => { await api('POST', '/api/local/quit').catch(() => {}); window.close(); fill(main, h('div', { class: 'page' }, h('h1', null, 'Kempt has closed'))); } }, 'Close')));
+      h('button', { class: 'btn quiet', onclick: async () => { await api('POST', '/api/local/quit').catch(() => {}); window.close(); fill(main, h('div', { class: 'page' }, h('h1', null, t('app.closed')))); } }, t('app.close'))));
   window.addEventListener('hashchange', render);
   setInterval(() => api('POST', '/api/local/heartbeat').catch(() => {}), 30000);
   render();

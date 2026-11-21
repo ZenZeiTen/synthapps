@@ -50,7 +50,9 @@ func newRig(t *testing.T) *rig {
 		Autostart: &autostart.XDG{Dir: filepath.Join(home, ".config", "autostart")}, CanMinimize: true, Exe: "/opt/kempt",
 		Recycle: func(p string) error { r.recycled = append(r.recycled, p); return os.Remove(p) },
 		Open:    func(target string) error { r.opened = append(r.opened, target); return nil },
-		Health:  func(ctx context.Context) health.Report { return health.Report{Findings: []health.Finding{{ID: "x"}}} },
+		Health: func(ctx context.Context, lang string) health.Report {
+			return health.Report{Findings: []health.Finding{{ID: "x"}}}
+		},
 	})
 	return r
 }
@@ -258,5 +260,37 @@ func TestAppSettings(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("Kempt missing from its own startup list: %v", list)
+	}
+}
+
+func TestLanguage(t *testing.T) {
+	r := newRig(t)
+	if _, m := r.do(t, "GET", "/api/mode", nil, "Accept-Language", "id-ID,id;q=0.9"); m["lang"] != "id" {
+		t.Fatalf("Indonesian Windows should start in Indonesian: %v", m["lang"])
+	}
+	r.do(t, "PUT", "/api/local/app", map[string]any{"lang": "en"})
+	if _, m := r.do(t, "GET", "/api/mode", nil, "Accept-Language", "id-ID", "X-Kempt-Lang", "id"); m["lang"] != "en" {
+		t.Fatalf("saved choice must win at start-up: %v", m["lang"])
+	}
+	r.do(t, "PUT", "/api/local/app", map[string]any{"lang": "id"})
+	if _, m := r.do(t, "GET", "/api/mode", nil, "X-Kempt-Lang", "en"); m["lang"] != "id" {
+		t.Fatalf("the window's old header must not override the saved choice: %v", m["lang"])
+	}
+	// Errors and catalog text follow the request's language.
+	if _, e := r.do(t, "POST", "/api/local/jobs/large", map[string]any{"root": "relative"}, "X-Kempt-Lang", "id"); e["message"] != "Masukkan jalur folder lengkap." {
+		t.Fatalf("Indonesian error: %v", e["message"])
+	}
+	if _, c := r.do(t, "GET", "/api/local/categories", nil, "X-Kempt-Lang", "id"); c["categories"].([]any)[0].(map[string]any)["name"] != "Cache gambar mini" {
+		t.Fatalf("Indonesian category: %v", c["categories"].([]any)[0])
+	}
+	// History written in one language reads in the other.
+	r.do(t, "POST", "/api/local/startup", map[string]any{"id": "xdg:a.desktop", "enabled": false})
+	_, j := r.do(t, "GET", "/api/local/journal", nil, "X-Kempt-Lang", "id")
+	if got := j["entries"].([]any)[0].(map[string]any)["summary"]; got != "Applet dinonaktifkan di Pengaktifan" {
+		t.Fatalf("history in Indonesian: %v", got)
+	}
+	_, j = r.do(t, "GET", "/api/local/journal", nil, "X-Kempt-Lang", "en")
+	if got := j["entries"].([]any)[0].(map[string]any)["summary"]; got != "Turned off Applet at startup" {
+		t.Fatalf("history in English: %v", got)
 	}
 }

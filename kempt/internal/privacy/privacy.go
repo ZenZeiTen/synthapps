@@ -9,6 +9,7 @@ import (
 	"errors"
 	"runtime"
 
+	"github.com/ZenZeiTen/synthapps/kempt/internal/i18n"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/shell"
 )
 
@@ -30,57 +31,54 @@ type Setting struct {
 
 const cdm = `HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager`
 
-// Catalog lists the switches Kempt offers.
-func Catalog() []Setting {
+// Catalog lists the switches Kempt offers, in English.
+func Catalog() []Setting { return CatalogIn("en") }
+
+// CatalogIn lists the switches with their text in a language.
+func CatalogIn(lang string) []Setting {
+	list := catalog()
+	Localize(list, lang)
+	return list
+}
+
+// Localize sets each switch's title and description in a language.
+func Localize(list []Setting, lang string) {
+	for i := range list {
+		list[i].Title = i18n.T(lang, "priv."+list[i].ID+".title")
+		list[i].What = i18n.T(lang, "priv."+list[i].ID+".what")
+	}
+}
+
+func catalog() []Setting {
 	return []Setting{
-		{ID: "advertising-id", Title: "Advertising ID",
-			What:     "Lets apps use an ID for this account to show you personalised ads.",
-			Settings: "ms-settings:privacy-general",
-			Key:      `HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo`, Names: []string{"Enabled"},
+		{ID: "advertising-id", Settings: "ms-settings:privacy-general",
+			Key: `HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo`, Names: []string{"Enabled"},
 			OnValue: 1, OffValue: 0, MissingOn: true},
-		{ID: "language-list", Title: "Websites see your language list",
-			What:     "Lets websites read the languages you use, to show local content.",
-			Settings: "ms-settings:privacy-general",
-			Key:      `HKCU:\Control Panel\International\User Profile`, Names: []string{"HttpAcceptLanguageOptOut"},
+		{ID: "language-list", Settings: "ms-settings:privacy-general",
+			Key: `HKCU:\Control Panel\International\User Profile`, Names: []string{"HttpAcceptLanguageOptOut"},
 			OnValue: 0, OffValue: 1, MissingOn: true},
-		{ID: "app-launch-tracking", Title: "Track the apps you open",
-			What:     "Windows records which apps you start to improve Start and search results.",
-			Settings: "ms-settings:privacy-general",
-			Key:      `HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced`, Names: []string{"Start_TrackProgs"},
+		{ID: "app-launch-tracking", Settings: "ms-settings:privacy-general",
+			Key: `HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced`, Names: []string{"Start_TrackProgs"},
 			OnValue: 1, OffValue: 0, MissingOn: true},
-		{ID: "tailored", Title: "Tailored experiences",
-			What:     "Microsoft uses your diagnostic data to show tips, ads and recommendations.",
-			Settings: "ms-settings:privacy-feedback",
-			Key:      `HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy`, Names: []string{"TailoredExperiencesWithDiagnosticDataEnabled"},
+		{ID: "tailored", Settings: "ms-settings:privacy-feedback",
+			Key: `HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy`, Names: []string{"TailoredExperiencesWithDiagnosticDataEnabled"},
 			OnValue: 1, OffValue: 0, MissingOn: true},
-		{ID: "settings-suggestions", Title: "Suggestions in Settings",
-			What:     "Shows suggested content and offers inside the Settings app.",
-			Settings: "ms-settings:privacy-general",
-			Key:      cdm, Names: []string{"SubscribedContent-338393Enabled", "SubscribedContent-353694Enabled", "SubscribedContent-353696Enabled"},
+		{ID: "settings-suggestions", Settings: "ms-settings:privacy-general",
+			Key: cdm, Names: []string{"SubscribedContent-338393Enabled", "SubscribedContent-353694Enabled", "SubscribedContent-353696Enabled"},
 			OnValue: 1, OffValue: 0, MissingOn: true},
-		{ID: "start-suggestions", Title: "Suggestions in Start",
-			What:     "Shows recommended apps and promotions in the Start menu.",
-			Settings: "ms-settings:personalization-start",
-			Key:      cdm, Names: []string{"SubscribedContent-338388Enabled", "SystemPaneSuggestionsEnabled"},
+		{ID: "start-suggestions", Settings: "ms-settings:personalization-start",
+			Key: cdm, Names: []string{"SubscribedContent-338388Enabled", "SystemPaneSuggestionsEnabled"},
 			OnValue: 1, OffValue: 0, MissingOn: true},
-		{ID: "tips", Title: "Tips and suggestions",
-			What:     "Notifications with tips, tricks and suggestions while you use Windows.",
-			Settings: "ms-settings:notifications",
-			Key:      cdm, Names: []string{"SubscribedContent-338389Enabled", "SoftLandingEnabled"},
+		{ID: "tips", Settings: "ms-settings:notifications",
+			Key: cdm, Names: []string{"SubscribedContent-338389Enabled", "SoftLandingEnabled"},
 			OnValue: 1, OffValue: 0, MissingOn: true},
-		{ID: "welcome", Title: "Welcome screens after updates",
-			What:     "After some updates, a full-screen page shows what is new and suggests Microsoft services.",
-			Settings: "ms-settings:notifications",
-			Key:      cdm, Names: []string{"SubscribedContent-310093Enabled"},
+		{ID: "welcome", Settings: "ms-settings:notifications",
+			Key: cdm, Names: []string{"SubscribedContent-310093Enabled"},
 			OnValue: 1, OffValue: 0, MissingOn: true},
-		{ID: "lockscreen-tips", Title: "Fun facts and tips on the lock screen",
-			What:     "Adds text, tips and promotions over the lock screen picture.",
-			Settings: "ms-settings:lockscreen",
-			Key:      cdm, Names: []string{"RotatingLockScreenOverlayEnabled", "SubscribedContent-338387Enabled"},
+		{ID: "lockscreen-tips", Settings: "ms-settings:lockscreen",
+			Key: cdm, Names: []string{"RotatingLockScreenOverlayEnabled", "SubscribedContent-338387Enabled"},
 			OnValue: 1, OffValue: 0, MissingOn: true},
-		{ID: "silent-installs", Title: "Automatically install suggested apps",
-			What: "Windows may install promoted apps and games for this account on its own. There is no switch for this in Settings.",
-			Key:  cdm, Names: []string{"SilentInstalledAppsEnabled"},
+		{ID: "silent-installs", Key: cdm, Names: []string{"SilentInstalledAppsEnabled"},
 			OnValue: 1, OffValue: 0, MissingOn: true},
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,6 +18,7 @@ import (
 	"github.com/ZenZeiTen/synthapps/kempt/internal/files"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/fsx"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/health"
+	"github.com/ZenZeiTen/synthapps/kempt/internal/i18n"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/jobs"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/journal"
 	"github.com/ZenZeiTen/synthapps/kempt/internal/privacy"
@@ -51,7 +51,7 @@ type Config struct {
 	Open     func(target string) error // open a settings page or program (see actions)
 	Reveal   func(path string) error   // show a file in its folder
 	Recycle  func(path string) error
-	Health   func(ctx context.Context) health.Report
+	Health   func(ctx context.Context, lang string) health.Report
 }
 
 type server struct {
@@ -71,6 +71,15 @@ func NewDesktop(c Config) http.Handler {
 	s := &server{Config: c, found: map[string]bool{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/mode", s.mode)
+	mux.HandleFunc("GET /api/i18n/{lang}", func(w http.ResponseWriter, r *http.Request) {
+		b, ok := i18n.Catalog(r.PathValue("lang"))
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Write(b)
+	})
 	a := s.auth
 	mux.HandleFunc("POST /api/local/heartbeat", a(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"ok": true})
@@ -124,11 +133,81 @@ func NewDesktop(c Config) http.Handler {
 	return securityHeaders(guarded)
 }
 
+// ErrDeclined: the person said no to the administrator prompt.
+var ErrDeclined = errors.New("the administrator prompt was declined")
+
+// ErrNoElevation: this system cannot restart Kempt with more rights.
+var ErrNoElevation = errors.New("run Kempt with sudo to clean folders that belong to the system")
+
+// lang is the language for a request: the window's choice (X-Kempt-Lang),
+// then the saved setting, then the browser's language.
+func (s *server) lang(r *http.Request) string {
+	if l := r.Header.Get("X-Kempt-Lang"); l != "" {
+		return i18n.Normalize(l)
+	}
+	return s.savedLang(r)
+}
+
+// savedLang is the language the window should start in: the saved setting,
+// else the language Windows and the browser use. /api/mode answers with it,
+// so it ignores the header the window sends before it knows the answer.
+func (s *server) savedLang(r *http.Request) string {
+	if l := LoadSettings(s.DataDir).Lang; l != "" {
+		return i18n.Normalize(l)
+	}
+	return i18n.FromAcceptLanguage(r.Header.Get("Accept-Language"))
+}
+
+// fail answers with a translated message; raw (from Windows or a tool,
+// not translatable) follows it when given.
+func (s *server) fail(w http.ResponseWriter, r *http.Request, status int, code, key string, raw error, vars ...any) {
+	msg := i18n.T(s.lang(r), key, vars...)
+	if raw != nil {
+		msg += " " + raw.Error()
+	}
+	writeErr(w, status, code, msg)
+}
+
+// errKey maps the errors Kempt's own packages return to catalog keys.
+func errKey(err error) (string, bool) {
+	for e, k := range map[error]string{
+		startup.ErrNeedsAdmin:   "err.startup.needsAdmin",
+		startup.ErrNotFound:     "err.startup.notFound",
+		privacy.ErrUnsupported:  "err.privacy.unsupported",
+		schedule.ErrUnsupported: "err.schedule.unsupported",
+		schedule.ErrFrequency:   "err.schedule.frequency",
+		schedule.ErrDay:         "err.schedule.day",
+		schedule.ErrTime:        "err.schedule.time",
+		files.ErrNotAbsolute:    "err.folder.notAbsolute",
+		files.ErrNoFolder:       "err.folder.missing",
+		files.ErrIsFile:         "err.folder.isFile",
+		apps.ErrNoWinget:        "err.winget.missing",
+		ErrDeclined:             "err.declined",
+		ErrNoElevation:          "err.elevate.unsupported",
+		errUnsupportedHere:      "err.windowsOnly",
+	} {
+		if errors.Is(err, e) {
+			return k, true
+		}
+	}
+	return "", false
+}
+
+// failErr answers with the translation of a known error, or a translated
+// prefix (key) followed by the raw error.
+func (s *server) failErr(w http.ResponseWriter, r *http.Request, status int, code, key string, err error) {
+	if k, ok := errKey(err); ok {
+		s.fail(w, r, status, code, k, nil)
+		return
+	}
+	s.fail(w, r, status, code, key, err)
+}
+
 func (s *server) auth(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		t := bearer(r)
 		if t == "" || subtle.ConstantTimeCompare([]byte(t), []byte(s.Token)) != 1 {
-			writeErr(w, 401, "unauthorized", "This window is no longer connected to Kempt. Open Kempt again.")
+			s.fail(w, r, 401, "unauthorized", "err.unauthorized", nil)
 			return
 		}
 		if s.Activity != nil {
@@ -142,6 +221,7 @@ func (s *server) mode(w http.ResponseWriter, r *http.Request) {
 	win := runtime.GOOS == "windows"
 	writeJSON(w, 200, map[string]any{
 		"mode": "desktop", "version": Version, "os": runtime.GOOS, "elevated": s.Elevated,
+		"lang": s.savedLang(r), "languages": i18n.Languages,
 		"features": map[string]bool{
 			"privacy": privacy.Supported(), "schedule": schedule.Supported(),
 			"updates": win, "winget": apps.Available(), "repair": win, "elevate": win && !s.Elevated,
@@ -152,11 +232,11 @@ func (s *server) mode(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) elevate(w http.ResponseWriter, r *http.Request) {
 	if s.Elevate == nil || s.Elevated {
-		writeErr(w, 400, "unsupported", "Kempt is already running with the rights it can have.")
+		s.fail(w, r, 400, "unsupported", "err.elevate.already", nil)
 		return
 	}
 	if err := s.Elevate(); err != nil {
-		writeErr(w, 409, "elevate_failed", "Kempt was not restarted: "+err.Error())
+		s.failErr(w, r, 409, "elevate_failed", "err.elevate.failed", err)
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
@@ -168,7 +248,7 @@ func (s *server) elevate(w http.ResponseWriter, r *http.Request) {
 // ---- cleaning ----
 
 func (s *server) categories(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, map[string]any{"categories": s.Engine.Catalog(), "care": s.careIDs()})
+	writeJSON(w, 200, map[string]any{"categories": s.Engine.CatalogIn(s.lang(r)), "care": s.careIDs()})
 }
 
 // Settings are the user's choices, kept in settings.json.
@@ -177,6 +257,8 @@ type Settings struct {
 	// StartMinimized: when Kempt starts with the computer, open its window
 	// minimized on the taskbar.
 	StartMinimized bool `json:"startMinimized"`
+	// Lang is the window's language: "", "en" or "id". Empty follows Windows.
+	Lang string `json:"lang,omitempty"`
 }
 
 // SaveSettings writes settings.json.
@@ -217,7 +299,7 @@ func (s *server) getSettings(w http.ResponseWriter, r *http.Request) {
 func (s *server) putSettings(w http.ResponseWriter, r *http.Request) {
 	var in Settings
 	if readJSON(w, r, &in) != nil {
-		writeErr(w, 400, "bad_request", "Invalid request.")
+		s.fail(w, r, 400, "bad_request", "err.badRequest", nil)
 		return
 	}
 	if in.CareCategories == nil {
@@ -229,7 +311,7 @@ func (s *server) putSettings(w http.ResponseWriter, r *http.Request) {
 		st.CareCategories = []string{}
 	}
 	if err := SaveSettings(s.DataDir, st); err != nil {
-		writeErr(w, 500, "write_failed", "Could not save the settings: "+err.Error())
+		s.fail(w, r, 500, "write_failed", "err.settings.save", err)
 		return
 	}
 	writeJSON(w, 200, map[string]any{"careCategories": st.CareCategories})
@@ -248,13 +330,14 @@ func (s *server) appState(r *http.Request) (map[string]any, error) {
 	return map[string]any{
 		"startup": on, "minimized": LoadSettings(s.DataDir).StartMinimized,
 		"startupSupported": s.Autostart != nil, "minimizedSupported": s.CanMinimize,
+		"lang": LoadSettings(s.DataDir).Lang,
 	}, nil
 }
 
 func (s *server) getApp(w http.ResponseWriter, r *http.Request) {
 	st, err := s.appState(r)
 	if err != nil {
-		writeErr(w, 500, "read_failed", "Could not read the startup setting: "+err.Error())
+		s.fail(w, r, 500, "read_failed", "err.app.read", err)
 		return
 	}
 	writeJSON(w, 200, st)
@@ -262,48 +345,61 @@ func (s *server) getApp(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) putApp(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Startup   *bool `json:"startup"`
-		Minimized *bool `json:"minimized"`
+		Startup   *bool   `json:"startup"`
+		Minimized *bool   `json:"minimized"`
+		Lang      *string `json:"lang"`
 	}
 	if readJSON(w, r, &in) != nil {
-		writeErr(w, 400, "bad_request", "Invalid request.")
+		s.fail(w, r, 400, "bad_request", "err.badRequest", nil)
 		return
 	}
 	if in.Startup != nil {
 		if s.Autostart == nil {
-			writeErr(w, 501, "unsupported", "Starting with the computer is not available on this system.")
+			s.fail(w, r, 501, "unsupported", "err.autostart.unsupported", nil)
 			return
 		}
 		if err := s.Autostart.Set(r.Context(), *in.Startup, autostart.Command(s.Exe, s.DataDir)); err != nil {
-			writeErr(w, 500, "write_failed", "Could not change it: "+err.Error())
+			s.fail(w, r, 500, "write_failed", "err.change", err)
 			return
 		}
-		sum := "Kempt no longer starts when you sign in"
+		key := "journal.autostart.off"
 		if *in.Startup {
-			sum = "Kempt starts when you sign in"
+			key = "journal.autostart.on"
 		}
-		s.Journal.Add(journal.Entry{Kind: "settings", Summary: sum})
+		s.Journal.Add(journal.Entry{Kind: "settings", Msg: msg(i18n.M(key))})
 	}
 	if in.Minimized != nil {
 		if *in.Minimized && !s.CanMinimize {
-			writeErr(w, 501, "unsupported", "Opening minimized is only available on Windows.")
+			s.fail(w, r, 501, "unsupported", "err.minimize.unsupported", nil)
 			return
 		}
 		st := LoadSettings(s.DataDir)
 		st.StartMinimized = *in.Minimized
 		if err := SaveSettings(s.DataDir, st); err != nil {
-			writeErr(w, 500, "write_failed", "Could not save the settings: "+err.Error())
+			s.fail(w, r, 500, "write_failed", "err.settings.save", err)
 			return
 		}
-		sum := "Kempt opens its window normally at startup"
+		key := "journal.minimized.off"
 		if *in.Minimized {
-			sum = "Kempt opens minimized on the taskbar at startup"
+			key = "journal.minimized.on"
 		}
-		s.Journal.Add(journal.Entry{Kind: "settings", Summary: sum})
+		s.Journal.Add(journal.Entry{Kind: "settings", Msg: msg(i18n.M(key))})
+	}
+	if in.Lang != nil {
+		l := *in.Lang
+		if l != "" {
+			l = i18n.Normalize(l)
+		}
+		st := LoadSettings(s.DataDir)
+		st.Lang = l
+		if err := SaveSettings(s.DataDir, st); err != nil {
+			s.fail(w, r, 500, "write_failed", "err.settings.save", err)
+			return
+		}
 	}
 	st, err := s.appState(r)
 	if err != nil {
-		writeErr(w, 500, "read_failed", err.Error())
+		s.fail(w, r, 500, "read_failed", "err.app.read", err)
 		return
 	}
 	writeJSON(w, 200, st)
@@ -314,29 +410,35 @@ func Clean(ctx context.Context, e *clean.Engine, j *journal.Journal, ids []strin
 	res, err := e.Clean(ctx, ids, p)
 	var freed int64
 	var files int
-	var details []string
+	var lines []i18n.Msg
 	for _, r := range res {
 		c, _ := e.Find(r.ID)
 		freed += r.Freed
-		files += r.Removed
+		name := i18n.Ref(catKey(c) + ".name")
 		switch {
 		case r.Removed > 0:
-			details = append(details, fmt.Sprintf("%s: %s, %s", c.Name, health.GB(r.Freed), plural(r.Removed, "file")))
+			files += r.Removed
+			lines = append(lines, i18n.MN("journal.clean.line", int64(r.Removed), "name", name, "size", i18n.SizeArg(r.Freed), "browser", c.App))
 		case r.Status == "in-use":
-			details = append(details, c.Name+": skipped, "+c.App+" was open")
+			lines = append(lines, i18n.M("journal.clean.inUse", "name", name, "app", c.App, "browser", c.App))
 		case r.Status == "admin":
-			details = append(details, c.Name+": skipped, needs administrator")
+			lines = append(lines, i18n.M("journal.clean.admin", "name", name, "browser", c.App))
 		}
 	}
 	if j != nil && (files > 0 || !auto) {
-		sum := fmt.Sprintf("Freed %s (%s)", health.GB(freed), plural(files, "file"))
+		m := i18n.MN("journal.clean.freed", int64(files), "size", i18n.SizeArg(freed))
 		if files == 0 {
-			sum = "Nothing to remove"
+			m = i18n.M("journal.clean.nothing")
 		}
-		j.Add(journal.Entry{Kind: "clean", Summary: sum, Bytes: freed, Auto: auto, Details: details})
+		j.Add(journal.Entry{Kind: "clean", Msg: &m, Bytes: freed, Auto: auto, Lines: lines})
 	}
 	return res, err
 }
+
+// catKey is the catalog key stem of a category (cat.<stem>).
+func catKey(c clean.Category) string { return "cat." + clean.TextKey(c) }
+
+func msg(m i18n.Msg) *i18n.Msg { return &m }
 
 // ---- background jobs ----
 
@@ -356,7 +458,7 @@ func (s *server) startJob(w http.ResponseWriter, r *http.Request) {
 		Paths []string `json:"paths"`
 	}
 	if r.ContentLength != 0 && readJSON(w, r, &in) != nil {
-		writeErr(w, 400, "bad_request", "Invalid request.")
+		s.fail(w, r, 400, "bad_request", "err.badRequest", nil)
 		return
 	}
 	var cp clean.Progress
@@ -375,7 +477,7 @@ func (s *server) startJob(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, cid := range in.IDs {
 			if _, ok := s.Engine.Find(cid); !ok {
-				writeErr(w, 400, "bad_request", "Unknown category "+cid+".")
+				s.fail(w, r, 400, "bad_request", "err.category.unknown", nil, "id", cid)
 				return
 			}
 		}
@@ -386,7 +488,7 @@ func (s *server) startJob(w http.ResponseWriter, r *http.Request) {
 	case "large", "dupes":
 		root := strings.TrimSpace(in.Root)
 		if err := files.CheckSearchRoot(root); err != nil {
-			writeErr(w, 400, "bad_folder", err.Error())
+			s.failErr(w, r, 400, "bad_folder", "err.folder.missing", err)
 			return
 		}
 		id = s.Jobs.Start(kind, fprog, func(ctx context.Context) (any, error) {
@@ -414,35 +516,40 @@ func (s *server) startJob(w http.ResponseWriter, r *http.Request) {
 		})
 	case "recycle":
 		if len(in.Paths) == 0 {
-			writeErr(w, 400, "bad_request", "No files chosen.")
+			s.fail(w, r, 400, "bad_request", "err.recycle.none", nil)
 			return
 		}
 		for _, p := range in.Paths {
 			if !s.allowed(p) {
-				writeErr(w, 403, "not_found_by_search", "Kempt only moves files it showed you in a search.")
+				s.fail(w, r, 403, "not_found_by_search", "err.recycle.notSearched", nil)
 				return
 			}
 		}
 		paths := append([]string(nil), in.Paths...)
 		id = s.Jobs.Start(kind, fprog, func(ctx context.Context) (any, error) { return s.recycle(ctx, paths, &fp), nil })
 	case "health":
-		id = s.Jobs.Start(kind, nil, func(ctx context.Context) (any, error) { return s.Health(ctx), nil })
+		lang := s.lang(r)
+		id = s.Jobs.Start(kind, nil, func(ctx context.Context) (any, error) { return s.Health(ctx, lang), nil })
 	case "updates":
+		lang := s.lang(r)
 		id = s.Jobs.Start(kind, nil, func(ctx context.Context) (any, error) {
 			list, err := apps.List(ctx)
+			if errors.Is(err, apps.ErrNoWinget) {
+				err = errors.New(i18n.T(lang, "err.winget.missing"))
+			}
 			return map[string]any{"updates": list}, err
 		})
 	case "upgrade":
 		for _, pid := range in.IDs {
 			if !apps.ValidID(pid) {
-				writeErr(w, 400, "bad_request", "Not a package id: "+pid)
+				s.fail(w, r, 400, "bad_request", "err.package.invalid", nil, "id", pid)
 				return
 			}
 		}
 		ids := append([]string(nil), in.IDs...)
 		id = s.Jobs.Start(kind, fprog, func(ctx context.Context) (any, error) { return s.upgrade(ctx, ids, &fp), nil })
 	default:
-		writeErr(w, 404, "not_found", "Unknown job.")
+		s.fail(w, r, 404, "not_found", "err.job.unknown", nil)
 		return
 	}
 	writeJSON(w, 202, map[string]any{"id": id})
@@ -506,7 +613,7 @@ func (s *server) recycle(ctx context.Context, paths []string, p *files.Progress)
 	}
 	if len(moved) > 0 && s.Journal != nil {
 		s.Journal.Add(journal.Entry{Kind: "recycle", Bytes: bytes, Details: moved,
-			Summary: fmt.Sprintf("Moved %s (%s) to the %s", plural(len(moved), "file"), health.GB(bytes), binName())})
+			Msg: msg(i18n.MN("journal.recycle", int64(len(moved)), "size", i18n.SizeArg(bytes), "bin", i18n.Ref(binKey())))})
 	}
 	return map[string]any{"results": out, "bytes": bytes}
 }
@@ -530,7 +637,7 @@ func (s *server) upgrade(ctx context.Context, ids []string, p *files.Progress) m
 		out = append(out, res)
 	}
 	if len(done) > 0 && s.Journal != nil {
-		s.Journal.Add(journal.Entry{Kind: "update", Details: done, Summary: "Updated " + plural(len(done), "program")})
+		s.Journal.Add(journal.Entry{Kind: "update", Details: done, Msg: msg(i18n.MN("journal.update", int64(len(done))))})
 	}
 	return map[string]any{"results": out}
 }
@@ -538,7 +645,7 @@ func (s *server) upgrade(ctx context.Context, ids []string, p *files.Progress) m
 func (s *server) getJob(w http.ResponseWriter, r *http.Request) {
 	v, ok := s.Jobs.Get(r.PathValue("id"))
 	if !ok {
-		writeErr(w, 404, "not_found", "That task has ended.")
+		s.fail(w, r, 404, "not_found", "err.job.ended", nil)
 		return
 	}
 	writeJSON(w, 200, v)
@@ -546,7 +653,7 @@ func (s *server) getJob(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) cancelJob(w http.ResponseWriter, r *http.Request) {
 	if err := s.Jobs.Cancel(r.PathValue("id")); err != nil {
-		writeErr(w, 404, "not_found", err.Error())
+		s.fail(w, r, 404, "not_found", "err.job.ended", nil)
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
@@ -557,11 +664,15 @@ func (s *server) cancelJob(w http.ResponseWriter, r *http.Request) {
 func (s *server) listStartup(w http.ResponseWriter, r *http.Request) {
 	items, err := s.Startup.List(r.Context())
 	if err != nil {
-		writeErr(w, 500, "read_failed", "Could not read the startup programs: "+err.Error())
+		s.fail(w, r, 500, "read_failed", "err.startup.read", err)
 		return
 	}
 	if items == nil {
 		items = []startup.Item{}
+	}
+	lang := s.lang(r)
+	for i := range items {
+		items[i].Where = startup.SourceLabelIn(lang, items[i].Source)
 	}
 	writeJSON(w, 200, map[string]any{"items": items})
 }
@@ -572,23 +683,24 @@ func (s *server) setStartup(w http.ResponseWriter, r *http.Request) {
 		Enabled bool   `json:"enabled"`
 	}
 	if readJSON(w, r, &in) != nil || in.ID == "" {
-		writeErr(w, 400, "bad_request", "Invalid request.")
+		s.fail(w, r, 400, "bad_request", "err.badRequest", nil)
 		return
 	}
 	it, err := s.Startup.Set(r.Context(), in.ID, in.Enabled)
 	switch {
 	case errors.Is(err, startup.ErrNeedsAdmin):
-		writeErr(w, 403, "needs_admin", err.Error())
+		s.fail(w, r, 403, "needs_admin", "err.startup.needsAdmin", nil)
 		return
 	case errors.Is(err, startup.ErrNotFound):
-		writeErr(w, 404, "not_found", err.Error())
+		s.fail(w, r, 404, "not_found", "err.startup.notFound", nil)
 		return
 	case err != nil:
-		writeErr(w, 500, "write_failed", "Could not change it: "+err.Error())
+		s.fail(w, r, 500, "write_failed", "err.change", err)
 		return
 	}
-	verb := map[bool]string{true: "Turned on", false: "Turned off"}[in.Enabled]
-	s.Journal.Add(journal.Entry{Kind: "startup", Summary: verb + " " + it.Name + " at startup",
+	it.Where = startup.SourceLabelIn(s.lang(r), it.Source)
+	key := map[bool]string{true: "journal.startup.on", false: "journal.startup.off"}[in.Enabled]
+	s.Journal.Add(journal.Entry{Kind: "startup", Msg: msg(i18n.M(key, "name", it.Name)),
 		Undo: &journal.Undo{Kind: "startup", ID: in.ID, Value: !in.Enabled}})
 	writeJSON(w, 200, it)
 }
@@ -597,20 +709,21 @@ func (s *server) setStartup(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) listPrivacy(w http.ResponseWriter, r *http.Request) {
 	if !privacy.Supported() {
-		writeErr(w, 501, "unsupported", privacy.ErrUnsupported.Error())
+		s.fail(w, r, 501, "unsupported", "err.privacy.unsupported", nil)
 		return
 	}
 	list, err := privacy.Read(r.Context())
 	if err != nil {
-		writeErr(w, 500, "read_failed", "Could not read the settings: "+err.Error())
+		s.fail(w, r, 500, "read_failed", "err.privacy.read", err)
 		return
 	}
+	privacy.Localize(list, s.lang(r))
 	writeJSON(w, 200, map[string]any{"settings": list})
 }
 
 func (s *server) setPrivacy(w http.ResponseWriter, r *http.Request) {
 	if !privacy.Supported() {
-		writeErr(w, 501, "unsupported", privacy.ErrUnsupported.Error())
+		s.fail(w, r, 501, "unsupported", "err.privacy.unsupported", nil)
 		return
 	}
 	var in struct {
@@ -618,16 +731,18 @@ func (s *server) setPrivacy(w http.ResponseWriter, r *http.Request) {
 		On bool   `json:"on"`
 	}
 	if readJSON(w, r, &in) != nil {
-		writeErr(w, 400, "bad_request", "Invalid request.")
+		s.fail(w, r, 400, "bad_request", "err.badRequest", nil)
 		return
 	}
 	st, err := privacy.Set(r.Context(), in.ID, in.On)
 	if err != nil {
-		writeErr(w, 500, "write_failed", "Could not change it: "+err.Error())
+		s.fail(w, r, 500, "write_failed", "err.change", err)
 		return
 	}
-	verb := map[bool]string{true: "Turned on", false: "Turned off"}[in.On]
-	s.Journal.Add(journal.Entry{Kind: "privacy", Summary: verb + ": " + st.Title,
+	privacy.Localize([]privacy.Setting{st}, s.lang(r))
+	st.Title = i18n.T(s.lang(r), "priv."+st.ID+".title")
+	key := map[bool]string{true: "journal.privacy.on", false: "journal.privacy.off"}[in.On]
+	s.Journal.Add(journal.Entry{Kind: "privacy", Msg: msg(i18n.M(key, "setting", i18n.Ref("priv."+st.ID+".title"))),
 		Undo: &journal.Undo{Kind: "privacy", ID: in.ID, Value: !in.On}})
 	writeJSON(w, 200, st)
 }
@@ -636,12 +751,12 @@ func (s *server) setPrivacy(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) getSchedule(w http.ResponseWriter, r *http.Request) {
 	if !schedule.Supported() {
-		writeErr(w, 501, "unsupported", schedule.ErrUnsupported.Error())
+		s.fail(w, r, 501, "unsupported", "err.schedule.unsupported", nil)
 		return
 	}
 	p, err := schedule.Get(r.Context())
 	if err != nil {
-		writeErr(w, 500, "read_failed", "Could not read Task Scheduler: "+err.Error())
+		s.fail(w, r, 500, "read_failed", "err.schedule.read", err)
 		return
 	}
 	writeJSON(w, 200, p)
@@ -649,40 +764,40 @@ func (s *server) getSchedule(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) putSchedule(w http.ResponseWriter, r *http.Request) {
 	if !schedule.Supported() {
-		writeErr(w, 501, "unsupported", schedule.ErrUnsupported.Error())
+		s.fail(w, r, 501, "unsupported", "err.schedule.unsupported", nil)
 		return
 	}
 	var p schedule.Plan
 	if readJSON(w, r, &p) != nil {
-		writeErr(w, 400, "bad_request", "Invalid request.")
+		s.fail(w, r, 400, "bad_request", "err.badRequest", nil)
 		return
 	}
 	if err := p.Validate(); err != nil {
-		writeErr(w, 400, "bad_plan", err.Error())
+		s.failErr(w, r, 400, "bad_plan", "err.badRequest", err)
 		return
 	}
 	got, err := schedule.Apply(r.Context(), p, s.Exe, `care --data "`+s.DataDir+`"`)
 	if err != nil {
-		writeErr(w, 500, "write_failed", "Task Scheduler refused the change: "+err.Error())
+		s.fail(w, r, 500, "write_failed", "err.schedule.write", err)
 		return
 	}
-	sum := "Turned off automatic care"
+	m := i18n.M("journal.schedule.off")
 	if p.Enabled {
-		sum = "Automatic care: " + p.Frequency + " at " + p.Time
+		m = i18n.M("journal.schedule.daily", "time", p.Time)
 		if p.Frequency == "weekly" {
-			sum = "Automatic care: every " + p.Day + " at " + p.Time
+			m = i18n.M("journal.schedule.weekly", "day", i18n.Ref("day."+strings.ToLower(p.Day)), "time", p.Time)
 		}
 	}
-	s.Journal.Add(journal.Entry{Kind: "schedule", Summary: sum})
+	s.Journal.Add(journal.Entry{Kind: "schedule", Msg: &m})
 	writeJSON(w, 200, got)
 }
 
 // ---- journal ----
 
 func (s *server) listJournal(w http.ResponseWriter, r *http.Request) {
-	list, err := s.Journal.List(300)
+	list, err := s.Journal.ListIn(300, s.lang(r))
 	if err != nil {
-		writeErr(w, 500, "read_failed", err.Error())
+		s.fail(w, r, 500, "read_failed", "err.journal.read", err)
 		return
 	}
 	writeJSON(w, 200, map[string]any{"entries": list})
@@ -693,12 +808,12 @@ func (s *server) undo(w http.ResponseWriter, r *http.Request) {
 		ID string `json:"id"`
 	}
 	if readJSON(w, r, &in) != nil {
-		writeErr(w, 400, "bad_request", "Invalid request.")
+		s.fail(w, r, 400, "bad_request", "err.badRequest", nil)
 		return
 	}
 	e, ok := s.Journal.Find(in.ID)
 	if !ok || e.Undo == nil || e.Undone {
-		writeErr(w, 404, "not_found", "That change cannot be undone.")
+		s.fail(w, r, 404, "not_found", "err.undo.none", nil)
 		return
 	}
 	var err error
@@ -715,10 +830,14 @@ func (s *server) undo(w http.ResponseWriter, r *http.Request) {
 		err = errors.New("unknown change")
 	}
 	if err != nil {
-		writeErr(w, 409, "undo_failed", "Could not undo it: "+err.Error())
+		s.failErr(w, r, 409, "undo_failed", "err.undo.failed", err)
 		return
 	}
+	// Find reads in English, so the stored fallback text is English too.
 	u, _ := s.Journal.Add(journal.Entry{Kind: "undo", Summary: "Undid: " + e.Summary, Undoes: e.ID})
+	if l, err := s.Journal.ListIn(1, s.lang(r)); err == nil && len(l) == 1 {
+		u.Summary = l[0].Summary
+	}
 	writeJSON(w, 200, u)
 }
 
@@ -743,14 +862,14 @@ func (s *server) action(w http.ResponseWriter, r *http.Request) {
 		Path string `json:"path"`
 	}
 	if readJSON(w, r, &in) != nil {
-		writeErr(w, 400, "bad_request", "Invalid request.")
+		s.fail(w, r, 400, "bad_request", "err.badRequest", nil)
 		return
 	}
 	var err error
 	switch {
 	case in.ID == "reveal":
 		if !s.allowed(in.Path) && !s.inScan(in.Path) {
-			writeErr(w, 403, "refused", "Kempt only opens folders of files it showed you.")
+			s.fail(w, r, 403, "refused", "err.reveal.refused", nil)
 			return
 		}
 		if s.Reveal == nil {
@@ -766,23 +885,23 @@ func (s *server) action(w http.ResponseWriter, r *http.Request) {
 			ok = ok || (st.Settings != "" && st.Settings == uri)
 		}
 		if !ok {
-			writeErr(w, 403, "refused", "Unknown page.")
+			s.fail(w, r, 403, "refused", "err.action.unknownPage", nil)
 			return
 		}
 		err = s.open(uri)
 	default:
 		target, ok := actions[in.ID]
 		if !ok {
-			writeErr(w, 403, "refused", "Unknown action.")
+			s.fail(w, r, 403, "refused", "err.action.unknown", nil)
 			return
 		}
 		err = s.open(target)
 		if err == nil && in.ID == "run:repair" {
-			s.Journal.Add(journal.Entry{Kind: "repair", Summary: "Started System File Checker and DISM"})
+			s.Journal.Add(journal.Entry{Kind: "repair", Msg: msg(i18n.M("journal.repair"))})
 		}
 	}
 	if err != nil {
-		writeErr(w, 409, "action_failed", err.Error())
+		s.failErr(w, r, 409, "action_failed", "err.action.failed", err)
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
@@ -790,7 +909,7 @@ func (s *server) action(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) open(target string) error {
 	if s.Open == nil || runtime.GOOS != "windows" && !strings.HasPrefix(target, "/") {
-		return errors.New("this is only available on Windows")
+		return errUnsupportedHere
 	}
 	return s.Open(target)
 }
@@ -848,16 +967,12 @@ func driveRoots() []string {
 	return out
 }
 
-func plural(n int, word string) string {
-	if n == 1 {
-		return "1 " + word
+// binKey is the catalog key for the Recycle Bin, or the trash on Linux.
+func binKey() string {
+	if runtime.GOOS == "windows" {
+		return "word.recycleBin"
 	}
-	return fmt.Sprintf("%d %ss", n, word)
+	return "word.trash"
 }
 
-func binName() string {
-	if runtime.GOOS == "windows" {
-		return "Recycle Bin"
-	}
-	return "trash"
-}
+var errUnsupportedHere = errors.New("this is only available on Windows")
