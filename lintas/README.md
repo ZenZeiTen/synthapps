@@ -7,6 +7,17 @@ write code.
 
 ![Lintas TMS editor](docs/screenshots/editor-light.png)
 
+## Download
+
+Windows 10 and 11 (x64 and ARM64): get the installer or the portable version from
+[GitHub Releases](https://github.com/ZenZeiTen/synthapps/releases?q=lintas). The release
+page lists every file with its SHA-256 checksum. The builds are not code-signed yet, so
+SmartScreen may ask you to confirm on first run (More info > Run anyway).
+
+To make Lintas your default browser: Lintas Settings > General > Default browser. On Windows
+this opens Settings > Default apps, where you pick Lintas for HTTP, HTTPS and .html; Windows
+does not let apps change the default themselves.
+
 ## Features
 
 **Browser**
@@ -144,6 +155,18 @@ npm run dist:linux
 (dmg and zip) versions on those systems. The `lintas` GitHub workflow builds all
 three on every change and keeps them as downloadable artifacts. The builds are
 not code-signed.
+
+The Windows installer (`build/installer.nsh`) registers Lintas with Windows as a browser
+(Default apps, "Open with" for web files) and removes that on uninstall. Links reach Lintas
+as `Lintas.exe -- "<url>"`, so a link can never be read as a command-line switch; a second
+launch hands its links to the running window.
+
+## Releases
+
+`lintas-release` (GitHub Actions) publishes a release when `version` in `package.json`
+changes on `main` and no `lintas-v<version>` release exists yet. It runs the tests, builds
+the Windows installer and portable version for x64 and ARM64, and creates the release with
+`release-notes.md` and SHA-256 checksums. To ship a new version, raise `version` and merge.
 
 ## Tests
 

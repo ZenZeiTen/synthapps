@@ -37,14 +37,19 @@ const shots = process.env.LINTAS_SHOTS;
 const SANDBOX = process.env.LINTAS_TEST_SANDBOX === '1';
 const app = await electron.launch({
   executablePath: createRequire(import.meta.url)('electron'),
-  args: SANDBOX ? ['.'] : ['.', '--no-sandbox'],
+  // Launched the way Windows opens a link once Lintas is the default browser: Lintas.exe -- "<url>"
+  args: [...(SANDBOX ? ['.'] : ['.', '--no-sandbox']), '--', `http://127.0.0.1:${port}/?from=os`],
   chromiumSandbox: SANDBOX,
   cwd: path.resolve(import.meta.dirname, '..'),
   env: { ...process.env, LINTAS_DATA_DIR: dataDir },
 });
 const log = [];
 try {
-  const win = await app.firstWindow();
+  // Tabs are pages too, so wait for the browser window itself rather than the first page
+  const isMain = (p) => p.url().startsWith('lintas-ui://app/index.html');
+  let win = null;
+  for (const end = Date.now() + 30000; !win && Date.now() < end; await new Promise(r => setTimeout(r, 200))) win = app.windows().find(isMain) || null;
+  assert.ok(win, 'browser window not found: ' + app.windows().map(p => p.url()).join(', '));
   win.on('console', m => { if (m.type() === 'error') log.push(m.text()); });
   win.on('pageerror', e => log.push('pageerror: ' + e.message));
   await win.waitForFunction(() => !!window.lintas, null, { timeout: 15000 });
@@ -54,6 +59,9 @@ try {
   assert.equal(st.hasApiKey, false);
   assert.ok(st.models.length >= 3);
   assert.equal(st.sandbox, SANDBOX);
+
+  // A link passed on the command line opens in a tab
+  await win.waitForFunction(u => lintas.tabs.list().then(ts => ts.some(t => t.url === u)), `http://127.0.0.1:${port}/?from=os`, { timeout: 15000, polling: 300 });
 
   // Browsing
   let tabsNow = await L(() => lintas.tabs.list());

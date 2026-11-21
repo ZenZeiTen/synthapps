@@ -14,7 +14,7 @@ const groups = {
   history: ['list', 'clear'],
   downloads: ['list', 'open', 'show', 'cancel'],
   offline: ['save', 'list', 'open', 'remove'],
-  app: ['status'],
+  app: ['status', 'defaultBrowser', 'makeDefault'],
   settings: ['get', 'set', 'setApiKey'],
   privacy: ['clearData'],
   tms: ['dashboard', 'createProject', 'updateProject', 'deleteProject', 'getProject', 'importFiles', 'importText', 'capturePage',

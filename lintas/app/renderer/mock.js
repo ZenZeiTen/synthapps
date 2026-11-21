@@ -513,7 +513,7 @@ export function installMock() {
         const was = status.online; status.online = true; load(t, o.url, { instant: true }); status.online = was; t.security = 'offline-copy'; t.blocked = 0; changed(); },
       async remove(oid) { offlinePages = offlinePages.filter((o) => o.id !== oid); for (const t of tabs) if (t.offlineCopy?.id === oid) t.offlineCopy = null; changed(); },
     },
-    app: { async status() { return clone(status); } },
+    app: { async status() { return clone(status); }, async defaultBrowser() { return { isDefault: false, canSetDirectly: false }; }, async makeDefault() { return { isDefault: false, canSetDirectly: false, openedSettings: true }; } },
     settings: {
       async get() { return clone(settings); },
       async set(partial) { settings = { ...settings, ...partial }; if (partial.model) status.model = partial.model; emit('settings', settings); return clone(settings); },

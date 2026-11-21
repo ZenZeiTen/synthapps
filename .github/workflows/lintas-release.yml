@@ -1,0 +1,141 @@
+name: lintas-release
+
+# Publishes a Lintas release for Windows on GitHub Releases, the way browsers ship:
+# an installer and a portable version, for x64 and ARM64, with SHA-256 checksums.
+#
+# It runs when lintas/package.json changes on main (or by hand). If a release for that
+# version (tag lintas-v<version>) already exists, nothing is built. To ship a new
+# release, raise "version" in lintas/package.json and merge.
+#
+# The builds are not code-signed, so Windows SmartScreen warns on first run.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lintas/package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lintas-release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      exists: ${{ steps.v.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./lintas/package.json').version")
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "Bad version: $version"; exit 1; }
+          tag="lintas-v$version"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exists=true; else exists=false; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "exists=$exists" >> "$GITHUB_OUTPUT"
+          echo "Lintas $version, tag $tag, already released: $exists"
+
+  test:
+    name: Tests
+    needs: check
+    if: needs.check.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: lintas
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm test
+      - run: npm install --no-save playwright@1
+      - run: sudo apt-get update && sudo apt-get install -y xvfb
+      - run: xvfb-run -a node test/app.smoke.mjs
+
+  windows:
+    name: Build for Windows
+    needs: [check, test]
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: lintas
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npx electron-builder --win --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Check the expected files exist
+        env:
+          v: ${{ needs.check.outputs.version }}
+        run: |
+          for f in "Lintas-Setup-$v-x64.exe" "Lintas-Setup-$v-arm64.exe" "Lintas-Portable-$v-x64.exe" "Lintas-Portable-$v-arm64.exe"; do
+            test -s "dist/$f" || { echo "Missing dist/$f"; ls -la dist; exit 1; }
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lintas-windows
+          # Only the per-architecture files; electron-builder also makes a combined x64+ARM64 file
+          path: |
+            lintas/dist/Lintas-*-x64.exe
+            lintas/dist/Lintas-*-arm64.exe
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: [check, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lintas-windows
+          path: out
+      - name: Checksums and notes
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          cd out
+          sha256sum Lintas-*-x64.exe Lintas-*-arm64.exe > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          cd ..
+          {
+            sed "s/<version>/$VERSION/g" lintas/release-notes.md
+            echo
+            echo "## SHA-256 checksums"
+            echo
+            echo '```'
+            cat out/SHA256SUMS.txt
+            echo '```'
+          } > notes.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          gh release create "$TAG" out/Lintas-*-x64.exe out/Lintas-*-arm64.exe out/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Lintas $VERSION" \
+            --notes-file notes.md

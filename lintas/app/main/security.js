@@ -1,6 +1,9 @@
 // Session hardening: tracker blocking, HTTPS-first/HTTPS-only, third-party
 // cookie stripping, Do Not Track / Global Privacy Control, permission prompts
 // and a clean user agent.
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
 
 // Common advertising and tracking hosts. A request is blocked when its host
 // equals one of these or is a subdomain, and it is third-party to the page.
@@ -168,3 +171,28 @@ export function resolveInput(input, engine = 'duckduckgo') {
 }
 
 export const SEARCH_ENGINES = Object.keys(SEARCH);
+
+const OPENABLE_FILE = /\.(html?|xhtml|shtml|mht|mhtml|svg|txt|xml|json)$/i;
+
+/**
+ * URLs to open from a command line, as Windows, macOS or Linux pass them when Lintas is the
+ * default browser or a file is opened with it. The installer registers `Lintas.exe -- "%1"`,
+ * so anything after `--` is a URL or path, never a switch. Without `--`, switches are skipped.
+ * `exists(path)` checks a local file.
+ */
+export function urlsFromArgs(argv, { cwd = process.cwd(), skip = 1, exists = () => false } = {}) {
+  const args = argv.slice(skip);
+  const sep = args.indexOf('--');
+  const candidates = sep >= 0 ? args.slice(sep + 1) : args.filter(a => !String(a).startsWith('-'));
+  const out = [];
+  for (const raw of candidates) {
+    const a = String(raw || '').trim();
+    if (!a || a === '.') continue;
+    if (/^https?:\/\//i.test(a)) { try { out.push(new URL(a).href); } catch {} continue; }
+    if (/^file:\/\//i.test(a)) { try { const u = new URL(a); if (OPENABLE_FILE.test(u.pathname)) out.push(u.href); } catch {} continue; }
+    if (/^[a-z][\w+.-]*:/i.test(a) && !/^[a-z]:[\\/]/i.test(a)) continue; // other schemes, but not C:\ paths
+    const full = path.isAbsolute(a) ? a : path.resolve(cwd, a);
+    if (OPENABLE_FILE.test(full) && exists(full)) out.push(pathToFileURL(full).href);
+  }
+  return out.slice(0, 20);
+}
