@@ -12,7 +12,7 @@ export default function errorPage(el, ctx) {
   const offline = code === -106 || S.online === false;
   const cert = code <= -200 && code >= -299;
   const dns = code === -105 || code === -137;
-  const httpsFail = err.code === 'HTTPS_ONLY' || (!offline && !cert && !dns && !!S.settings.httpsOnly && /^https:\/\//i.test(url));
+  const httpsFail = err.code === 'HTTPS_ONLY' || (!offline && !cert && !dns && !!S.settings.httpsOnly && /^https:\/\//i.test(url) && ((code <= -100 && code > -200) || code === -501 || code === -7));
   const retry = h('button.btn', { type: 'button', onClick: () => call(L().nav.reload(t.id, { hard: false })) }, icon('reload'), 'Try again');
   const copy = t.offlineCopy ? h('div.err-copy', icon('offlineDone'), h('span.grow', h('b', 'A saved copy is available'), h('br'), `Saved ${relTime(t.offlineCopy.savedAt)} — opens without a connection.`),
     h('button.btn.primary', { type: 'button', autofocus: true, onClick: () => call(L().offline.open(t.offlineCopy.id, { newTab: false })) }, 'Open saved copy')) : null;
