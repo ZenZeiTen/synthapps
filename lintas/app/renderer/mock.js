@@ -310,7 +310,7 @@ const favFor = (letter, hue) => 'data:image/svg+xml,' + encodeURIComponent(`<svg
 export function installMock() {
   const listeners = new Map();
   const emit = (e, p) => { for (const fn of [...(listeners.get(e) || [])]) fn(clone(p)); };
-  const status = { version: '0.1.0-preview', online: true, hasApiKey: true, model: 'claude-sonnet-4-5', platform: 'linux', dataDir: '~/.config/Lintas',
+  const status = { version: '0.1.0-preview', online: true, hasApiKey: true, model: 'claude-sonnet-4-5', platform: 'linux', dataDir: '~/.config/Lintas', sandbox: true,
     models: [{ id: 'claude-opus-4-5', label: 'Claude Opus 4.5', note: 'Most capable — careful review and legal texts' }, { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', note: 'Balanced — recommended for everyday translation' }, { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', note: 'Fastest — bulk pre-translation' }] };
   let settings = { searchEngine: 'duckduckgo', homepage: 'lintas://newtab', httpsOnly: true, blockTrackers: true, blockThirdPartyCookies: true, sendDoNotTrack: true,
     autoSaveOffline: false, showBookmarksBar: true, theme: 'system', model: 'claude-sonnet-4-5', effort: 'medium', restoreSession: true, uiLanguage: 'en', defaultSourceLang: 'id', defaultTargetLang: 'en' };

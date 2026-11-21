@@ -27,12 +27,30 @@ write code.
   `webNavigation`, `windows`, `webRequest`, `scripting`, `i18n`, `management` and
   devtools panels. This comes from Electron and
   [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell).
+- Lintas adds these on top, in extension pages and background workers, with the
+  extension's manifest permissions checked on every call:
+  `identity.launchWebAuthFlow` and `identity.getRedirectURL` (sign-in through a provider's
+  web page), `tabs.captureVisibleTab`, `pageCapture.saveAsMHTML` and `userScripts`.
+- Background workers only get these APIs when Lintas runs with Chromium's sandbox, which is
+  the normal case. Started with `--no-sandbox` (needed as root), Electron skips the scripts
+  that add them ([electron/electron#54322](https://github.com/electron/electron/issues/54322)),
+  and `lintas://extensions` shows a warning.
 - Extensions run in normal tabs, never in private ones.
 - Not every Chrome extension works. Lintas is not Google Chrome, so extensions that need
-  APIs Electron lacks fail or run in part. Examples: `chrome.identity` (Google sign-in),
-  `sidePanel`, `offscreen`, `declarativeNetRequest` rule sets, and Manifest V2 features
+  APIs Electron lacks fail or run in part. Examples: `identity.getAuthToken` (Google
+  account sign-in), `sidePanel`, `offscreen`, `declarativeNetRequest` rule sets, and Manifest V2 features
   Chrome itself has removed. Password managers that need native messaging also
   will not work.
+
+**Smartling Context Capture**
+- Tested with Smartling Context Capture 5.1.2 loaded in Lintas: it installs, its toolbar
+  button opens the capture panel on the page, its background worker extracts the page, and
+  the screenshot, MHTML capture and sign-in redirect APIs it calls all work.
+- Not tested: signing in to Smartling and uploading a capture, because that needs a
+  Smartling account. Sign-in uses `identity.launchWebAuthFlow`, which Lintas opens in a
+  normal tab and closes when Smartling redirects back.
+- The extension ID matches the Web Store one, so the sign-in redirect URL Smartling has
+  registered is the same as in Chrome.
 
 **Claude Desktop (MCP)**
 - Settings → Claude Desktop → *Allow Claude Desktop to use Lintas*, then *Add Lintas to
@@ -112,7 +130,9 @@ features. The default model is Claude Opus 5.5; you can switch to Sonnet 5.5,
 Haiku 5.5 or Fable 5.2 there.
 
 Linux containers or CI running as root need `npm start -- --no-sandbox`, because
-Chromium refuses to sandbox as root. Each page keeps its own sandbox.
+Chromium refuses to sandbox as root. Chrome extension background workers then miss the
+APIs Lintas adds (see Chrome extensions above), so run as a normal user when you use
+extensions.
 
 ## Build installers
 
@@ -145,6 +165,11 @@ starts the real app and checks, end to end:
 - the TMS through the app's internal interface
 - in-page translation and restoring the original page
 - that AI features refuse to run without an API key
+- a test Chrome extension: toolbar button, content script and background worker
+
+`LINTAS_TEST_SANDBOX=1` runs it with Chromium's sandbox (as a non-root user) and also checks
+the background worker's extra APIs: windows, contextMenus, identity, pageCapture, userScripts,
+a screenshot and an MHTML capture.
 
 The end-to-end test needs Playwright.
 

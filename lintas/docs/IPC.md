@@ -108,7 +108,7 @@ saved too.
 
 | Call | Returns |
 |---|---|
-| `app.status()` | `{ version, online, hasApiKey, model, models:[{id,label,note}], platform, dataDir }` |
+| `app.status()` | `{ version, online, hasApiKey, model, models:[{id,label,note}], platform, dataDir, sandbox }` — `sandbox` is false when started with `--no-sandbox` |
 | `settings.get()` | `Settings` |
 | `settings.set(partial)` | `Settings` |
 | `settings.setApiKey(key)` | `{ hasApiKey }` (`""` removes it; the key is encrypted with the OS keychain and never returned) |

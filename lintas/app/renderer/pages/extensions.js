@@ -7,6 +7,7 @@ import { confirmDialog, toast } from '../ui/overlay.js';
 
 export default function extensionsPage(el) {
   const list = h('div');
+  const note = h('div');
   const input = h('input.input', { type: 'text', placeholder: 'Chrome Web Store link or extension ID', 'aria-label': 'Chrome Web Store link or extension ID', spellcheck: false, style: { flex: '1', minWidth: '260px' } });
   const install = h('button.btn.primary', { type: 'button' }, icon('plus'), 'Install');
   install.addEventListener('click', () => {
@@ -41,6 +42,11 @@ export default function extensionsPage(el) {
         catch (e) { toast('error', errText(e, 'The extension could not be loaded.')); }
       } })),
     h('div.card', { style: { display: 'flex', gap: '8px', padding: '12px', marginBottom: '16px', flexWrap: 'wrap' } }, input, install),
-    list));
+    note, list));
   load();
+  call(L().app.status(), { silent: true }).then((s) => {
+    if (s && s.sandbox === false) mount(note, h('div.card', { role: 'note', style: { padding: '12px 14px', marginBottom: '16px', background: 'var(--warn-soft)', color: 'var(--warn)' } },
+      h('strong', 'Lintas is running with --no-sandbox. '),
+      'Extension background workers then miss chrome.windows, contextMenus, identity, pageCapture and userScripts, so extensions such as Smartling Context Capture will not work. Start Lintas without --no-sandbox (as a normal user, not root).'));
+  });
 }

@@ -32,9 +32,13 @@ const site = http.createServer((req, res) => {
 const port = site.address().port;
 const shots = process.env.LINTAS_SHOTS;
 
+// LINTAS_TEST_SANDBOX=1 runs with Chromium's sandbox (needs a non-root user). Only then do
+// extension service workers get the extra chrome.* APIs (electron/electron#54322).
+const SANDBOX = process.env.LINTAS_TEST_SANDBOX === '1';
 const app = await electron.launch({
   executablePath: createRequire(import.meta.url)('electron'),
-  args: ['.', '--no-sandbox'],
+  args: SANDBOX ? ['.'] : ['.', '--no-sandbox'],
+  chromiumSandbox: SANDBOX,
   cwd: path.resolve(import.meta.dirname, '..'),
   env: { ...process.env, LINTAS_DATA_DIR: dataDir },
 });
@@ -49,6 +53,7 @@ try {
   const st = await L(() => lintas.app.status());
   assert.equal(st.hasApiKey, false);
   assert.ok(st.models.length >= 3);
+  assert.equal(st.sandbox, SANDBOX);
 
   // Browsing
   let tabsNow = await L(() => lintas.tabs.list());
@@ -63,6 +68,23 @@ try {
   const exts = await L(() => lintas.extensions.list());
   assert.ok(exts.some(e => e.name === 'Lintas test extension'), JSON.stringify(exts));
   await win.waitForFunction(() => { const el = document.querySelector('browser-action-list'); return !!customElements.get('browser-action-list') && el?.shadowRoot?.querySelectorAll('.action, button').length > 0; }, null, { timeout: 15000, polling: 300 });
+  // The extension's background worker answered its content script
+  const sw = await app.evaluate(async ({ webContents }, url) => {
+    const wc = webContents.getAllWebContents().find(w => w.getURL() === url);
+    for (let i = 0; wc && i < 75; i++) {
+      const v = await wc.executeJavaScript('document.documentElement.dataset.lintasSw || ""');
+      if (v) return JSON.parse(v);
+      await new Promise(r => setTimeout(r, 200));
+    }
+    return null;
+  }, `http://127.0.0.1:${port}/`);
+  assert.ok(sw && !sw.error, 'background worker reply: ' + JSON.stringify(sw));
+  if (SANDBOX) {
+    for (const k of ['windows', 'contextMenus', 'identity', 'pageCapture', 'userScripts']) assert.equal(sw[k], 'object', k + ': ' + JSON.stringify(sw));
+    assert.match(sw.redirect, /^https:\/\/[a-p]{32}\.chromiumapp\.org\/cb$/);
+    assert.equal(sw.capture, 'data:image/jpeg;base64,');
+    assert.equal(sw.mhtml, 'multipart/related');
+  }
 
   // Claude Desktop route: turn access on, then use the real MCP server
   await L(() => lintas.settings.set({ claudeDesktop: true }));

@@ -24,6 +24,9 @@ if (process.env.LINTAS_DATA_DIR) app.setPath('userData', path.resolve(process.en
 // Sandbox every renderer and utility process. Chromium refuses to sandbox when
 // run as root, so `--no-sandbox` (containers, CI) keeps only the per-page sandbox.
 if (!app.commandLine.hasSwitch('no-sandbox')) app.enableSandbox();
+// Electron skips service-worker preloads without the sandbox (electron/electron#54322), so
+// extension background workers then lack the chrome.* APIs Lintas adds.
+else console.warn('Lintas: --no-sandbox is set. Chrome extension background workers will miss windows, contextMenus, identity, pageCapture and userScripts.');
 app.setName('Lintas');
 protocol.registerSchemesAsPrivileged([{ scheme: 'lintas-ui', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 
@@ -554,7 +557,7 @@ async function mcpTool(name, a) {
 
 function status() {
   const s = data.settings();
-  return { version: VERSION, online: net.isOnline(), hasApiKey: ai.hasKey(), model: s.model, models: MODELS, platform: process.platform, dataDir: app.getPath('userData') };
+  return { version: VERSION, online: net.isOnline(), hasApiKey: ai.hasKey(), model: s.model, models: MODELS, platform: process.platform, dataDir: app.getPath('userData'), sandbox: !app.commandLine.hasSwitch('no-sandbox') };
 }
 
 function suggest(text) {

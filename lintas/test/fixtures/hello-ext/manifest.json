@@ -23,5 +23,17 @@
   ],
   "icons": {
     "16": "icon.png"
-  }
+  },
+  "background": {
+    "service_worker": "sw.js"
+  },
+  "permissions": [
+    "identity",
+    "pageCapture",
+    "userScripts",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ]
 }
