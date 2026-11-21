@@ -21,7 +21,7 @@ const items: StageItem[] = [
     src: "offline",
     ar: 1.6,
     start: 275,
-    end: 365,
+    end: 400,
     zoom: [1.0, 1.15],
     fx: [0.5, 0.5],
     fy: [0.5, 0.55],
@@ -33,7 +33,7 @@ export const S3Browse: React.FC = () => (
   <AbsoluteFill>
     <Backdrop />
     <div style={{ position: "absolute", left: 96, top: 120, width: 820 }}>
-      <Headline text="Fast. Private. Works offline." accent={[1]} />
+      <Headline text="Fast. Private. Works offline." accent={[3]} />
       <ChipColumn top={44}>
         <Chip icon="lock" text="HTTPS first" at={118} />
         <Chip icon="shield" text="Blocks trackers and ads" at={208} />
