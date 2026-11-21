@@ -121,7 +121,24 @@ The third part adds the checks on both sides of the model:
 
   Links other than wa.me, the site's own domain and the team's email address are removed.
 
-Test cases: `tests/fixtures/guard.json` and `tests/fixtures/validator.json`. Knowledge, chat endpoints and the chat itself follow in later parts.
+Test cases: `tests/fixtures/guard.json` and `tests/fixtures/validator.json`.
+
+The fourth part adds what the SI knows and how it writes, with two new tabs:
+
+- **Knowledge** (`includes/si/class-knowledge.php`, tab **Knowledge**/**Pengetahuan**). 26 entries in `data/knowledge.nusalexia.json`, taken on 21 November 2026 from:
+  - the Nusalexia admin guidelines in Notion (services, delivery, revisions, express rules, accepted formats, FAQ, escalation);
+  - nusalexia.co.id: how to order, the price page's payment and discount notes, and the six document pages.
+
+  Left out on purpose: the NPWP, bank account number, staff names, client list and internal procedures. The entries are about 3,600 tokens, so all of them go to the model with each request. A keyword search (`search()`) backs the `lookup_knowledge` tool. In the tab you can edit, add and remove entries, export and import JSON, and restore the bundle. Until you change the entries, the bundled ones are used and follow plugin updates.
+- **Voice** (`includes/si/class-voice.php`, tab **Voice**/**Gaya bahasa**). `data/voice.nusalexia.json` holds:
+  - the voice guide from the design plan, in Indonesian and English;
+  - 10 example replies, the first being the owner's sample word for word;
+  - 16 fixed replies in both languages (greeting, privacy notice, busy, rate limit, blocked file or ID, staff-name question and others);
+  - extra banned words, and the list of names the reply checker blocks.
+
+  That list ships empty, so no staff name is published in the plugin; add names in the tab. Every fixed reply and example passes the reply checker (unit-tested).
+
+Both are stored in options that are not autoloaded. The chat endpoints and the chat itself follow in later parts.
 
 ## Translations
 

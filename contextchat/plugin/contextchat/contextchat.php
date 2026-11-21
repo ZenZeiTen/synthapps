@@ -46,6 +46,8 @@ require_once CONTEXTCHAT_DIR . 'includes/si/class-countries.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-price-engine.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-guard.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-validator.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-knowledge.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-voice.php';
 
 register_activation_hook( __FILE__, array( 'ContextChat_Analytics', 'activate' ) );
 register_activation_hook( __FILE__, array( 'ContextChat_Installer', 'install' ) );
@@ -57,6 +59,8 @@ add_action(
 		load_plugin_textdomain( 'contextchat', false, dirname( plugin_basename( CONTEXTCHAT_FILE ) ) . '/languages' );
 
 		add_action( 'init', array( 'ContextChat_Settings', 'register' ) );
+		add_action( 'init', array( 'ContextChat_Knowledge', 'register' ) );
+		add_action( 'init', array( 'ContextChat_Voice', 'register' ) );
 		ContextChat_Installer::maybe_install();
 		ContextChat_Analytics::init();
 		ContextChat_Frontend::init();
