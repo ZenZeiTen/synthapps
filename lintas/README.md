@@ -119,6 +119,54 @@ does not let apps change the default themselves.
 - The key is stored encrypted with the operating system's keychain and is sent only
   to `api.anthropic.com`. Everything else in Lintas works without a key.
 
+## Under the hood
+
+These screenshots come from the real app, not the interface's preview mode, and show the
+results of actual runs. `scripts/screenshots.mjs` regenerates them. The site in them is a
+made-up help centre served on this computer.
+
+**Tracker blocking.** The page loads seven tracking scripts and pixels (Google Analytics, Tag
+Manager, Facebook, DoubleClick, Bing, Hotjar). Lintas blocks all seven before they leave the
+computer. The shield shows the count, and the address bar marks the plain-HTTP site as not secure.
+
+![Tracker blocking](docs/screenshots/tech-tracker-blocking.png)
+
+**Page translation from the translation memory, with no AI and no network.** The page's 14
+text passages all have approved matches in the project's TM, so Lintas rewrites the page in
+Indonesian on its own. No API key is set. The original stays in memory; *Show original* puts
+it back.
+
+![Page translated from the TM](docs/screenshots/tech-page-translation-tm.png)
+
+**CAT editor.** For segment 1 the TM finds a 79 % fuzzy match and shows the word-level
+difference ("a website" became "an online store"). The termbase underlines *payment link*,
+a preferred term. Segment 2 carries a QA warning with two findings: the source says 60
+days but the translation says 30, and *refund* was not translated as the required term
+*pengembalian dana*.
+
+![CAT editor](docs/screenshots/tech-cat-editor.png)
+
+**Analysis.** Match bands for the whole project, computed against its TM, the way a TMS
+quote is prepared: 101 % (in-context) matches, 100 %, fuzzy bands, no match and repetitions.
+
+![Match-band analysis](docs/screenshots/tech-tms-project.png)
+
+**Chrome extensions.** An unpacked MV3 extension with background worker, content script and
+toolbar button. It asks for `identity`, `pageCapture`, `userScripts` and `contextMenus`, the
+APIs Lintas adds on top of Electron. This run had Chromium's sandbox on, so no warning shows.
+
+![Chrome extensions](docs/screenshots/tech-chrome-extensions.png)
+
+**Claude Desktop over MCP.** Access is switched on, the local bridge is running, and Lintas
+has written its entry into Claude Desktop's config file, keeping a backup of the old one.
+
+![Claude Desktop](docs/screenshots/tech-claude-desktop-mcp.png)
+
+**Offline fallback.** The page was saved as MHTML, then the site went down. The error page
+offers the saved copy, which opens without a connection.
+
+![Offline fallback](docs/screenshots/tech-offline-fallback.png)
+
 ## Run from source
 
 Requires Node.js 20 or later.
