@@ -10,6 +10,12 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lintas-e2e-'));
+// A fake Chrome profile for "Import from another browser"
+const importHome = fs.mkdtempSync(path.join(os.tmpdir(), 'lintas-e2e-home-'));
+const chromeProfile = path.join(importHome, '.config', 'google-chrome', 'Default');
+fs.mkdirSync(chromeProfile, { recursive: true });
+fs.writeFileSync(path.join(chromeProfile, 'Bookmarks'), JSON.stringify({ roots: { bookmark_bar: { type: 'folder', children: [{ type: 'url', name: 'Imported KBBI', url: 'https://kbbi.kemdikbud.go.id/' }, { type: 'folder', name: 'Klien', children: [{ type: 'url', name: 'Client portal', url: 'https://client.example/' }] }] }, other: { type: 'folder', children: [] } } }));
+fs.writeFileSync(path.join(chromeProfile, 'Preferences'), JSON.stringify({ default_search_provider_data: { template_url_data: { keyword: 'bing.com' } } }));
 // A small MV3 extension (content script + toolbar action), loaded as an unpacked extension.
 fs.writeFileSync(path.join(dataDir, 'unpacked-extensions.json'), JSON.stringify([path.resolve(import.meta.dirname, 'fixtures/hello-ext')]));
 
@@ -41,7 +47,7 @@ const app = await electron.launch({
   args: [...(SANDBOX ? ['.'] : ['.', '--no-sandbox']), '--', `http://127.0.0.1:${port}/?from=os`],
   chromiumSandbox: SANDBOX,
   cwd: path.resolve(import.meta.dirname, '..'),
-  env: { ...process.env, LINTAS_DATA_DIR: dataDir },
+  env: { ...process.env, LINTAS_DATA_DIR: dataDir, LINTAS_IMPORT_HOME: importHome },
 });
 const log = [];
 try {
@@ -88,11 +94,39 @@ try {
   }, `http://127.0.0.1:${port}/`);
   assert.ok(sw && !sw.error, 'background worker reply: ' + JSON.stringify(sw));
   if (SANDBOX) {
-    for (const k of ['windows', 'contextMenus', 'identity', 'pageCapture', 'userScripts']) assert.equal(sw[k], 'object', k + ': ' + JSON.stringify(sw));
+    for (const k of ['windows', 'contextMenus', 'identity', 'pageCapture', 'userScripts', 'sidePanel', 'offscreen', 'debugger', 'alarms', 'tabGroups']) assert.equal(sw[k], 'object', k + ': ' + JSON.stringify(sw));
+    assert.equal(sw.alarm, 'tick');
+    assert.equal(sw.debugger1plus1, 2);
+    assert.equal(sw.groupColor, 'blue');
     assert.match(sw.redirect, /^https:\/\/[a-p]{32}\.chromiumapp\.org\/cb$/);
     assert.equal(sw.capture, 'data:image/jpeg;base64,');
     assert.equal(sw.mhtml, 'multipart/related');
   }
+
+  // Closing a tab that has no web view (an internal page) while another internal page is active
+  const i1 = await L(() => lintas.tabs.create({ url: 'lintas://settings' }));
+  const i2 = await L(() => lintas.tabs.create({ url: 'lintas://extensions' }));
+  assert.equal((await L(() => lintas.tabs.list())).find(t => t.id === i2.id).title, 'Extensions');
+  await L(id => lintas.tabs.close(id), i1.id);
+  await L(id => lintas.tabs.close(id), i2.id);
+  await L(id => lintas.tabs.activate(id), tabId);
+
+  // Import from another browser
+  const browsers = await L(() => lintas.importer.detect());
+  assert.deepEqual(browsers.map(b => b.id), ['chrome'], JSON.stringify(browsers));
+  const imp = await L(() => lintas.importer.run({ browserId: 'chrome', profileId: 'Default' }));
+  assert.equal(imp.bookmarks, 2, JSON.stringify(imp));
+  assert.deepEqual(imp.settings, ['searchEngine']);
+  const bms = await L(() => lintas.bookmarks.list());
+  assert.ok(bms.some(b => b.title === 'Client portal' && b.folder === 'Klien'), JSON.stringify(bms));
+  assert.equal((await L(() => lintas.settings.get())).searchEngine, 'bing');
+  assert.equal((await L(() => lintas.importer.run({ browserId: 'chrome', profileId: 'Default' }))).bookmarks, 0, 'a second import adds nothing');
+  await L(() => lintas.settings.set({ searchEngine: 'duckduckgo' }));
+
+  // Minimize to the notification area: the setting creates the tray icon without errors
+  await L(() => lintas.settings.set({ minimizeToTray: true }));
+  await L(() => lintas.settings.set({ minimizeToTray: false }));
+  assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()), true);
 
   // Claude Desktop route: turn access on, then use the real MCP server
   await L(() => lintas.settings.set({ claudeDesktop: true }));

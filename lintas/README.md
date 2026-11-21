@@ -26,6 +26,15 @@ does not let apps change the default themselves.
   stripping, Do Not Track and Global Privacy Control, per-site permission prompts.
 - Tab strip, omnibox with suggestions, bookmarks bar, side panel, find in page, zoom,
   downloads, history and the usual keyboard shortcuts.
+- Import from Chrome, Edge, Firefox, Brave, Vivaldi, Opera or Chromium on the same
+  computer (Settings → General → Import): bookmarks with their folders, up to 5,000 recent
+  history entries, and the search engine and home page. Bookmarks you already have are
+  skipped, so importing twice is safe. Any browser's bookmarks HTML export works too.
+  The other browser's files are only read, from a temporary copy, so it can stay open.
+  Passwords, cookies and open tabs are not imported.
+- Optional *Minimize to the notification area* (menu bar on macOS, system tray on Linux):
+  minimizing then takes Lintas off the taskbar, and its icon brings it back. Windows does
+  not let apps pin themselves to the taskbar; right-click Lintas → *Pin to taskbar* once.
 
 **Chrome extensions**
 - Install from the Chrome Web Store: open chromewebstore.google.com in Lintas and choose
@@ -41,7 +50,10 @@ does not let apps change the default themselves.
 - Lintas adds these on top, in extension pages and background workers, with the
   extension's manifest permissions checked on every call:
   `identity.launchWebAuthFlow` and `identity.getRedirectURL` (sign-in through a provider's
-  web page), `tabs.captureVisibleTab`, `pageCapture.saveAsMHTML` and `userScripts`.
+  web page), `tabs.captureVisibleTab`, `pageCapture.saveAsMHTML`, `userScripts`,
+  `debugger`, `offscreen`, `alarms` and `sidePanel`. A side panel opens as a tab, because
+  Lintas has no extension side panel. `tabGroups` and `declarativeNetRequest` exist only as
+  stand-ins so extensions start: there are no tab groups, and network rules are not applied.
 - Background workers only get these APIs when Lintas runs with Chromium's sandbox, which is
   the normal case. Started with `--no-sandbox` (needed as root), Electron skips the scripts
   that add them ([electron/electron#54322](https://github.com/electron/electron/issues/54322)),
@@ -49,7 +61,7 @@ does not let apps change the default themselves.
 - Extensions run in normal tabs, never in private ones.
 - Not every Chrome extension works. Lintas is not Google Chrome, so extensions that need
   APIs Electron lacks fail or run in part. Examples: `identity.getAuthToken` (Google
-  account sign-in), `sidePanel`, `offscreen`, `declarativeNetRequest` rule sets, and Manifest V2 features
+  account sign-in), native messaging, `offscreen`, `declarativeNetRequest` rule sets, and Manifest V2 features
   Chrome itself has removed. Password managers that need native messaging also
   will not work.
 
@@ -62,6 +74,12 @@ does not let apps change the default themselves.
   normal tab and closes when Smartling redirects back.
 - The extension ID matches the Web Store one, so the sign-in redirect URL Smartling has
   registered is the same as in Chrome.
+
+**Claude extension (Claude in Chrome)**
+- Tested with version 1.0.107: it starts, and its toolbar button opens Claude's panel in a
+  tab, showing its sign-in screen. Signing in and letting Claude act on pages have not been
+  tested, because that needs a paid Claude account. Its links to the Claude desktop apps
+  (native messaging) do not work.
 
 **Claude Desktop (MCP)**
 - Settings → Claude Desktop → *Allow Claude Desktop to use Lintas*, then *Add Lintas to
@@ -118,6 +136,54 @@ does not let apps change the default themselves.
 - Ask about the page and get answers with clickable paragraph citations.
 - The key is stored encrypted with the operating system's keychain and is sent only
   to `api.anthropic.com`. Everything else in Lintas works without a key.
+
+## Under the hood
+
+These screenshots come from the real app, not the interface's preview mode, and show the
+results of actual runs. `scripts/screenshots.mjs` regenerates them. The site in them is a
+made-up help centre served on this computer.
+
+**Tracker blocking.** The page loads seven tracking scripts and pixels (Google Analytics, Tag
+Manager, Facebook, DoubleClick, Bing, Hotjar). Lintas blocks all seven before they leave the
+computer. The shield shows the count, and the address bar marks the plain-HTTP site as not secure.
+
+![Tracker blocking](docs/screenshots/tech-tracker-blocking.png)
+
+**Page translation from the translation memory, with no AI and no network.** The page's 14
+text passages all have approved matches in the project's TM, so Lintas rewrites the page in
+Indonesian on its own. No API key is set. The original stays in memory; *Show original* puts
+it back.
+
+![Page translated from the TM](docs/screenshots/tech-page-translation-tm.png)
+
+**CAT editor.** For segment 1 the TM finds a 79 % fuzzy match and shows the word-level
+difference ("a website" became "an online store"). The termbase underlines *payment link*,
+a preferred term. Segment 2 carries a QA warning with two findings: the source says 60
+days but the translation says 30, and *refund* was not translated as the required term
+*pengembalian dana*.
+
+![CAT editor](docs/screenshots/tech-cat-editor.png)
+
+**Analysis.** Match bands for the whole project, computed against its TM, the way a TMS
+quote is prepared: 101 % (in-context) matches, 100 %, fuzzy bands, no match and repetitions.
+
+![Match-band analysis](docs/screenshots/tech-tms-project.png)
+
+**Chrome extensions.** An unpacked MV3 extension with background worker, content script and
+toolbar button. It asks for `identity`, `pageCapture`, `userScripts` and `contextMenus`, the
+APIs Lintas adds on top of Electron. This run had Chromium's sandbox on, so no warning shows.
+
+![Chrome extensions](docs/screenshots/tech-chrome-extensions.png)
+
+**Claude Desktop over MCP.** Access is switched on, the local bridge is running, and Lintas
+has written its entry into Claude Desktop's config file, keeping a backup of the old one.
+
+![Claude Desktop](docs/screenshots/tech-claude-desktop-mcp.png)
+
+**Offline fallback.** The page was saved as MHTML, then the site went down. The error page
+offers the saved copy, which opens without a connection.
+
+![Offline fallback](docs/screenshots/tech-offline-fallback.png)
 
 ## Run from source
 

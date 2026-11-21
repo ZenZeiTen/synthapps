@@ -1,5 +1,14 @@
 Lintas is a fast, secure desktop browser (Chromium engine) that works online and offline, with a built-in Translation Management System, Claude AI features, Chrome extensions and a Claude Desktop (MCP) connection.
 
+## New in 0.2.0
+
+- **Import from another browser** (Settings > General): bookmarks, history, search engine and home page from Chrome, Edge, Firefox, Brave, Vivaldi or Opera, or a bookmarks HTML file.
+- **Minimize to the notification area** (Settings > General, off by default).
+- **Fixed:** an error when closing some tabs ("conversion failure from null").
+- **Fixed:** the Extensions, Claude Desktop and About buttons in Settings appeared to do nothing.
+- **Fixed:** a long file path ran under the buttons in Settings > Claude Desktop.
+- **Chrome extensions:** added `debugger`, `offscreen`, `alarms` and `sidePanel` (a side panel opens as a tab). The Claude extension now starts and its button opens its panel; signing in to it has not been tested.
+
 ## Download for Windows
 
 Windows 10 or 11, 64-bit.
@@ -29,7 +38,7 @@ Get-FileHash .\Lintas-Setup-<version>-x64.exe -Algorithm SHA256
 ## Known limits
 
 - No automatic updates yet: download the new version from this page and install it over the old one. Your data is kept.
-- Chrome extensions: most work, but not all. Background workers get Lintas's extra Chrome APIs only with the normal sandbox. Smartling Context Capture loads and captures pages; signing in to Smartling has not been tested.
+- Chrome extensions: many work, but not all. Tab groups and network rule sets are not supported. Background workers get Lintas's extra Chrome APIs only with the normal sandbox. Smartling Context Capture loads and captures pages; signing in to Smartling has not been tested.
 - AI features need your own Claude API key (Settings > AI).
 
 Full details: [lintas/README.md](https://github.com/ZenZeiTen/synthapps/blob/main/lintas/README.md).

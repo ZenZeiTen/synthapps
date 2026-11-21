@@ -4,6 +4,7 @@ import { icon } from '../lib/icons.js';
 import { S, L, on, call, go, setSettings, refreshStatus } from '../lib/store.js';
 import { openDialog, toast, confirmDialog } from '../ui/overlay.js';
 import { withBusy } from '../ui/widgets.js';
+import { importDialog } from '../ui/importdialog.js';
 
 export async function clearDataDialog() {
   const boxes = { history: h('input.check', { type: 'checkbox', checked: true }), cookies: h('input.check', { type: 'checkbox', checked: true }), cache: h('input.check', { type: 'checkbox', checked: true }), offline: h('input.check', { type: 'checkbox' }) };
@@ -27,9 +28,19 @@ const ENGINES = [['duckduckgo', 'DuckDuckGo'], ['startpage', 'Startpage'], ['bra
 
 export default function settingsPage(el) {
   const main = h('div');
-  const nav = h('nav.settings-nav', { 'aria-label': 'Settings sections' }, h('h1', 'Settings'), SECTIONS.map(([id, label, ic], i) => h('button', { type: 'button', class: i === 0 ? 'on' : '', dataset: { sec: id }, onClick: () => { main.querySelector('#set-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, icon(ic), label)));
+  const nav = h('nav.settings-nav', { 'aria-label': 'Settings sections' }, h('h1', 'Settings'), SECTIONS.map(([id, label, ic], i) => h('button', { type: 'button', class: i === 0 ? 'on' : '', dataset: { sec: id }, onClick: () => jump(id) }, icon(ic), label)));
+  // Jumping to a section marks it at once and flashes its heading, so the click shows even
+  // when the section is already on screen and the page cannot scroll further.
+  let jumping = 0;
+  function jump(id) {
+    const g = main.querySelector('#set-' + id); if (!g) return;
+    nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.sec === id));
+    clearTimeout(jumping); jumping = setTimeout(() => { jumping = 0; }, 900);
+    g.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash');
+  }
   const set = (k) => (v) => setSettings({ [k]: v });
-  const row = (title, sub, ctl) => h('div.set-row', h('div.txt', h('b', title), sub ? h('span', sub) : null), ctl);
+  const row = (title, sub, ctl, cls) => h('div.set-row' + (cls ? '.' + cls : ''), h('div.txt', h('b', title), sub ? h('span', sub) : null), ctl);
   const toggle = (k, title, sub) => row(title, sub, h('input.switch', { type: 'checkbox', checked: !!S.settings[k], 'aria-label': title, onChange: (e) => set(k)(e.target.checked) }));
   const select = (k, title, sub, options) => row(title, sub, h('select.select', { 'aria-label': title, onChange: (e) => set(k)(e.target.value) }, options.map(([v, l]) => h('option', { value: v, selected: S.settings[k] === v }, l))));
   const group = (id, title, ...rows) => h('section.set-group', { id: 'set-' + id }, h('h2', title), h('div.card.set-card', rows));
@@ -44,9 +55,14 @@ export default function settingsPage(el) {
       mount(box,
         toggle('claudeDesktop', 'Allow Claude Desktop to use Lintas', 'Claude Desktop can then list tabs, read and open pages, and work with your translation projects, memories and termbases. It uses a private connection on this computer only. Private tabs are never shared.'),
         row('Connection', c.running ? 'Ready: Claude Desktop can reach Lintas while Lintas is open.' : 'Off: turn on the switch above.', h('span.chip', c.running ? 'On' : 'Off')),
-        row('Claude Desktop setup', c.configError ? errText(c.configError) : (c.configured ? 'Lintas is listed in ' : 'Not set up yet. This adds Lintas to ') + c.configPath + ' and keeps a backup of the old file.', h('div.ctl', connect, copy)));
+        row('Claude Desktop setup', c.configError ? errText(c.configError) : (c.configured ? 'Lintas is listed in ' : 'Not set up yet. This adds Lintas to ') + c.configPath + ' and keeps a backup of the old file.', h('div.ctl', connect, copy), 'stack'));
     });
     return box;
+  }
+
+  function trayToggle(platform) {
+    const where = platform === 'win32' ? ['notification area', 'by the clock on the taskbar'] : platform === 'darwin' ? ['menu bar', 'in the menu bar'] : ['system tray', 'in the system tray'];
+    return toggle('minimizeToTray', `Minimize to the ${where[0]}`, `Minimizing hides Lintas from the taskbar. Click its icon ${where[1]} to bring it back.`);
   }
 
   function defaultRow() {
@@ -84,6 +100,8 @@ export default function settingsPage(el) {
         select('searchEngine', 'Search engine', 'Used by the address bar and the new tab page.', ENGINES),
         toggle('restoreSession', 'Restore tabs on startup', 'Reopen the tabs you had when you last closed Lintas.'),
         toggle('showBookmarksBar', 'Show bookmarks bar', 'A row of bookmarks under the address bar.'),
+        trayToggle(st.platform),
+        row('Import from another browser', 'Bookmarks, history and settings from Chrome, Edge, Firefox, Brave, Vivaldi or Opera, or a bookmarks file.', h('button.btn', { type: 'button', onClick: () => importDialog() }, icon('download'), 'Import…')),
         defaultRow()),
       group('appearance', 'Appearance', row('Theme', 'System follows your operating system’s light or dark mode.', theme)),
       group('privacy', 'Privacy & security',
@@ -113,7 +131,7 @@ export default function settingsPage(el) {
   }
   mount(el, h('div.settings', nav, main));
   draw();
-  const host = el; const spy = () => { let cur = SECTIONS[0][0]; for (const [id] of SECTIONS) { const g = main.querySelector('#set-' + id); if (g && g.getBoundingClientRect().top - host.getBoundingClientRect().top < 120) cur = id; } nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.sec === cur)); };
+  const host = el; const spy = () => { if (jumping) return; let cur = SECTIONS[0][0]; for (const [id] of SECTIONS) { const g = main.querySelector('#set-' + id); if (g && g.getBoundingClientRect().top - host.getBoundingClientRect().top < 120) cur = id; } nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.sec === cur)); };
   host.addEventListener('scroll', spy, { passive: true });
   const offs = [on('settings', () => { const y = host.scrollTop; const f = document.activeElement?.getAttribute?.('aria-label'); draw(); host.scrollTop = y; if (f) main.querySelector(`[aria-label="${CSS.escape(f)}"]`)?.focus(); }), on('status', draw)];
   return () => offs.forEach((f) => f());

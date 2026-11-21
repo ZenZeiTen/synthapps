@@ -8,7 +8,7 @@ import { menuAt, openMenu } from './overlay.js';
 
 const INTERNAL = {
   newtab: ['New tab', 'plus'], tms: ['Translation — TMS', 'tms'], 'tms-project': ['Project — TMS', 'tms'], 'tms-file': ['Editor — TMS', 'tms'],
-  offline: ['Offline library', 'saveOffline'], history: ['History', 'history'], downloads: ['Downloads', 'download'], bookmarks: ['Bookmarks', 'star'], settings: ['Settings', 'settings'],
+  offline: ['Offline library', 'saveOffline'], history: ['History', 'history'], downloads: ['Downloads', 'download'], bookmarks: ['Bookmarks', 'star'], settings: ['Settings', 'settings'], extensions: ['Extensions', 'puzzle'],
 };
 export function tabTitle(t) {
   if (t.kind === 'internal') { const p = parseInternal(t.url); return S.titles.get(t.url) || t.title || (INTERNAL[p?.page] || ['Lintas'])[0]; }

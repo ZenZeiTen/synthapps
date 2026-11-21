@@ -111,6 +111,11 @@ saved too.
 | `app.status()` | `{ version, online, hasApiKey, model, models:[{id,label,note}], platform, dataDir, sandbox }` — `sandbox` is false when started with `--no-sandbox` |
 | `app.defaultBrowser()` | `{ isDefault, canSetDirectly }` — on Windows `canSetDirectly` is false |
 | `app.makeDefault()` | Windows: opens Settings > Default apps and returns `{ ..., openedSettings: true }`; macOS and Linux: registers for http and https |
+| `importer.detect()` | `[{ id, name, kind: 'chromium'\|'firefox', profiles: [{ id, name, path }] }]` — browsers found on this computer |
+| `importer.run({ browserId, profileId, bookmarks, history, settings })` | `{ source, bookmarks, history, settings: [keys] }` — counts of what was added |
+| `importer.fromFile()` | Same result, from a bookmarks HTML file the user picks; `null` if cancelled |
+
+Setting `minimizeToTray` (boolean): minimizing hides the window to the notification area.
 | `settings.get()` | `Settings` |
 | `settings.set(partial)` | `Settings` |
 | `settings.setApiKey(key)` | `{ hasApiKey }` (`""` removes it; the key is encrypted with the OS keychain and never returned) |

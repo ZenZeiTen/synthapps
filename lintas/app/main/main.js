@@ -1,5 +1,5 @@
 // Lintas Browser — Electron main process.
-import { app, BrowserWindow, ipcMain, session, protocol, net, dialog, shell, nativeTheme, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, session, protocol, net, dialog, shell, nativeTheme, Menu, Tray, nativeImage } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,7 @@ import { BrowserData } from './browserdata.js';
 import { TabManager } from './tabs.js';
 import { hardenSession, urlsFromArgs } from './security.js';
 import { execFile } from 'node:child_process';
+import { detectBrowsers, readProfile, parseBookmarksHtml } from './importer.js';
 import { Ai, MODELS } from './ai.js';
 import * as page from './pagetools.js';
 import { Extensions } from './extensions.js';
@@ -83,6 +84,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1400, height: 900, minWidth: 900, minHeight: 600,
     title: 'Lintas', show: false,
+    ...(process.platform === 'linux' ? { icon: path.join(ROOT, 'app/assets/icon.png') } : {}),
     backgroundColor: dark ? '#1b1c1f' : '#f3f4f7',
     titleBarStyle: 'hidden',
     ...(isMac ? { trafficLightPosition: { x: 14, y: 13 } } : { titleBarOverlay: { color: '#00000000', symbolColor: dark ? '#e6e6e9' : '#2b2d33', height: 40 } }),
@@ -92,6 +94,8 @@ function createWindow() {
     },
   });
   win.once('ready-to-show', () => win.show());
+  // With "minimize to the notification area" on, a minimized window leaves the taskbar
+  win.on('minimize', () => { if (data.settings().minimizeToTray && tray) win.hide(); });
   win.webContents.on('will-navigate', e => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.loadURL('lintas-ui://app/index.html');
@@ -323,12 +327,27 @@ function registerIpc() {
 
   handle('app.status', () => status());
   handle('app.defaultBrowser', () => defaultBrowser());
+  handle('importer.detect', () => detectBrowsers(importOpts()));
+  handle('importer.run', ({ browserId, profileId, bookmarks = true, history = true, settings = true } = {}) => {
+    const b = detectBrowsers(importOpts()).find(x => x.id === browserId);
+    const p = b?.profiles.find(x => x.id === profileId) || b?.profiles[0];
+    if (!b || !p) throw new Error('That browser profile was not found on this computer.');
+    const r = readProfile(b, p);
+    return applyImport(r, { bookmarks, history, settings }, `${b.name} (${p.name})`);
+  });
+  handle('importer.fromFile', async () => {
+    const res = await dialog.showOpenDialog(win, { title: 'Import bookmarks from an HTML file', properties: ['openFile'], filters: [{ name: 'Bookmarks file', extensions: ['html', 'htm'] }] });
+    if (res.canceled || !res.filePaths[0]) return null;
+    const html = fs.readFileSync(res.filePaths[0], 'utf8');
+    return applyImport({ bookmarks: parseBookmarksHtml(html), history: [], settings: {} }, { bookmarks: true }, path.basename(res.filePaths[0]));
+  });
   handle('app.makeDefault', () => makeDefaultBrowser());
   handle('settings.get', () => data.settings());
   handle('settings.set', async patch => {
     const s = data.setSettings(patch);
     if ('theme' in patch) nativeTheme.themeSource = s.theme;
     if ('claudeDesktop' in patch) await syncBridge();
+    if ('minimizeToTray' in patch) syncTray();
     emit('settings', s);
     return s;
   });
@@ -600,6 +619,52 @@ function seedSample() {
   } catch (e) { console.error('Could not create the sample project:', e.message); }
 }
 
+// ---------- import from other browsers ----------
+
+// LINTAS_IMPORT_HOME lets the end-to-end test point the importer at a fake home folder.
+const importOpts = () => process.env.LINTAS_IMPORT_HOME ? { home: process.env.LINTAS_IMPORT_HOME, env: {} } : {};
+function applyImport(r, what, source) {
+  const out = { source, bookmarks: 0, history: 0, settings: [] };
+  if (what.bookmarks) out.bookmarks = data.importBookmarks(r.bookmarks);
+  if (what.history) out.history = data.importHistory(r.history);
+  if (what.settings && r.settings && Object.keys(r.settings).length) {
+    const before = data.settings();
+    const s = data.setSettings(r.settings);
+    out.settings = Object.keys(r.settings).filter(k => s[k] !== before[k] || s[k] === r.settings[k]);
+    emit('settings', s);
+  }
+  return out;
+}
+
+// ---------- minimize to the notification area (tray) ----------
+
+let tray = null;
+function showWindow() {
+  if (!win) return;
+  if (!win.isVisible()) win.show();
+  if (win.isMinimized()) win.restore();
+  win.focus();
+}
+function syncTray() {
+  const want = !!data?.settings().minimizeToTray;
+  if (!want) { tray?.destroy(); tray = null; if (win && !win.isVisible()) showWindow(); return; }
+  if (tray) return;
+  const base = nativeImage.createFromPath(path.join(ROOT, 'app/assets/icon.png'));
+  const size = process.platform === 'linux' ? 24 : 16;
+  const img = nativeImage.createEmpty();
+  img.addRepresentation({ scaleFactor: 1, width: size, height: size, buffer: base.resize({ width: size, height: size, quality: 'best' }).toPNG() });
+  img.addRepresentation({ scaleFactor: 2, width: size * 2, height: size * 2, buffer: base.resize({ width: size * 2, height: size * 2, quality: 'best' }).toPNG() });
+  tray = new Tray(img);
+  tray.setToolTip('Lintas');
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Show Lintas', click: showWindow },
+    { label: 'New tab', click: () => { showWindow(); tabs?.create({}); } },
+    { type: 'separator' },
+    { label: 'Quit Lintas', click: () => app.quit() },
+  ]));
+  tray.on('click', showWindow);
+}
+
 // ---------- startup ----------
 
 // Links and files from the operating system: at start, and when Lintas is already running
@@ -613,8 +678,7 @@ app.on('open-url', (e, url) => { e.preventDefault(); if (tabs) openFromArgs(['--
 app.on('open-file', (e, file) => { e.preventDefault(); if (tabs) openFromArgs(['--', file], undefined, 0); else pendingOpen.push(file); });
 app.on('second-instance', (e, argv, cwd) => {
   if (!win) return;
-  if (win.isMinimized()) win.restore();
-  win.focus();
+  showWindow();
   openFromArgs(argv, cwd);
 });
 
@@ -679,6 +743,7 @@ app.whenReady().then(async () => {
   else Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]));
   createWindow();
   openFromArgs(process.argv, process.cwd());
+  syncTray();
   for (const u of pendingOpen.splice(0)) openFromArgs(['--', u], undefined, 0);
 
   let wasOnline = net.isOnline();
@@ -688,6 +753,7 @@ app.whenReady().then(async () => {
   }, 2000);
 });
 
+app.on('activate', () => showWindow());
 app.on('window-all-closed', () => { store?.flushAll(); app.quit(); });
 app.on('before-quit', () => { tabs?.persist(); store?.flushAll(); bridge?.stop(); });
 

@@ -50,7 +50,7 @@ function sync(force) {
 }
 
 const pageContext = (t) => h('div.sp-context', t.kind === 'web' ? favicon(t.favicon, t.url, t.favicon ? null : 'globe') : icon('layers', 16), h('span.ellipsis', { dir: 'auto' }, tabTitle(t)), t.kind === 'web' ? h('span.muted', { style: { flex: 'none' } }, hostOf(t.url)) : null);
-const needsKey = () => h('div.sp-note.warn', h('b', 'AI is not set up yet. '), 'Add your Claude API key to use the assistant, AI suggestions and page translation. ', h('button.btn.sm', { type: 'button', style: { marginTop: '8px', display: 'flex' }, onClick: () => openInternal('lintas://settings') }, icon('key'), 'Open settings'));
+const needsKey = () => h('div.sp-note.warn', h('b', 'AI is not set up yet. '), 'Add your Claude API key to use the assistant and AI suggestions. Pages translate without a key only when your translation memory has every passage. ', h('button.btn.sm', { type: 'button', style: { marginTop: '8px', display: 'flex' }, onClick: () => openInternal('lintas://settings') }, icon('key'), 'Open settings'));
 const webOnly = (what) => emptyState('globe', 'Open a web page', what);
 async function loadProjects() { if (!projects) { const d = await call(L().tms.dashboard(), { silent: true }); projects = d?.projects || []; termbases = d?.termbases || []; } return projects; }
 export function invalidateTmsCache() { projects = null; termbases = null; }
