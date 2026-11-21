@@ -1,8 +1,10 @@
-# Kempt EN→ID termbase (job: Kempt UI, client code Client001)
+# Kempt EN→ID termbase (job: Kempt UI, client code Client005)
 
 Sources: MTC = Microsoft Terminology Collection INDONESIAN.tbx (2024-11-06);
 SMC = support.microsoft.com/id-id (machine-translated pages; weaker);
-NT = Notion Termbase EN↔ID (all matches "proposed", none locked/approved).
+NT = Notion Termbase EN↔ID. On 2026-11-21 this table was added to it under Client005
+(Client001–004 were already used by other clients): 65 rows "approved", and the 3 rows marked
+"not verified" or "inferred" below as "proposed". Compound rows were split, one term per row.
 
 | EN | ID (locked for this job) | Source | Note |
 |---|---|---|---|
