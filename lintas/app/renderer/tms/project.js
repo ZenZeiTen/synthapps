@@ -16,13 +16,13 @@ export function exportMenu(anchor, projectId, fileId) {
 
 /** QA result dialog; onGo(issue) is called when the user picks an issue (fileId is attached by the caller). */
 export function qaDialog(title, result, onGo) {
-  const sum = Object.entries(result.summary || {});
+  const sum = Object.entries(result.summary || {}); let api = null;
   return openDialog({ title, width: 640, content: [
     h('div.row', { style: { flexWrap: 'wrap' } }, h('span.chip', { class: result.issues.length ? 'warn' : 'ok' }, icon(result.issues.length ? 'warning' : 'circleCheck'), result.issues.length ? `${fmtNum(result.issues.length)} issue${result.issues.length === 1 ? '' : 's'}` : 'No issues found'),
       h('span.muted', `${fmtNum(result.checked)} segments checked`), sum.map(([k, n]) => h('span.chip', `${k} · ${n}`))),
-    result.issues.length ? h('div.issue-list', result.issues.slice(0, 400).map((i) => h('button.issue', { type: 'button', onClick: () => onGo && onGo(i) },
+    result.issues.length ? h('div.issue-list', result.issues.slice(0, 400).map((i) => h('button.issue', { type: 'button', onClick: () => { api?.close(null); onGo && onGo(i); } },
       h('span.sev.sev-' + i.severity, { title: i.severity }), h('span.msg', { dir: 'auto' }, i.message), onGo ? icon('chevRight', 14) : null, h('span.chk', `${i.check} · ${i.severity}${i.fileName ? ' · ' + i.fileName : ''}`)))) : h('p', 'Terminology, numbers, placeholders, punctuation and spacing all check out.'),
-  ], actions: [{ label: 'Close', kind: 'primary', primary: true }] });
+  ], onMount: (a) => { api = a; }, actions: [{ label: 'Close', kind: 'primary', primary: true }] });
 }
 
 export function pretranslateDialog(projectId, files, preselect) {
@@ -89,7 +89,7 @@ export default function tmsProject(el, ctx) {
       await run(b, async () => {
         const all = { checked: 0, issues: [], summary: {} };
         for (const f of project.files) { const r = await call(L().tms.qa(pid, f.id)); if (!r) return; all.checked += r.checked; for (const i of r.issues) all.issues.push({ ...i, fileId: f.id, fileName: f.name }); for (const k in r.summary) all.summary[k] = (all.summary[k] || 0) + r.summary[k]; }
-        const dlg = qaDialog(`Quality check — ${project.name}`, all, (i) => { S.pendingSegment.set(`${pid}/${i.fileId}`, i.segmentId); document.querySelector('#overlays .backdrop .dialog-head .icon-btn')?.click(); openFile({ id: i.fileId }); });
+        const dlg = qaDialog(`Quality check — ${project.name}`, all, (i) => { S.pendingSegment.set(`${pid}/${i.fileId}`, i.segmentId); openFile({ id: i.fileId }); });
         await dlg;
       });
     },

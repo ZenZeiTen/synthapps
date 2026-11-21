@@ -24,22 +24,23 @@ export function h(sel, props, ...kids) {
       else el.setAttribute(k, v === true ? '' : String(v));
     }
   }
-  append(el, kids);
+  appendKids(el, kids);
   return el;
 }
 
-export function append(el, kids) {
+export function appendKids(el, kids) {
   for (const k of kids) {
-    if (k == null || k === false || k === true) continue;
-    if (Array.isArray(k)) append(el, k);
-    else if (k instanceof Node) el.appendChild(k);
-    else el.appendChild(document.createTextNode(String(k)));
+    if (k == null || typeof k === 'boolean') continue;
+    if (Array.isArray(k)) { appendKids(el, k); continue; }
+    if (typeof k === 'string' || typeof k === 'number' || typeof k === 'bigint') { el.appendChild(document.createTextNode(String(k))); continue; }
+    if (k instanceof Node) { el.appendChild(k); continue; }
+    el.appendChild(document.createTextNode(String(k)));
   }
   return el;
 }
 
 export function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
-export function mount(el, ...kids) { clear(el); return append(el, kids); }
+export function mount(el, ...kids) { clear(el); return appendKids(el, kids); }
 export const cx = (...a) => a.filter(Boolean).join(' ');
 
 export function debounce(fn, ms) {

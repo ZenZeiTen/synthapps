@@ -1,6 +1,6 @@
 // Menus, popovers, dialogs and toasts. Anything here may sit above the web page, so each open overlay
 // "holds" the native view hidden (lintas.view.setVisible(false)) and releases it when it closes.
-import { h, append, trapFocus } from '../lib/dom.js';
+import { h, trapFocus } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { L, emit } from '../lib/store.js';
 
@@ -218,4 +218,3 @@ export function toast(kind, message, ms = 4200) {
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 220); }, ms);
 }
 
-export { append };
