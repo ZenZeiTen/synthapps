@@ -52,10 +52,20 @@ export const COLLECT_TEXT_NODES = `(() => {
   return { count: st.nodes.length, texts: st.orig.map(s => s.slice(0, 1500)), title: document.title, lang: document.documentElement.lang || null };
 })()`;
 
+/**
+ * Data reaches page scripts only as a base64 literal decoded inside the
+ * script, so no translated or page-derived text is ever spliced into code.
+ */
+function payload(value) {
+  const b64 = Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
+  if (!/^[A-Za-z0-9+/=]*$/.test(b64)) throw new Error('Invalid payload encoding.');
+  return `JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('${b64}'), c => c.charCodeAt(0))))`;
+}
+
 export function applyTranslations(pairs, lang) {
   return `(() => {
     const st = window.__lintas; if (!st) return 0;
-    const pairs = ${JSON.stringify(pairs)};
+    const { pairs, lang } = ${payload({ pairs, lang: String(lang || '') })};
     let done = 0;
     for (const [i, t] of pairs) {
       const node = st.nodes[i];
@@ -65,7 +75,7 @@ export function applyTranslations(pairs, lang) {
       node.nodeValue = lead + t.trim() + trail;
       done++;
     }
-    document.documentElement.setAttribute('data-lintas-translated', ${JSON.stringify(lang)});
+    document.documentElement.setAttribute('data-lintas-translated', lang);
     return done;
   })()`;
 }
@@ -80,8 +90,9 @@ export const RESTORE = `(() => {
 })()`;
 
 export function highlight(n) {
+  const num = Number.isInteger(Number(n)) ? Number(n) : 0;
   return `(() => {
-    const el = document.querySelector('[data-lintas-n="${Number(n)}"]');
+    const el = document.querySelector('[data-lintas-n="${num}"]');
     if (!el) return false;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     const prev = el.style.outline, prevBg = el.style.backgroundColor, prevT = el.style.transition;

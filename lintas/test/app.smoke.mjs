@@ -49,6 +49,24 @@ try {
   const hist = await L(() => lintas.history.list({}));
   assert.equal(hist[0].title, 'Test page');
 
+  // In-page translation from the TM only (no API key needed when every text node has a 100 % match)
+  const tp = await L(() => lintas.tms.createProject({ name: 'Page', sourceLang: 'en', targetLang: 'id' }));
+  const tf = await L(([pid]) => lintas.tms.importText(pid, { name: 'p.txt', text: 'Settings guide\n\nOpen the settings page to change your password.\n\nSave your work before you close the app.\n\nTest page' }), [tp.id]);
+  const tsegs = (await L(([pid, fid]) => lintas.tms.getFile(pid, fid, {}), [tp.id, tf.id])).segments;
+  const tgt = ['Panduan pengaturan', 'Buka halaman pengaturan untuk mengubah kata sandi Anda.', "Simpan pekerjaan Anda sebelum menutup aplikasi. ');alert(1);('", 'Halaman uji'];
+  for (let k = 0; k < tsegs.length; k++) await L(([pid, fid, sid, t]) => lintas.tms.updateSegment(pid, fid, sid, { target: t, status: 'translated' }), [tp.id, tf.id, tsegs[k].id, tgt[k]]);
+  const tr = await L(([id, pid]) => lintas.ai.translatePage(id, { targetLang: 'id', projectId: pid }), [tabId, tp.id]);
+  assert.equal(tr.fromAi, 0);
+  assert.ok(tr.fromTm >= 3, JSON.stringify(tr));
+  const cap = await L(([id, pid]) => lintas.tms.capturePage(id, pid), [tabId, tp.id]);
+  const capSegs = (await L(([pid, fid]) => lintas.tms.getFile(pid, fid, {}), [tp.id, cap.id])).segments.map(x => x.source);
+  assert.ok(capSegs.includes('Buka halaman pengaturan untuk mengubah kata sandi Anda.'), capSegs.join(' | '));
+  assert.ok(capSegs.some(x => x.includes("');alert(1);('")), 'quotes in translations stay text');
+  await L(([id]) => lintas.ai.restorePage(id), [tabId]);
+  const cap2 = await L(([id, pid]) => lintas.tms.capturePage(id, pid), [tabId, tp.id]);
+  const back = (await L(([pid, fid]) => lintas.tms.getFile(pid, fid, {}), [tp.id, cap2.id])).segments.map(x => x.source);
+  assert.ok(back.includes('Open the settings page to change your password.'), back.join(' | '));
+
   // Offline library
   const saved = await L(id => lintas.offline.save(id), tabId);
   assert.ok(saved.bytes > 100 && saved.words >= 10, JSON.stringify(saved));

@@ -48,11 +48,15 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2' };
 
 function serveRenderer(request) {
-  const u = new URL(request.url);
-  let rel = decodeURIComponent(u.pathname).replace(/^\/+/, '') || 'index.html';
+  const notFound = () => new Response('Not found', { status: 404, headers: { 'content-security-policy': CSP } });
+  let rel;
+  try { rel = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, '') || 'index.html'; } catch { return notFound(); }
+  if (rel.includes('\0')) return notFound();
   const file = path.resolve(RENDERER, rel);
-  if (!file.startsWith(RENDERER + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return new Response('Not found', { status: 404, headers: { 'content-security-policy': CSP } });
-  return new Response(fs.readFileSync(file), {
+  if (!file.startsWith(RENDERER + path.sep)) return notFound();
+  let body;
+  try { body = fs.readFileSync(file); } catch { return notFound(); } // missing file or a directory
+  return new Response(body, {
     headers: {
       'content-type': MIME[path.extname(file)] || 'application/octet-stream',
       'content-security-policy': CSP,
