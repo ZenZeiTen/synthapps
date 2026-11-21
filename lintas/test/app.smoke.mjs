@@ -18,6 +18,11 @@ fs.writeFileSync(path.join(chromeProfile, 'Bookmarks'), JSON.stringify({ roots: 
 fs.writeFileSync(path.join(chromeProfile, 'Preferences'), JSON.stringify({ default_search_provider_data: { template_url_data: { keyword: 'bing.com' } } }));
 // A small MV3 extension (content script + toolbar action), loaded as an unpacked extension.
 fs.writeFileSync(path.join(dataDir, 'unpacked-extensions.json'), JSON.stringify([path.resolve(import.meta.dirname, 'fixtures/hello-ext')]));
+// A second extension installed the way the Chrome Web Store installs (Extensions/<id>/<version>_0, manifest with a key),
+// which marks every page it runs on: for the per-extension settings (off, file URLs, site access)
+const SITE_EXT = 'kjcilljmdagkddocejdjfjnjnnbnlmni';
+fs.cpSync(path.resolve(import.meta.dirname, 'fixtures/site-ext'), path.join(dataDir, 'Extensions', SITE_EXT, '1.0_0'), { recursive: true });
+fs.writeFileSync(path.join(dataDir, 'local-page.html'), '<!doctype html><title>Local page</title><p>On this computer.</p>');
 // A native messaging host registered in Lintas's own folder, allowed for the test extension (its ID comes from the manifest key)
 const hostDir = path.join(dataDir, 'NativeMessagingHosts');
 fs.mkdirSync(hostDir, { recursive: true });
@@ -186,6 +191,28 @@ try {
   }, port);
   assert.match(cookies.sent, /login=1/, 'extension page request carries the site cookie: ' + JSON.stringify(cookies));
   assert.equal(cookies.kept, 1, 'cookie set in the reply is stored');
+  if (SANDBOX) {
+    // A listed site framed inside an extension page can message the extension too (Claude in Chrome's
+    // panel frames claude.ai, which pings the extension; without this it says "Can't reach Claude in Chrome")
+    const framed = await app.evaluate(async ({ webContents }, port) => {
+      const page = webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html'));
+      // Dock the extension's panel beside the site's tab, as Claude in Chrome does
+      const opened = await page.executeJavaScript(`chrome.tabs.query({}).then(ts => { const t = ts.find(x => (x.url || '').startsWith('http://127.0.0.1:${port}/')); return chrome.sidePanel.setOptions({ tabId: t.id, path: 'panel.html?docked', enabled: true }).then(() => chrome.sidePanel.open({ tabId: t.id })).then(() => 'ok', e => e.message); })`, true);
+      let wc;
+      for (let i = 0; i < 50 && !wc; i++) { wc = webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html?docked')); if (!wc) await new Promise(r => setTimeout(r, 100)); }
+      if (!wc) return 'no docked panel: ' + opened;
+      await new Promise(r => wc.isLoading() ? wc.once('did-stop-loading', r) : r());
+      await wc.executeJavaScript(`new Promise(r => { const f = document.createElement('iframe'); f.onload = () => r(1); f.src = 'http://127.0.0.1:${port}/?framed'; document.body.append(f); })`, true);
+      const frame = wc.mainFrame.framesInSubtree.find(f => f.url.includes('?framed'));
+      if (!frame) return 'no frame';
+      const reply = await frame.executeJavaScript(`typeof chrome === 'object' && chrome.runtime && chrome.runtime.sendMessage ? chrome.runtime.sendMessage('fenpfjggfaejmpbinaajochaceelkfml', { ping: 'framed' }) : 'no sendMessage'`, true);
+      await page.executeJavaScript(`chrome.tabs.query({}).then(ts => { const t = ts.find(x => (x.url || '').startsWith('http://127.0.0.1:${port}/')); return chrome.sidePanel.setOptions({ tabId: t.id, enabled: false }); }).catch(() => {})`, true);
+      return reply;
+    }, port);
+    assert.equal(framed?.pong, 'framed', 'framed page reaches the extension: ' + JSON.stringify(framed));
+    assert.equal(framed.origin, `http://127.0.0.1:${port}`);
+    assert.equal(framed.inTab, false, 'a frame in a side panel has no tab, as in Chrome');
+  }
   // chrome.windows.create({ type: 'popup' }) opens a real popup; chrome.windows.remove closes it, but never the browser window
   const popups = await app.evaluate(async ({ webContents, BrowserWindow }, port) => {
     const wc = webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html'));
@@ -278,6 +305,95 @@ try {
   const back = (await L(([pid, fid]) => lintas.tms.getFile(pid, fid, {}), [tp.id, cap2.id])).segments.map(x => x.source);
   assert.ok(back.includes('Open the settings page to change your password.'), back.join(' | '));
 
+  // Per-extension settings, as on Chrome's details page: off, file URLs, site access
+  {
+    const siteUrl = `http://127.0.0.1:${port}/`;
+    // Reloads the page until it shows the expected mark: an extension's new content scripts reach pages a moment after it loads
+    const mark = async (url, want) => {
+      let v;
+      for (let i = 0; i < 6; i++) {
+        v = await app.evaluate(async ({ webContents }, url) => {
+          const wc = webContents.getAllWebContents().find(w => w.getURL() === url);
+          if (!wc) return 'no page: ' + webContents.getAllWebContents().map(w => w.getURL()).join(' , ');
+          await new Promise(r => { wc.once('did-stop-loading', r); wc.reload(); });
+          let v = '';
+          for (let i = 0; i < 10; i++) { try { v = await wc.executeJavaScript('document.documentElement.dataset.siteExt || ""'); } catch { v = ''; } if (v) return v; await new Promise(r => setTimeout(r, 100)); }
+          return v;
+        }, url);
+        if (v === want) return v;
+        await new Promise(r => setTimeout(r, 300));
+      }
+      return v;
+    };
+    // Opens a page in the test tab and waits until the page itself (not only the tab's address) shows it
+    const open = async (url) => {
+      await L(([id, u]) => lintas.nav.go(id, u), [tabId, url]);
+      const ok = await app.evaluate(async ({ webContents }, u) => {
+        for (let i = 0; i < 150; i++) { const w = webContents.getAllWebContents().find(x => x.getURL() === u && !x.isLoading()); if (w) return true; await new Promise(r => setTimeout(r, 100)); }
+        return false;
+      }, url);
+      assert.ok(ok, 'opened ' + url);
+    };
+    const setx = (patch) => L(([id, p]) => lintas.extensions.setSettings(id, p), [SITE_EXT, patch]);
+    const row = async () => (await L(() => lintas.extensions.list())).find(x => x.id === SITE_EXT);
+    await open(siteUrl);
+    let r = await row();
+    assert.equal(r.source, 'store', JSON.stringify(r));
+    assert.deepEqual([r.loaded, r.enabled, r.fileAccess, r.private, r.siteAccess], [true, true, false, false, 'all']);
+    assert.equal(await mark(siteUrl, '1'), '1', 'runs on all sites');
+    const backup = path.join(dataDir, 'Extensions', SITE_EXT, '1.0_0', 'lintas-original-manifest.json');
+    r = await setx({ siteAccess: 'sites', sites: ['https://example.com/page'] });
+    assert.deepEqual([r.siteAccess, r.sites], ['sites', ['example.com']]);
+    assert.ok(fs.existsSync(backup), 'the published manifest is kept');
+    assert.equal(await mark(siteUrl, ''), '', 'not on a site it is not allowed on');
+    await setx({ sites: ['example.com', '127.0.0.1'] });
+    assert.equal(await mark(siteUrl, '1'), '1', 'on a site it is allowed on');
+    await setx({ siteAccess: 'all' });
+    assert.ok(!fs.existsSync(backup), 'the published manifest is back');
+    await assert.rejects(setx({ siteAccess: 'sites', sites: ['not a site'] }), /Not a site/);
+    // Turned off: kept in the list, not running; turned on again
+    r = await setx({ enabled: false });
+    assert.deepEqual([r.enabled, r.loaded], [false, false]);
+    assert.equal(await mark(siteUrl, ''), '', 'an extension that is off does not run');
+    r = await setx({ enabled: true });
+    assert.equal(r.loaded, true);
+    assert.equal(await mark(siteUrl, '1'), '1');
+    // File URLs: only when allowed
+    const fileUrl = 'file://' + path.join(dataDir, 'local-page.html');
+    await open(fileUrl);
+    assert.equal(await mark(fileUrl, ''), '', 'no file access by default');
+    await setx({ fileAccess: true });
+    assert.equal(await mark(fileUrl, '1'), '1', 'file access when allowed');
+    await setx({ fileAccess: false });
+    // Private tabs: only extensions allowed there run in them
+    const privUrl = siteUrl + '?private';
+    const pt = await L(u => lintas.tabs.create({ url: u, private: true }), privUrl);
+    const opened = await app.evaluate(async ({ webContents }, u) => {
+      for (let i = 0; i < 150; i++) { if (webContents.getAllWebContents().some(x => x.getURL() === u && !x.isLoading())) return true; await new Promise(r => setTimeout(r, 100)); }
+      return false;
+    }, privUrl);
+    assert.ok(opened, 'private tab opened');
+    assert.equal(await mark(privUrl, ''), '', 'not in private tabs by default');
+    assert.equal((await L(() => lintas.tabs.list())).find(x => x.id === pt.id).partition, 'lintas-private', 'kept in memory while no extension may run there');
+    await L(id => lintas.tabs.close(id), pt.id);
+    r = await setx({ private: true });
+    assert.equal(r.private, true);
+    // Private tabs opened now use the private session that can run extensions
+    const pt2 = await L(u => lintas.tabs.create({ url: u, private: true }), privUrl);
+    assert.equal((await L(() => lintas.tabs.list())).find(x => x.id === pt2.id).partition, 'persist:lintas-private-ext');
+    assert.equal(await mark(privUrl, '1'), '1', 'in private tabs when allowed');
+    const privSes = await app.evaluate(({ session }) => session.fromPartition('persist:lintas-private-ext').extensions.getAllExtensions().map(e => e.id));
+    assert.deepEqual(privSes, [SITE_EXT], 'only the allowed extension runs in private tabs');
+    await setx({ private: false });
+    assert.equal(await mark(privUrl, ''), '', 'stopped in private tabs');
+    await L(id => lintas.tabs.close(id), pt2.id);
+    await L(id => lintas.tabs.activate(id), tabId);
+    // An unpacked extension keeps the sites of its own manifest
+    const hello = (await L(() => lintas.extensions.list())).find(e => e.name === 'Lintas test extension');
+    await assert.rejects(L(id => lintas.extensions.setSettings(id, { siteAccess: 'sites', sites: ['example.com'] }), hello.id), /Web Store/);
+    await open(siteUrl);
+  }
+
   // Offline library
   const saved = await L(id => lintas.offline.save(id), tabId);
   assert.ok(saved.bytes > 100 && saved.words >= 10, JSON.stringify(saved));
@@ -311,9 +427,19 @@ try {
   assert.equal(s.httpsOnly, true);
 
   if (shots) await win.screenshot({ path: path.join(shots, 'e2e-window.png') });
+  // What private tabs with extensions stored is erased when Lintas quits
+  await app.evaluate(async ({ session }) => { const c = session.fromPartition('persist:lintas-private-ext').cookies; await c.set({ url: 'https://private.example/', name: 'lintas_private_probe', value: '1', expirationDate: Date.now() / 1000 + 3600 }); await c.flushStore(); });
+  await app.close();
+  {
+    const { DatabaseSync } = await import('node:sqlite');
+    const file = path.join(dataDir, 'Partitions', 'lintas-private-ext', 'Cookies');
+    const rows = fs.existsSync(file) ? new DatabaseSync(file, { readOnly: true }).prepare("SELECT count(*) AS n FROM cookies WHERE name = 'lintas_private_probe'").get().n : 0;
+    assert.equal(rows, 0, 'private cookies are erased on quit');
+  }
+
   console.log('E2E OK');
   if (log.length) console.log('Renderer console errors:\n' + log.join('\n'));
 } finally {
-  await app.close();
+  await app.close().catch(() => {});
   site.close();
 }

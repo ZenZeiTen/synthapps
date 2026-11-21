@@ -103,3 +103,51 @@ export function parseSetCookie(line, url, now = Date.now()) {
   if (c.sameSite === 'no_restriction' && !c.secure) return null;
   return c;
 }
+
+/**
+ * A site the user typed for an extension's site access ("https://example.com/page",
+ * "example.com", "*.example.com") as a lowercase host, keeping a leading "*." for subdomains; null if invalid.
+ */
+export function normalizeSite(input) {
+  let s = String(input || '').trim().toLowerCase();
+  if (!s) return null;
+  s = s.replace(/^[a-z*]+:\/\//, '').replace(/[/?#].*$/, '').replace(/:\d+$/, '');
+  const wild = s.startsWith('*.');
+  const host = wild ? s.slice(2) : s;
+  if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(host)) return null;
+  return wild ? '*.' + host : host;
+}
+
+/** A match pattern narrowed to one site (from normalizeSite), or null when the pattern does not cover it. */
+export function narrowPattern(pattern, site) {
+  const p = pattern === '<all_urls>' ? '*://*/*' : String(pattern);
+  const m = /^(\*|https?|file|ftp|wss?):\/\/([^/]*)(\/.*)$/.exec(p);
+  if (!m || m[1] === 'file') return null;
+  const [, scheme, host, rest] = m;
+  const wild = site.startsWith('*.');
+  const base = wild ? site.slice(2) : site;
+  if (host === '*') return `${scheme}://${site}${rest}`;
+  if (host.startsWith('*.')) {
+    const hb = host.slice(2);
+    if (base === hb || base.endsWith('.' + hb)) return `${scheme}://${site}${rest}`;
+    if (wild && hb.endsWith('.' + base)) return p;
+    return null;
+  }
+  if (host === base || (wild && host.endsWith('.' + base))) return p;
+  return null;
+}
+
+/**
+ * The manifest an extension gets when the user allows it only on some sites, as Chrome's
+ * "On specific sites": its host permissions and content scripts keep only what falls on those sites.
+ */
+export function restrictManifest(manifest, sites) {
+  const m = JSON.parse(JSON.stringify(manifest || {}));
+  const list = (sites || []).map(normalizeSite).filter(Boolean);
+  const hostLike = (p) => p === '<all_urls>' || /:\/\//.test(String(p));
+  const narrow = (patterns) => [...new Set((patterns || []).flatMap(p => hostLike(p) ? list.map(s => narrowPattern(p, s)).filter(Boolean) : [p]))];
+  if ((m.manifest_version || 2) >= 3) { if (m.host_permissions) m.host_permissions = narrow(m.host_permissions); }
+  else if (m.permissions) m.permissions = narrow(m.permissions);
+  if (Array.isArray(m.content_scripts)) m.content_scripts = m.content_scripts.map(c => ({ ...c, matches: narrow(c.matches) })).filter(c => c.matches.length);
+  return m;
+}

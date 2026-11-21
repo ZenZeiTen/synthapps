@@ -75,6 +75,9 @@ function update() {
   mount(el.reload, icon(t.loading ? 'close' : 'reload'));
   el.reload.title = t.loading ? 'Stop loading (Esc)' : `Reload (${modLabel()}R)`; el.reload.setAttribute('aria-label', t.loading ? 'Stop loading' : 'Reload');
   el.loadbar.classList.toggle('on', !!t.loading);
+  // Private tabs show the extensions allowed in private tabs (their own session)
+  const part = t.partition || (t.private ? 'lintas-private' : 'persist:lintas');
+  if (el.ext.getAttribute('partition') !== part) el.ext.setAttribute('partition', part);
   // security chip
   const s = t.private && t.security === 'internal' ? 'internal' : t.security;
   const map = { secure: ['lock', '', 'Connection is secure'], insecure: ['warning', 'Not secure', 'Your connection to this site is not secure'], internal: ['layers', 'Lintas', 'This is a built-in Lintas page'],
