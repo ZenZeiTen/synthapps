@@ -61,7 +61,7 @@ An Anthropic API key, which your site pays for directly. A daily spending cap (U
 
 = Does it help with privacy rules? =
 
-WordPress shows a suggested privacy policy section for the SI chat under Settings → Privacy → Policy Guide. It was checked against Indonesia's Personal Data Protection Law (UU 27/2022) and its implementing regulation (PP 33/2026). It is a starting point with parts for you to fill in, not legal advice. Have it reviewed before you publish it. An option asks visitors to agree to the privacy notice before the chat starts and records their agreement.
+WordPress shows a suggested privacy policy section for the SI chat under Settings → Privacy → Policy Guide. It was checked against Indonesia's Personal Data Protection Law (UU 27/2022) and its implementing regulation (PP 33/2026). It is a starting point with parts for you to fill in, not legal advice. Have it reviewed before you publish it. An option asks visitors to agree before the chat starts, with your privacy policy link, and records their agreement.
 
 = How do I add my own placeholders? =
 
@@ -82,7 +82,7 @@ ContextChat 2.0 adds an SI (Synthesized Intelligence) assistant that uses Anthro
   * **Always:** the site's API key, in a request header.
 * **What is never sent:** messages that ContextChat blocks (file links, ID and card numbers), IP addresses and cookies.
 * **When:** nothing is sent until an administrator adds an API key and either turns on the SI chat or runs the connection test.
-* **Where:** Anthropic, PBC is based in the United States. The chat's privacy notice tells visitors that chat text is processed by Anthropic outside Indonesia.
+* **Where:** Anthropic, PBC is based in the United States. Describe this in your privacy policy; the suggested text under Settings → Privacy → Policy Guide does. The chat window itself shows only your business name unless you add a notice on the Voice tab.
 * Anthropic's terms: https://www.anthropic.com/legal/commercial-terms
 * Anthropic's privacy policy: https://www.anthropic.com/legal/privacy
 

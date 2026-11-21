@@ -1201,8 +1201,8 @@ msgid "Ask visitors to agree first"
 msgstr "Minta persetujuan pengunjung lebih dulu"
 
 #: includes/class-admin.php:909
-msgid "Shows the privacy notice with an \"Agree and start\" button before the first message, and records which notice was agreed to and when. Use this if your privacy review chooses consent as the basis for the chat."
-msgstr "Menampilkan pemberitahuan privasi dengan tombol \"Setuju dan mulai\" sebelum pesan pertama, lalu mencatat pemberitahuan mana yang disetujui dan kapan. Gunakan ini jika tinjauan privasi Anda memilih persetujuan sebagai dasar pemrosesan chat."
+msgid "Shows a button before the first message and records the click with what was shown. With a notice set on the Voice tab, it reads \"Agree and start\"; without one, \"Start chatting\". Untick to start the chat straight away. Use this, with a notice, if your privacy review chooses consent as the basis for the chat."
+msgstr "Menampilkan tombol sebelum pesan pertama dan mencatat klik beserta apa yang ditampilkan. Jika pemberitahuan diisi di tab Gaya bahasa, tombolnya bertuliskan \"Setuju dan mulai\"; jika tidak, \"Mulai ngobrol\". Hapus centang agar chat langsung dimulai. Gunakan ini, bersama pemberitahuan, jika tinjauan privasi Anda memilih persetujuan sebagai dasar pemrosesan chat."
 
 #: includes/class-admin.php:912
 msgid "Privacy notice"
@@ -1598,7 +1598,7 @@ msgstr "Hasil pencarian untuk \"%s\""
 msgid "Close chat window"
 msgstr "Tutup jendela chat"
 
-#: includes/class-frontend.php:165 includes/class-frontend.php:470
+#: includes/class-frontend.php:165 includes/class-frontend.php:469
 msgid "Your message"
 msgstr "Pesan Anda"
 
@@ -1622,38 +1622,26 @@ msgstr "Online"
 msgid "Offline – replies when we are back"
 msgstr "Offline – dibalas saat kami kembali"
 
-#: includes/class-frontend.php:466
-#, php-format
-msgid "%s SI Assistant"
-msgstr "Asisten SI %s"
-
-#: includes/class-frontend.php:467
-msgid "Synthesized Intelligence · can hand you to our team"
-msgstr "Dibantu Kecerdasan Sintesis · dapat diteruskan ke tim kami"
-
-#: includes/class-frontend.php:469
+#: includes/class-frontend.php:468
 msgid "Conversation"
 msgstr "Percakapan"
 
-#: includes/class-frontend.php:471
+#: includes/class-frontend.php:470
 msgid "Write a message…"
 msgstr "Tulis pesan…"
 
-#: includes/class-frontend.php:472
+#: includes/class-frontend.php:471
 msgid "Send"
 msgstr "Kirim"
 
 #: includes/class-frontend.php:473
-msgid "The SI assistant is writing…"
-msgstr "Asisten SI sedang menulis…"
+#, php-format
+msgid "%s is writing…"
+msgstr "%s sedang menulis…"
 
 #: includes/class-frontend.php:474
 msgid "You"
 msgstr "Anda"
-
-#: includes/class-frontend.php:475 includes/si/class-admin-conversations.php:240
-msgid "SI assistant"
-msgstr "Asisten SI"
 
 #: includes/class-frontend.php:476
 msgid "The message could not be sent. Please try again."
@@ -1668,6 +1656,10 @@ msgid "Agree and start"
 msgstr "Setuju dan mulai"
 
 #: includes/class-frontend.php:480
+msgid "Start chatting"
+msgstr "Mulai ngobrol"
+
+#: includes/class-frontend.php:481
 msgid "Chat reference"
 msgstr "Referensi chat"
 
@@ -1797,6 +1789,10 @@ msgstr "Mungkin sudah dihapus, atau masa simpannya sudah berakhir."
 msgid "Visitor"
 msgstr "Pengunjung"
 
+#: includes/si/class-admin-conversations.php:240
+msgid "SI assistant"
+msgstr "Asisten SI"
+
 #: includes/si/class-admin-conversations.php:241
 msgid "Fixed reply"
 msgstr "Balasan tetap"
@@ -1921,8 +1917,8 @@ msgid "Suggested text for the SI chat of ContextChat. It was checked against Ind
 msgstr "Contoh teks untuk chat SI ContextChat. Teks ini sudah dicocokkan dengan UU Pelindungan Data Pribadi (UU 27/2022) dan peraturan pelaksanaannya (PP 33/2026), tetapi bukan nasihat hukum. Lengkapi bagian dalam kurung siku dan mintakan tinjauan hukum sebelum diterbitkan."
 
 #: includes/si/class-privacy.php:48
-msgid "Chat with our SI assistant"
-msgstr "Chat dengan asisten SI kami"
+msgid "Chat on our website"
+msgstr "Chat di situs kami"
 
 #: includes/si/class-privacy.php:51
 #, php-format
@@ -1984,8 +1980,8 @@ msgstr "Hak Anda."
 
 #: includes/si/class-privacy.php:68
 #, php-format
-msgid "You may ask for information about this processing, a copy of your chat, correction, deletion, or for processing to be paused or limited, and you may object to decisions made only by automated means. The chat gives estimates only; our team confirms every price. Write to %s and quote the chat reference shown at the top of the chat (it starts with CC-). We answer within 3 × 24 hours after checking that the request is yours."
-msgstr "Anda dapat meminta informasi tentang pemrosesan ini, salinan chat Anda, perbaikan, penghapusan, atau penundaan dan pembatasan pemrosesan, serta mengajukan keberatan atas keputusan yang hanya didasarkan pada pemrosesan otomatis. Chat hanya memberi estimasi; setiap harga dikonfirmasi oleh tim kami. Tulis ke %s dan sebutkan referensi chat di bagian atas chat (diawali CC-). Kami menanggapi paling lambat 3 × 24 jam setelah memastikan permintaan itu berasal dari Anda."
+msgid "You may ask for information about this processing, a copy of your chat, correction, deletion, or for processing to be paused or limited, and you may object to decisions made only by automated means. The chat gives estimates only; our team confirms every price. Write to %s and tell us when you chatted and about what, or quote the estimate reference if you received one (it starts with EST-). We answer within 3 × 24 hours after checking that the request is yours."
+msgstr "Anda dapat meminta informasi tentang pemrosesan ini, salinan chat Anda, perbaikan, penghapusan, atau penundaan dan pembatasan pemrosesan, serta mengajukan keberatan atas keputusan yang hanya didasarkan pada pemrosesan otomatis. Chat hanya memberi estimasi; setiap harga dikonfirmasi oleh tim kami. Tulis ke %s dan sebutkan kapan Anda chat dan tentang apa, atau sebutkan referensi estimasi jika Anda menerimanya (diawali EST-). Kami menanggapi paling lambat 3 × 24 jam setelah memastikan permintaan itu berasal dari Anda."
 
 #: includes/si/class-privacy.php:70
 msgid "Security."

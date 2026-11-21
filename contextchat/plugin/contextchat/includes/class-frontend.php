@@ -462,21 +462,22 @@ class ContextChat_Frontend {
 			'consent'  => ! empty( $s['si_consent'] ),
 			'notice'   => ContextChat_Chat_REST::notice( $lang ),
 			'privacy'  => (string) $s['si_privacy_url'],
-			/* translators: %s: business name, e.g. Nusalexia. */
-			'title'    => sprintf( __( '%s SI Assistant', 'contextchat' ), $name ),
-			'subtitle' => __( 'Synthesized Intelligence · can hand you to our team', 'contextchat' ),
+			'title'    => $name,
+			'subtitle' => '',
 			'i18n'     => array(
 				'log'         => __( 'Conversation', 'contextchat' ),
 				'label'       => __( 'Your message', 'contextchat' ),
 				'placeholder' => __( 'Write a message…', 'contextchat' ),
 				'send'        => __( 'Send', 'contextchat' ),
-				'typing'      => __( 'The SI assistant is writing…', 'contextchat' ),
+				/* translators: %s: business name, e.g. Nusalexia. */
+				'typing'      => sprintf( __( '%s is writing…', 'contextchat' ), $name ),
 				'you'         => __( 'You', 'contextchat' ),
-				'assistant'   => __( 'SI assistant', 'contextchat' ),
+				'assistant'   => $name,
 				'error'       => __( 'The message could not be sent. Please try again.', 'contextchat' ),
 				'upload'      => ContextChat_Voice::template( 'upload', $lang ),
 				'privacy'     => __( 'Privacy policy', 'contextchat' ),
 				'agree'       => __( 'Agree and start', 'contextchat' ),
+				'start'       => __( 'Start chatting', 'contextchat' ),
 				'ref'         => __( 'Chat reference', 'contextchat' ),
 			),
 		);

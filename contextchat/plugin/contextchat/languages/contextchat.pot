@@ -1199,7 +1199,7 @@ msgid "Ask visitors to agree first"
 msgstr ""
 
 #: includes/class-admin.php:909
-msgid "Shows the privacy notice with an \"Agree and start\" button before the first message, and records which notice was agreed to and when. Use this if your privacy review chooses consent as the basis for the chat."
+msgid "Shows a button before the first message and records the click with what was shown. With a notice set on the Voice tab, it reads \"Agree and start\"; without one, \"Start chatting\". Untick to start the chat straight away. Use this, with a notice, if your privacy review chooses consent as the basis for the chat."
 msgstr ""
 
 #: includes/class-admin.php:912
@@ -1596,7 +1596,7 @@ msgstr ""
 msgid "Close chat window"
 msgstr ""
 
-#: includes/class-frontend.php:165 includes/class-frontend.php:470
+#: includes/class-frontend.php:165 includes/class-frontend.php:469
 msgid "Your message"
 msgstr ""
 
@@ -1620,37 +1620,25 @@ msgstr ""
 msgid "Offline – replies when we are back"
 msgstr ""
 
-#: includes/class-frontend.php:466
-#, php-format
-msgid "%s SI Assistant"
-msgstr ""
-
-#: includes/class-frontend.php:467
-msgid "Synthesized Intelligence · can hand you to our team"
-msgstr ""
-
-#: includes/class-frontend.php:469
+#: includes/class-frontend.php:468
 msgid "Conversation"
 msgstr ""
 
-#: includes/class-frontend.php:471
+#: includes/class-frontend.php:470
 msgid "Write a message…"
 msgstr ""
 
-#: includes/class-frontend.php:472
+#: includes/class-frontend.php:471
 msgid "Send"
 msgstr ""
 
 #: includes/class-frontend.php:473
-msgid "The SI assistant is writing…"
+#, php-format
+msgid "%s is writing…"
 msgstr ""
 
 #: includes/class-frontend.php:474
 msgid "You"
-msgstr ""
-
-#: includes/class-frontend.php:475 includes/si/class-admin-conversations.php:240
-msgid "SI assistant"
 msgstr ""
 
 #: includes/class-frontend.php:476
@@ -1666,6 +1654,10 @@ msgid "Agree and start"
 msgstr ""
 
 #: includes/class-frontend.php:480
+msgid "Start chatting"
+msgstr ""
+
+#: includes/class-frontend.php:481
 msgid "Chat reference"
 msgstr ""
 
@@ -1795,6 +1787,10 @@ msgstr ""
 msgid "Visitor"
 msgstr ""
 
+#: includes/si/class-admin-conversations.php:240
+msgid "SI assistant"
+msgstr ""
+
 #: includes/si/class-admin-conversations.php:241
 msgid "Fixed reply"
 msgstr ""
@@ -1919,7 +1915,7 @@ msgid "Suggested text for the SI chat of ContextChat. It was checked against Ind
 msgstr ""
 
 #: includes/si/class-privacy.php:48
-msgid "Chat with our SI assistant"
+msgid "Chat on our website"
 msgstr ""
 
 #: includes/si/class-privacy.php:51
@@ -1982,7 +1978,7 @@ msgstr ""
 
 #: includes/si/class-privacy.php:68
 #, php-format
-msgid "You may ask for information about this processing, a copy of your chat, correction, deletion, or for processing to be paused or limited, and you may object to decisions made only by automated means. The chat gives estimates only; our team confirms every price. Write to %s and quote the chat reference shown at the top of the chat (it starts with CC-). We answer within 3 × 24 hours after checking that the request is yours."
+msgid "You may ask for information about this processing, a copy of your chat, correction, deletion, or for processing to be paused or limited, and you may object to decisions made only by automated means. The chat gives estimates only; our team confirms every price. Write to %s and tell us when you chatted and about what, or quote the estimate reference if you received one (it starts with EST-). We answer within 3 × 24 hours after checking that the request is yours."
 msgstr ""
 
 #: includes/si/class-privacy.php:70
