@@ -1,0 +1,79 @@
+{
+  "name": "lintas-browser",
+  "version": "0.1.0",
+  "description": "Lintas: a fast, secure, AI-powered web browser that works online and offline, with a built-in Translation Management System.",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "test:app": "node test/app.smoke.mjs",
+    "dist": "electron-builder",
+    "dist:linux": "electron-builder --linux",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0"
+  },
+  "devDependencies": {
+    "electron": "^38.8.6",
+    "electron-builder": "^26.18.0"
+  },
+  "productName": "Lintas",
+  "main": "app/main/main.js",
+  "author": {
+    "name": "ZenZeiTen"
+  },
+  "homepage": "https://github.com/ZenZeiTen/synthapps/tree/main/lintas",
+  "build": {
+    "appId": "com.zenzeiten.lintas",
+    "productName": "Lintas",
+    "copyright": "Copyright \u00a9 2026 ZenZeiTen",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "app/**",
+      "samples/**",
+      "core/**",
+      "package.json",
+      "LICENSE",
+      "!**/*.md"
+    ],
+    "asar": true,
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network;WebBrowser",
+      "executableName": "lintas"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZenZeiTen/synthapps.git",
+    "directory": "lintas"
+  }
+}
