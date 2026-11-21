@@ -168,7 +168,7 @@ msgstr "Analitik"
 msgid "SI conversations"
 msgstr "Percakapan SI"
 
-#: includes/class-admin.php:35 includes/class-admin.php:900
+#: includes/class-admin.php:35 includes/class-admin.php:903
 msgid "Conversations"
 msgstr "Percakapan"
 
@@ -244,11 +244,11 @@ msgstr "SI"
 msgid "Knowledge"
 msgstr "Pengetahuan"
 
-#: includes/class-admin.php:135 includes/class-admin.php:1187
+#: includes/class-admin.php:135 includes/class-admin.php:1191
 msgid "Voice"
 msgstr "Gaya bahasa"
 
-#: includes/class-admin.php:136 includes/class-admin.php:978
+#: includes/class-admin.php:136 includes/class-admin.php:982
 msgid "Prices"
 msgstr "Harga"
 
@@ -432,7 +432,7 @@ msgstr "Pratinjau"
 msgid "Chat panel"
 msgstr "Panel chat"
 
-#: includes/class-admin.php:264 includes/class-admin.php:1155
+#: includes/class-admin.php:264 includes/class-admin.php:1159
 msgid "Title"
 msgstr "Judul"
 
@@ -440,7 +440,7 @@ msgstr "Judul"
 msgid "Subtitle"
 msgstr "Subjudul"
 
-#: includes/class-admin.php:266 includes/class-admin.php:1294
+#: includes/class-admin.php:266 includes/class-admin.php:1298
 msgid "Greeting"
 msgstr "Sapaan"
 
@@ -668,7 +668,7 @@ msgstr "Nama (untuk Anda)"
 msgid "e.g. Visa pages"
 msgstr "misalnya Halaman visa"
 
-#: includes/class-admin.php:465 includes/class-admin.php:1232
+#: includes/class-admin.php:465 includes/class-admin.php:1236
 msgid "When"
 msgstr "Jika"
 
@@ -1026,11 +1026,11 @@ msgstr "Itu lebih dari sekitar 30.000 token, sehingga setiap balasan lebih lamba
 msgid "Add entry"
 msgstr "Tambah entri"
 
-#: includes/class-admin.php:861 includes/class-admin.php:1038
+#: includes/class-admin.php:861 includes/class-admin.php:1042
 msgid "Import and export"
 msgstr "Impor dan ekspor"
 
-#: includes/class-admin.php:864 includes/class-admin.php:1041
+#: includes/class-admin.php:864 includes/class-admin.php:1045
 msgid "Export"
 msgstr "Ekspor"
 
@@ -1038,7 +1038,7 @@ msgstr "Ekspor"
 msgid "The saved entries as JSON, for a backup or another site."
 msgstr "Entri yang tersimpan dalam format JSON, untuk cadangan atau situs lain."
 
-#: includes/class-admin.php:869 includes/class-admin.php:1045
+#: includes/class-admin.php:869 includes/class-admin.php:1049
 msgid "Import"
 msgstr "Impor"
 
@@ -1054,402 +1054,414 @@ msgstr "Entri bawaan"
 msgid "Replace all entries with the bundled ones when saving"
 msgstr "Ganti semua entri dengan entri bawaan saat menyimpan"
 
-#: includes/class-admin.php:890
+#: includes/class-admin.php:891
+msgid "The SI chat is on but no privacy policy address is set. Indonesian law (UU 27/2022 Pasal 21, PP 33/2026 Pasal 62) expects visitors to be able to read the full privacy information before their data is processed."
+msgstr "Chat SI aktif tetapi alamat kebijakan privasi belum diisi. Hukum Indonesia (UU 27/2022 Pasal 21, PP 33/2026 Pasal 62) mewajibkan pengunjung dapat membaca informasi privasi lengkap sebelum datanya diproses."
+
+#: includes/class-admin.php:893
 msgid "SI chats are stored in your WordPress database so your team can follow up. Visitors are asked not to send ID numbers or documents; messages that contain them, or links to file-sharing services, are refused and not stored. Visitor addresses are never stored: the rate limits count a hash that changes every day."
 msgstr "Chat SI disimpan di database WordPress Anda agar tim bisa menindaklanjuti. Pengunjung diminta tidak mengirim nomor identitas atau dokumen; pesan yang memuatnya, atau tautan ke layanan berbagi file, ditolak dan tidak disimpan. Alamat IP pengunjung tidak pernah disimpan: batas pesan dihitung dari hash yang berganti setiap hari."
 
-#: includes/class-admin.php:892
+#: includes/class-admin.php:895
 msgid "Keep SI chats for (days)"
 msgstr "Simpan chat SI selama (hari)"
 
 #. translators: %s: link to the Conversations screen.
-#: includes/class-admin.php:899
+#: includes/class-admin.php:902
 #, php-format
 msgid "Older chats, with their messages and estimates, are deleted every day. The privacy notice tells visitors this period. You can read, export or delete single chats on the %s screen."
 msgstr "Chat yang lebih lama, beserta pesan dan estimasinya, dihapus setiap hari. Pemberitahuan privasi menyebutkan jangka waktu ini kepada pengunjung. Anda bisa membaca, mengekspor, atau menghapus chat satu per satu di layar %s."
 
-#: includes/class-admin.php:905
+#: includes/class-admin.php:908
 msgid "Privacy policy address"
 msgstr "Alamat kebijakan privasi"
 
-#: includes/class-admin.php:905
-msgid "Linked under the privacy notice at the top of the chat. Your policy should say that chat text is processed by Anthropic and how long chats are kept."
-msgstr "Ditautkan di bawah pemberitahuan privasi di bagian atas chat. Kebijakan Anda sebaiknya menyebutkan bahwa teks chat diproses oleh Anthropic dan berapa lama chat disimpan."
-
 #: includes/class-admin.php:908
+msgid "Linked under the privacy notice at the top of the chat. Your policy should say that chat text is processed by Anthropic outside Indonesia, why, how long chats are kept, and how visitors can ask for a copy or deletion. Suggested text is in Settings → Privacy → Policy Guide."
+msgstr "Ditautkan di bawah pemberitahuan privasi di bagian atas chat. Kebijakan Anda sebaiknya menyebutkan bahwa teks chat diproses oleh Anthropic di luar Indonesia, untuk apa, berapa lama chat disimpan, dan cara pengunjung meminta salinan atau penghapusan. Contoh teks ada di Pengaturan → Privasi → Panduan Kebijakan."
+
+#: includes/class-admin.php:909
+msgid "Ask visitors to agree first"
+msgstr "Minta persetujuan pengunjung lebih dulu"
+
+#: includes/class-admin.php:909
+msgid "Shows the privacy notice with an \"Agree and start\" button before the first message, and records which notice was agreed to and when. Use this if your privacy review chooses consent as the basis for the chat."
+msgstr "Menampilkan pemberitahuan privasi dengan tombol \"Setuju dan mulai\" sebelum pesan pertama, lalu mencatat pemberitahuan mana yang disetujui dan kapan. Gunakan ini jika tinjauan privasi Anda memilih persetujuan sebagai dasar pemrosesan chat."
+
+#: includes/class-admin.php:912
 msgid "Privacy notice"
 msgstr "Pemberitahuan privasi"
 
-#: includes/class-admin.php:911
+#: includes/class-admin.php:915
 msgid "The text shown above the first message is edited on the Voice tab, under \"Privacy notice before the first message\". {retention} in it becomes the period set above."
 msgstr "Teks di atas pesan pertama diubah di tab Gaya bahasa, pada \"Pemberitahuan privasi sebelum pesan pertama\". {retention} di dalamnya diganti dengan jangka waktu yang diatur di atas."
 
-#: includes/class-admin.php:917
+#: includes/class-admin.php:921
 msgid "Rate limits"
 msgstr "Batas pesan"
 
-#: includes/class-admin.php:918
+#: includes/class-admin.php:922
 msgid "Limits per visitor. A visitor over a limit is offered WhatsApp or email instead, and nothing is sent to Anthropic."
 msgstr "Batas per pengunjung. Pengunjung yang melewati batas ditawari WhatsApp atau email, dan tidak ada yang dikirim ke Anthropic."
 
-#: includes/class-admin.php:921
+#: includes/class-admin.php:925
 msgid "Messages per minute"
 msgstr "Pesan per menit"
 
-#: includes/class-admin.php:922
+#: includes/class-admin.php:926
 msgid "New chats per hour"
 msgstr "Chat baru per jam"
 
-#: includes/class-admin.php:923
+#: includes/class-admin.php:927
 msgid "Messages per day"
 msgstr "Pesan per hari"
 
-#: includes/class-admin.php:924
+#: includes/class-admin.php:928
 msgid "Messages per chat"
 msgstr "Pesan per chat"
 
-#: includes/class-admin.php:928
+#: includes/class-admin.php:932
 msgid "File-sharing services"
 msgstr "Layanan berbagi file"
 
-#: includes/class-admin.php:930
+#: includes/class-admin.php:934
 msgid "Refused links"
 msgstr "Tautan yang ditolak"
 
-#: includes/class-admin.php:930
+#: includes/class-admin.php:934
 msgid "One host per line. A message linking to one of these is refused, and the visitor is asked to send files by WhatsApp or email. Leave empty for the built-in list."
 msgstr "Satu host per baris. Pesan yang menautkan ke salah satunya ditolak, dan pengunjung diminta mengirim file lewat WhatsApp atau email. Kosongkan untuk memakai daftar bawaan."
 
-#: includes/class-admin.php:979
+#: includes/class-admin.php:983
 msgid "The SI never works out a price itself. Every estimate is calculated in code from this table, in whole rupiah, and shown to the visitor as an estimate that your team confirms. Keep it the same as your public price list."
 msgstr "SI tidak pernah menghitung harga sendiri. Setiap estimasi dihitung oleh kode dari tabel ini, dalam rupiah bulat, dan ditampilkan kepada pengunjung sebagai estimasi yang dikonfirmasi tim Anda. Samakan isinya dengan daftar harga publik Anda."
 
-#: includes/class-admin.php:984
+#: includes/class-admin.php:988
 #, php-format
 msgid "Using the bundled table, copied from the Nusalexia price list on %s. It follows plugin updates until you change it."
 msgstr "Memakai tabel bawaan, disalin dari daftar harga Nusalexia pada %s. Tabel ini ikut diperbarui bersama plugin sampai Anda mengubahnya."
 
-#: includes/class-admin.php:987
+#: includes/class-admin.php:991
 #, php-format
 msgid "Using your saved table, last changed on %s."
 msgstr "Memakai tabel yang Anda simpan, terakhir diubah pada %s."
 
-#: includes/class-admin.php:991
+#: includes/class-admin.php:995
 #, php-format
 msgid "These prices were last checked %d days ago. Compare them with your price list and save to confirm."
 msgstr "Harga ini terakhir diperiksa %d hari lalu. Bandingkan dengan daftar harga Anda, lalu simpan untuk mengonfirmasi."
 
-#: includes/class-admin.php:997
+#: includes/class-admin.php:1001
 msgid "Rates per translated page"
 msgstr "Tarif per halaman terjemahan"
 
-#: includes/class-admin.php:998
+#: includes/class-admin.php:1002
 msgid "Rupiah per translated A4 page. Leave a package empty when it is not offered for that pair; the SI then hands the visitor to your team."
 msgstr "Rupiah per halaman A4 hasil terjemahan. Kosongkan paket yang tidak tersedia untuk pasangan bahasa itu; SI lalu meneruskan pengunjung ke tim Anda."
 
-#: includes/class-admin.php:1008
+#: includes/class-admin.php:1012
 msgid "Add language pair"
 msgstr "Tambah pasangan bahasa"
 
-#: includes/class-admin.php:1011
+#: includes/class-admin.php:1015
 msgid "Fees and rules"
 msgstr "Biaya dan ketentuan"
 
-#: includes/class-admin.php:1014
+#: includes/class-admin.php:1018
 msgid "Ministry legalisation, per document"
 msgstr "Legalisasi kementerian, per dokumen"
 
-#: includes/class-admin.php:1015
+#: includes/class-admin.php:1019
 msgid "Embassy legalisation, per document"
 msgstr "Legalisasi kedutaan, per dokumen"
 
-#: includes/class-admin.php:1016
+#: includes/class-admin.php:1020
 msgid "Apostille, per document"
 msgstr "Apostille, per dokumen"
 
-#: includes/class-admin.php:1017
+#: includes/class-admin.php:1021
 msgid "Terminology work, per hour"
 msgstr "Pekerjaan terminologi, per jam"
 
-#: includes/class-admin.php:1018
+#: includes/class-admin.php:1022
 msgid "Next-day surcharge"
 msgstr "Biaya tambahan selesai besok"
 
-#: includes/class-admin.php:1019
+#: includes/class-admin.php:1023
 msgid "Same-day surcharge"
 msgstr "Biaya tambahan selesai hari ini"
 
-#: includes/class-admin.php:1020
+#: includes/class-admin.php:1024
 msgid "First volume discount from (documents)"
 msgstr "Diskon volume pertama mulai (dokumen)"
 
-#: includes/class-admin.php:1021
+#: includes/class-admin.php:1025
 msgid "First volume discount"
 msgstr "Diskon volume pertama"
 
-#: includes/class-admin.php:1022
+#: includes/class-admin.php:1026
 msgid "Second volume discount from (documents)"
 msgstr "Diskon volume kedua mulai (dokumen)"
 
-#: includes/class-admin.php:1023
+#: includes/class-admin.php:1027
 msgid "Second volume discount"
 msgstr "Diskon volume kedua"
 
-#: includes/class-admin.php:1024
+#: includes/class-admin.php:1028
 msgid "Deposit asked from orders of"
 msgstr "DP diminta untuk pesanan mulai"
 
-#: includes/class-admin.php:1025
+#: includes/class-admin.php:1029
 msgid "Deposit"
 msgstr "DP"
 
-#: includes/class-admin.php:1026
+#: includes/class-admin.php:1030
 msgid "Minimum pages per document"
 msgstr "Halaman minimum per dokumen"
 
-#: includes/class-admin.php:1027
+#: includes/class-admin.php:1031
 msgid "Free revisions"
 msgstr "Revisi gratis"
 
-#: includes/class-admin.php:1028
+#: includes/class-admin.php:1032
 msgid "Revision period (days)"
 msgstr "Masa revisi (hari)"
 
-#: includes/class-admin.php:1029
+#: includes/class-admin.php:1033
 msgid "Estimates valid for (days)"
 msgstr "Estimasi berlaku selama (hari)"
 
-#: includes/class-admin.php:1032
+#: includes/class-admin.php:1036
 msgid "Public price list"
 msgstr "Daftar harga publik"
 
-#: includes/class-admin.php:1034
+#: includes/class-admin.php:1038
 msgid "Where these prices are published, kept with the table so your team can compare them."
 msgstr "Tempat harga ini diterbitkan, disimpan bersama tabel agar tim Anda bisa membandingkannya."
 
-#: includes/class-admin.php:1047
+#: includes/class-admin.php:1051
 msgid "Paste an exported table here and save to replace the whole table, including the fields above."
 msgstr "Tempel tabel hasil ekspor di sini lalu simpan untuk mengganti seluruh tabel, termasuk isian di atas."
 
-#: includes/class-admin.php:1050
+#: includes/class-admin.php:1054
 msgid "Bundled table"
 msgstr "Tabel bawaan"
 
-#: includes/class-admin.php:1051
+#: includes/class-admin.php:1055
 msgid "Go back to the bundled table when saving"
 msgstr "Kembali ke tabel bawaan saat menyimpan"
 
-#: includes/class-admin.php:1055
+#: includes/class-admin.php:1059
 msgid "Apostille countries"
 msgstr "Negara Apostille"
 
-#: includes/class-admin.php:1056
+#: includes/class-admin.php:1060
 msgid "A document for one of these countries gets an Apostille; for any other country the SI quotes ministry and embassy legalisation. One country per line: its two-letter code, the date the Apostille Convention entered into force for it, and its name."
 msgstr "Dokumen untuk salah satu negara ini mendapat Apostille; untuk negara lain SI menghitung legalisasi kementerian dan kedutaan. Satu negara per baris: kode dua huruf, tanggal Konvensi Apostille mulai berlaku bagi negara itu, dan namanya."
 
 #. translators: 1: number of countries, 2: date, 3: source address.
-#: includes/class-admin.php:1061
+#: includes/class-admin.php:1065
 #, php-format
 msgid "%1$d countries, checked on %2$s against %3$s."
 msgstr "%1$d negara, diperiksa pada %2$s terhadap %3$s."
 
-#: includes/class-admin.php:1064
+#: includes/class-admin.php:1068
 msgid "the HCCH status table"
 msgstr "tabel status HCCH"
 
-#: includes/class-admin.php:1067
+#: includes/class-admin.php:1071
 msgid "More than a year has passed. Check the HCCH status table for new members, and for any objection to Indonesia's accession, then save."
 msgstr "Sudah lebih dari setahun. Periksa tabel status HCCH untuk anggota baru dan keberatan apa pun terhadap aksesi Indonesia, lalu simpan."
 
-#: includes/class-admin.php:1073
+#: includes/class-admin.php:1077
 msgid "Members"
 msgstr "Anggota"
 
-#: includes/class-admin.php:1075
+#: includes/class-admin.php:1079
 msgid "Hong Kong and Macao are covered through China (CN). A member that has objected to Indonesia's accession must not be listed."
 msgstr "Hong Kong dan Makau tercakup lewat Tiongkok (CN). Anggota yang menyatakan keberatan terhadap aksesi Indonesia tidak boleh dicantumkan."
 
-#: includes/class-admin.php:1078
+#: includes/class-admin.php:1082
 msgid "Bundled list"
 msgstr "Daftar bawaan"
 
-#: includes/class-admin.php:1079
+#: includes/class-admin.php:1083
 msgid "Go back to the bundled list when saving"
 msgstr "Kembali ke daftar bawaan saat menyimpan"
 
-#: includes/class-admin.php:1108 includes/si/class-admin-conversations.php:167
+#: includes/class-admin.php:1112 includes/si/class-admin-conversations.php:167
 msgid "From"
 msgstr "Dari"
 
-#: includes/class-admin.php:1108
+#: includes/class-admin.php:1112
 msgid "Into"
 msgstr "Ke"
 
-#: includes/class-admin.php:1117
+#: includes/class-admin.php:1121
 msgid "Regular (Rp)"
 msgstr "Reguler (Rp)"
 
-#: includes/class-admin.php:1120
+#: includes/class-admin.php:1124
 msgid "Sworn (Rp)"
 msgstr "Tersumpah (Rp)"
 
-#: includes/class-admin.php:1124
+#: includes/class-admin.php:1128
 msgid "Remove language pair"
 msgstr "Hapus pasangan bahasa"
 
-#: includes/class-admin.php:1158 includes/class-admin.php:1271 includes/si/class-admin-conversations.php:183
+#: includes/class-admin.php:1162 includes/class-admin.php:1275 includes/si/class-admin-conversations.php:183
 msgid "Language"
 msgstr "Bahasa"
 
-#: includes/class-admin.php:1160 includes/class-admin.php:1232 includes/class-admin.php:1273
+#: includes/class-admin.php:1164 includes/class-admin.php:1236 includes/class-admin.php:1277
 msgid "Indonesian"
 msgstr "Indonesia"
 
-#: includes/class-admin.php:1161 includes/class-admin.php:1232 includes/class-admin.php:1274
+#: includes/class-admin.php:1165 includes/class-admin.php:1236 includes/class-admin.php:1278
 msgid "English"
 msgstr "Inggris"
 
-#: includes/class-admin.php:1164
+#: includes/class-admin.php:1168
 msgid "Tags"
 msgstr "Tag"
 
-#: includes/class-admin.php:1167
+#: includes/class-admin.php:1171
 msgid "Source address"
 msgstr "Alamat sumber"
 
-#: includes/class-admin.php:1170
+#: includes/class-admin.php:1174
 msgid "Text"
 msgstr "Teks"
 
-#: includes/class-admin.php:1174
+#: includes/class-admin.php:1178
 msgid "Remove entry"
 msgstr "Hapus entri"
 
-#: includes/class-admin.php:1188
+#: includes/class-admin.php:1192
 msgid "How the SI writes. Empty fields use the bundled defaults."
 msgstr "Cara SI menulis. Kolom yang kosong memakai bawaan."
 
-#: includes/class-admin.php:1192
+#: includes/class-admin.php:1196
 msgid "Voice guide (Indonesian)"
 msgstr "Panduan gaya bahasa (Indonesia)"
 
-#: includes/class-admin.php:1196
+#: includes/class-admin.php:1200
 msgid "Voice guide (English)"
 msgstr "Panduan gaya bahasa (Inggris)"
 
-#: includes/class-admin.php:1200
+#: includes/class-admin.php:1204
 msgid "Names never to mention"
 msgstr "Nama yang tidak boleh disebut"
 
-#: includes/class-admin.php:1202
+#: includes/class-admin.php:1206
 msgid "One per line: the names of staff and anyone else the SI must never name. A reply that contains one is rejected. The list starts empty so that no name is published in the plugin itself."
 msgstr "Satu per baris: nama staf dan siapa pun yang tidak boleh disebut oleh SI. Balasan yang memuat salah satunya ditolak. Daftar ini awalnya kosong agar tidak ada nama yang ikut terbit di dalam plugin."
 
-#: includes/class-admin.php:1205
+#: includes/class-admin.php:1209
 msgid "Extra banned words"
 msgstr "Kata terlarang tambahan"
 
-#: includes/class-admin.php:1207
+#: includes/class-admin.php:1211
 msgid "One per line, on top of the built-in list (\"AI\", \"kecerdasan buatan\", \"gue\", \"lo\", \"gak\", \"nggak\" and emoji)."
 msgstr "Satu per baris, di luar daftar bawaan (\"AI\", \"kecerdasan buatan\", \"gue\", \"lo\", \"gak\", \"nggak\", dan emoji)."
 
-#: includes/class-admin.php:1210
+#: includes/class-admin.php:1214
 msgid "Bundled voice"
 msgstr "Gaya bahasa bawaan"
 
-#: includes/class-admin.php:1211
+#: includes/class-admin.php:1215
 msgid "Go back to the bundled voice when saving"
 msgstr "Kembali ke gaya bahasa bawaan saat menyimpan"
 
-#: includes/class-admin.php:1215
+#: includes/class-admin.php:1219
 msgid "Example replies"
 msgstr "Contoh balasan"
 
-#: includes/class-admin.php:1216
+#: includes/class-admin.php:1220
 msgid "The SI copies the style of these replies. The first one is the reference reply."
 msgstr "SI meniru gaya balasan-balasan ini. Yang pertama adalah balasan acuan."
 
-#: includes/class-admin.php:1226
+#: includes/class-admin.php:1230
 msgid "Add example"
 msgstr "Tambah contoh"
 
-#: includes/class-admin.php:1229
+#: includes/class-admin.php:1233
 msgid "Fixed replies"
 msgstr "Balasan tetap"
 
-#: includes/class-admin.php:1230
+#: includes/class-admin.php:1234
 msgid "Sent without asking the model: greetings, blocked messages, limits and errors."
 msgstr "Dikirim tanpa bertanya ke model: sapaan, pesan yang diblokir, batas, dan galat."
 
-#: includes/class-admin.php:1268
+#: includes/class-admin.php:1272
 msgid "Situation"
 msgstr "Situasi"
 
-#: includes/class-admin.php:1277
+#: includes/class-admin.php:1281
 msgid "Reply"
 msgstr "Balasan"
 
-#: includes/class-admin.php:1281
+#: includes/class-admin.php:1285
 msgid "Remove example"
 msgstr "Hapus contoh"
 
-#: includes/class-admin.php:1295
+#: includes/class-admin.php:1299
 msgid "Privacy notice before the first message"
 msgstr "Pemberitahuan privasi sebelum pesan pertama"
 
-#: includes/class-admin.php:1296
+#: includes/class-admin.php:1300
 msgid "The model is busy or failed"
 msgstr "Model sedang sibuk atau gagal"
 
-#: includes/class-admin.php:1297
+#: includes/class-admin.php:1301
 msgid "Too many messages"
 msgstr "Terlalu banyak pesan"
 
-#: includes/class-admin.php:1298
+#: includes/class-admin.php:1302
 msgid "Tried to send a file or file link"
 msgstr "Mencoba mengirim file atau tautan file"
 
-#: includes/class-admin.php:1299
+#: includes/class-admin.php:1303
 msgid "Sent an ID or card number"
 msgstr "Mengirim nomor identitas atau nomor kartu"
 
-#: includes/class-admin.php:1300
+#: includes/class-admin.php:1304
 msgid "Message too long"
 msgstr "Pesan terlalu panjang"
 
-#: includes/class-admin.php:1301
+#: includes/class-admin.php:1305
 msgid "Message could not be read"
 msgstr "Pesan tidak bisa dibaca"
 
-#: includes/class-admin.php:1302
+#: includes/class-admin.php:1306
 msgid "No information on a question"
 msgstr "Tidak ada informasi untuk sebuah pertanyaan"
 
-#: includes/class-admin.php:1303
+#: includes/class-admin.php:1307
 msgid "Asked for a staff name"
 msgstr "Menanyakan nama staf"
 
-#: includes/class-admin.php:1304
+#: includes/class-admin.php:1308
 msgid "Asked for the SI's instructions"
 msgstr "Meminta instruksi SI"
 
-#: includes/class-admin.php:1305
+#: includes/class-admin.php:1309
 msgid "Conversation too long"
 msgstr "Percakapan terlalu panjang"
 
-#: includes/class-admin.php:1306
+#: includes/class-admin.php:1310
 msgid "Daily spending cap reached"
 msgstr "Batas belanja harian tercapai"
 
-#: includes/class-admin.php:1307
+#: includes/class-admin.php:1311
 msgid "A reply failed its checks twice"
 msgstr "Balasan gagal pemeriksaan dua kali"
 
-#: includes/class-admin.php:1308
+#: includes/class-admin.php:1312
 msgid "Handoff outside opening hours"
 msgstr "Penerusan di luar jam kerja"
 
-#: includes/class-admin.php:1309
+#: includes/class-admin.php:1313
 msgid "Offer after 3 minutes of silence"
 msgstr "Tawaran setelah 3 menit tanpa balasan"
 
@@ -1474,7 +1486,7 @@ msgstr "Hasil pencarian untuk \"%s\""
 msgid "Close chat window"
 msgstr "Tutup jendela chat"
 
-#: includes/class-frontend.php:165 includes/class-frontend.php:467
+#: includes/class-frontend.php:165 includes/class-frontend.php:470
 msgid "Your message"
 msgstr "Pesan Anda"
 
@@ -1498,46 +1510,54 @@ msgstr "Online"
 msgid "Offline – replies when we are back"
 msgstr "Offline – dibalas saat kami kembali"
 
-#: includes/class-frontend.php:463
+#: includes/class-frontend.php:466
 #, php-format
 msgid "%s SI Assistant"
 msgstr "Asisten SI %s"
 
-#: includes/class-frontend.php:464
+#: includes/class-frontend.php:467
 msgid "Synthesized Intelligence · can hand you to our team"
 msgstr "Dibantu Kecerdasan Sintesis · dapat diteruskan ke tim kami"
 
-#: includes/class-frontend.php:466
+#: includes/class-frontend.php:469
 msgid "Conversation"
 msgstr "Percakapan"
 
-#: includes/class-frontend.php:468
+#: includes/class-frontend.php:471
 msgid "Write a message…"
 msgstr "Tulis pesan…"
 
-#: includes/class-frontend.php:469
+#: includes/class-frontend.php:472
 msgid "Send"
 msgstr "Kirim"
 
-#: includes/class-frontend.php:470
+#: includes/class-frontend.php:473
 msgid "The SI assistant is writing…"
 msgstr "Asisten SI sedang menulis…"
 
-#: includes/class-frontend.php:471
+#: includes/class-frontend.php:474
 msgid "You"
 msgstr "Anda"
 
-#: includes/class-frontend.php:472 includes/si/class-admin-conversations.php:240
+#: includes/class-frontend.php:475 includes/si/class-admin-conversations.php:240
 msgid "SI assistant"
 msgstr "Asisten SI"
 
-#: includes/class-frontend.php:473
+#: includes/class-frontend.php:476
 msgid "The message could not be sent. Please try again."
 msgstr "Pesan tidak terkirim. Silakan coba lagi."
 
-#: includes/class-frontend.php:475
+#: includes/class-frontend.php:478
 msgid "Privacy policy"
 msgstr "Kebijakan privasi"
+
+#: includes/class-frontend.php:479
+msgid "Agree and start"
+msgstr "Setuju dan mulai"
+
+#: includes/class-frontend.php:480
+msgid "Chat reference"
+msgstr "Referensi chat"
 
 #: includes/class-meta-box.php:78
 msgid "Hide the floating chat button here"
@@ -1583,7 +1603,7 @@ msgstr "Tanya tentang produk ini"
 msgid "Hi! I'm interested in {product_name} ({product_price}). {page_url}"
 msgstr "Halo! Saya tertarik dengan {product_name} ({product_price}). {page_url}"
 
-#: includes/class-settings.php:286
+#: includes/class-settings.php:288
 msgid "The stored API key was removed."
 msgstr "API key yang tersimpan sudah dihapus."
 
@@ -1735,31 +1755,55 @@ msgstr "Tabel harga"
 msgid "Made"
 msgstr "Dibuat"
 
-#: includes/si/class-admin-conversations.php:304
+#: includes/si/class-admin-conversations.php:305
+msgid "Processing record"
+msgstr "Rekam jejak pemrosesan"
+
+#: includes/si/class-admin-conversations.php:306
+msgid "What happened in this chat, without message text: consent, refused messages, estimates and handoffs. It is part of the export."
+msgstr "Apa saja yang terjadi dalam chat ini, tanpa isi pesan: persetujuan, pesan yang ditolak, estimasi, dan penerusan ke tim. Bagian ini ikut diekspor."
+
+#: includes/si/class-admin-conversations.php:309
+msgid "Time"
+msgstr "Waktu"
+
+#: includes/si/class-admin-conversations.php:310
+msgid "Event"
+msgstr "Kejadian"
+
+#: includes/si/class-admin-conversations.php:311
+msgid "Detail"
+msgstr "Rincian"
+
+#: includes/si/class-admin-conversations.php:317
+msgid "Agreed to the privacy notice"
+msgstr "Menyetujui pemberitahuan privasi"
+
+#: includes/si/class-admin-conversations.php:325
 msgid "Export or delete"
 msgstr "Ekspor atau hapus"
 
-#: includes/si/class-admin-conversations.php:305
-msgid "Use the export to answer a visitor who asks for a copy of their data, and delete when they ask you to remove it."
-msgstr "Gunakan ekspor untuk menjawab pengunjung yang meminta salinan datanya, dan hapus jika mereka meminta datanya dihapus."
+#: includes/si/class-admin-conversations.php:326
+msgid "Use the export to answer a visitor who asks for a copy of their data, and delete when they ask you to remove it. Under Indonesia's data protection rules (UU 27/2022 and PP 33/2026), check that the request comes from the person in the chat, answer within 3 × 24 hours, and tell them when the deletion is done. The deletion itself is logged by reference only."
+msgstr "Gunakan ekspor untuk menjawab pengunjung yang meminta salinan datanya, dan hapus jika mereka meminta datanya dihapus. Menurut aturan pelindungan data pribadi Indonesia (UU 27/2022 dan PP 33/2026), pastikan permintaan berasal dari orang dalam chat tersebut, tanggapi paling lambat 3 × 24 jam, dan beri tahu mereka setelah penghapusan selesai. Penghapusannya sendiri hanya dicatat dengan nomor referensi."
 
-#: includes/si/class-admin-conversations.php:307
+#: includes/si/class-admin-conversations.php:328
 msgid "Export JSON"
 msgstr "Ekspor JSON"
 
-#: includes/si/class-admin-conversations.php:313
+#: includes/si/class-admin-conversations.php:334
 msgid "I want to delete this conversation, its messages and its estimates for good."
 msgstr "Saya ingin menghapus percakapan ini, pesan, dan estimasinya secara permanen."
 
-#: includes/si/class-admin-conversations.php:314
+#: includes/si/class-admin-conversations.php:335
 msgid "Delete conversation"
 msgstr "Hapus percakapan"
 
-#: includes/si/class-admin-conversations.php:326 includes/si/class-admin-conversations.php:348
+#: includes/si/class-admin-conversations.php:347 includes/si/class-admin-conversations.php:369
 msgid "You are not allowed to do this."
 msgstr "Anda tidak diizinkan melakukan ini."
 
-#: includes/si/class-admin-conversations.php:330
+#: includes/si/class-admin-conversations.php:351
 msgid "Conversation not found."
 msgstr "Percakapan tidak ditemukan."
 
@@ -1779,6 +1823,93 @@ msgstr "Tabel harga perlu setidaknya satu pasangan bahasa, jadi harga tidak diub
 #, php-format
 msgid "Some lines of the Apostille list could not be read (line %s). Each line needs a two-letter country code and a date, e.g. \"AU 1995-03-16 Australia\". The list was not changed."
 msgstr "Beberapa baris daftar Apostille tidak bisa dibaca (baris %s). Setiap baris perlu kode negara dua huruf dan tanggal, misalnya \"AU 1995-03-16 Australia\". Daftar tidak diubah."
+
+#: includes/si/class-privacy.php:43
+msgid "[contact email]"
+msgstr "[email kontak]"
+
+#: includes/si/class-privacy.php:47
+msgid "Suggested text for the SI chat of ContextChat. It was checked against Indonesia's Personal Data Protection Law (UU 27/2022) and its implementing regulation (PP 33/2026), but it is not legal advice. Fill in the parts in square brackets and have it reviewed before you publish it."
+msgstr "Contoh teks untuk chat SI ContextChat. Teks ini sudah dicocokkan dengan UU Pelindungan Data Pribadi (UU 27/2022) dan peraturan pelaksanaannya (PP 33/2026), tetapi bukan nasihat hukum. Lengkapi bagian dalam kurung siku dan mintakan tinjauan hukum sebelum diterbitkan."
+
+#: includes/si/class-privacy.php:48
+msgid "Chat with our SI assistant"
+msgstr "Chat dengan asisten SI kami"
+
+#: includes/si/class-privacy.php:51
+#, php-format
+msgid "The chat on this site is run by %1$s ([company address]). We decide how chat data is used and are responsible for it. Contact: %2$s."
+msgstr "Chat di situs ini dijalankan oleh %1$s ([alamat perusahaan]). Kami menentukan penggunaan data chat dan bertanggung jawab atasnya sebagai Pengendali Data Pribadi. Kontak: %2$s."
+
+#: includes/si/class-privacy.php:53
+msgid "What we collect."
+msgstr "Data yang kami kumpulkan."
+
+#: includes/si/class-privacy.php:53
+msgid "The messages you type; the details of your request that you give in them, such as document types, languages, number of pages, destination country and deadline; the estimates the chat gives you; the page address where you opened the chat (without anything after \"?\"), your language and whether you use a phone or a computer; and a chat reference number. We do not store your IP address: to stop misuse, messages are counted against a code that changes every day."
+msgstr "Pesan yang Anda ketik; rincian kebutuhan yang Anda sebutkan di dalamnya, seperti jenis dokumen, bahasa, jumlah halaman, negara tujuan, dan tenggat; estimasi yang diberikan chat; alamat halaman tempat Anda membuka chat (tanpa bagian setelah \"?\"), bahasa Anda, dan apakah Anda memakai ponsel atau komputer; serta nomor referensi chat. Kami tidak menyimpan alamat IP Anda: untuk mencegah penyalahgunaan, pesan dihitung berdasarkan kode yang berganti setiap hari."
+
+#: includes/si/class-privacy.php:54
+msgid "Please do not send ID numbers, documents or links to file-sharing services in the chat. The chat refuses them, and such messages are neither stored nor sent to Anthropic. Send documents by WhatsApp or email instead."
+msgstr "Mohon jangan mengirim nomor identitas, dokumen, atau tautan layanan berbagi file di chat. Chat menolaknya, dan pesan seperti itu tidak disimpan maupun dikirim ke Anthropic. Kirim dokumen lewat WhatsApp atau email."
+
+#: includes/si/class-privacy.php:55
+msgid "Why."
+msgstr "Tujuan."
+
+#: includes/si/class-privacy.php:55
+msgid "To answer your questions about our services, to calculate estimates from our price list, and to prepare a summary for our team when you continue by WhatsApp or email."
+msgstr "Untuk menjawab pertanyaan Anda tentang layanan kami, menghitung estimasi dari daftar harga, dan menyiapkan ringkasan untuk tim kami saat Anda melanjutkan lewat WhatsApp atau email."
+
+#: includes/si/class-privacy.php:56
+msgid "Legal basis."
+msgstr "Dasar pemrosesan."
+
+#: includes/si/class-privacy.php:57
+msgid "[Choose after legal review: your request before entering into an agreement with us (UU 27/2022 Article 20(2)(b)), or our legitimate interest in answering enquiries (Article 20(2)(f)), with the assessment PP 33/2026 Articles 53 and 54 require.]"
+msgstr "[Pilih setelah tinjauan hukum: pemenuhan permintaan Anda sebelum membuat perjanjian dengan kami (UU 27/2022 Pasal 20 ayat (2) huruf b), atau kepentingan sah kami untuk menjawab pertanyaan (Pasal 20 ayat (2) huruf f) disertai analisis yang diwajibkan PP 33/2026 Pasal 53 dan 54.]"
+
+#: includes/si/class-privacy.php:58
+msgid "Your explicit consent, given with the \"Agree and start\" button before the chat begins (UU 27/2022 Article 20(2)(a)). You can withdraw it at any time by writing to us; we then stop processing and delete the chat."
+msgstr "Persetujuan eksplisit Anda, yang diberikan dengan tombol \"Setuju dan mulai\" sebelum chat dimulai (UU 27/2022 Pasal 20 ayat (2) huruf a). Anda dapat menariknya kapan saja dengan menulis kepada kami; kami lalu menghentikan pemrosesan dan menghapus chat."
+
+#: includes/si/class-privacy.php:59
+msgid "Processing by Anthropic, outside Indonesia."
+msgstr "Pemrosesan oleh Anthropic, di luar Indonesia."
+
+#: includes/si/class-privacy.php:59
+msgid "To write the replies, your messages and the chat so far are sent to Anthropic, PBC, a language-model provider based in the United States, which processes them for us. According to Anthropic, it deletes API inputs and outputs within 30 days, unless longer retention is needed to enforce its usage policy or required by law. [Describe the safeguard for this transfer and its risks after legal review, as PP 33/2026 Articles 164 to 173 require, for example Anthropic's Data Processing Addendum with standard contractual clauses.]"
+msgstr "Untuk menyusun jawaban, pesan Anda dan isi chat sejauh ini dikirim ke Anthropic, PBC, penyedia model bahasa yang berkedudukan di Amerika Serikat, yang memprosesnya atas nama kami. Menurut Anthropic, input dan output API dihapus dalam 30 hari, kecuali perlu disimpan lebih lama untuk menegakkan kebijakan penggunaannya atau diwajibkan hukum. [Jelaskan pelindungan untuk transfer ini beserta risikonya setelah tinjauan hukum, sebagaimana diwajibkan PP 33/2026 Pasal 164 sampai 173, misalnya Data Processing Addendum Anthropic dengan klausul kontrak standar.]"
+
+#: includes/si/class-privacy.php:61
+msgid "How long."
+msgstr "Masa simpan."
+
+#: includes/si/class-privacy.php:63
+#, php-format
+msgid "Each chat, with its estimates, is kept on this site for %d days from its start and then deleted automatically. We keep only a record that a deletion took place."
+msgstr "Setiap chat beserta estimasinya disimpan di situs ini selama %d hari sejak dimulai, lalu dihapus otomatis. Kami hanya menyimpan catatan bahwa penghapusan telah dilakukan."
+
+#: includes/si/class-privacy.php:66
+msgid "Your rights."
+msgstr "Hak Anda."
+
+#: includes/si/class-privacy.php:68
+#, php-format
+msgid "You may ask for information about this processing, a copy of your chat, correction, deletion, or for processing to be paused or limited, and you may object to decisions made only by automated means. The chat gives estimates only; our team confirms every price. Write to %s and quote the chat reference shown at the top of the chat (it starts with CC-). We answer within 3 × 24 hours after checking that the request is yours."
+msgstr "Anda dapat meminta informasi tentang pemrosesan ini, salinan chat Anda, perbaikan, penghapusan, atau penundaan dan pembatasan pemrosesan, serta mengajukan keberatan atas keputusan yang hanya didasarkan pada pemrosesan otomatis. Chat hanya memberi estimasi; setiap harga dikonfirmasi oleh tim kami. Tulis ke %s dan sebutkan referensi chat di bagian atas chat (diawali CC-). Kami menanggapi paling lambat 3 × 24 jam setelah memastikan permintaan itu berasal dari Anda."
+
+#: includes/si/class-privacy.php:70
+msgid "Security."
+msgstr "Keamanan."
+
+#: includes/si/class-privacy.php:70
+msgid "Chats are stored in our website database and only our administrators can read them. If chat data is ever exposed, we will tell you and the data protection authority in writing within 3 × 24 hours."
+msgstr "Chat disimpan di database situs kami dan hanya dapat dibaca oleh administrator kami. Jika terjadi kegagalan pelindungan data chat, kami memberi tahu Anda dan lembaga pelindungan data pribadi secara tertulis paling lambat 3 × 24 jam."
+
+#: includes/si/class-privacy.php:71
+msgid "[Children: the chat is meant for adults. Decide with your legal review how you identify visitors under 18 and obtain a parent's or guardian's consent, as PP 33/2026 Article 38 requires.]"
+msgstr "[Anak: chat ini ditujukan untuk orang dewasa. Tentukan bersama tinjauan hukum cara mengenali pengunjung berusia di bawah 18 tahun dan memperoleh persetujuan orang tua atau wali, sebagaimana diwajibkan PP 33/2026 Pasal 38.]"
 
 #: includes/si/class-si-secrets.php:71
 msgid "That does not look like an Anthropic API key. Keys start with \"sk-ant-\" and contain no spaces."

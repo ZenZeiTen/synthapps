@@ -887,6 +887,9 @@ class ContextChat_Admin {
 		?>
 		<section id="ctxc-tab-privacy" class="ctxc-tab" data-tab="privacy" aria-labelledby="ctxc-tablink-privacy">
 			<h2><?php esc_html_e( 'Privacy', 'contextchat' ); ?></h2>
+			<?php if ( ! empty( ContextChat_Settings::get()['si_enabled'] ) && '' === ContextChat_Settings::get()['si_privacy_url'] ) : ?>
+				<div class="notice notice-warning inline"><p><?php esc_html_e( 'The SI chat is on but no privacy policy address is set. Indonesian law (UU 27/2022 Pasal 21, PP 33/2026 Pasal 62) expects visitors to be able to read the full privacy information before their data is processed.', 'contextchat' ); ?></p></div>
+			<?php endif; ?>
 			<p><?php esc_html_e( 'SI chats are stored in your WordPress database so your team can follow up. Visitors are asked not to send ID numbers or documents; messages that contain them, or links to file-sharing services, are refused and not stored. Visitor addresses are never stored: the rate limits count a hash that changes every day.', 'contextchat' ); ?></p>
 			<table class="form-table" role="presentation">
 				<?php self::row_number( 'si_retention_days', __( 'Keep SI chats for (days)', 'contextchat' ), 30, 3650 ); ?>
@@ -902,7 +905,8 @@ class ContextChat_Admin {
 						?>
 					</p></td>
 				</tr>
-				<?php self::row_text( 'si_privacy_url', __( 'Privacy policy address', 'contextchat' ), __( 'Linked under the privacy notice at the top of the chat. Your policy should say that chat text is processed by Anthropic and how long chats are kept.', 'contextchat' ), 'url' ); ?>
+				<?php self::row_text( 'si_privacy_url', __( 'Privacy policy address', 'contextchat' ), __( 'Linked under the privacy notice at the top of the chat. Your policy should say that chat text is processed by Anthropic outside Indonesia, why, how long chats are kept, and how visitors can ask for a copy or deletion. Suggested text is in Settings → Privacy → Policy Guide.', 'contextchat' ), 'url' ); ?>
+				<?php self::row_checkbox( 'si_consent', __( 'Ask visitors to agree first', 'contextchat' ), __( 'Shows the privacy notice with an "Agree and start" button before the first message, and records which notice was agreed to and when. Use this if your privacy review chooses consent as the basis for the chat.', 'contextchat' ) ); ?>
 			</table>
 
 			<h3><?php esc_html_e( 'Privacy notice', 'contextchat' ); ?></h3>

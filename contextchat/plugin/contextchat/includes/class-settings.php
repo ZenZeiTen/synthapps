@@ -122,6 +122,7 @@ class ContextChat_Settings {
 			'si_limit_conversation' => ContextChat_Guard::LIMITS['per_conversation'],
 			'si_file_hosts'         => implode( "\n", ContextChat_Guard::FILE_HOSTS ),
 			'si_privacy_url'        => '',
+			'si_consent'            => false,
 		);
 	}
 
@@ -266,6 +267,7 @@ class ContextChat_Settings {
 		$out['si_file_hosts']         = implode( "\n", self::hosts( self::val( $input, 'si_file_hosts', $d['si_file_hosts'] ) ) );
 		$url                          = esc_url_raw( trim( (string) self::val( $input, 'si_privacy_url', '' ) ), array( 'http', 'https' ) );
 		$out['si_privacy_url']        = mb_substr( $url, 0, 300 );
+		$out['si_consent']            = self::bool( $input, 'si_consent' );
 
 		self::save_api_key( $input );
 

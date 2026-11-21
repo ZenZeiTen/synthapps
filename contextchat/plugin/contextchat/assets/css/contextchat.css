@@ -509,6 +509,23 @@ a.ctxc-inline:focus {
 	border-radius: 10px;
 }
 
+.ctxc .ctxc-si-noticeref { display: block; margin-top: 4px; font-weight: 600; letter-spacing: 0.02em; }
+
+.ctxc .ctxc-si-agree {
+	display: block;
+	margin: 10px auto 2px;
+	padding: 9px 18px;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--ctxc-icon);
+	background: var(--ctxc-color);
+	border: 0;
+	border-radius: 999px;
+	cursor: pointer;
+}
+.ctxc .ctxc-si-agree:focus-visible { outline: 3px solid var(--ctxc-color); outline-offset: 2px; }
+
 .ctxc-si-msg { display: flex; }
 .ctxc-si-msg.is-visitor { justify-content: flex-end; }
 

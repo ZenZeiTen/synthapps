@@ -177,8 +177,13 @@
 			return row;
 		}
 
-		function notice( text, url ) {
-			if ( text && ! log.querySelector( '.ctxc-si-notice' ) ) {
+		function notice( text, url, ref ) {
+			var existing = log.querySelector( '.ctxc-si-notice' );
+			if ( existing && ref && ! existing.querySelector( '.ctxc-si-noticeref' ) ) {
+				// The reference a visitor quotes when asking for a copy or deletion of the chat.
+				existing.appendChild( el( 'span', 'ctxc-si-noticeref', ( t.ref || 'Ref' ) + ': ' + ref ) );
+			}
+			if ( text && ! existing ) {
 				var p = el( 'p', 'ctxc-si-notice', text );
 				if ( url && /^https?:\/\//i.test( url ) ) {
 					var a = el( 'a', '', t.privacy || 'Privacy policy' );
@@ -188,8 +193,37 @@
 					p.appendChild( win.document.createTextNode( ' ' ) );
 					p.appendChild( a );
 				}
+				if ( ref ) {
+					p.appendChild( el( 'span', 'ctxc-si-noticeref', ( t.ref || 'Ref' ) + ': ' + ref ) );
+				}
 				log.insertBefore( p, log.firstChild );
 			}
+		}
+
+		// The site asks visitors to agree to the notice before the chat starts (Privacy tab).
+		function agree() {
+			return new Promise( function ( resolve ) {
+				notice( si.notice, si.privacy );
+				var p = log.querySelector( '.ctxc-si-notice' );
+				var btn = el( 'button', 'ctxc-si-agree', t.agree || 'Agree and start' );
+				btn.type = 'button';
+				input.disabled = true;
+				send.disabled = true;
+				btn.addEventListener( 'click', function () {
+					// Removed after the click has finished, so the panel's outside-click check still
+					// sees a target inside the panel.
+					btn.disabled = true;
+					setTimeout( function () {
+						btn.remove();
+					}, 0 );
+					input.disabled = false;
+					send.disabled = false;
+					input.focus();
+					resolve();
+				} );
+				( p || log ).appendChild( btn );
+				btn.focus();
+			} );
 		}
 
 		var typing = null;
@@ -372,11 +406,11 @@
 		}
 
 		function begin() {
-			return api( 'start', { lang: si.lang, page: win.location.href, rule: host.rule(), device: host.mobile ? 'mobile' : 'desktop' } ).then( function ( r ) {
+			return api( 'start', { lang: si.lang, page: win.location.href, rule: host.rule(), device: host.mobile ? 'mobile' : 'desktop', consent: si.consent === true } ).then( function ( r ) {
 				if ( r.status === 201 && r.json ) {
 					session = { id: r.json.conversation_id, token: r.json.token, ref: r.json.reference };
 					writeSession( session );
-					notice( r.json.notice, r.json.privacy_url );
+					notice( r.json.notice, r.json.privacy_url, r.json.reference );
 					say( 'assistant', r.json.greeting );
 					return true;
 				}
@@ -399,7 +433,7 @@
 					writeSession( null );
 					return begin();
 				}
-				notice( r.json.notice, r.json.privacy_url );
+				notice( r.json.notice, r.json.privacy_url, r.json.reference );
 				( r.json.messages || [] ).forEach( function ( m ) {
 					say( m.role, m.text );
 				} );
@@ -414,7 +448,7 @@
 			} );
 		}
 
-		var ready = session ? resume() : begin();
+		var ready = session ? resume() : ( si.consent === true ? agree().then( begin ) : begin() );
 
 		function submit() {
 			var text = input.value.trim();

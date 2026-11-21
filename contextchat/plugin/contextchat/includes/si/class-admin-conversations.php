@@ -301,8 +301,29 @@ class ContextChat_Admin_Conversations {
 			</table>
 		<?php endif; ?>
 
+		<?php if ( $data['events'] ) : ?>
+			<h2><?php esc_html_e( 'Processing record', 'contextchat' ); ?></h2>
+			<p class="description"><?php esc_html_e( 'What happened in this chat, without message text: consent, refused messages, estimates and handoffs. It is part of the export.', 'contextchat' ); ?></p>
+			<table class="widefat striped ctxc-conv-events">
+				<thead><tr>
+					<th scope="col"><?php esc_html_e( 'Time', 'contextchat' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Event', 'contextchat' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Detail', 'contextchat' ); ?></th>
+				</tr></thead>
+				<tbody>
+					<?php foreach ( $data['events'] as $e ) : ?>
+						<tr>
+							<td><?php echo esc_html( self::local( $e['created_at'] ) ); ?></td>
+							<td><?php echo esc_html( 'consent' === $e['type'] ? __( 'Agreed to the privacy notice', 'contextchat' ) : $e['type'] ); ?></td>
+							<td><code><?php echo esc_html( $e['detail'] ); ?></code></td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif; ?>
+
 		<h2><?php esc_html_e( 'Export or delete', 'contextchat' ); ?></h2>
-		<p><?php esc_html_e( 'Use the export to answer a visitor who asks for a copy of their data, and delete when they ask you to remove it.', 'contextchat' ); ?></p>
+		<p><?php esc_html_e( 'Use the export to answer a visitor who asks for a copy of their data, and delete when they ask you to remove it. Under Indonesia\'s data protection rules (UU 27/2022 and PP 33/2026), check that the request comes from the person in the chat, answer within 3 × 24 hours, and tell them when the deletion is done. The deletion itself is logged by reference only.', 'contextchat' ); ?></p>
 		<p class="ctxc-conv-actions">
 			<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=contextchat_conversation_export&id=' . rawurlencode( $c['id'] ) ), 'contextchat_conversation_export_' . $c['id'] ) ); ?>"><?php esc_html_e( 'Export JSON', 'contextchat' ); ?></a>
 		</p>

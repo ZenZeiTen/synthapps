@@ -58,6 +58,10 @@ function startMock() {
 	return new Promise( ( resolve ) => mockServer.listen( 0, '127.0.0.1', resolve ) );
 }
 
+function nullEvents() {
+	return JSON.parse( execFileSync( 'php', [ path.join( __dirname, 'events-check.php' ), SITE ] ).toString() );
+}
+
 function chatCheck( id ) {
 	return JSON.parse( execFileSync( 'php', [ path.join( __dirname, 'chat-check.php' ), SITE, id ] ).toString() );
 }
@@ -908,7 +912,7 @@ test( 'Prices, Privacy and Conversations: edited prices are quoted, the privacy 
 	// estimate uses the edited rate and, without Australia on the list, ministry and embassy.
 	const start = await chatApi( 'start', { lang: 'id', page: BASE + '/', device: 'desktop' } );
 	assert.equal( start.status, 201 );
-	assert.match( start.json.notice, /disimpan selama 90 hari/ );
+	assert.match( start.json.notice, /Anthropic, penyedia model bahasa di luar Indonesia, dan disimpan di situs ini selama 90 hari/ );
 	assert.equal( start.json.privacy_url, BASE + '/privacy/' );
 	const { conversation_id: id, token, reference } = start.json;
 	const conv = chatCheck( id ).conversation;
@@ -945,6 +949,7 @@ test( 'Prices, Privacy and Conversations: edited prices are quoted, the privacy 
 	await page.waitForURL( /deleted=1/ );
 	assert.equal( chatCheck( id ).conversation, null );
 	assert.equal( chatCheck( id ).messages.length, 0 );
+	assert.ok( nullEvents().includes( 'admin_deleted:' + reference ), 'the deletion is recorded by reference' );
 
 	// Back to the bundled data and the earlier settings.
 	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-prices' );
@@ -963,4 +968,58 @@ test( 'Prices, Privacy and Conversations: edited prices are quoted, the privacy 
 	assert.deepEqual( option( 'get', 'contextchat_si_prices' ), [] );
 	assert.deepEqual( option( 'get', 'contextchat_si_apostille' ), [] );
 	await page.close();
+} );
+
+test( 'Privacy: with "agree first" on, the chat waits for the visitor\'s agreement and records it, and the reference is shown', async () => {
+	const admin = await newPage();
+	await login( admin );
+	await admin.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-si' );
+	await admin.fill( '#ctxc-si_api_key', MOCK_KEY );
+	await admin.check( '#ctxc-si_enabled' );
+	await admin.click( '#ctxc-tablink-privacy' );
+	await admin.check( '#ctxc-si_consent' );
+	await admin.fill( '#ctxc-si_limit_starts', '100' );
+	await admin.click( '#submit' );
+	await admin.waitForURL( /settings-updated=true/ );
+	await admin.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-privacy' );
+	assert.match( await admin.locator( '#ctxc-tab-privacy .notice-warning' ).textContent(), /no privacy policy address/ );
+
+	// The suggested policy text is in WordPress's Policy Guide, with the site's settings filled in.
+	await admin.goto( BASE + '/wp-admin/options-privacy.php?tab=policyguide' );
+	const guide = await admin.locator( 'body' ).textContent();
+	assert.match( guide, /Anthropic, PBC/ );
+	assert.match( guide, /Your explicit consent, given with the "Agree and start" button/ );
+	assert.match( guide, /kept on this site for 365 days/ );
+
+	// The endpoint refuses a start without agreement.
+	assert.equal( ( await chatApi( 'start', { lang: 'id' } ) ).status, 400 );
+
+	const page = await newPage();
+	await page.goto( BASE + '/contact/' );
+	await page.locator( '.ctxc-launcher' ).click();
+	await page.locator( '.ctxc-si-agree' ).waitFor();
+	assert.match( await page.locator( '.ctxc-si-notice' ).textContent(), /Anthropic/ );
+	assert.equal( await page.locator( '.ctxc-si-input' ).isDisabled(), true, 'no typing before agreeing' );
+	assert.equal( await page.locator( '.ctxc-si-msg' ).count(), 0, 'no chat is started yet' );
+	await shot( page, 'si-chat-consent', '.ctxc-panel' );
+	await page.locator( '.ctxc-si-agree' ).click();
+	await page.locator( '.ctxc-si-msg.is-assistant' ).waitFor();
+	await page.locator( '.ctxc-si-noticeref' ).waitFor();
+	const ref = ( await page.locator( '.ctxc-si-noticeref' ).textContent() ).match( /CC-\d{8}-[2-9A-HJKMNP-TV-Z]{4}/ )[ 0 ];
+	assert.equal( await page.locator( '.ctxc-si-input' ).isDisabled(), false );
+	const session = await page.evaluate( () => JSON.parse( sessionStorage.getItem( 'ctxc-si' ) || 'null' ) );
+	const saved = chatCheck( session.id );
+	assert.equal( saved.conversation.reference, ref );
+	assert.ok( saved.events.some( ( e ) => /^consent:(id|en):[0-9a-f]{12}$/.test( e ) ), 'the agreed notice version is recorded' );
+
+	// Back to the earlier settings.
+	await admin.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-privacy' );
+	await admin.uncheck( '#ctxc-si_consent' );
+	await admin.click( '#ctxc-tablink-si' );
+	await admin.uncheck( '#ctxc-si_enabled' );
+	await admin.check( 'input[name="contextchat_settings[si_api_key_remove]"]' );
+	await admin.click( '#submit' );
+	await admin.waitForURL( /settings-updated=true/ );
+	await page.close();
+	await admin.close();
 } );

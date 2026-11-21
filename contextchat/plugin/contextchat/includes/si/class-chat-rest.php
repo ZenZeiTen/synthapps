@@ -83,25 +83,29 @@ class ContextChat_Chat_REST {
 				'callback'            => array( __CLASS__, 'start' ),
 				'permission_callback' => $open,
 				'args'                => array(
-					'lang'   => array(
+					'lang'    => array(
 						'type'    => 'string',
 						'enum'    => array( 'id', 'en' ),
 						'default' => 'id',
 					),
-					'page'   => array(
+					'page'    => array(
 						'type'      => 'string',
 						'default'   => '',
 						'maxLength' => 500,
 					),
-					'rule'   => array(
+					'rule'    => array(
 						'type'      => 'string',
 						'default'   => '',
 						'maxLength' => 64,
 					),
-					'device' => array(
+					'device'  => array(
 						'type'    => 'string',
 						'enum'    => array( 'mobile', 'desktop', '' ),
 						'default' => '',
+					),
+					'consent' => array(
+						'type'    => 'boolean',
+						'default' => false,
 					),
 				),
 			)
@@ -267,6 +271,17 @@ class ContextChat_Chat_REST {
 	}
 
 	/**
+	 * A short fingerprint of the notice and policy address a visitor sees, kept with their consent
+	 * so the exact wording can be matched later.
+	 *
+	 * @param string $lang id or en.
+	 * @return string e.g. "id:3f2a9c1b0d4e".
+	 */
+	public static function notice_version( $lang ) {
+		return $lang . ':' . substr( sha1( self::notice( $lang ) . '|' . ContextChat_Settings::get()['si_privacy_url'] ), 0, 12 );
+	}
+
+	/**
 	 * The privacy notice shown above the chat, with {retention} filled in.
 	 *
 	 * @param string $lang id or en.
@@ -307,7 +322,12 @@ class ContextChat_Chat_REST {
 		if ( $refused ) {
 			return $refused;
 		}
-		$lang = 'en' === $request['lang'] ? 'en' : 'id';
+		$lang    = 'en' === $request['lang'] ? 'en' : 'id';
+		$consent = ! empty( ContextChat_Settings::get()['si_consent'] );
+		if ( $consent && true !== $request['consent'] ) {
+			// The site asks visitors to agree to the notice first (Privacy tab).
+			return new WP_Error( 'contextchat_consent', 'The visitor has not agreed to the privacy notice.', array( 'status' => 400 ) );
+		}
 		if ( ! self::limiter()->start( ContextChat_Guard::visitor_hash(), time() ) ) {
 			self::log_limited( null, 'start' );
 			return self::limited( $lang );
@@ -328,6 +348,10 @@ class ContextChat_Chat_REST {
 			return new WP_Error( 'contextchat_store', 'The conversation could not be started.', array( 'status' => 500 ) );
 		}
 		self::store()->add_event( $created['id'], 'chat_started', '' );
+		if ( $consent ) {
+			// Proof of consent: which notice the visitor agreed to, and when (the event's time).
+			self::store()->add_event( $created['id'], 'consent', self::notice_version( $lang ) );
+		}
 		$greeting = ContextChat_Voice::template( 'greeting', $lang );
 		self::store()->add_message( $created['id'], 'system_template', $greeting, '' );
 

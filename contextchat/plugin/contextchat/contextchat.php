@@ -55,6 +55,7 @@ require_once CONTEXTCHAT_DIR . 'includes/si/class-orchestrator.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-chat-store.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-chat-rest.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-admin-conversations.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-privacy.php';
 
 register_activation_hook( __FILE__, array( 'ContextChat_Analytics', 'activate' ) );
 register_activation_hook( __FILE__, array( 'ContextChat_Installer', 'install' ) );
@@ -82,6 +83,7 @@ add_action(
 			ContextChat_Admin::init();
 			ContextChat_Admin_Analytics::init();
 			ContextChat_Admin_Conversations::init();
+			ContextChat_Privacy::init();
 		}
 	}
 );
