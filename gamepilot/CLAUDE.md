@@ -14,9 +14,10 @@ ruff check synthapps_gamepilot tests            # config in pyproject.toml
 python -m synthapps_gamepilot demo              # full loop on the built-in game, no API key
 ```
 
-CI (`.github/workflows/gamepilot.yml`) runs the tests on Ubuntu and Windows with Python 3.11
-and 3.13. The Windows jobs are the only place Win32 code really runs, so read their logs when
-you touch `window.py` or `backends/win_sendinput.py`.
+CI (`.github/workflows/gamepilot.yml`) runs the tests on Windows only, with Python 3.13. Run
+lint (`ruff check`) and the tests here, on Python 3.11 and 3.13, before pushing: CI has no Linux
+jobs (see the root CLAUDE.md). The Windows job is the only place Win32 code really runs, so read
+its log when you touch `window.py` or `backends/win_sendinput.py`.
 
 To check a Claude request without an API key, build a real `anthropic.Anthropic` with an
 `http_client` whose transport is a `MockTransport` (httpx, or httpx2 in SDK 2.x), and inspect

@@ -1,26 +1,14 @@
 name: Vitalis
 
-# Tests the health tracker, builds the installable web app (PWA) and the Android app, and keeps both as
-# downloadable artifacts. Two ways to publish them on a GitHub release:
-#  - the "Run workflow" button on the Actions page, run on main with "Publish a release" ticked: publishes
-#    release vitalis-v<version in vitalis/package.json>, creating that tag on the commit it built;
+# Runs only to publish a release: builds the installable web app (PWA) and the Android app and publishes
+# both. Unit tests and the type-check run in the Claude Code container before pushing, not here: see
+# CLAUDE.md, no Linux test jobs in Actions. Two ways to publish:
+#  - the "Run workflow" button on the Actions page, run on main: publishes release
+#    vitalis-v<version in vitalis/package.json>, creating that tag on the commit it built;
 #  - pushing a tag named vitalis-v<version>.
 on:
   workflow_dispatch:
-    inputs:
-      release:
-        description: "Publish a release of the version in vitalis/package.json (run on main)"
-        type: boolean
-        default: false
-  pull_request:
-    paths:
-      - "vitalis/**"
-      - ".github/workflows/vitalis.yml"
   push:
-    branches: [main]
-    paths:
-      - "vitalis/**"
-      - ".github/workflows/vitalis.yml"
     tags:
       - "vitalis-v*"
 
@@ -28,87 +16,20 @@ permissions:
   contents: read
 
 jobs:
-  web:
-    name: Test and build the web app
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: vitalis
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.x"
-          cache: npm
-          cache-dependency-path: vitalis/package-lock.json
-      - run: npm ci
-      - name: Unit tests
-        run: npm test
-      - name: Type-check and build
-        run: npm run build
-      - name: Package
-        run: cd dist && zip -qr ../vitalis-web.zip .
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vitalis-web
-          path: vitalis/vitalis-web.zip
-
-  android:
-    name: Build the Android app
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: vitalis
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.x"
-          cache: npm
-          cache-dependency-path: vitalis/package-lock.json
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-      - run: npm ci
-      - name: Build the web app and copy it into the Android project
-        run: npm run android:sync
-      - name: Install the Android platform
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
-      - name: Build a debug APK
-        working-directory: vitalis/android
-        run: ./gradlew assembleDebug --no-daemon
-      - name: Name the APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Vitalis-debug.apk
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Vitalis-debug.apk
-          path: vitalis/Vitalis-debug.apk
-
   release:
-    name: Publish a release
-    if: >-
-      startsWith(github.ref, 'refs/tags/vitalis-v') ||
-      (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
-    needs: [web, android]
+    name: Build and publish a release
+    if: startsWith(github.ref, 'refs/tags/vitalis-v') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: vitalis
     steps:
       - uses: actions/checkout@v4
-        with:
-          sparse-checkout: vitalis/package.json
-          sparse-checkout-cone-mode: false
-      - uses: actions/download-artifact@v4
-        with:
-          path: out
-          merge-multiple: true
-      - name: Create the release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Check the version and the tag
         run: |
-          version="$(jq -r .version vitalis/package.json)"
+          version="$(jq -r .version package.json)"
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             tag="$GITHUB_REF_NAME"
             if [[ "$tag" != "vitalis-v$version" ]]; then
@@ -122,11 +43,40 @@ jobs:
             echo "::error::Release $tag already exists. Raise the version in vitalis/package.json to publish a new one." >&2
             exit 1
           fi
-          cp out/Vitalis-debug.apk "Vitalis-$version.apk"
-          cp out/vitalis-web.zip "vitalis-web-$version.zip"
-          gh release create "$tag" "Vitalis-$version.apk" "vitalis-web-$version.zip" \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Vitalis $version" \
-            --notes "Vitalis health tracker $version, in English and Bahasa Indonesia.
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: vitalis/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - run: npm ci
+      - name: Type-check, build and package the web app
+        run: |
+          npm run build
+          (cd dist && zip -qr "../vitalis-web-$VERSION.zip" .)
+      - name: Build the web app and copy it into the Android project
+        run: npm run android:sync
+      - name: Install the Android platform
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      - name: Build a debug APK
+        working-directory: vitalis/android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk "Vitalis-$VERSION.apk"
+          gh release create "$TAG" "Vitalis-$VERSION.apk" "vitalis-web-$VERSION.zip" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Vitalis $VERSION" \
+            --notes "Vitalis health tracker $VERSION, in English and Bahasa Indonesia.
 
-          - Android: download Vitalis-$version.apk on the phone and open it. Android asks once to allow installs from your browser or file manager.
-          - Web app: host the files in vitalis-web-$version.zip on any HTTPS web server, open the address and choose Install app."
+          - Android: download Vitalis-$VERSION.apk on the phone and open it. Android asks once to allow installs from your browser or file manager.
+          - Web app: host the files in vitalis-web-$VERSION.zip on any HTTPS web server, open the address and choose Install app."

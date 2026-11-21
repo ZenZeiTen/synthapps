@@ -79,7 +79,7 @@ The APK's version comes from `package.json` (1.1.1 becomes versionName 1.1.1, ve
 
 Since September 2026, certified Android phones in Brazil, Indonesia, Singapore and Thailand block apps from developers who have not registered with Google when they are installed from outside the app stores. In those countries a downloaded APK installs only after turning on **Settings > System > Developer options > Apps from unverified developers** (a one-time, 24-hour wait), or through `adb install` with USB debugging; elsewhere it installs after allowing installs from the browser or file manager.
 
-The GitHub Actions workflow [`.github/workflows/vitalis.yml`](../.github/workflows/vitalis.yml) runs the tests and uploads `vitalis-web.zip` and `Vitalis-debug.apk` as artifacts on every pull request. To publish both on a GitHub release, open **Actions > Vitalis > Run workflow** on `main` and tick **Publish a release**: it releases the version in `package.json` as `vitalis-v<version>`. Pushing a tag with that name does the same. A version is released once; raise the version for the next release.
+Run `npm test` and `npm run build` before pushing: GitHub Actions does not run the tests. The workflow [`.github/workflows/vitalis.yml`](../.github/workflows/vitalis.yml) runs only to publish a release: it builds `vitalis-web-<version>.zip` and `Vitalis-<version>.apk` and attaches both. To run it, open **Actions > Vitalis > Run workflow** on `main`: it releases the version in `package.json` as `vitalis-v<version>`. Pushing a tag with that name does the same. A version is released once; raise the version for the next release.
 
 ### Icons
 

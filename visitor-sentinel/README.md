@@ -15,8 +15,8 @@ release tags (`visitor-sentinel-v*`) keep the old internal names, so data carrie
 Installable zips are attached to the
 [releases](https://github.com/ZenZeiTen/synthapps/releases?q=visitor-sentinel).
 To publish one, raise `Version` in `zenzeiten-visitor-guard.php`, update [RELEASE_NOTES.md](RELEASE_NOTES.md),
-then on the Actions page run the **ZenZeiTen Visitor Guard** workflow on `main` with **Publish a release**
-ticked. It runs every test, builds `zenzeiten-visitor-guard-<version>.zip` and publishes release
+run the tests, then on the Actions page run the **ZenZeiTen Visitor Guard** workflow on `main`.
+It builds `zenzeiten-visitor-guard-<version>.zip` and publishes release
 `visitor-sentinel-v<version>`. Pushing a tag with that name does the same.
 
 ## What it does
@@ -111,5 +111,6 @@ DB_HOST=127.0.0.1 DB_USER=root DB_PASS=root bash tests/wordpress-smoke.sh
 This installs WordPress on MySQL with WP-CLI, switches from an old `visitor-sentinel` copy to the
 renamed plugin (data kept, cron rescheduled, no WordPress.org update offered), upgrades the tables
 from the 1.1.0 layout, records a server-side and a browser-reported ad landing, runs cron, and loads
-every admin screen as an administrator. The [CI workflow](../.github/workflows/visitor-sentinel.yml)
-runs all three, with the unit tests on PHP 7.4 to 8.4.
+every admin screen as an administrator. Run all three before
+pushing, with the unit tests on PHP 7.4 to 8.4: the [workflow](../.github/workflows/visitor-sentinel.yml)
+only publishes releases and runs no tests.

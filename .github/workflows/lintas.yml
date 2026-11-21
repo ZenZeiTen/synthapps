@@ -1,52 +1,23 @@
 name: lintas
 
-# Lintas runs on Windows only here: unit tests and a check that the preload bundle is current,
-# then the Windows installers (installer and portable) as downloadable artifacts. No Linux or macOS
-# runners are used. The end-to-end test of the real app (test/app.smoke.mjs) is run by hand before a
-# release. The builds are not code-signed.
+# Builds the Windows installer and portable app as downloadable artifacts, when run by hand.
+# Releases are built by lintas-release.yml. The unit tests and the Electron smoke test run in
+# the Claude Code container before pushing, not here: see CLAUDE.md, no Linux or macOS jobs in
+# Actions, and no Linux or macOS builds of the app. The builds are not code-signed.
 on:
-  pull_request:
-    paths:
-      - "lintas/**"
-      - ".github/workflows/lintas.yml"
-  push:
-    branches: [main]
-    paths:
-      - "lintas/**"
-      - ".github/workflows/lintas.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  test:
-    name: Tests
-    runs-on: windows-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: lintas
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: npm ci
-      - run: npm test
-      - name: Preload bundle is up to date
-        run: node scripts/build-preload.mjs && git diff --exit-code --ignore-cr-at-eol app/preload/chrome.bundle.cjs
-
   build:
-    name: Build (windows-latest)
-    needs: test
+    name: Build (Windows)
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: lintas
-        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,8 +29,6 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
       - uses: actions/upload-artifact@v4
         with:
-          name: lintas-windows
-          path: |
-            lintas/dist/Lintas-*-x64.exe
-            lintas/dist/Lintas-*-arm64.exe
+          name: lintas-Windows
+          path: lintas/dist/*.exe
           if-no-files-found: error

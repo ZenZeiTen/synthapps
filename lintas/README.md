@@ -264,9 +264,9 @@ npm run dist:linux
 
 `dist:win` and `dist:mac` build the Windows (installer and portable) and macOS
 (dmg and zip) versions on those systems. GitHub Actions builds only the Windows version:
-the `lintas` workflow runs the unit tests and builds the Windows installers on every change
-and keeps them as downloadable artifacts, all on Windows runners. The builds are not
-code-signed.
+the `lintas` workflow, run by hand, builds the Windows installer and portable app as
+downloadable artifacts. The unit tests and the end-to-end test run locally before pushing.
+The builds are not code-signed.
 
 The Windows installer (`build/installer.nsh`) registers Lintas with Windows as a browser
 (Default apps, "Open with" for web files) and removes that on uninstall. Links reach Lintas
@@ -276,7 +276,7 @@ launch hands its links to the running window.
 ## Releases
 
 `lintas-release` (GitHub Actions) publishes a release when `version` in `package.json`
-changes on `main` and no `lintas-v<version>` release exists yet. It runs the unit tests, builds
+changes on `main` and no `lintas-v<version>` release exists yet. It builds
 the Windows installer and portable version for x64 and ARM64, and creates the release with
 `release-notes.md` and SHA-256 checksums. To ship a new version, raise `version` and merge.
 

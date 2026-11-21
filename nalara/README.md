@@ -24,15 +24,16 @@ a sample project.
 | System | File | How to start it |
 |---|---|---|
 | Windows 10/11 (x64) | `Nalara-win-x64.exe` | Double-click. The first time, Windows SmartScreen says it "protected your PC": click **More info**, then **Run anyway**. |
-| macOS 11+ (Apple Silicon) | `Nalara-darwin-arm64.zip` | Double-click the zip, then **Nalara.app**. The first time, macOS says it cannot verify the developer: open **System Settings → Privacy & Security** and click **Open Anyway**. |
-| macOS 11+ (Intel) | `Nalara-darwin-x64.zip` | As above. |
-| Linux (x64) | `Nalara-linux-x64.tar.gz` | Unpack, then double-click `Nalara-linux-x64` or run `./Nalara-linux-x64`. |
 
-The warnings appear because the files are not signed with a paid Apple or
-Microsoft developer certificate. They are built from this repository by
+The warning appears because the file is not signed with a paid Microsoft
+developer certificate. It is built from this repository by
 [`.github/workflows/nalara-app.yml`](../.github/workflows/nalara-app.yml): run it
-from the Actions tab (or push a `nalara-v*` tag to attach the files to a
-release) and download them from the run's artifacts.
+from the Actions tab (or push a `nalara-v*` tag to attach the file to a
+release) and download it from the run's artifacts.
+
+Only the Windows file is built in GitHub Actions. To make the macOS or Linux
+file, run `npm run build:app -- --target darwin-arm64` (or `darwin-x64`,
+`linux-x64`) on that system.
 
 What happens when you start it:
 

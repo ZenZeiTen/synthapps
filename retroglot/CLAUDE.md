@@ -14,12 +14,12 @@ npm run test:e2e         # real emulator in headless Chromium, mock Claude API
 
 The browser tests need `npm run setup` (or at least `install-runtime --cores dosbox_pure,fceumm,melonds`) and
 Playwright with Chromium; they skip themselves otherwise. In this sandbox Playwright is
-preinstalled globally; in CI the workflow installs `playwright@1.63.0`. To look at the UI,
+preinstalled globally; elsewhere install `playwright@1.63.0`. To look at the UI,
 `node test/helpers/shots.mjs <dir>` writes screenshots (library, overlay, subtitles, saves,
 phone width) using the mock Claude.
 
-CI: `.github/workflows/retroglot.yml` (unit tests on Ubuntu and Windows, Node 20 and 22; the
-browser job on Ubuntu).
+CI: `.github/workflows/retroglot.yml` runs the unit tests on Windows only (Node 22). Run the unit
+tests and the browser tests here before pushing: CI has no Linux jobs (see the root CLAUDE.md).
 
 ## Layout
 

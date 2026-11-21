@@ -8,6 +8,9 @@ name: lintas-release
 # release, raise "version" in lintas/package.json and merge.
 #
 # The builds are not code-signed, so Windows SmartScreen warns on first run.
+#
+# Run the tests (npm test and the Electron smoke test) in the Claude Code container before
+# raising the version: see CLAUDE.md, no Linux test jobs in Actions.
 on:
   push:
     branches: [main]
@@ -18,11 +21,6 @@ on:
 permissions:
   contents: read
 
-# Every job runs on windows-latest (no Linux or macOS runners), with bash as the shell.
-defaults:
-  run:
-    shell: bash
-
 concurrency:
   group: lintas-release
   cancel-in-progress: false
@@ -30,7 +28,7 @@ concurrency:
 jobs:
   check:
     name: Check version
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.v.outputs.version }}
       tag: ${{ steps.v.outputs.tag }}
@@ -50,26 +48,10 @@ jobs:
           echo "exists=$exists" >> "$GITHUB_OUTPUT"
           echo "Lintas $version, tag $tag, already released: $exists"
 
-  test:
-    name: Tests
-    needs: check
-    if: needs.check.outputs.exists == 'false'
-    runs-on: windows-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: lintas
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: npm ci
-      - run: npm test
-
   windows:
     name: Build for Windows
-    needs: [check, test]
+    needs: check
+    if: needs.check.outputs.exists == 'false'
     runs-on: windows-latest
     timeout-minutes: 45
     defaults:
@@ -104,7 +86,7 @@ jobs:
   release:
     name: Publish release
     needs: [check, windows]
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:

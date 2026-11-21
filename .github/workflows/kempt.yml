@@ -1,7 +1,10 @@
 name: kempt
 
-# Tests Kempt, builds it, and runs the real Windows parts (PowerShell scripts,
-# the Recycle Bin, the desktop API) on a Windows runner. Two ways to publish a
+# Tests Kempt on Windows, builds it, and runs the real Windows parts (PowerShell
+# scripts, the Recycle Bin, the desktop API) on a Windows runner. The Linux tests
+# and the Chromium end-to-end test run in the Claude Code container before pushing,
+# not here: see CLAUDE.md, no Linux test or build jobs in Actions. The Linux builds
+# in the release are cross-compiled on the Windows runner. Two ways to publish a
 # GitHub release:
 #  - the "Run workflow" button on main with "Publish a release" ticked:
 #    publishes kempt-v<version in kempt/main.go>;
@@ -12,12 +15,8 @@ on:
       - "kempt/**"
       - ".github/workflows/kempt.yml"
   push:
-    branches: [main]
     tags:
       - "kempt-v*"
-    paths:
-      - "kempt/**"
-      - ".github/workflows/kempt.yml"
   workflow_dispatch:
     inputs:
       release:
@@ -29,58 +28,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    defaults:
-      run:
-        working-directory: kempt
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-      - run: go vet ./...
-      - run: go test ./...
-
-  browser:
-    name: End-to-end in Chromium
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: kempt
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Playwright with Chromium
-        timeout-minutes: 10
-        run: |
-          npm install --no-save playwright@1.63.0
-          npx playwright install --with-deps chromium
-      - run: node test/e2e.mjs "$RUNNER_TEMP/kempt-shots"
-        timeout-minutes: 10
-      - name: Screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kempt-e2e-screenshots
-          path: ${{ runner.temp }}/kempt-shots
-          if-no-files-found: ignore
-          retention-days: 14
-
   windows:
-    name: Build Kempt.exe and check it on Windows
+    name: Test, build Kempt.exe and check it on Windows
     runs-on: windows-latest
     timeout-minutes: 20
     defaults:
@@ -91,6 +40,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
+      - run: go vet ./...
+      - run: go test ./...
       - name: Build
         shell: bash
         run: ./scripts/build.sh
@@ -187,7 +138,7 @@ jobs:
     if: >-
       startsWith(github.ref, 'refs/tags/kempt-v') ||
       (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
-    needs: [test, browser, windows]
+    needs: [windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
