@@ -40,13 +40,13 @@ export default function newtab(el, ctx) {
   }
   async function drawData() {
     const [dash, pages] = await Promise.all([call(L().tms.dashboard(), { silent: true }), call(L().offline.list({}), { silent: true })]);
-    const projects = (dash?.projects || []).filter((p) => p.stats.progress < 1 || true).sort((a, b) => (a.dueDate || Infinity) - (b.dueDate || Infinity)).slice(0, 4);
+    const projects = (dash?.projects || []).sort((a, b) => (a.stats.progress >= 1) - (b.stats.progress >= 1) || (a.dueDate || Infinity) - (b.dueDate || Infinity)).slice(0, 4);
     mount(tms, projects.length ? projects.map((p) => {
       const due = dueInfo(p.dueDate);
       return h('button.nt-proj', { type: 'button', onClick: () => ctx.navigate(`lintas://tms/project/${encodeURIComponent(p.id)}`) },
         ring(p.stats.progress, { size: 40 }), h('span.name', { dir: 'auto' }, p.name),
         h('span.meta', langPair(p.sourceLang, p.targetLang), h('span.ellipsis', `${fmtNum(p.stats.words)} words · ${p.fileCount} file${p.fileCount === 1 ? '' : 's'}`)),
-        due ? h('span.chip.due', { class: due.tone }, icon('calendar'), due.text) : null);
+        p.stats.progress >= 1 ? h('span.chip.due.ok', icon('check'), 'Complete') : due ? h('span.chip.due', { class: due.tone }, icon('calendar'), due.text) : null);
     }) : h('div.empty', { style: { padding: '24px' } }, icon('tms'), h('h3', 'No projects yet'), h('p', 'Create a project to translate files, text or web pages.'), h('button.btn.primary', { type: 'button', onClick: () => ctx.navigate('lintas://tms') }, 'Open TMS')));
     mount(off, (pages || []).length ? pages.slice(0, 4).map((p) => h('button.list-row', { type: 'button', title: p.url, onClick: () => call(L().offline.open(p.id, { newTab: false })) },
       favicon(null, p.url), h('span.lr-main', h('span.lr-title', { dir: 'auto' }, p.title), h('span.lr-sub', `${hostOf(p.url)} · saved ${relTime(p.savedAt)}`))))
