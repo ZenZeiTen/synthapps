@@ -765,6 +765,9 @@ app.whenReady().then(async () => {
     }),
     permissionStore: data.permissionStore(),
     httpAllowed,
+    extensionAccess: details => extensions?.pageAccess(details) || null,
+    extensionCookies: url => extensions.cookieHeader(url),
+    extensionSetCookies: (url, lines) => extensions.storeCookies(url, lines),
   };
   for (const p of Object.values(PARTITIONS)) {
     const ses = session.fromPartition(p);

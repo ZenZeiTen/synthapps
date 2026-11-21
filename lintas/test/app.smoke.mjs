@@ -36,6 +36,7 @@ function mcpCall(tool, args = {}) {
 }
 const site = http.createServer((req, res) => {
   if (req.url.startsWith('/track')) { res.end('x'); return; }
+  if (req.url.startsWith('/cookie-who')) { res.setHeader('set-cookie', 'fromext=2; SameSite=Lax; Path=/'); res.end(JSON.stringify(req.headers.cookie || '')); return; }
   res.setHeader('content-type', 'text/html; charset=utf-8');
   res.end(`<!doctype html><html lang="en"><title>Test page</title><body><h1>Settings guide</h1>
   <p>Open the settings page to change your password.</p><p>Save your work before you close the app.</p>
@@ -173,9 +174,43 @@ try {
   const exts2 = await L(() => lintas.extensions.list());
   const extTab = await L(u => lintas.tabs.create({ url: u }), `chrome-extension://${exts2.find(e => e.name === 'Lintas test extension').id}/panel.html`);
   await new Promise(r => setTimeout(r, 1500));
+  // An extension's own page reaches a site it has access to with the user's cookies for that site, as
+  // in Chrome (Claude in Chrome's panel uses the claude.ai session this way), and cookies set in the reply are kept
+  const cookies = await app.evaluate(async ({ webContents, session }, port) => {
+    const ses = session.fromPartition('persist:lintas');
+    await ses.cookies.set({ url: `http://127.0.0.1:${port}/`, name: 'login', value: '1', sameSite: 'lax' });
+    const wc = webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html'));
+    const sent = await wc.executeJavaScript(`fetch('http://127.0.0.1:${port}/cookie-who', { credentials: 'include' }).then(r => r.json())`, true);
+    await new Promise(r => setTimeout(r, 300));
+    return { sent, kept: (await ses.cookies.get({ url: `http://127.0.0.1:${port}/`, name: 'fromext' })).length };
+  }, port);
+  assert.match(cookies.sent, /login=1/, 'extension page request carries the site cookie: ' + JSON.stringify(cookies));
+  assert.equal(cookies.kept, 1, 'cookie set in the reply is stored');
+  // chrome.windows.create({ type: 'popup' }) opens a real popup; chrome.windows.remove closes it, but never the browser window
+  const popups = await app.evaluate(async ({ webContents, BrowserWindow }, port) => {
+    const wc = webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html'));
+    const main = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('lintas-ui://')).id;
+    const id = await wc.executeJavaScript(`chrome.windows.create({ url: 'http://127.0.0.1:${port}/?popup', type: 'popup', width: 400, height: 300 }).then(w => w.id)`, true);
+    await new Promise(r => setTimeout(r, 800));
+    const open = BrowserWindow.getAllWindows().length;
+    await wc.executeJavaScript(`chrome.windows.remove(${id}).catch(() => {})`, true);
+    await wc.executeJavaScript(`chrome.windows.remove(${main}).catch(() => {})`, true);
+    await new Promise(r => setTimeout(r, 800));
+    return { separate: id !== main, open, after: BrowserWindow.getAllWindows().length, mainAlive: !!BrowserWindow.fromId(main) };
+  }, port);
+  assert.deepEqual(popups, { separate: true, open: 2, after: 1, mainAlive: true }, JSON.stringify(popups));
   await app.evaluate(({ webContents }) => { webContents.getAllWebContents().find(w => w.getURL().endsWith('/panel.html'))?.close(); });
   await new Promise(r => setTimeout(r, 800));
   assert.ok(!(await L(() => lintas.tabs.list())).some(t => t.id === extTab.id), 'a tab whose extension page ended is closed');
+  // An extension button works on Lintas's own pages too (a new tab has no web page of its own)
+  const nt = await L(() => lintas.tabs.create({}));
+  await win.evaluate(() => document.querySelector('browser-action-list').shadowRoot.querySelector('.action, button').click());
+  let popupShown = 0;
+  for (let i = 0; i < 40 && popupShown < 2; i++) { popupShown = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length); await new Promise(r => setTimeout(r, 100)); }
+  assert.equal(popupShown, 2, 'the extension popup opens on a new tab page');
+  await app.evaluate(({ BrowserWindow }) => { for (const w of BrowserWindow.getAllWindows()) if (!w.webContents.getURL().startsWith('lintas-ui://')) w.destroy(); });
+  assert.equal((await L(() => lintas.tabs.list())).find(t => t.id === nt.id).url, 'lintas://newtab', 'the new tab page stays');
+  await L(id => lintas.tabs.close(id), nt.id);
   await L(id => lintas.tabs.activate(id), tabId);
 
   // Web panels: Gmail docks in the side panel as its own web view, beside the page

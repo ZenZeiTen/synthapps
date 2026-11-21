@@ -92,15 +92,22 @@ export function hardenSession(ses, ctx) {
     cb({});
   });
 
-  ses.webRequest.onBeforeSendHeaders({ urls: ['<all_urls>'] }, (details, cb) => {
+  ses.webRequest.onBeforeSendHeaders({ urls: ['<all_urls>'] }, async (details, cb) => {
     const s = ctx.settings();
     const headers = details.requestHeaders;
+    // An extension's own page asking a site it has access to: the user's cookies for that site apply.
+    const ext = ctx.extensionAccess?.(details);
+    if (ext) {
+      const cookie = await ctx.extensionCookies(details.url);
+      for (const k of Object.keys(headers)) if (k.toLowerCase() === 'cookie') delete headers[k];
+      if (cookie) headers.Cookie = cookie;
+    }
     if (s.sendDoNotTrack) { headers.DNT = '1'; headers['Sec-GPC'] = '1'; }
     if (needsFirefoxIdentity(details.url)) {
       for (const k of Object.keys(headers)) { if (/^sec-ch-ua/i.test(k)) delete headers[k]; else if (/^user-agent$/i.test(k)) delete headers[k]; }
       headers['User-Agent'] = firefoxUserAgent();
     } else if (headers['User-Agent'] === firefoxUserAgent()) headers['User-Agent'] = ua; // first request after leaving such a page
-    if (s.blockThirdPartyCookies && details.resourceType !== 'mainFrame') {
+    if (!ext && s.blockThirdPartyCookies && details.resourceType !== 'mainFrame') {
       const page = details.webContents?.getURL?.() || '';
       if (page && isThirdParty(details.url, page)) delete headers.Cookie;
     }
@@ -109,7 +116,11 @@ export function hardenSession(ses, ctx) {
 
   ses.webRequest.onHeadersReceived({ urls: ['<all_urls>'] }, (details, cb) => {
     const s = ctx.settings();
-    if (s.blockThirdPartyCookies && details.resourceType !== 'mainFrame' && details.responseHeaders) {
+    const ext = details.responseHeaders && ctx.extensionAccess?.(details);
+    if (ext) {
+      const lines = Object.entries(details.responseHeaders).filter(([k]) => k.toLowerCase() === 'set-cookie').flatMap(([, v]) => v);
+      if (lines.length) ctx.extensionSetCookies(details.url, lines);
+    } else if (s.blockThirdPartyCookies && details.resourceType !== 'mainFrame' && details.responseHeaders) {
       const page = details.webContents?.getURL?.() || '';
       if (page && isThirdParty(details.url, page)) {
         for (const k of Object.keys(details.responseHeaders)) if (k.toLowerCase() === 'set-cookie') delete details.responseHeaders[k];

@@ -13,7 +13,7 @@ import { dialog, ipcMain, session as electronSession, BrowserWindow } from 'elec
 import { ElectronChromeExtensions } from 'electron-chrome-extensions';
 import { popupWindowOptions, liveContents } from './tabs.js';
 import { installNativeMessaging } from './native-messaging.js';
-import { GROUP_COLORS, filterContexts, nextGroupColor, shortcutFor, shortcutMatches, matchesTitle, matchesPattern } from './ext-util.js';
+import { GROUP_COLORS, filterContexts, nextGroupColor, shortcutFor, shortcutMatches, matchesTitle, matchesPattern, parseSetCookie } from './ext-util.js';
 export { matchesPattern };
 import { installChromeWebStore, installExtension, uninstallExtension } from 'electron-chrome-web-store';
 
@@ -34,6 +34,7 @@ export class Extensions {
     this.panelBehavior = new Map(); // extension id -> { openPanelOnActionClick }
     this.listeners = new Map();    // extension id -> Set of senders for chrome.* events
     this.docIds = new Map();       // webContents id -> { contextId, documentId }
+    this.popups = new Set();       // popup windows opened by extensions (chrome.windows.create)
     this.externalPending = new Map(); // message id -> a web page's sendMessage waiting for the extension's reply
     this.extensionsPath = path.join(dataDir, 'Extensions');
     this.unpackedFile = path.join(dataDir, 'unpacked-extensions.json');
@@ -52,10 +53,26 @@ export class Extensions {
       selectTab: (wc) => { const tabs = this.getTabs(); const t = tabs.byContents(wc); if (t) tabs.activate(t.id); },
       removeTab: (wc) => { const tabs = this.getTabs(); const t = tabs.byContents(wc); if (t) tabs.close(t.id); },
       createWindow: async (details) => {
+        const urls = [].concat(details.url || 'about:blank').map(String);
+        // chrome.windows.create({ type: 'popup' }) is a real popup window, as in Chrome (sign-in windows)
+        if (details.type === 'popup' || details.type === 'panel') {
+          const px = (v, d) => (Number.isFinite(v) ? Math.round(v) : d);
+          const w = new BrowserWindow({ ...popupWindowOptions(process.platform === 'darwin'), width: px(details.width, 520), height: px(details.height, 680),
+            ...(Number.isFinite(details.left) && Number.isFinite(details.top) ? { x: px(details.left), y: px(details.top) } : {}),
+            webPreferences: { ...popupWindowOptions(false).webPreferences, session: this.ses } });
+          this.getTabs()?.wirePopup?.(w, { private: false });
+          this.popups.add(w);
+          w.once('closed', () => this.popups.delete(w));
+          this.api.addTab(w.webContents, w);
+          w.webContents.loadURL(urls[0]).catch(() => {});
+          return w;
+        }
         const tabs = this.getTabs();
-        for (const url of [].concat(details.url || 'about:blank')) tabs.create({ url, raw: true });
+        for (const url of urls) tabs.create({ url, raw: true });
         return this.getWin();
       },
+      // chrome.windows.remove: closes a popup; an extension cannot close the browser window itself
+      removeWindow: async (w) => { if (w && w !== this.getWin() && !w.isDestroyed()) w.close(); },
     });
     installNativeMessaging(this.api);
     // "Open the side panel when the toolbar button is clicked" (chrome.sidePanel.setPanelBehavior)
@@ -63,6 +80,12 @@ export class Extensions {
     if (ba?.activateClick) {
       const click = ba.activateClick.bind(ba);
       ba.activateClick = (details) => {
+        // The click is for the tab the user is looking at. Lintas's own pages (new tab, settings…) have
+        // no web page, so such a tab gets an empty one for the extension to work with.
+        try {
+          const tabs = this.getTabs(); const t = tabs?.active();
+          if (t && !t.private) this.selectTab(liveContents(t) || tabs.ensureView(t).webContents);
+        } catch {}
         const ext = this.ses.extensions.getExtension(details?.extensionId);
         if (ext && this.panelBehavior.get(ext.id)?.openPanelOnActionClick && !ba.getPopupUrl?.(ext.id, details.tabId)) {
           const tabs = this.getTabs(); const t = tabs?.active();
@@ -349,6 +372,39 @@ export class Extensions {
       }
       case 'userScripts.configureWorld': this.requirePermission(ext, 'userScripts'); return;
       default: throw new Error(`chrome.${name} is not supported.`);
+    }
+  }
+
+  // ---------- site access for extension pages (cookies) ----------
+
+  /**
+   * The extension whose own page makes this request (directly, or from a frame inside it), when its
+   * manifest gives it access to the address. Chrome then treats the request as coming from the site
+   * itself, so the user's login cookies apply; Electron treats it as a stranger's. Claude in Chrome
+   * depends on this: its side panel shows claude.ai with the user's claude.ai session.
+   */
+  pageAccess(details) {
+    if (!/^https?:/i.test(details?.url || '')) return null;
+    let top = '';
+    try { top = details.frame?.top?.url || details.webContents?.getURL?.() || ''; } catch {}
+    const m = /^chrome-extension:\/\/([a-p]{32})\//.exec(top);
+    const ext = m && this.ses.extensions.getExtension(m[1]);
+    if (!ext) return null;
+    const pats = [...(ext.manifest.host_permissions || []), ...(ext.manifest.manifest_version === 2 ? ext.manifest.permissions || [] : [])].map(String);
+    return pats.some(p => matchesPattern(p, details.url)) ? ext : null;
+  }
+
+  /** The Cookie header the site itself would get for this address. */
+  async cookieHeader(url) {
+    try { return (await this.ses.cookies.get({ url })).map(c => `${c.name}=${c.value}`).join('; '); } catch { return ''; }
+  }
+
+  /** Stores Set-Cookie headers of a response the extension page was allowed to make. */
+  async storeCookies(url, lines) {
+    for (const line of lines) {
+      const c = parseSetCookie(line, url);
+      if (!c) continue;
+      try { c.remove ? await this.ses.cookies.remove(url, c.name) : await this.ses.cookies.set(c); } catch {}
     }
   }
 

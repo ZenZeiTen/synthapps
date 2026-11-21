@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { filterContexts, nextGroupColor, shortcutFor, shortcutMatches, matchesTitle, matchesPattern } from '../app/main/ext-util.js';
+import { filterContexts, nextGroupColor, shortcutFor, shortcutMatches, matchesTitle, matchesPattern, parseSetCookie } from '../app/main/ext-util.js';
 import { encodeMessage, createFrameReader, hostManifestPaths, registryKeys, validHostManifest, MAX_FROM_HOST } from '../app/main/native-host.js';
 
 test('new tab groups get Chrome colours in order, least used first', () => {
@@ -100,4 +100,16 @@ test('a host must name itself, use stdio and allow the extension', () => {
   assert.ok(!validHostManifest({ ...m, allowed_origins: [] }, m.name, origin));
   assert.ok(!validHostManifest({ ...m, name: 'other' }, m.name, origin));
   assert.ok(!validHostManifest({ ...m, type: 'pipe' }, m.name, origin));
+});
+
+test('Set-Cookie lines become cookie details, deletions and refusals', () => {
+  const now = Date.UTC(2026, 0, 1);
+  const url = 'https://claude.ai/api/x';
+  assert.deepEqual(parseSetCookie('sessionKey=abc=def; Domain=.claude.ai; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=3600', url, now),
+    { url, name: 'sessionKey', value: 'abc=def', sameSite: 'lax', domain: '.claude.ai', path: '/', secure: true, httpOnly: true, expirationDate: now / 1000 + 3600 });
+  assert.deepEqual(parseSetCookie('a=1', url, now), { url, name: 'a', value: '1', sameSite: 'unspecified' });
+  assert.deepEqual(parseSetCookie('a=; Max-Age=0', url, now), { remove: true, name: 'a' });
+  assert.deepEqual(parseSetCookie('a=1; Expires=Wed, 01 Jan 2020 00:00:00 GMT', url, now), { remove: true, name: 'a' });
+  assert.equal(parseSetCookie('a=1; SameSite=None', url, now), null);
+  assert.equal(parseSetCookie('novalue', url, now), null);
 });
