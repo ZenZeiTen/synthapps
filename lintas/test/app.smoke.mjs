@@ -129,6 +129,20 @@ try {
   assert.equal(popupResult.windows, 1, 'the popup closed itself');
   assert.equal((await L(() => lintas.tabs.list())).length, tabCount, 'a sized popup does not open a tab');
 
+  // Web panels: Gmail docks in the side panel as its own web view, beside the page
+  const viewsNow = () => app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows().find(x => x.isVisible()) || BrowserWindow.getAllWindows()[0]; return w.contentView.children.filter(c => c.webContents && c.webContents !== w.webContents).map(c => c.getBounds()); });
+  await win.click('button[title^="Side panel"]');
+  await win.click('.sp-app-btn[aria-label="Gmail"]');
+  await win.waitForSelector('.sp-app-slot');
+  await new Promise(r => setTimeout(r, 800));
+  const withPanel = await viewsNow();
+  const slot = await win.evaluate(() => { const r = document.querySelector('.sp-app-slot').getBoundingClientRect(); return { x: Math.round(r.left), width: Math.round(r.width) }; });
+  assert.equal(withPanel.length, 2, 'page view and Gmail panel: ' + JSON.stringify(withPanel));
+  assert.ok(withPanel.some(b => Math.abs(b.x - slot.x) <= 1 && Math.abs(b.width - slot.width) <= 1), JSON.stringify({ withPanel, slot }));
+  await win.click('button[title^="Close side panel"]');
+  await new Promise(r => setTimeout(r, 500));
+  assert.equal((await viewsNow()).length, 1, 'closing the side panel hides Gmail');
+
   // Import from another browser
   const browsers = await L(() => lintas.importer.detect());
   assert.deepEqual(browsers.map(b => b.id), ['chrome'], JSON.stringify(browsers));

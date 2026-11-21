@@ -9,6 +9,7 @@ import { tabTitle } from './tabstrip.js';
 import { openInternal } from './toolbar.js';
 
 const VIEWS = [['assistant', 'Assistant', 'sparkle'], ['translate', 'Translate', 'translate'], ['terms', 'Terms', 'book'], ['offline', 'Offline', 'saveOffline']];
+const APPS = [['gmail', 'Gmail', 'mail'], ['calendar', 'Google Calendar', 'calendar']];
 let root, body, tabsEl, lastKey = '';
 const chats = new Map();       // tabId -> [{ role, text, citations, error }]
 const mem = { targetLang: null, projectId: '', lookupText: '', termbaseId: '', termQuery: '' };
@@ -17,7 +18,9 @@ let projects = null, termbases = null;
 export function initSidePanel() {
   root = document.getElementById('sidepanel');
   const handle = h('div.sp-resize', { role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize side panel', tabIndex: 0 });
-  tabsEl = h('div.sp-tabs', { role: 'tablist' }, VIEWS.map(([id, label, ic]) => h('button', { type: 'button', role: 'tab', dataset: { view: id }, onClick: () => setPanel({ view: id }) }, icon(ic), label)));
+  tabsEl = h('div.sp-tabs', { role: 'tablist' }, VIEWS.map(([id, label, ic]) => h('button', { type: 'button', role: 'tab', title: label, 'aria-label': label, dataset: { view: id }, onClick: () => setPanel({ view: id }) }, icon(ic), h('span.sp-tab-label', label))));
+  // Web panels (Gmail, Calendar): icon buttons after the built-in tabs
+  for (const [id, label, ic] of APPS) tabsEl.appendChild(h('button.sp-app-btn', { type: 'button', role: 'tab', title: label, 'aria-label': label, dataset: { view: 'app:' + id }, onClick: () => setPanel({ view: 'app:' + id }) }, icon(ic)));
   body = h('div.sp-body', { role: 'tabpanel' });
   mount(root, handle, h('div.sp-head', tabsEl, iconBtn('close', `Close side panel (${modLabel()}Shift+E)`, () => setPanel({ open: false }), 'sm')), body);
 
@@ -34,11 +37,12 @@ export function initSidePanel() {
   on('status', () => sync(true));
   sync(true);
 }
-const clampW = (w) => Math.round(Math.max(320, Math.min(640, Math.min(window.innerWidth - 420, w))));
+const clampW = (w) => Math.round(Math.max(320, Math.min(900, Math.min(window.innerWidth - 420, w))));
 
 function sync(force) {
   root.hidden = !S.panel.open;
   root.style.width = clampW(S.panel.width) + 'px';
+  if (!S.panel.open || !String(S.panel.view).startsWith('app:')) hideApp();
   if (!S.panel.open) { lastKey = ''; return; }
   for (const b of tabsEl.children) b.setAttribute('aria-selected', String(b.dataset.view === S.panel.view));
   const t = activeTab();
@@ -46,7 +50,39 @@ function sync(force) {
   const intent = S.panelIntent && S.panelIntent.view === S.panel.view ? S.panelIntent : null;
   if (!force && !intent && key === lastKey) return;
   lastKey = key; if (intent) S.panelIntent = null;
+  if (String(S.panel.view).startsWith('app:')) return viewApp(S.panel.view.slice(4));
   ({ assistant: viewAssistant, translate: viewTranslate, terms: viewTerms, offline: viewOffline }[S.panel.view] || viewAssistant)(t, intent);
+}
+
+/* ================= Web panels (Gmail, Calendar) ================= */
+let appShown = null, appObserver = null;
+function hideApp() {
+  if (appObserver) { appObserver.disconnect(); appObserver = null; window.removeEventListener('resize', reportApp); }
+  if (appShown !== null) { appShown = null; call(L().webpanel.show(null, null), { silent: true }); }
+}
+let appSlot = null, appId = null;
+function reportApp() {
+  if (!appSlot || !appSlot.isConnected) return;
+  const r = appSlot.getBoundingClientRect();
+  appShown = appId;
+  call(L().webpanel.show(appId, { x: r.left, y: r.top, width: r.width, height: r.height }), { silent: true });
+}
+function viewApp(id) {
+  const app = APPS.find(([x]) => x === id);
+  if (!app) return mount(body, emptyState('globe', 'Not available', 'This web panel does not exist.'));
+  hideApp();
+  appId = id;
+  appSlot = h('div.sp-app-slot', { 'aria-label': app[1] });
+  const tool = h('div.sp-app-bar',
+    h('span.sp-app-name', icon(app[2], 16), app[1]), h('span.grow'),
+    iconBtn('home', `${app[1]} home`, () => call(L().webpanel.home(id), { silent: true }), 'sm'),
+    iconBtn('reload', 'Reload', () => call(L().webpanel.reload(id), { silent: true }), 'sm'),
+    iconBtn('external', 'Open in a tab', () => call(L().webpanel.openInTab(id), { silent: true }), 'sm'));
+  mount(body, h('div.sp-app', tool, appSlot, h('div.sp-app-note', 'Signed in here means signed in to Google in your tabs too. Private tabs stay separate.')));
+  appObserver = new ResizeObserver(() => requestAnimationFrame(reportApp));
+  appObserver.observe(appSlot);
+  window.addEventListener('resize', reportApp);
+  requestAnimationFrame(reportApp);
 }
 
 const pageContext = (t) => h('div.sp-context', t.kind === 'web' ? favicon(t.favicon, t.url, t.favicon ? null : 'globe') : icon('layers', 16), h('span.ellipsis', { dir: 'auto' }, tabTitle(t)), t.kind === 'web' ? h('span.muted', { style: { flex: 'none' } }, hostOf(t.url)) : null);
