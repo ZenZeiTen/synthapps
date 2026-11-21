@@ -477,6 +477,7 @@ class ContextChat_Frontend {
 				'upload'      => ContextChat_Voice::template( 'upload', $lang ),
 				'privacy'     => __( 'Privacy policy', 'contextchat' ),
 				'agree'       => __( 'Agree and start', 'contextchat' ),
+				'start'       => __( 'Start chatting', 'contextchat' ),
 				'ref'         => __( 'Chat reference', 'contextchat' ),
 			),
 		);

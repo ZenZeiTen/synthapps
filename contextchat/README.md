@@ -214,7 +214,7 @@ The eighth part is the privacy check. [`docs/privacy-draft.md`](docs/privacy-dra
 
 - the chat window shows only the business name. There is no notice by default and no mention of SI or Anthropic, at the owner's request. The model introduces itself only as the business, never claims to be a person, and says the chat is answered automatically when asked. Where the transfer is described, and what that means for PP 33/2026 Pasal 164, is in the doc;
 - the Conversations screen finds a chat by the estimate reference (EST-…) a visitor received, as well as by its own reference;
-- an option, **Ask visitors to agree first**, shows an **Agree and start** button (with the notice and the policy link when set) and records the agreement with a fingerprint of what was shown;
+- an option, **Ask visitors to agree first**, shows a button before the chat and records the click with a fingerprint of what was shown. The button reads **Agree and start** when a notice is set, and **Start chatting** / **Mulai ngobrol** otherwise; the notice and policy link appear beside it when set;
 - WordPress's **Settings → Privacy → Policy Guide** offers a suggested policy section, with the site's settings filled in and placeholders for the legal review (`includes/si/class-privacy.php`).
 
 It is a starting point, not legal advice.

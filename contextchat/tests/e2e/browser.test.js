@@ -1019,6 +1019,7 @@ test( 'Privacy: with "agree first" on, the chat waits for the visitor\'s agreeme
 	await page.locator( '.ctxc-launcher' ).click();
 	await page.locator( '.ctxc-si-agree' ).waitFor();
 	assert.doesNotMatch( await page.locator( '.ctxc-panel' ).textContent(), /Anthropic|Synthesized|Sintesis/ );
+	assert.equal( await page.locator( '.ctxc-si-agree' ).textContent(), 'Start chatting', 'no notice, so nothing to "agree" to' );
 	assert.equal( await page.locator( '.ctxc-si-input' ).isDisabled(), true, 'no typing before agreeing' );
 	assert.equal( await page.locator( '.ctxc-si-msg' ).count(), 0, 'no chat is started yet' );
 	await shot( page, 'si-chat-consent', '.ctxc-panel' );

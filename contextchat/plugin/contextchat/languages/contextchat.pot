@@ -1199,7 +1199,7 @@ msgid "Ask visitors to agree first"
 msgstr ""
 
 #: includes/class-admin.php:909
-msgid "Shows the privacy notice with an \"Agree and start\" button before the first message, and records which notice was agreed to and when. Use this if your privacy review chooses consent as the basis for the chat."
+msgid "Shows a button before the first message and records the click with what was shown. With a notice set on the Voice tab, it reads \"Agree and start\"; without one, \"Start chatting\". Untick to start the chat straight away. Use this, with a notice, if your privacy review chooses consent as the basis for the chat."
 msgstr ""
 
 #: includes/class-admin.php:912
@@ -1654,6 +1654,10 @@ msgid "Agree and start"
 msgstr ""
 
 #: includes/class-frontend.php:480
+msgid "Start chatting"
+msgstr ""
+
+#: includes/class-frontend.php:481
 msgid "Chat reference"
 msgstr ""
 

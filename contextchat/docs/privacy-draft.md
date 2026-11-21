@@ -24,7 +24,7 @@ Several items below depend on these.
 - **Privacy policy address** (Privacy tab), shown with the "Agree and start" button when that option is on. Administrators get a warning when the SI chat is on without one.
 - **References.** Visitors see an estimate reference (EST-…) on the estimate card and in the WhatsApp or email summary. The Conversations screen finds a chat by it, or by the chat's own reference (CC-…).
 - **Optional "Ask visitors to agree first".**
-  - Shows an **Agree and start** button, with the notice and the policy link when they are set.
+  - Shows a button before the chat, with the notice and the policy link when they are set. It reads **Agree and start** when there is a notice, and **Mulai ngobrol / Start chatting** when there is none (owner's request). ⚠ A "Start chatting" click with no notice beside it is unlikely to count as explicit consent (UU Pasal 22; PP Pasal 32: free, informed, specific, unambiguous). If the legal review picks consent as the basis, set a notice so the button asks for agreement.
   - The server refuses to start a chat without it.
   - It records a `consent` event with the time and a fingerprint of the notice and policy link that were shown.
 - **Suggested privacy policy text** in WordPress under Settings → Privacy → Policy Guide (English source, Indonesian translation). It fills in:

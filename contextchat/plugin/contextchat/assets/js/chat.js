@@ -221,7 +221,8 @@
 					}
 					log.insertBefore( p, log.firstChild );
 				}
-				var btn = el( 'button', 'ctxc-si-agree', t.agree || 'Agree and start' );
+				// "Agree and start" only when there is a notice to agree to; otherwise "Start chatting".
+				var btn = el( 'button', 'ctxc-si-agree', si.notice ? ( t.agree || 'Agree and start' ) : ( t.start || 'Start chatting' ) );
 				btn.type = 'button';
 				input.disabled = true;
 				send.disabled = true;
