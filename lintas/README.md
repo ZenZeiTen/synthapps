@@ -26,6 +26,15 @@ does not let apps change the default themselves.
   stripping, Do Not Track and Global Privacy Control, per-site permission prompts.
 - Tab strip, omnibox with suggestions, bookmarks bar, side panel, find in page, zoom,
   downloads, history and the usual keyboard shortcuts.
+- Import from Chrome, Edge, Firefox, Brave, Vivaldi, Opera or Chromium on the same
+  computer (Settings → General → Import): bookmarks with their folders, up to 5,000 recent
+  history entries, and the search engine and home page. Bookmarks you already have are
+  skipped, so importing twice is safe. Any browser's bookmarks HTML export works too.
+  The other browser's files are only read, from a temporary copy, so it can stay open.
+  Passwords, cookies and open tabs are not imported.
+- Optional *Minimize to the notification area* (menu bar on macOS, system tray on Linux):
+  minimizing then takes Lintas off the taskbar, and its icon brings it back. Windows does
+  not let apps pin themselves to the taskbar; right-click Lintas → *Pin to taskbar* once.
 
 **Chrome extensions**
 - Install from the Chrome Web Store: open chromewebstore.google.com in Lintas and choose

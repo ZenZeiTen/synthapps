@@ -4,6 +4,7 @@ import { icon } from '../lib/icons.js';
 import { S, L, on, call, go, setSettings, refreshStatus } from '../lib/store.js';
 import { openDialog, toast, confirmDialog } from '../ui/overlay.js';
 import { withBusy } from '../ui/widgets.js';
+import { importDialog } from '../ui/importdialog.js';
 
 export async function clearDataDialog() {
   const boxes = { history: h('input.check', { type: 'checkbox', checked: true }), cookies: h('input.check', { type: 'checkbox', checked: true }), cache: h('input.check', { type: 'checkbox', checked: true }), offline: h('input.check', { type: 'checkbox' }) };
@@ -49,6 +50,11 @@ export default function settingsPage(el) {
     return box;
   }
 
+  function trayToggle(platform) {
+    const where = platform === 'win32' ? ['notification area', 'by the clock on the taskbar'] : platform === 'darwin' ? ['menu bar', 'in the menu bar'] : ['system tray', 'in the system tray'];
+    return toggle('minimizeToTray', `Minimize to the ${where[0]}`, `Minimizing hides Lintas from the taskbar. Click its icon ${where[1]} to bring it back.`);
+  }
+
   function defaultRow() {
     const sub = h('span', 'Checking…');
     const btn = h('button.btn', { type: 'button' }, 'Make default');
@@ -84,6 +90,8 @@ export default function settingsPage(el) {
         select('searchEngine', 'Search engine', 'Used by the address bar and the new tab page.', ENGINES),
         toggle('restoreSession', 'Restore tabs on startup', 'Reopen the tabs you had when you last closed Lintas.'),
         toggle('showBookmarksBar', 'Show bookmarks bar', 'A row of bookmarks under the address bar.'),
+        trayToggle(st.platform),
+        row('Import from another browser', 'Bookmarks, history and settings from Chrome, Edge, Firefox, Brave, Vivaldi or Opera, or a bookmarks file.', h('button.btn', { type: 'button', onClick: () => importDialog() }, icon('download'), 'Import…')),
         defaultRow()),
       group('appearance', 'Appearance', row('Theme', 'System follows your operating system’s light or dark mode.', theme)),
       group('privacy', 'Privacy & security',

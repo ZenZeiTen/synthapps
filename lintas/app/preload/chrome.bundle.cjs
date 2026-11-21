@@ -443,6 +443,7 @@ const groups = {
     'listTermbases', 'createTermbase', 'deleteTermbase', 'listTerms', 'addTerm', 'updateTerm', 'deleteTerm', 'importTermbase', 'exportTermbase'],
   extensions: ['list', 'installFromStore', 'loadUnpacked', 'remove', 'openOptions'],
   claude: ['status', 'connect'],
+  importer: ['detect', 'run', 'fromFile'],
   ai: ['suggest', 'review', 'extractTerms', 'translatePage', 'restorePage', 'translateText', 'ask', 'highlight', 'selection', 'usage'],
 };
 

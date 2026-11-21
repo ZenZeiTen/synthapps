@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS = {
   autoSaveOffline: false, showBookmarksBar: true, theme: 'system',
   model: 'claude-opus-5-5', effort: 'medium', restoreSession: true,
   uiLanguage: 'en', defaultSourceLang: 'en', defaultTargetLang: 'id',
-  claudeDesktop: false,
+  claudeDesktop: false, minimizeToTray: false,
 };
 
 const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -49,6 +49,19 @@ export class BrowserData {
     this.save();
     return { bookmarked: true };
   }
+  /** Adds imported bookmarks, skipping URLs already bookmarked. Returns how many were added. */
+  importBookmarks(list) {
+    const have = new Set(this.data.bookmarks.map(b => b.url));
+    let added = 0;
+    for (const b of list || []) {
+      if (!b || typeof b.url !== 'string' || have.has(b.url)) continue;
+      have.add(b.url);
+      this.data.bookmarks.push({ id: uid('b'), url: b.url, title: String(b.title || b.url).slice(0, 500), folder: b.folder ? String(b.folder).slice(0, 200) : null, createdAt: b.createdAt || new Date().toISOString() });
+      added++;
+    }
+    if (added) this.save();
+    return added;
+  }
   removeBookmark(id) { this.data.bookmarks = this.data.bookmarks.filter(b => b.id !== id); this.save(); }
 
   // history
@@ -61,6 +74,22 @@ export class BrowserData {
     else h.push({ url, title: title || url, visitedAt: now, visits: 1 });
     if (h.length > 6000) { h.sort((a, b) => a.visitedAt.localeCompare(b.visitedAt)); h.splice(0, h.length - 5000); }
     this.save();
+  }
+  /** Merges imported history: new URLs are added, known ones keep the latest visit. */
+  importHistory(list) {
+    const byUrl = new Map(this.data.history.map(x => [x.url, x]));
+    let added = 0;
+    for (const e of list || []) {
+      if (!e || !/^https?:/.test(e.url)) continue;
+      const cur = byUrl.get(e.url);
+      if (cur) { if (e.visitedAt > cur.visitedAt) { cur.visitedAt = e.visitedAt; if (e.title) cur.title = e.title; } cur.visits = Math.max(cur.visits || 1, e.visits || 1); continue; }
+      const item = { url: e.url, title: String(e.title || e.url).slice(0, 500), visitedAt: e.visitedAt, visits: e.visits || 1 };
+      this.data.history.push(item); byUrl.set(e.url, item); added++;
+    }
+    const h = this.data.history;
+    if (h.length > 6000) { h.sort((a, b) => a.visitedAt.localeCompare(b.visitedAt)); h.splice(0, h.length - 5000); }
+    if (added) this.save();
+    return added;
   }
   setHistoryTitle(url, title) {
     const e = this.data.history.find(x => x.url === url);
