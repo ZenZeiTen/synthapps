@@ -111,6 +111,24 @@ try {
   await L(id => lintas.tabs.close(id), i2.id);
   await L(id => lintas.tabs.activate(id), tabId);
 
+  // Sign-in popups: a sized window.open becomes a real popup that keeps window.opener, so a
+  // provider on another origin can hand its result back (Google, Microsoft and Apple sign-in)
+  const idp = http.createServer((req, res) => { res.setHeader('content-type', 'text/html'); res.end('<title>Provider</title><script>window.opener && window.opener.postMessage("signed-in:" + navigator.userAgent.includes("Chrome"), "*"); setTimeout(() => window.close(), 300);</script>'); }).listen(0);
+  await L(([id, u]) => lintas.nav.go(id, u), [tabId, `http://127.0.0.1:${port}/`]);
+  await win.waitForFunction(id => lintas.tabs.list().then(ts => !ts.find(x => x.id === id).loading), tabId, { timeout: 15000, polling: 300 });
+  const tabCount = (await L(() => lintas.tabs.list())).length;
+  const popupResult = await app.evaluate(async ({ webContents, BrowserWindow }, [pageUrl, idpUrl]) => {
+    const wc = webContents.getAllWebContents().find(w => w.getURL() === pageUrl);
+    await wc.executeJavaScript(`window.__got = new Promise(r => addEventListener('message', e => r(e.data))); window.open(${JSON.stringify(idpUrl)}, 'signin', 'width=480,height=600'); 1`, true);
+    const got = await Promise.race([wc.executeJavaScript('window.__got', true), new Promise(r => setTimeout(() => r('timeout'), 10000))]);
+    await new Promise(r => setTimeout(r, 1200));
+    return { got, windows: BrowserWindow.getAllWindows().length };
+  }, [`http://127.0.0.1:${port}/`, `http://localhost:${idp.address().port}/oauth`]);
+  idp.close();
+  assert.equal(popupResult.got, 'signed-in:true', JSON.stringify(popupResult));
+  assert.equal(popupResult.windows, 1, 'the popup closed itself');
+  assert.equal((await L(() => lintas.tabs.list())).length, tabCount, 'a sized popup does not open a tab');
+
   // Import from another browser
   const browsers = await L(() => lintas.importer.detect());
   assert.deepEqual(browsers.map(b => b.id), ['chrome'], JSON.stringify(browsers));

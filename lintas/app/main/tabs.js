@@ -1,9 +1,41 @@
 // Tabs: each web tab is a sandboxed WebContentsView. Internal pages
 // (lintas://…) are drawn by the browser chrome renderer instead.
 import { WebContentsView, Menu, clipboard, shell } from 'electron';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
 import { resolveInput, needsFirefoxIdentity, firefoxUserAgent } from './security.js';
 import { stripHash } from './browserdata.js';
+
+const ICON = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'icon.png');
+
+/** Options for popup windows that pages open; same isolation as tabs. */
+export function popupWindowOptions(isMac) {
+  return {
+    width: 520, height: 680, minWidth: 320, minHeight: 240, autoHideMenuBar: true, backgroundColor: '#ffffff', show: true,
+    ...(process.platform === 'linux' ? { icon: ICON } : {}),
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: true, safeDialogs: true, navigateOnDragDrop: false },
+  };
+}
+
+/** Sign-in pages that refuse Electron-based browsers see a Firefox identity (see security.js). */
+export function applySignInIdentity(wc) {
+  const baseUa = wc.getUserAgent();
+  wc.on('did-start-navigation', (e) => {
+    if (e.isMainFrame && !e.isSameDocument) { const want = needsFirefoxIdentity(e.url) ? firefoxUserAgent() : baseUa; if (wc.getUserAgent() !== want) wc.setUserAgent(want); }
+  });
+}
+
+/** Only web schemes navigate inside the page; mail and phone links go to the system. */
+export function guardNavigation(wc) {
+  wc.on('will-navigate', (e) => {
+    const u = e.url;
+    if (!/^(https?|file|data|blob|about|chrome-extension):/i.test(u)) {
+      e.preventDefault();
+      if (/^(mailto|tel|sms):/i.test(u)) shell.openExternal(u).catch(() => {});
+    }
+  });
+}
 
 const INTERNAL_TITLES = {
   newtab: 'New Tab', tms: 'Translation Management', offline: 'Offline library', history: 'History',
@@ -283,16 +315,36 @@ export class TabManager {
 
   // ---------- per-tab wiring ----------
 
+  /**
+   * window.open from a page. A sized popup (disposition "new-window", as sign-in, payment and
+   * share dialogs use) becomes a real popup window that keeps window.opener, so it can hand its
+   * result back to the page; Google, Microsoft and Apple sign-in depend on that. Links that ask
+   * for a new tab open as tabs.
+   */
+  handleWindowOpen(wc, t) {
+    wc.setWindowOpenHandler(({ url, disposition }) => {
+      if (disposition === 'new-window' && (url === '' || /^(https?|about):/i.test(url))) return { action: 'allow', overrideBrowserWindowOptions: popupWindowOptions(this.isMac) };
+      if (/^(https?|chrome-extension):/.test(url)) this.create({ url, raw: true, active: disposition !== 'background-tab', private: t.private, index: this.tabs.includes(t) ? this.tabs.indexOf(t) + 1 : undefined });
+      return { action: 'deny' };
+    });
+    wc.on('did-create-window', (child) => this.wirePopup(child, t));
+  }
+
+  wirePopup(child, t) {
+    if (!this.isMac) child.setMenu(null);
+    const wc = child.webContents;
+    applySignInIdentity(wc);
+    guardNavigation(wc);
+    this.handleWindowOpen(wc, t);
+    wc.on('page-title-updated', (e, title) => { try { child.setTitle(title); } catch {} });
+  }
+
   wire(t) {
     const wc = t.view.webContents;
     const update = () => this.changed();
     wc.on('did-start-loading', () => { t.loading = true; update(); });
     wc.on('did-stop-loading', () => { t.loading = false; update(); });
-    // Sign-in pages that refuse Electron-based browsers see a Firefox identity (see security.js)
-    const baseUa = wc.getUserAgent();
-    wc.on('did-start-navigation', (e) => {
-      if (e.isMainFrame && !e.isSameDocument) { const want = needsFirefoxIdentity(e.url) ? firefoxUserAgent() : baseUa; if (wc.getUserAgent() !== want) wc.setUserAgent(want); }
-    });
+    applySignInIdentity(wc);
     wc.on('did-start-navigation', (e) => {
       if (!e.isMainFrame || e.isSameDocument) return;
       t.error = null;
@@ -326,17 +378,8 @@ export class TabManager {
     wc.on('audio-state-changed', (e) => { t.audible = !!e.audible; update(); });
     wc.on('found-in-page', (e, r) => this.emit('find', { tabId: t.id, matches: r.matches, active: r.activeMatchOrdinal }));
     wc.on('zoom-changed', (e, dir) => this.zoom(t.id, dir === 'in' ? 'in' : 'out'));
-    wc.setWindowOpenHandler(({ url, disposition }) => {
-      if (/^(https?|chrome-extension):/.test(url)) this.create({ url, raw: true, active: disposition !== 'background-tab', private: t.private, index: this.tabs.indexOf(t) + 1 });
-      return { action: 'deny' };
-    });
-    wc.on('will-navigate', (e) => {
-      const u = e.url;
-      if (!/^(https?|file|data|blob|about|chrome-extension):/i.test(u)) {
-        e.preventDefault();
-        if (/^(mailto|tel|sms):/i.test(u)) shell.openExternal(u).catch(() => {});
-      }
-    });
+    this.handleWindowOpen(wc, t);
+    guardNavigation(wc);
     wc.on('before-input-event', (e, input) => this.handleKey(e, input, t));
     wc.on('context-menu', (e, p) => this.contextMenu(t, p));
     this.onContents(wc, t);
