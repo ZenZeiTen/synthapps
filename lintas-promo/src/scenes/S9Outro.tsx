@@ -2,18 +2,11 @@ import React from "react";
 import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { Backdrop } from "../components/Backdrop";
 import { Sfx } from "../components/Chip";
-import { Wisp } from "../components/Wisp";
 import { C, FONT, prog } from "../theme";
 
 export const S9Outro: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
-  const wispScale = interpolate(frame, [0, 46], [1.2, 0.42], {
-    extrapolateRight: "clamp",
-    extrapolateLeft: "clamp",
-    easing: (t) => 1 - Math.pow(1 - t, 3),
-  });
-  const wispIn = prog(frame, 0, 20);
   const s = spring({ frame: frame - 34, fps, config: { damping: 12, stiffness: 120 } });
   const flash = interpolate(frame, [40, 46, 70], [0, 0.7, 0], {
     extrapolateLeft: "clamp",
@@ -29,23 +22,12 @@ export const S9Outro: React.FC = () => {
   return (
     <AbsoluteFill style={{ backgroundColor: "#000" }}>
       <Backdrop glow={1.2} />
-      <div style={{ position: "absolute", left: 360, top: -290, width: 1200, height: 1080, opacity: wispIn }}>
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "radial-gradient(closest-side at 50% 50%, rgba(79,216,200,0.35), transparent 100%)",
-          }}
-        />
-        <Wisp width={1200} height={1080} scale={wispScale} offsetY={0} />
-      </div>
       <div
         style={{
           position: "absolute",
           left: 0,
           right: 0,
-          top: 100,
+          top: 150,
           display: "flex",
           justifyContent: "center",
           perspective: 1400,
@@ -72,7 +54,7 @@ export const S9Outro: React.FC = () => {
           position: "absolute",
           left: 0,
           right: 0,
-          top: 490,
+          top: 470,
           textAlign: "center",
           fontFamily: FONT,
           fontSize: 190,
@@ -90,7 +72,7 @@ export const S9Outro: React.FC = () => {
           position: "absolute",
           left: 0,
           right: 0,
-          top: 730,
+          top: 700,
           textAlign: "center",
           fontFamily: FONT,
           fontSize: 64,
@@ -100,24 +82,42 @@ export const S9Outro: React.FC = () => {
           translate: `0px ${(1 - l1) * 30}px`,
         }}
       >
-        Free for Windows · Version 0.5.0
+        Free for Windows · Version 0.5.1
       </div>
+      {/* The maker: a thin gold rule, then the Nusalexia name */}
       <div
         style={{
           position: "absolute",
           left: 0,
           right: 0,
-          top: 828,
-          textAlign: "center",
-          fontFamily: FONT,
-          fontSize: 56,
-          fontWeight: 500,
-          color: C.jade2,
+          top: 832,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 22,
           opacity: l2,
-          translate: `0px ${(1 - l2) * 30}px`,
+          translate: `0px ${(1 - l2) * 24}px`,
         }}
       >
-        github.com/ZenZeiTen/synthapps
+        <div
+          style={{
+            width: interpolate(l2, [0, 1], [0, 220]),
+            height: 2,
+            background: `linear-gradient(90deg, transparent, ${C.gold}, transparent)`,
+          }}
+        />
+        <div
+          style={{
+            fontFamily: FONT,
+            fontSize: 38,
+            fontWeight: 600,
+            letterSpacing: 12,
+            textTransform: "uppercase",
+            color: C.gold,
+          }}
+        >
+          A Nusalexia product
+        </div>
       </div>
       <Sfx name="ding" at={40} volume={0.6} />
       <AbsoluteFill style={{ backgroundColor: "#000", opacity: fadeOut }} />
