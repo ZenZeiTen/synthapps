@@ -109,6 +109,8 @@ saved too.
 | Call | Returns |
 |---|---|
 | `app.status()` | `{ version, online, hasApiKey, model, models:[{id,label,note}], platform, dataDir, sandbox }` — `sandbox` is false when started with `--no-sandbox` |
+| `app.defaultBrowser()` | `{ isDefault, canSetDirectly }` — on Windows `canSetDirectly` is false |
+| `app.makeDefault()` | Windows: opens Settings > Default apps and returns `{ ..., openedSettings: true }`; macOS and Linux: registers for http and https |
 | `settings.get()` | `Settings` |
 | `settings.set(partial)` | `Settings` |
 | `settings.setApiKey(key)` | `{ hasApiKey }` (`""` removes it; the key is encrypted with the OS keychain and never returned) |

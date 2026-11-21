@@ -8,7 +8,8 @@ import { Tms } from '../../core/tms.js';
 import { detectLanguage, tokenize } from '../../core/text.js';
 import { BrowserData } from './browserdata.js';
 import { TabManager } from './tabs.js';
-import { hardenSession } from './security.js';
+import { hardenSession, urlsFromArgs } from './security.js';
+import { execFile } from 'node:child_process';
 import { Ai, MODELS } from './ai.js';
 import * as page from './pagetools.js';
 import { Extensions } from './extensions.js';
@@ -19,6 +20,8 @@ const ROOT = path.resolve(here, '../..');
 const RENDERER = path.join(ROOT, 'app/renderer');
 const VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 const isMac = process.platform === 'darwin';
+const APP_ID = 'com.zenzeiten.lintas';
+if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
 
 if (process.env.LINTAS_DATA_DIR) app.setPath('userData', path.resolve(process.env.LINTAS_DATA_DIR));
 // Sandbox every renderer and utility process. Chromium refuses to sandbox when
@@ -319,6 +322,8 @@ function registerIpc() {
   handle('offline.remove', id => { data.offlineRemove(id); tabs.changed(); });
 
   handle('app.status', () => status());
+  handle('app.defaultBrowser', () => defaultBrowser());
+  handle('app.makeDefault', () => makeDefaultBrowser());
   handle('settings.get', () => data.settings());
   handle('settings.set', async patch => {
     const s = data.setSettings(patch);
@@ -597,7 +602,40 @@ function seedSample() {
 
 // ---------- startup ----------
 
-app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+// Links and files from the operating system: at start, and when Lintas is already running
+const fileExists = (p) => { try { return fs.statSync(p).isFile(); } catch { return false; } };
+function openFromArgs(argv, cwd, skip = process.defaultApp ? 2 : 1) {
+  if (!tabs) return;
+  for (const url of urlsFromArgs(argv, { cwd, skip, exists: fileExists })) tabs.create({ url, active: true });
+}
+let pendingOpen = [];
+app.on('open-url', (e, url) => { e.preventDefault(); if (tabs) openFromArgs(['--', url], undefined, 0); else pendingOpen.push(url); });
+app.on('open-file', (e, file) => { e.preventDefault(); if (tabs) openFromArgs(['--', file], undefined, 0); else pendingOpen.push(file); });
+app.on('second-instance', (e, argv, cwd) => {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.focus();
+  openFromArgs(argv, cwd);
+});
+
+// Default browser. Windows 10 and 11 let only the user choose, in Settings > Default apps.
+const regQuery = (key) => new Promise(resolve => execFile('reg', ['query', key, '/v', 'ProgId'], { windowsHide: true }, (err, out) => resolve(err ? '' : String(out))));
+async function defaultBrowser() {
+  if (process.platform === 'win32') {
+    const out = await regQuery('HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\https\\UserChoice');
+    return { isDefault: /\bLintasURL\b/.test(out), canSetDirectly: false };
+  }
+  return { isDefault: app.isDefaultProtocolClient('https'), canSetDirectly: true };
+}
+async function makeDefaultBrowser() {
+  if (process.platform === 'win32') {
+    await shell.openExternal('ms-settings:defaultapps?registeredAppUser=Lintas');
+    return { ...(await defaultBrowser()), openedSettings: true };
+  }
+  app.setAsDefaultProtocolClient('http');
+  app.setAsDefaultProtocolClient('https');
+  return defaultBrowser();
+}
 
 app.on('web-contents-created', (e, wc) => {
   wc.on('will-attach-webview', ev => ev.preventDefault());
@@ -640,6 +678,8 @@ app.whenReady().then(async () => {
   if (!isMac) Menu.setApplicationMenu(null);
   else Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]));
   createWindow();
+  openFromArgs(process.argv, process.cwd());
+  for (const u of pendingOpen.splice(0)) openFromArgs(['--', u], undefined, 0);
 
   let wasOnline = net.isOnline();
   setInterval(() => {

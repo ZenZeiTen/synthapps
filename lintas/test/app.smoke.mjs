@@ -37,7 +37,8 @@ const shots = process.env.LINTAS_SHOTS;
 const SANDBOX = process.env.LINTAS_TEST_SANDBOX === '1';
 const app = await electron.launch({
   executablePath: createRequire(import.meta.url)('electron'),
-  args: SANDBOX ? ['.'] : ['.', '--no-sandbox'],
+  // Launched the way Windows opens a link once Lintas is the default browser: Lintas.exe -- "<url>"
+  args: [...(SANDBOX ? ['.'] : ['.', '--no-sandbox']), '--', `http://127.0.0.1:${port}/?from=os`],
   chromiumSandbox: SANDBOX,
   cwd: path.resolve(import.meta.dirname, '..'),
   env: { ...process.env, LINTAS_DATA_DIR: dataDir },
@@ -54,6 +55,9 @@ try {
   assert.equal(st.hasApiKey, false);
   assert.ok(st.models.length >= 3);
   assert.equal(st.sandbox, SANDBOX);
+
+  // A link passed on the command line opens in a tab
+  await win.waitForFunction(u => lintas.tabs.list().then(ts => ts.some(t => t.url === u)), `http://127.0.0.1:${port}/?from=os`, { timeout: 15000, polling: 300 });
 
   // Browsing
   let tabsNow = await L(() => lintas.tabs.list());

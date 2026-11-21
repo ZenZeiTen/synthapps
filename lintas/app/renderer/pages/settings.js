@@ -49,6 +49,24 @@ export default function settingsPage(el) {
     return box;
   }
 
+  function defaultRow() {
+    const sub = h('span', 'Checking…');
+    const btn = h('button.btn', { type: 'button' }, 'Make default');
+    const show = (d) => {
+      if (!d) return;
+      mount(sub, d.isDefault ? 'Lintas opens links from other apps.' : d.canSetDirectly ? 'Links from other apps open in another browser.' : 'Windows asks you to choose in Settings > Default apps. Pick Lintas for HTTP, HTTPS and .html.');
+      btn.hidden = !!d.isDefault;
+    };
+    btn.addEventListener('click', () => withBusy(btn, async () => {
+      const d = await call(L().app.makeDefault());
+      show(d);
+      if (d?.openedSettings) toast('info', 'Windows Settings is open. Choose Lintas there.');
+      else if (d?.isDefault) toast('success', 'Lintas is now your default browser');
+    }));
+    call(L().app.defaultBrowser(), { silent: true }).then(show);
+    return row('Default browser', sub, btn);
+  }
+
   function draw() {
     const s = S.settings, st = S.status;
     const theme = h('div.theme-pick', { role: 'group', 'aria-label': 'Theme' }, [['system', 'System', 'settings'], ['light', 'Light', 'sun'], ['dark', 'Dark', 'moon']].map(([v, l, ic]) => h('button', { type: 'button', 'aria-pressed': String((s.theme || 'system') === v), onClick: () => set('theme')(v) }, icon(ic), l)));
@@ -65,7 +83,8 @@ export default function settingsPage(el) {
       group('general', 'General',
         select('searchEngine', 'Search engine', 'Used by the address bar and the new tab page.', ENGINES),
         toggle('restoreSession', 'Restore tabs on startup', 'Reopen the tabs you had when you last closed Lintas.'),
-        toggle('showBookmarksBar', 'Show bookmarks bar', 'A row of bookmarks under the address bar.')),
+        toggle('showBookmarksBar', 'Show bookmarks bar', 'A row of bookmarks under the address bar.'),
+        defaultRow()),
       group('appearance', 'Appearance', row('Theme', 'System follows your operating system’s light or dark mode.', theme)),
       group('privacy', 'Privacy & security',
         toggle('httpsOnly', 'HTTPS-only mode', 'Always use an encrypted connection and warn before opening a site that does not support one.'),

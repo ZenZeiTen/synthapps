@@ -38,9 +38,10 @@
   "build": {
     "appId": "com.zenzeiten.lintas",
     "productName": "Lintas",
-    "copyright": "Copyright \u00a9 2026 ZenZeiTen",
+    "copyright": "Copyright © 2026 ZenZeiTen",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
     "files": [
       "app/**",
@@ -62,14 +63,38 @@
       "synopsis": "AI-powered online/offline browser with a Translation Management System"
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": [
-        "nsis",
-        "portable"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ]
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Lintas",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "uninstallDisplayName": "Lintas",
+      "include": "build/installer.nsh",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Lintas-Setup-${version}-${arch}.${ext}"
     },
     "mac": {
       "target": [
@@ -77,6 +102,18 @@
         "zip"
       ],
       "category": "public.app-category.productivity"
+    },
+    "protocols": [
+      {
+        "name": "Web page",
+        "schemes": [
+          "http",
+          "https"
+        ]
+      }
+    ],
+    "portable": {
+      "artifactName": "Lintas-Portable-${version}-${arch}.${ext}"
     }
   },
   "repository": {
