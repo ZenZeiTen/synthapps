@@ -94,7 +94,14 @@ function tabMenu(e, t) {
 
 function startDrag(e, el, t) {
   if (e.button !== 0) return;
-  if (!t.active) call(L().tabs.activate(t.id));
+  // block re-renders until the pointer is released so a drag keeps its element; show the activation at once
+  dragging = { stale: false };
+  if (!t.active) {
+    for (const x of S.tabs) x.active = x.id === t.id;
+    const prev = scroller.querySelector('.tab.active'); if (prev) { prev.classList.remove('active'); prev.querySelectorAll('.curve').forEach((c) => c.remove()); prev.setAttribute('aria-selected', 'false'); }
+    el.classList.add('active'); el.setAttribute('aria-selected', 'true'); el.prepend(h('i.curve.l'), h('i.curve.r'));
+    call(L().tabs.activate(t.id));
+  }
   const startX = e.clientX, sibs = [...scroller.children], index = sibs.indexOf(el);
   const group = sibs.filter((s) => s.classList.contains('pinned') === el.classList.contains('pinned'));
   const rects = new Map(sibs.map((s) => [s, s.getBoundingClientRect()]));
@@ -102,7 +109,7 @@ function startDrag(e, el, t) {
   let moved = false, target = index;
   const move = (ev) => {
     const dx = ev.clientX - startX;
-    if (!moved) { if (Math.abs(dx) < 5) return; moved = true; dragging = { stale: false }; el.classList.add('dragging'); try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ } for (const s of group) if (s !== el) s.classList.add('shift'); }
+    if (!moved) { if (Math.abs(dx) < 5) return; moved = true; el.classList.add('dragging'); try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ } for (const s of group) if (s !== el) s.classList.add('shift'); }
     const clamped = Math.max(first.left - mine.left, Math.min(last.right - mine.right, dx));
     el.style.transform = `translateX(${clamped}px)`;
     const center = mine.left + mine.width / 2 + clamped;
@@ -116,7 +123,7 @@ function startDrag(e, el, t) {
   };
   const up = async () => {
     window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
-    if (!moved) return;
+    if (!moved) { const stale = dragging?.stale; dragging = null; if (stale) render(); return; }
     const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); }; window.addEventListener('click', stop, { capture: true, once: true }); setTimeout(() => window.removeEventListener('click', stop, true), 50);
     if (target !== index) {
       // optimistic local reorder so the strip does not snap back while main answers
