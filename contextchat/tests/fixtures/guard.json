@@ -1,0 +1,264 @@
+[
+	{
+		"name": "Halo, saya mau terjemahkan ijazah ke bah…",
+		"text": "Halo, saya mau terjemahkan ijazah ke bahasa Inggris",
+		"block": ""
+	},
+	{
+		"name": "Berapa harga terjemahan tersumpah 3 hala…",
+		"text": "Berapa harga terjemahan tersumpah 3 halaman?",
+		"block": ""
+	},
+	{
+		"name": "Estimasinya Rp 1.775.000 ya?",
+		"text": "Estimasinya Rp 1.775.000 ya?",
+		"block": ""
+	},
+	{
+		"name": "Kalau Rp1,775,000 sudah termasuk apostil…",
+		"text": "Kalau Rp1,775,000 sudah termasuk apostille?",
+		"block": ""
+	},
+	{
+		"name": "Total 16.375.000 rupiah, DP 8.187.500",
+		"text": "Total 16.375.000 rupiah, DP 8.187.500",
+		"block": ""
+	},
+	{
+		"name": "Nomor WA saya 0812-3456-7890",
+		"text": "Nomor WA saya 0812-3456-7890",
+		"block": ""
+	},
+	{
+		"name": "Hubungi +62 812 3456 7890 ya",
+		"text": "Hubungi +62 812 3456 7890 ya",
+		"block": ""
+	},
+	{
+		"name": "Telp 6281234567890",
+		"text": "Telp 6281234567890",
+		"block": ""
+	},
+	{
+		"name": "Kirim ke info@nusalexia.co.id saja?",
+		"text": "Kirim ke info@nusalexia.co.id saja?",
+		"block": ""
+	},
+	{
+		"name": "Ref saya EST-20261121-4F7K",
+		"text": "Ref saya EST-20261121-4F7K",
+		"block": ""
+	},
+	{
+		"name": "Percakapan CC-20261120-7QX2",
+		"text": "Percakapan CC-20261120-7QX2",
+		"block": ""
+	},
+	{
+		"name": "Tenggat 25-11-2026, 20 dokumen",
+		"text": "Tenggat 25-11-2026, 20 dokumen",
+		"block": ""
+	},
+	{
+		"name": "Lihat https://www.nusalexia.co.id/daftar…",
+		"text": "Lihat https://www.nusalexia.co.id/daftar-harga/",
+		"block": ""
+	},
+	{
+		"name": "Dokumennya ijazah.pdf, bisa?",
+		"text": "Dokumennya ijazah.pdf, bisa?",
+		"block": ""
+	},
+	{
+		"name": "Saya punya file pdf dan docx",
+		"text": "Saya punya file pdf dan docx",
+		"block": ""
+	},
+	{
+		"name": "Kontrak 40 halaman untuk PT Maju",
+		"text": "Kontrak 40 halaman untuk PT Maju",
+		"block": ""
+	},
+	{
+		"name": "Year 2026, invoice 1234567",
+		"text": "Year 2026, invoice 1234567",
+		"block": ""
+	},
+	{
+		"name": "Hello, I need a sworn translation into G…",
+		"text": "Hello, I need a sworn translation into German",
+		"block": ""
+	},
+	{
+		"name": "😀 terima kasih!",
+		"text": "😀 terima kasih!",
+		"block": ""
+	},
+	{
+		"name": "Nilai IPK 3.85 dari 4.00",
+		"text": "Nilai IPK 3.85 dari 4.00",
+		"block": ""
+	},
+	{
+		"name": "Harga Rp 125 rb per halaman kan?",
+		"text": "Harga Rp 125 rb per halaman kan?",
+		"block": ""
+	},
+	{
+		"name": "Biaya 1.000.000.000 untuk proyek besar?",
+		"text": "Biaya 1.000.000.000 untuk proyek besar?",
+		"block": ""
+	},
+	{
+		"name": "two dates side by side",
+		"text": "Saya lahir 2026-11-21 2026-11-22",
+		"block": ""
+	},
+	{
+		"name": "NIK grouped 6-6-4",
+		"text": "NIK 320123 456789 0001",
+		"block": "pii"
+	},
+	{
+		"name": "(empty)",
+		"text": "",
+		"block": "empty"
+	},
+	{
+		"name": "   \n  ",
+		"text": "   \n  ",
+		"block": "empty"
+	},
+	{
+		"name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…",
+		"text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"block": "too_long"
+	},
+	{
+		"name": "data:application/pdf;base64,JVBERi0xLjQK",
+		"text": "data:application/pdf;base64,JVBERi0xLjQK",
+		"block": "upload"
+	},
+	{
+		"name": "Ini filenya: QUJDQUJDQUJDQUJDQUJDQUJDQUJ…",
+		"text": "Ini filenya: QUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJDQUJD",
+		"block": "upload"
+	},
+	{
+		"name": "https://drive.google.com/file/d/abc/view",
+		"text": "https://drive.google.com/file/d/abc/view",
+		"block": "upload"
+	},
+	{
+		"name": "cek docs.google.com/document/d/xyz",
+		"text": "cek docs.google.com/document/d/xyz",
+		"block": "upload"
+	},
+	{
+		"name": "www.dropbox.com/s/abc/ijazah",
+		"text": "www.dropbox.com/s/abc/ijazah",
+		"block": "upload"
+	},
+	{
+		"name": "https://we.tl/t-abc123",
+		"text": "https://we.tl/t-abc123",
+		"block": "upload"
+	},
+	{
+		"name": "https://mega.nz/file/abc",
+		"text": "https://mega.nz/file/abc",
+		"block": "upload"
+	},
+	{
+		"name": "https://1drv.ms/b/s!abc",
+		"text": "https://1drv.ms/b/s!abc",
+		"block": "upload"
+	},
+	{
+		"name": "https://example.com/files/ijazah.pdf",
+		"text": "https://example.com/files/ijazah.pdf",
+		"block": "upload"
+	},
+	{
+		"name": "http://example.com/scan.JPG?x=1",
+		"text": "http://example.com/scan.JPG?x=1",
+		"block": "upload"
+	},
+	{
+		"name": "www.example.org/surat.docx",
+		"text": "www.example.org/surat.docx",
+		"block": "upload"
+	},
+	{
+		"name": "https://evil.test/run.php",
+		"text": "https://evil.test/run.php",
+		"block": "upload"
+	},
+	{
+		"name": "<script>alert(1)</script>",
+		"text": "<script>alert(1)</script>",
+		"block": "markup"
+	},
+	{
+		"name": "<b></b><i></i>",
+		"text": "<b></b><i></i>",
+		"block": "markup"
+	},
+	{
+		"name": "<img src=x onerror=alert(1)>",
+		"text": "<img src=x onerror=alert(1)>",
+		"block": "markup"
+	},
+	{
+		"name": "NIK saya 3201234567890001",
+		"text": "NIK saya 3201234567890001",
+		"block": "pii"
+	},
+	{
+		"name": "NIK 3201 2345 6789 0001",
+		"text": "NIK 3201 2345 6789 0001",
+		"block": "pii"
+	},
+	{
+		"name": "ktp: 3201-2345-6789-0001",
+		"text": "ktp: 3201-2345-6789-0001",
+		"block": "pii"
+	},
+	{
+		"name": "paspor A1234567",
+		"text": "paspor A1234567",
+		"block": "pii"
+	},
+	{
+		"name": "Passport no. B 7654321",
+		"text": "Passport no. B 7654321",
+		"block": "pii"
+	},
+	{
+		"name": "kartu 4111111111111111",
+		"text": "kartu 4111111111111111",
+		"block": "pii"
+	},
+	{
+		"name": "card 4111 1111 1111 1111",
+		"text": "card 4111 1111 1111 1111",
+		"block": "pii"
+	},
+	{
+		"name": "amex 378282246310005",
+		"text": "amex 378282246310005",
+		"block": "pii"
+	},
+	{
+		"name": "visa 4012888888881881",
+		"text": "visa 4012888888881881",
+		"block": "pii"
+	},
+	{
+		"name": "markup is stripped and the rest passes",
+		"text": "Halo <b>Kak</b>, saya mau tanya",
+		"block": "",
+		"clean": "Halo Kak , saya mau tanya",
+		"flag": "markup"
+	}
+]

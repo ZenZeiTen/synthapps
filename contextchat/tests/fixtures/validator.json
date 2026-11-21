@@ -1,0 +1,279 @@
+{
+	"context": {
+		"amounts": [
+			50000,
+			125000,
+			150000,
+			700000,
+			1500000,
+			2200000,
+			1000000,
+			375000,
+			1400000,
+			1775000,
+			887500,
+			300000,
+			415000,
+			340000,
+			265000,
+			450000
+		],
+		"site_host": "www.nusalexia.co.id",
+		"email": "info@nusalexia.co.id",
+		"names": [
+			"Rina",
+			"Budi Santoso"
+		]
+	},
+	"cases": [
+		{
+			"name": "Untuk terjemahan tersumpah ijazah dan transkrip ke…",
+			"text": "Untuk terjemahan tersumpah ijazah dan transkrip ke bahasa Inggris dengan apostille, estimasinya Rp 1.775.000, Kak. Rinciannya ada di kartu di bawah. Tenggatnya kapan ya, Kak?",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Saya paham, Kak. Untuk penyesuaian harga, tim kami…",
+			"text": "Saya paham, Kak. Untuk penyesuaian harga, tim kami yang bisa bantu langsung. Silakan lanjut lewat WhatsApp atau email di bawah, ringkasannya sudah saya siapkan, jadi Kakak tidak perlu menjelaskan ulang.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "That depends on what the receiving institution ask…",
+			"text": "That depends on what the receiving institution asks for. Sworn translation of a diploma into Indonesian is Rp 125.000 per page. How many pages is it, and which country is it for?",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Tarifnya Rp125,000 per halaman, Kak.",
+			"text": "Tarifnya Rp125,000 per halaman, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Tarifnya 125.000 rupiah per halaman, Kak.",
+			"text": "Tarifnya 125.000 rupiah per halaman, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Apostille Rp 700 rb per dokumen, legalisasi keduta…",
+			"text": "Apostille Rp 700 rb per dokumen, legalisasi kedutaan Rp 1,5 jt, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "DP 50% berlaku untuk proyek mulai Rp 1.000.000, Ka…",
+			"text": "DP 50% berlaku untuk proyek mulai Rp 1.000.000, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Tarif Asia Timur sekitar Rp 300–415 rb per halaman…",
+			"text": "Tarif Asia Timur sekitar Rp 300–415 rb per halaman, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Silakan lanjut di https://wa.me/6285157539889 ya, …",
+			"text": "Silakan lanjut di https://wa.me/6285157539889 ya, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Daftar harga ada di https://www.nusalexia.co.id/da…",
+			"text": "Daftar harga ada di https://www.nusalexia.co.id/daftar-harga/ ya, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Atau email ke info@nusalexia.co.id, Kak.",
+			"text": "Atau email ke info@nusalexia.co.id, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Biayanya Rp 1.700.000, Kak.",
+			"text": "Biayanya Rp 1.700.000, Kak.",
+			"ok": false,
+			"reasons": [
+				"amount:1700000"
+			]
+		},
+		{
+			"name": "Saya kasih harga khusus Rp 99.000 per halaman.",
+			"text": "Saya kasih harga khusus Rp 99.000 per halaman.",
+			"ok": false,
+			"reasons": [
+				"amount:99000"
+			]
+		},
+		{
+			"name": "Totalnya 1.234.567 rupiah ya.",
+			"text": "Totalnya 1.234.567 rupiah ya.",
+			"ok": false,
+			"reasons": [
+				"amount:1234567"
+			]
+		},
+		{
+			"name": "Harganya IDR 60.000 per halaman.",
+			"text": "Harganya IDR 60.000 per halaman.",
+			"ok": false,
+			"reasons": [
+				"amount:60000"
+			]
+		},
+		{
+			"name": "Kira-kira Rp 1,2 jt, Kak.",
+			"text": "Kira-kira Rp 1,2 jt, Kak.",
+			"ok": false,
+			"reasons": [
+				"amount:1200000"
+			]
+		},
+		{
+			"name": "Tim kami, Bu Rina, akan membantu Kakak.",
+			"text": "Tim kami, Bu Rina, akan membantu Kakak.",
+			"ok": false,
+			"reasons": [
+				"name"
+			]
+		},
+		{
+			"name": "Saya asisten AI Nusalexia, Kak.",
+			"text": "Saya asisten AI Nusalexia, Kak.",
+			"ok": false,
+			"reasons": [
+				"banned_word"
+			]
+		},
+		{
+			"name": "I am an AI assistant.",
+			"text": "I am an AI assistant.",
+			"ok": false,
+			"reasons": [
+				"banned_word"
+			]
+		},
+		{
+			"name": "Ini dibuat dengan kecerdasan buatan.",
+			"text": "Ini dibuat dengan kecerdasan buatan.",
+			"ok": false,
+			"reasons": [
+				"banned_word"
+			]
+		},
+		{
+			"name": "Gak masalah, Kak.",
+			"text": "Gak masalah, Kak.",
+			"ok": false,
+			"reasons": [
+				"banned_word"
+			]
+		},
+		{
+			"name": "Nggak perlu apostille kok.",
+			"text": "Nggak perlu apostille kok.",
+			"ok": false,
+			"reasons": [
+				"banned_word"
+			]
+		},
+		{
+			"name": "Siap, Kak! 😊",
+			"text": "Siap, Kak! 😊",
+			"ok": false,
+			"reasons": [
+				"emoji"
+			]
+		},
+		{
+			"name": "Dokumen Kakak pasti diterima kedutaan.",
+			"text": "Dokumen Kakak pasti diterima kedutaan.",
+			"ok": false,
+			"reasons": [
+				"promise"
+			]
+		},
+		{
+			"name": "Dijamin selesai besok, Kak.",
+			"text": "Dijamin selesai besok, Kak.",
+			"ok": false,
+			"reasons": [
+				"promise"
+			]
+		},
+		{
+			"name": "Saya kasih diskon 10% ya, Kak.",
+			"text": "Saya kasih diskon 10% ya, Kak.",
+			"ok": false,
+			"reasons": [
+				"promise"
+			]
+		},
+		{
+			"name": "Your documents are guaranteed to be accepted.",
+			"text": "Your documents are guaranteed to be accepted.",
+			"ok": false,
+			"reasons": [
+				"promise"
+			]
+		},
+		{
+			"name": "Satu. Dua. Tiga. Empat. Lima. Enam.",
+			"text": "Satu. Dua. Tiga. Empat. Lima. Enam.",
+			"ok": false,
+			"reasons": [
+				"too_many_sentences"
+			]
+		},
+		{
+			"name": "kata kata kata kata kata kata kata kata kata kata …",
+			"text": "kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata kata.",
+			"ok": false,
+			"reasons": [
+				"too_many_words"
+			]
+		},
+		{
+			"name": "Lihat https://contoh.com/info, Kak.",
+			"text": "Lihat https://contoh.com/info, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Hubungi saya di orang@gmail.com, Kak.",
+			"text": "Hubungi saya di orang@gmail.com, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "Biaya per jam konsultasi istilah Rp 150.000, Kak.",
+			"text": "Biaya per jam konsultasi istilah Rp 150.000, Kak.",
+			"ok": true,
+			"reasons": []
+		},
+		{
+			"name": "a quote card lifts the length limit",
+			"text": "Satu. Dua. Tiga. Empat. Lima. Enam.",
+			"ok": true,
+			"reasons": [],
+			"quote_card": true
+		},
+		{
+			"name": "other links are removed, not rejected",
+			"text": "Lihat https://contoh.com/info, Kak.",
+			"ok": true,
+			"reasons": [],
+			"clean": "Lihat , Kak."
+		},
+		{
+			"name": "other email addresses are removed",
+			"text": "Hubungi saya di orang@gmail.com, Kak.",
+			"ok": true,
+			"reasons": [],
+			"clean": "Hubungi saya di , Kak."
+		}
+	]
+}

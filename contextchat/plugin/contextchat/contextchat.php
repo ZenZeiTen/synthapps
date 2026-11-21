@@ -44,6 +44,8 @@ require_once CONTEXTCHAT_DIR . 'includes/si/class-si-router.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-si.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-countries.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-price-engine.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-guard.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-validator.php';
 
 register_activation_hook( __FILE__, array( 'ContextChat_Analytics', 'activate' ) );
 register_activation_hook( __FILE__, array( 'ContextChat_Installer', 'install' ) );
