@@ -17,6 +17,7 @@ require $plugin . '/includes/si/class-si-router.php';
 require $plugin . '/includes/si/class-si-secrets.php';
 require $plugin . '/includes/si/class-countries.php';
 require $plugin . '/includes/si/class-price-engine.php';
+require $plugin . '/includes/si/class-prices.php';
 require $plugin . '/includes/class-installer.php';
 require $plugin . '/includes/si/class-guard.php';
 require $plugin . '/includes/si/class-validator.php';
@@ -745,5 +746,39 @@ list( $out ) = $chat( array(
 ), 'Halo' );
 check( 'orchestrator: odd values from the model are dropped without errors', array( $out['state']['intake'], $out['handoff'] ), array( array( 'document_types' => array( 'ijazah' ), 'pages_count' => 2 ), 'other' ) );
 
+// Prices tab: price table and Apostille list cleaning.
+if ( ! function_exists( 'wp_strip_all_tags' ) ) {
+	function wp_strip_all_tags( $text ) {
+		return trim( strip_tags( (string) $text ) );
+	}
+}
+$seed = ContextChat_Price_Engine::seed();
+check( 'prices: the bundled table is already clean', ContextChat_Prices::same_as_seed( ContextChat_Prices::clean_table( $seed ), $seed ), true );
+$t                              = $seed;
+$t['rates']['id-en']['sworn']   = '130.000';
+$t['rates']['xx-en']            = array( 'regular' => 1, 'sworn' => 1 );
+$t['rates']['en-en']            = array( 'regular' => 1, 'sworn' => 1 );
+$t['rates']['id-ja']            = array( 'regular' => '', 'sworn' => 0 );
+$t['express_percent']['next_day'] = 9999;
+$t['volume_discounts'][]          = array( 'min_documents' => 'x', 'percent' => 5 );
+$clean                          = ContextChat_Prices::clean_table( $t );
+check( 'prices: "130.000" typed the Indonesian way is 130000', $clean['rates']['id-en']['sworn'], 130000 );
+check( 'prices: unknown, same-language and empty pairs are dropped', array( isset( $clean['rates']['xx-en'] ), isset( $clean['rates']['en-en'] ), isset( $clean['rates']['id-ja'] ) ), array( false, false, false ) );
+check( 'prices: surcharges are capped and bad discount tiers dropped', array( $clean['express_percent']['next_day'], count( $clean['volume_discounts'] ) ), array( 500, 2 ) );
+check( 'prices: a changed table is not the bundled one', ContextChat_Prices::same_as_seed( $clean, $seed ), false );
+check( 'prices: a table without any pair is refused', ContextChat_Prices::clean_table( array( 'rates' => array( 'id-en' => array( 'regular' => null, 'sworn' => null ) ) ) ), null );
+$engine = new ContextChat_Price_Engine( $clean, new ContextChat_Countries() );
+check( 'prices: the engine quotes from an edited table', $engine->quote( array( 'package' => 'sworn', 'source_lang' => 'id', 'target_lang' => 'en', 'pages' => 2, 'documents' => 1, 'legalisation' => 'none' ), '2026-11-21', 'id' )['total'], 260000 );
+check( 'prices: age in days', ContextChat_Prices::age_days( '2026-08-01', strtotime( '2026-11-21 12:00:00 UTC' ) ), 112 );
+$errors  = array();
+$members = ContextChat_Prices::parse_apostille( "AU 1995-03-16 Australia\n\nnl 1965-02-08 <b>Netherlands</b>\nXX\nAU 1995-03-16 Again", $errors );
+check( 'apostille: lines are read, codes upper-cased, names cleaned, repeats merged', array( count( $members ), $members[1]['code'], $members[1]['name'], $errors ), array( 2, 'NL', 'Netherlands', array( 4 ) ) );
+$list    = ContextChat_Prices::apostille_seed();
+$errors  = array();
+check( 'apostille: the bundled list survives a round trip through the text box', count( ContextChat_Prices::parse_apostille( ContextChat_Prices::apostille_lines( $list ), $errors ) ) === count( $list['members'] ) && ! $errors, true );
+$custom  = new ContextChat_Countries( null, array( 'members' => array( array( 'code' => 'ID', 'in_force_from' => '2022-06-04' ) ) ) );
+check( 'apostille: the Countries class takes an edited list', array( $custom->is_apostille_member( 'ID', '2026-01-01' ), $custom->is_apostille_member( 'AU', '2026-01-01' ) ), array( true, false ) );
+
+check( 'orchestrator: web addresses do not decide the language', array( ContextChat_Orchestrator::detect_lang( 'File di https://files.example.com/a', 'id' ), ContextChat_Orchestrator::detect_lang( 'Please see www.example.com/a', 'id' ) ), array( 'id', 'en' ) );
 echo "\n{$count} checks, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

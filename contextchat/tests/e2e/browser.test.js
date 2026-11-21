@@ -58,6 +58,10 @@ function startMock() {
 	return new Promise( ( resolve ) => mockServer.listen( 0, '127.0.0.1', resolve ) );
 }
 
+function nullEvents() {
+	return JSON.parse( execFileSync( 'php', [ path.join( __dirname, 'events-check.php' ), SITE ] ).toString() );
+}
+
 function chatCheck( id ) {
 	return JSON.parse( execFileSync( 'php', [ path.join( __dirname, 'chat-check.php' ), SITE, id ] ).toString() );
 }
@@ -864,4 +868,172 @@ test( 'SI chat in the panel: quote card, handoff card, no files, idle offer, res
 	for ( const p of [ admin, page, phone, fresh, off ] ) {
 		await p.context().close();
 	}
+} );
+
+test( 'Prices, Privacy and Conversations: edited prices are quoted, the privacy settings reach the chat, and a chat can be read, exported and deleted', async () => {
+	const page = await newPage();
+	await login( page );
+	const today = new Date().toISOString().slice( 0, 10 );
+
+	// Prices: the bundled table loads; an edited rate and a shorter Apostille list are saved.
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-prices' );
+	assert.equal( await page.locator( '#ctxc-tab-prices .ctxc-price-row' ).count(), 32 );
+	assert.match( await page.locator( '.ctxc-prices-status' ).textContent(), /bundled table/ );
+	assert.equal( await page.inputValue( '#ctxc-pr-row-0-sworn' ), '125000' );
+	await page.fill( '#ctxc-pr-row-0-sworn', '130000' );
+	const lines = ( await page.inputValue( '#ctxc-apostille-lines' ) ).split( '\n' );
+	assert.equal( lines.length, 147 );
+	await page.fill( '#ctxc-apostille-lines', lines.filter( ( l ) => ! l.startsWith( 'AU ' ) ).join( '\n' ) );
+
+	// Privacy: a shorter keep-for period, a policy link, higher start limit and one more file host.
+	await page.click( '#ctxc-tablink-privacy' );
+	await page.fill( '#ctxc-si_retention_days', '90' );
+	await page.fill( '#ctxc-si_privacy_url', BASE + '/privacy/' );
+	await page.fill( '#ctxc-si_limit_starts', '100' );
+	await page.fill( '#ctxc-si_file_hosts', 'files.example.com\nhttps://www.Dropbox.com/s/x' );
+	await page.click( '#ctxc-tablink-si' );
+	await page.fill( '#ctxc-si_api_key', MOCK_KEY );
+	await page.check( '#ctxc-si_enabled' );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+
+	const prices = option( 'get', 'contextchat_si_prices' );
+	assert.equal( prices.rates[ 'id-en' ].sworn, 130000 );
+	assert.equal( prices.fetched_at, today );
+	const apostille = option( 'get', 'contextchat_si_apostille' );
+	assert.equal( apostille.members.length, 146 );
+	assert.equal( apostille.members.some( ( m ) => m.code === 'AU' ), false );
+	assert.equal( apostille.members.find( ( m ) => m.code === 'NL' ).type, 'R', 'the HCCH type is kept' );
+	const s = option( 'get', 'contextchat_settings' );
+	assert.equal( s.si_retention_days, 90 );
+	assert.equal( s.si_file_hosts, 'files.example.com\ndropbox.com' );
+
+	// The chat: the notice states 90 days and links the policy; the new host is refused; the
+	// estimate uses the edited rate and, without Australia on the list, ministry and embassy.
+	const start = await chatApi( 'start', { lang: 'id', page: BASE + '/', device: 'desktop' } );
+	assert.equal( start.status, 201 );
+	assert.match( start.json.notice, /Anthropic, penyedia model bahasa di luar Indonesia, dan disimpan di situs ini selama 90 hari/ );
+	assert.equal( start.json.privacy_url, BASE + '/privacy/' );
+	const { conversation_id: id, token, reference } = start.json;
+	const conv = chatCheck( id ).conversation;
+	assert.equal( Math.round( ( Date.parse( conv.expires_at + 'Z' ) - Date.parse( conv.created_at + 'Z' ) ) / 86400000 ), 90 );
+	await new Promise( ( r ) => setTimeout( r, 1600 ) );
+	assert.equal( ( await chatApi( 'message', { conversation_id: id, token, text: 'File di https://files.example.com/a' } ) ).json.blocked, 'upload' );
+	mockScript.push(
+		mockTools( [ [ 'get_quote', { package: 'sworn', source_lang: 'id', target_lang: 'en', pages: 2, documents: 1, destination_country: 'Australia', legalisation: 'auto' } ] ] ),
+		mockText( 'Estimasinya Rp 2.460.000, Kak. Rinciannya ada di kartu di bawah.' )
+	);
+	const quoted = await chatApi( 'message', { conversation_id: id, token, text: 'Ijazah 2 halaman tersumpah ke Inggris untuk Australia' } );
+	assert.equal( quoted.json.quote.total, 260000 + 700000 + 1500000 );
+
+	// Analytics: the SI funnel and a CSV with one row per chat and no message text.
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat-analytics' );
+	const funnel = await page.locator( '.ctxc-funnel' ).textContent();
+	assert.match( funnel, /Chats started\s*\d+/ );
+	assert.match( funnel, /Estimate given\s*[1-9]/ );
+	assert.match( await page.locator( '.ctxc-si-analytics' ).textContent(), /Refused: documents or file links/ );
+	await shot( page, 'si-analytics', '.ctxc-si-analytics' );
+	const csvUrl = await page.locator( 'a:has-text("Export SI chats")' ).getAttribute( 'href' );
+	const csv = await ( await page.context().request.get( csvUrl ) ).text();
+	assert.match( csv.split( '\n' )[ 0 ], /^time_utc,reference,lang,device,path,status,service,handoff_reason,handoff_channel,visitor_messages,estimates,last_estimate_idr,cost_usd/ );
+	assert.ok( csv.includes( reference + ',id,desktop,/,quoted,translation' ), 'the chat is a row' );
+	assert.ok( csv.includes( ',2460000,' ), 'with its last estimate' );
+	assert.equal( csv.includes( 'Ijazah' ), false, 'no message text' );
+
+	// Conversations: listed, filtered by reference, readable, exportable, deletable.
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat-conversations&reference=' + reference );
+	assert.equal( await page.locator( '.ctxc-conv-table tbody tr' ).count(), 1 );
+	await shot( page, 'conversations-list', '.wrap' );
+	await page.click( 'a:has-text("' + reference + '")' );
+	assert.match( await page.locator( '.ctxc-conv-messages' ).textContent(), /Ijazah 2 halaman/ );
+	assert.doesNotMatch( await page.locator( '.ctxc-conv-messages' ).textContent(), /files\.example\.com/, 'refused messages are not stored' );
+	assert.match( await page.locator( '.ctxc-conv-summary' ).textContent(), /Rp 2\.460\.000/ );
+	await shot( page, 'conversation-transcript', '.wrap' );
+	const exportUrl = await page.locator( 'a:has-text("Export JSON")' ).getAttribute( 'href' );
+	const exported = await page.context().request.get( exportUrl );
+	assert.match( exported.headers()[ 'content-disposition' ], /contextchat-CC-/ );
+	const json = await exported.json();
+	assert.equal( json.conversation.reference, reference );
+	assert.equal( json.conversation.token_hash, undefined );
+	assert.equal( json.quotes[ 0 ].total, '2460000' );
+	assert.ok( json.messages.length >= 3 );
+	assert.equal( ( await page.context().request.get( exportUrl.replace( /_wpnonce=[^&]+/, '_wpnonce=bad' ) ) ).status(), 403 );
+	await page.check( '.ctxc-conv-delete input[name="confirm"]' );
+	await page.click( 'button:has-text("Delete conversation")' );
+	await page.waitForURL( /deleted=1/ );
+	assert.equal( chatCheck( id ).conversation, null );
+	assert.equal( chatCheck( id ).messages.length, 0 );
+	assert.ok( nullEvents().includes( 'admin_deleted:' + reference ), 'the deletion is recorded by reference' );
+
+	// Back to the bundled data and the earlier settings.
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-prices' );
+	await shot( page, 'prices-tab', '#ctxc-tab-prices' );
+	await page.check( 'input[name="contextchat_si_prices[reset]"]' );
+	await page.check( 'input[name="contextchat_si_apostille[reset]"]' );
+	await page.click( '#ctxc-tablink-privacy' );
+	await shot( page, 'privacy-tab', '#ctxc-tab-privacy' );
+	await page.fill( '#ctxc-si_retention_days', '365' );
+	await page.fill( '#ctxc-si_privacy_url', '' );
+	await page.click( '#ctxc-tablink-si' );
+	await page.uncheck( '#ctxc-si_enabled' );
+	await page.check( 'input[name="contextchat_settings[si_api_key_remove]"]' );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+	assert.deepEqual( option( 'get', 'contextchat_si_prices' ), [] );
+	assert.deepEqual( option( 'get', 'contextchat_si_apostille' ), [] );
+	await page.close();
+} );
+
+test( 'Privacy: with "agree first" on, the chat waits for the visitor\'s agreement and records it, and the reference is shown', async () => {
+	const admin = await newPage();
+	await login( admin );
+	await admin.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-si' );
+	await admin.fill( '#ctxc-si_api_key', MOCK_KEY );
+	await admin.check( '#ctxc-si_enabled' );
+	await admin.click( '#ctxc-tablink-privacy' );
+	await admin.check( '#ctxc-si_consent' );
+	await admin.fill( '#ctxc-si_limit_starts', '100' );
+	await admin.click( '#submit' );
+	await admin.waitForURL( /settings-updated=true/ );
+	await admin.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-privacy' );
+	assert.match( await admin.locator( '#ctxc-tab-privacy .notice-warning' ).textContent(), /no privacy policy address/ );
+
+	// The suggested policy text is in WordPress's Policy Guide, with the site's settings filled in.
+	await admin.goto( BASE + '/wp-admin/options-privacy.php?tab=policyguide' );
+	const guide = await admin.locator( 'body' ).textContent();
+	assert.match( guide, /Anthropic, PBC/ );
+	assert.match( guide, /Your explicit consent, given with the "Agree and start" button/ );
+	assert.match( guide, /kept on this site for 365 days/ );
+
+	// The endpoint refuses a start without agreement.
+	assert.equal( ( await chatApi( 'start', { lang: 'id' } ) ).status, 400 );
+
+	const page = await newPage();
+	await page.goto( BASE + '/contact/' );
+	await page.locator( '.ctxc-launcher' ).click();
+	await page.locator( '.ctxc-si-agree' ).waitFor();
+	assert.match( await page.locator( '.ctxc-si-notice' ).textContent(), /Anthropic/ );
+	assert.equal( await page.locator( '.ctxc-si-input' ).isDisabled(), true, 'no typing before agreeing' );
+	assert.equal( await page.locator( '.ctxc-si-msg' ).count(), 0, 'no chat is started yet' );
+	await shot( page, 'si-chat-consent', '.ctxc-panel' );
+	await page.locator( '.ctxc-si-agree' ).click();
+	await page.locator( '.ctxc-si-msg.is-assistant' ).waitFor();
+	await page.locator( '.ctxc-si-noticeref' ).waitFor();
+	const ref = ( await page.locator( '.ctxc-si-noticeref' ).textContent() ).match( /CC-\d{8}-[2-9A-HJKMNP-TV-Z]{4}/ )[ 0 ];
+	assert.equal( await page.locator( '.ctxc-si-input' ).isDisabled(), false );
+	const session = await page.evaluate( () => JSON.parse( sessionStorage.getItem( 'ctxc-si' ) || 'null' ) );
+	const saved = chatCheck( session.id );
+	assert.equal( saved.conversation.reference, ref );
+	assert.ok( saved.events.some( ( e ) => /^consent:(id|en):[0-9a-f]{12}$/.test( e ) ), 'the agreed notice version is recorded' );
+
+	// Back to the earlier settings.
+	await admin.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-privacy' );
+	await admin.uncheck( '#ctxc-si_consent' );
+	await admin.click( '#ctxc-tablink-si' );
+	await admin.uncheck( '#ctxc-si_enabled' );
+	await admin.check( 'input[name="contextchat_settings[si_api_key_remove]"]' );
+	await admin.click( '#submit' );
+	await admin.waitForURL( /settings-updated=true/ );
+	await page.close();
+	await admin.close();
 } );

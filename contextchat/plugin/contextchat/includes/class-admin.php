@@ -32,6 +32,7 @@ class ContextChat_Admin {
 		add_menu_page( __( 'ContextChat', 'contextchat' ), __( 'ContextChat', 'contextchat' ), self::CAP, self::SLUG, array( __CLASS__, 'settings_page' ), 'dashicons-format-chat', 81 );
 		add_submenu_page( self::SLUG, __( 'ContextChat Settings', 'contextchat' ), __( 'Settings', 'contextchat' ), self::CAP, self::SLUG, array( __CLASS__, 'settings_page' ) );
 		add_submenu_page( self::SLUG, __( 'ContextChat Analytics', 'contextchat' ), __( 'Analytics', 'contextchat' ), self::CAP, self::SLUG . '-analytics', array( 'ContextChat_Admin_Analytics', 'page' ) );
+		add_submenu_page( self::SLUG, __( 'SI conversations', 'contextchat' ), __( 'Conversations', 'contextchat' ), self::CAP, ContextChat_Admin_Conversations::SLUG, array( 'ContextChat_Admin_Conversations', 'page' ) );
 	}
 
 	/**
@@ -132,6 +133,8 @@ class ContextChat_Admin {
 			'si'         => __( 'SI', 'contextchat' ),
 			'knowledge'  => __( 'Knowledge', 'contextchat' ),
 			'voice'      => __( 'Voice', 'contextchat' ),
+			'prices'     => __( 'Prices', 'contextchat' ),
+			'privacy'    => __( 'Privacy', 'contextchat' ),
 		);
 		?>
 		<div class="wrap ctxc-admin">
@@ -360,6 +363,8 @@ class ContextChat_Admin {
 				<?php self::si_tab(); ?>
 				<?php self::knowledge_tab(); ?>
 				<?php self::voice_tab(); ?>
+				<?php self::prices_tab(); ?>
+				<?php self::privacy_tab(); ?>
 
 				<?php submit_button(); ?>
 			</form>
@@ -871,6 +876,257 @@ class ContextChat_Admin {
 				</tr>
 			</table>
 		</section>
+		<?php
+	}
+
+	/**
+	 * Privacy tab: how long SI chats are kept, rate limits, blocked file hosts and the privacy link.
+	 */
+	private static function privacy_tab() {
+		$conversations = admin_url( 'admin.php?page=' . self::SLUG . '-conversations' );
+		?>
+		<section id="ctxc-tab-privacy" class="ctxc-tab" data-tab="privacy" aria-labelledby="ctxc-tablink-privacy">
+			<h2><?php esc_html_e( 'Privacy', 'contextchat' ); ?></h2>
+			<?php if ( ! empty( ContextChat_Settings::get()['si_enabled'] ) && '' === ContextChat_Settings::get()['si_privacy_url'] ) : ?>
+				<div class="notice notice-warning inline"><p><?php esc_html_e( 'The SI chat is on but no privacy policy address is set. Indonesian law (UU 27/2022 Pasal 21, PP 33/2026 Pasal 62) expects visitors to be able to read the full privacy information before their data is processed.', 'contextchat' ); ?></p></div>
+			<?php endif; ?>
+			<p><?php esc_html_e( 'SI chats are stored in your WordPress database so your team can follow up. Visitors are asked not to send ID numbers or documents; messages that contain them, or links to file-sharing services, are refused and not stored. Visitor addresses are never stored: the rate limits count a hash that changes every day.', 'contextchat' ); ?></p>
+			<table class="form-table" role="presentation">
+				<?php self::row_number( 'si_retention_days', __( 'Keep SI chats for (days)', 'contextchat' ), 30, 3650 ); ?>
+				<tr>
+					<th scope="row"></th>
+					<td><p class="description">
+						<?php
+						printf(
+							/* translators: %s: link to the Conversations screen. */
+							esc_html__( 'Older chats, with their messages and estimates, are deleted every day. The privacy notice tells visitors this period. You can read, export or delete single chats on the %s screen.', 'contextchat' ),
+							'<a href="' . esc_url( $conversations ) . '">' . esc_html__( 'Conversations', 'contextchat' ) . '</a>'
+						);
+						?>
+					</p></td>
+				</tr>
+				<?php self::row_text( 'si_privacy_url', __( 'Privacy policy address', 'contextchat' ), __( 'Linked under the privacy notice at the top of the chat. Your policy should say that chat text is processed by Anthropic outside Indonesia, why, how long chats are kept, and how visitors can ask for a copy or deletion. Suggested text is in Settings → Privacy → Policy Guide.', 'contextchat' ), 'url' ); ?>
+				<?php self::row_checkbox( 'si_consent', __( 'Ask visitors to agree first', 'contextchat' ), __( 'Shows the privacy notice with an "Agree and start" button before the first message, and records which notice was agreed to and when. Use this if your privacy review chooses consent as the basis for the chat.', 'contextchat' ) ); ?>
+			</table>
+
+			<h3><?php esc_html_e( 'Privacy notice', 'contextchat' ); ?></h3>
+			<p>
+				<?php
+				esc_html_e( 'The text shown above the first message is edited on the Voice tab, under "Privacy notice before the first message". {retention} in it becomes the period set above.', 'contextchat' );
+				echo ' ';
+				echo '<em>' . esc_html( ContextChat_Chat_REST::notice( 0 === strpos( get_user_locale(), 'id' ) ? 'id' : 'en' ) ) . '</em>';
+				?>
+			</p>
+
+			<h3><?php esc_html_e( 'Rate limits', 'contextchat' ); ?></h3>
+			<p><?php esc_html_e( 'Limits per visitor. A visitor over a limit is offered WhatsApp or email instead, and nothing is sent to Anthropic.', 'contextchat' ); ?></p>
+			<table class="form-table" role="presentation">
+				<?php
+				self::row_number( 'si_limit_minute', __( 'Messages per minute', 'contextchat' ), 1, 60 );
+				self::row_number( 'si_limit_starts', __( 'New chats per hour', 'contextchat' ), 1, 100 );
+				self::row_number( 'si_limit_day', __( 'Messages per day', 'contextchat' ), 1, 1000 );
+				self::row_number( 'si_limit_conversation', __( 'Messages per chat', 'contextchat' ), 4, 200 );
+				?>
+			</table>
+
+			<h3><?php esc_html_e( 'File-sharing services', 'contextchat' ); ?></h3>
+			<table class="form-table" role="presentation">
+				<?php self::row_textarea( 'si_file_hosts', __( 'Refused links', 'contextchat' ), __( 'One host per line. A message linking to one of these is refused, and the visitor is asked to send files by WhatsApp or email. Leave empty for the built-in list.', 'contextchat' ) ); ?>
+			</table>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Prices tab: the price table the SI quotes from, and the Apostille member list.
+	 */
+	private static function prices_tab() {
+		$t     = ContextChat_Prices::table();
+		$list  = ContextChat_Prices::apostille();
+		$base  = ContextChat_Prices::OPTION;
+		$abase = ContextChat_Prices::APOSTILLE;
+		$now   = time();
+		$age   = ContextChat_Prices::age_days( isset( $t['fetched_at'] ) ? $t['fetched_at'] : '', $now );
+		$a_age = ContextChat_Prices::age_days( isset( $list['fetched_at'] ) ? $list['fetched_at'] : '', $now );
+		$langs = ContextChat_Price_Engine::LANG_NAMES[ 0 === strpos( get_user_locale(), 'id' ) ? 'id' : 'en' ];
+		$rows  = array();
+		foreach ( isset( $t['rates'] ) ? $t['rates'] : array() as $pair => $r ) {
+			list( $src, $tgt ) = array_pad( explode( '-', (string) $pair ), 2, '' );
+			$rows[]            = array(
+				'source'  => $src,
+				'target'  => $tgt,
+				'regular' => isset( $r['regular'] ) ? $r['regular'] : null,
+				'sworn'   => isset( $r['sworn'] ) ? $r['sworn'] : null,
+			);
+		}
+		$tiers = isset( $t['volume_discounts'] ) ? array_values( $t['volume_discounts'] ) : array();
+		usort(
+			$tiers,
+			function ( $a, $b ) {
+				return $a['min_documents'] - $b['min_documents'];
+			}
+		);
+		$tier1 = isset( $tiers[0] ) ? $tiers[0] : array( 'min_documents' => '', 'percent' => '' );
+		$tier2 = isset( $tiers[1] ) ? $tiers[1] : array( 'min_documents' => '', 'percent' => '' );
+		$num   = function ( $name, $value, $label, $min = 0, $suffix = '' ) use ( $base ) {
+			$id = 'ctxc-pr-' . $name;
+			?>
+			<tr>
+				<th scope="row"><label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $label ); ?></label></th>
+				<td><input type="number" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $base . '[' . $name . ']' ); ?>" value="<?php echo esc_attr( (string) $value ); ?>" min="<?php echo (int) $min; ?>" step="1" class="regular-text"> <?php echo esc_html( $suffix ); ?></td>
+			</tr>
+			<?php
+		};
+		?>
+		<section id="ctxc-tab-prices" class="ctxc-tab" data-tab="prices" aria-labelledby="ctxc-tablink-prices">
+			<h2><?php esc_html_e( 'Prices', 'contextchat' ); ?></h2>
+			<p><?php esc_html_e( 'The SI never works out a price itself. Every estimate is calculated in code from this table, in whole rupiah, and shown to the visitor as an estimate that your team confirms. Keep it the same as your public price list.', 'contextchat' ); ?></p>
+			<p class="ctxc-prices-status">
+				<?php
+				if ( ContextChat_Prices::using_seed() ) {
+					/* translators: %s: date. */
+					printf( esc_html__( 'Using the bundled table, copied from the Nusalexia price list on %s. It follows plugin updates until you change it.', 'contextchat' ), esc_html( (string) $t['fetched_at'] ) );
+				} else {
+					/* translators: %s: date. */
+					printf( esc_html__( 'Using your saved table, last changed on %s.', 'contextchat' ), esc_html( (string) $t['fetched_at'] ) );
+				}
+				if ( null !== $age && $age > ContextChat_Prices::STALE_DAYS ) {
+					/* translators: %d: number of days. */
+					echo ' <strong class="ctxc-stale">' . esc_html( sprintf( __( 'These prices were last checked %d days ago. Compare them with your price list and save to confirm.', 'contextchat' ), $age ) ) . '</strong>';
+				}
+				?>
+			</p>
+			<input type="hidden" name="<?php echo esc_attr( $base ); ?>[form]" value="1">
+
+			<h3><?php esc_html_e( 'Rates per translated page', 'contextchat' ); ?></h3>
+			<p class="description"><?php esc_html_e( 'Rupiah per translated A4 page. Leave a package empty when it is not offered for that pair; the SI then hands the visitor to your team.', 'contextchat' ); ?></p>
+			<div class="ctxc-repeater" data-repeater="prices">
+				<div class="ctxc-rows">
+					<?php
+					foreach ( $rows as $i => $row ) {
+						self::price_row( (string) $i, $row, $langs );
+					}
+					?>
+				</div>
+				<template><?php self::price_row( '__i__', array(), $langs ); ?></template>
+				<button type="button" class="button ctxc-add"><?php esc_html_e( 'Add language pair', 'contextchat' ); ?></button>
+			</div>
+
+			<h3><?php esc_html_e( 'Fees and rules', 'contextchat' ); ?></h3>
+			<table class="form-table" role="presentation">
+				<?php
+				$num( 'legal_ministry', $t['legalisation']['ministry'], __( 'Ministry legalisation, per document', 'contextchat' ), 0, 'Rp' );
+				$num( 'legal_embassy', $t['legalisation']['embassy'], __( 'Embassy legalisation, per document', 'contextchat' ), 0, 'Rp' );
+				$num( 'legal_apostille', $t['legalisation']['apostille'], __( 'Apostille, per document', 'contextchat' ), 0, 'Rp' );
+				$num( 'terminology', $t['terminology_per_hour'], __( 'Terminology work, per hour', 'contextchat' ), 0, 'Rp' );
+				$num( 'express_next_day', (int) $t['express_percent']['next_day'] - 100, __( 'Next-day surcharge', 'contextchat' ), 0, '%' );
+				$num( 'express_same_day', (int) $t['express_percent']['same_day'] - 100, __( 'Same-day surcharge', 'contextchat' ), 0, '%' );
+				$num( 'discount1_documents', $tier1['min_documents'], __( 'First volume discount from (documents)', 'contextchat' ), 2 );
+				$num( 'discount1_percent', $tier1['percent'], __( 'First volume discount', 'contextchat' ), 0, '%' );
+				$num( 'discount2_documents', $tier2['min_documents'], __( 'Second volume discount from (documents)', 'contextchat' ), 2 );
+				$num( 'discount2_percent', $tier2['percent'], __( 'Second volume discount', 'contextchat' ), 0, '%' );
+				$num( 'deposit_min', $t['deposit']['min_total'], __( 'Deposit asked from orders of', 'contextchat' ), 0, 'Rp' );
+				$num( 'deposit_percent', $t['deposit']['percent'], __( 'Deposit', 'contextchat' ), 0, '%' );
+				$num( 'min_pages', $t['min_pages'], __( 'Minimum pages per document', 'contextchat' ), 1 );
+				$num( 'revisions', $t['revisions']['count'], __( 'Free revisions', 'contextchat' ) );
+				$num( 'revision_days', $t['revisions']['days'], __( 'Revision period (days)', 'contextchat' ) );
+				$num( 'valid_days', $t['valid_days'], __( 'Estimates valid for (days)', 'contextchat' ), 1 );
+				?>
+				<tr>
+					<th scope="row"><label for="ctxc-pr-source_url"><?php esc_html_e( 'Public price list', 'contextchat' ); ?></label></th>
+					<td><input type="url" id="ctxc-pr-source_url" name="<?php echo esc_attr( $base ); ?>[source_url]" value="<?php echo esc_attr( (string) $t['source_url'] ); ?>" class="regular-text">
+					<p class="description"><?php esc_html_e( 'Where these prices are published, kept with the table so your team can compare them.', 'contextchat' ); ?></p></td>
+				</tr>
+			</table>
+
+			<h3><?php esc_html_e( 'Import and export', 'contextchat' ); ?></h3>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="ctxc-prices-export"><?php esc_html_e( 'Export', 'contextchat' ); ?></label></th>
+					<td><textarea id="ctxc-prices-export" class="large-text code" rows="6" readonly><?php echo esc_textarea( wp_json_encode( $t, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?></textarea></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ctxc-prices-import"><?php esc_html_e( 'Import', 'contextchat' ); ?></label></th>
+					<td><textarea id="ctxc-prices-import" name="<?php echo esc_attr( $base ); ?>[import]" class="large-text code" rows="4"></textarea>
+					<p class="description"><?php esc_html_e( 'Paste an exported table here and save to replace the whole table, including the fields above.', 'contextchat' ); ?></p></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Bundled table', 'contextchat' ); ?></th>
+					<td><label><input type="checkbox" name="<?php echo esc_attr( $base ); ?>[reset]" value="1"> <?php esc_html_e( 'Go back to the bundled table when saving', 'contextchat' ); ?></label></td>
+				</tr>
+			</table>
+
+			<h3><?php esc_html_e( 'Apostille countries', 'contextchat' ); ?></h3>
+			<p><?php esc_html_e( 'A document for one of these countries gets an Apostille; for any other country the SI quotes ministry and embassy legalisation. One country per line: its two-letter code, the date the Apostille Convention entered into force for it, and its name.', 'contextchat' ); ?></p>
+			<p class="ctxc-apostille-status">
+				<?php
+				printf(
+					/* translators: 1: number of countries, 2: date, 3: source address. */
+					esc_html__( '%1$d countries, checked on %2$s against %3$s.', 'contextchat' ),
+					(int) count( $list['members'] ),
+					esc_html( (string) $list['fetched_at'] ),
+					'<a href="' . esc_url( (string) $list['source_url'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'the HCCH status table', 'contextchat' ) . '</a>'
+				);
+				if ( null !== $a_age && $a_age > ContextChat_Prices::APOSTILLE_STALE_DAYS ) {
+					echo ' <strong class="ctxc-stale">' . esc_html__( 'More than a year has passed. Check the HCCH status table for new members, and for any objection to Indonesia\'s accession, then save.', 'contextchat' ) . '</strong>';
+				}
+				?>
+			</p>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="ctxc-apostille-lines"><?php esc_html_e( 'Members', 'contextchat' ); ?></label></th>
+					<td><textarea id="ctxc-apostille-lines" name="<?php echo esc_attr( $abase ); ?>[lines]" class="large-text code" rows="10"><?php echo esc_textarea( ContextChat_Prices::apostille_lines( $list ) ); ?></textarea>
+					<p class="description"><?php esc_html_e( 'Hong Kong and Macao are covered through China (CN). A member that has objected to Indonesia\'s accession must not be listed.', 'contextchat' ); ?></p></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Bundled list', 'contextchat' ); ?></th>
+					<td><label><input type="checkbox" name="<?php echo esc_attr( $abase ); ?>[reset]" value="1"> <?php esc_html_e( 'Go back to the bundled list when saving', 'contextchat' ); ?></label></td>
+				</tr>
+			</table>
+		</section>
+		<?php
+	}
+
+	/**
+	 * One language-pair row of the price table.
+	 *
+	 * @param string $i     Index.
+	 * @param array  $row   source, target, regular, sworn.
+	 * @param array  $langs Language names by code.
+	 */
+	private static function price_row( $i, array $row, array $langs ) {
+		$row  = array_merge(
+			array(
+				'source'  => 'id',
+				'target'  => 'en',
+				'regular' => null,
+				'sworn'   => null,
+			),
+			$row
+		);
+		$base = ContextChat_Prices::OPTION . '[rows][' . $i . ']';
+		$uid  = 'ctxc-pr-row-' . $i;
+		?>
+		<div class="ctxc-row ctxc-price-row">
+			<div class="ctxc-fields">
+				<?php foreach ( array( 'source' => __( 'From', 'contextchat' ), 'target' => __( 'Into', 'contextchat' ) ) as $key => $label ) : ?>
+					<label for="<?php echo esc_attr( $uid . '-' . $key ); ?>"><?php echo esc_html( $label ); ?>
+						<select id="<?php echo esc_attr( $uid . '-' . $key ); ?>" name="<?php echo esc_attr( $base . '[' . $key . ']' ); ?>">
+							<?php foreach ( $langs as $code => $name ) : ?>
+								<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $row[ $key ], $code ); ?>><?php echo esc_html( $name ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</label>
+				<?php endforeach; ?>
+				<label for="<?php echo esc_attr( $uid ); ?>-regular"><?php esc_html_e( 'Regular (Rp)', 'contextchat' ); ?>
+					<input type="number" min="0" step="1" id="<?php echo esc_attr( $uid ); ?>-regular" name="<?php echo esc_attr( $base ); ?>[regular]" value="<?php echo esc_attr( null === $row['regular'] ? '' : (string) $row['regular'] ); ?>">
+				</label>
+				<label for="<?php echo esc_attr( $uid ); ?>-sworn"><?php esc_html_e( 'Sworn (Rp)', 'contextchat' ); ?>
+					<input type="number" min="0" step="1" id="<?php echo esc_attr( $uid ); ?>-sworn" name="<?php echo esc_attr( $base ); ?>[sworn]" value="<?php echo esc_attr( null === $row['sworn'] ? '' : (string) $row['sworn'] ); ?>">
+				</label>
+			</div>
+			<button type="button" class="button-link ctxc-remove" aria-label="<?php esc_attr_e( 'Remove language pair', 'contextchat' ); ?>"><span class="dashicons dashicons-trash"></span></button>
+		</div>
 		<?php
 	}
 

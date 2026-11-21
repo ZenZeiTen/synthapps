@@ -13,8 +13,17 @@ defined( 'ABSPATH' ) || exit;
  */
 class ContextChat_Chat_Store {
 
-	/** Days a conversation is kept (D-06). */
+	/** Default days a conversation is kept (D-06); the Privacy tab can change it. */
 	const RETENTION_DAYS = 365;
+
+	/**
+	 * Days a conversation is kept: the Privacy tab's setting.
+	 *
+	 * @return int
+	 */
+	public static function retention_days() {
+		return class_exists( 'ContextChat_Chat_REST' ) ? ContextChat_Chat_REST::retention_days() : self::RETENTION_DAYS;
+	}
 
 	/**
 	 * Create a conversation. Returns its ID, reference and the token, which is only ever returned
@@ -38,7 +47,7 @@ class ContextChat_Chat_Store {
 					'reference'   => $reference,
 					'created_at'  => gmdate( 'Y-m-d H:i:s', $now ),
 					'updated_at'  => gmdate( 'Y-m-d H:i:s', $now ),
-					'expires_at'  => gmdate( 'Y-m-d H:i:s', $now + self::RETENTION_DAYS * 86400 ),
+					'expires_at'  => gmdate( 'Y-m-d H:i:s', $now + self::retention_days() * 86400 ),
 					'lang'        => substr( (string) $fields['lang'], 0, 5 ),
 					'page_url'    => substr( (string) $fields['page_url'], 0, 500 ),
 					'rule_id'     => substr( (string) $fields['rule_id'], 0, 64 ),
@@ -185,6 +194,116 @@ class ContextChat_Chat_Store {
 	}
 
 	/**
+	 * Conversations for the admin list, newest first. Messages are not read here.
+	 *
+	 * @param array $filters status, service, from, to (Y-m-d, UTC), reference.
+	 * @param int   $page    Page, from 1.
+	 * @param int   $per     Rows per page.
+	 * @return array { rows, total }
+	 */
+	public static function search( array $filters, $page, $per ) {
+		global $wpdb;
+		$where = array( '1=1' );
+		$args  = array( ContextChat_Installer::table( 'conversations' ) );
+		if ( ! empty( $filters['status'] ) ) {
+			$where[] = 'status = %s';
+			$args[]  = (string) $filters['status'];
+		}
+		if ( isset( $filters['service'] ) && '' !== $filters['service'] ) {
+			$where[] = 'service = %s';
+			$args[]  = 'none' === $filters['service'] ? '' : (string) $filters['service'];
+		}
+		if ( ! empty( $filters['from'] ) ) {
+			$where[] = 'created_at >= %s';
+			$args[]  = $filters['from'] . ' 00:00:00';
+		}
+		if ( ! empty( $filters['to'] ) ) {
+			$where[] = 'created_at <= %s';
+			$args[]  = $filters['to'] . ' 23:59:59';
+		}
+		if ( ! empty( $filters['reference'] ) ) {
+			$where[] = 'reference LIKE %s';
+			$args[]  = '%' . $wpdb->esc_like( (string) $filters['reference'] ) . '%';
+		}
+		$sql   = implode( ' AND ', $where );
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE {$sql}", $args ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed conditions with placeholders.
+		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT id, reference, created_at, updated_at, expires_at, lang, page_url, device, status, service, handoff_channel, handoff_reason, cost_micro_usd, (SELECT COUNT(*) FROM %i m WHERE m.conversation_id = c.id AND m.role = 'visitor') AS visitor_messages FROM %i c WHERE {$sql} ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d", array_merge( array( ContextChat_Installer::table( 'messages' ) ), $args, array( (int) $per, max( 0, ( (int) $page - 1 ) * (int) $per ) ) ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed conditions with placeholders.
+		return array(
+			'rows'  => is_array( $rows ) ? $rows : array(),
+			'total' => $total,
+		);
+	}
+
+	/**
+	 * One conversation with all its messages and quotes, for the administrator. The token hash
+	 * is left out.
+	 *
+	 * @param string $id Conversation ID.
+	 * @return array|null { conversation, messages, quotes }
+	 */
+	public static function full( $id ) {
+		global $wpdb;
+		if ( ! preg_match( '/^[0-9A-HJKMNP-TV-Z]{26}$/', (string) $id ) ) {
+			return null;
+		}
+		$conv = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %s', ContextChat_Installer::table( 'conversations' ), $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( ! $conv ) {
+			return null;
+		}
+		unset( $conv['token_hash'] );
+		$state         = json_decode( (string) $conv['intake_json'], true );
+		$conv['state'] = is_array( $state ) ? $state : array();
+		unset( $conv['intake_json'] );
+		$messages = $wpdb->get_results( $wpdb->prepare( 'SELECT role, content, model, created_at FROM %i WHERE conversation_id = %s ORDER BY id ASC', ContextChat_Installer::table( 'messages' ), $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$quotes   = $wpdb->get_results( $wpdb->prepare( 'SELECT reference, input_json, result_json, total, table_version, created_at FROM %i WHERE conversation_id = %s ORDER BY id ASC', ContextChat_Installer::table( 'quotes' ), $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		foreach ( (array) $quotes as $k => $q ) {
+			$quotes[ $k ]['input']  = json_decode( (string) $q['input_json'], true );
+			$quotes[ $k ]['result'] = json_decode( (string) $q['result_json'], true );
+			unset( $quotes[ $k ]['input_json'], $quotes[ $k ]['result_json'] );
+		}
+		// The processing record (UU 27/2022 Pasal 32): what happened, without message text.
+		$events = $wpdb->get_results( $wpdb->prepare( 'SELECT type, detail, created_at FROM %i WHERE conversation_id = %s ORDER BY id ASC', ContextChat_Installer::table( 'events' ), $id ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return array(
+			'conversation' => $conv,
+			'messages'     => is_array( $messages ) ? $messages : array(),
+			'quotes'       => is_array( $quotes ) ? $quotes : array(),
+			'events'       => is_array( $events ) ? $events : array(),
+		);
+	}
+
+	/**
+	 * Delete one conversation with its messages, quotes and events.
+	 *
+	 * @param string $id Conversation ID.
+	 * @return bool Whether it existed.
+	 */
+	public static function delete( $id ) {
+		global $wpdb;
+		if ( ! preg_match( '/^[0-9A-HJKMNP-TV-Z]{26}$/', (string) $id ) ) {
+			return false;
+		}
+		$reference = $wpdb->get_var( $wpdb->prepare( 'SELECT reference FROM %i WHERE id = %s', ContextChat_Installer::table( 'conversations' ), $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( null === $reference ) {
+			return false;
+		}
+		foreach ( array( 'messages', 'quotes', 'events' ) as $name ) {
+			$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE conversation_id = %s', ContextChat_Installer::table( $name ), $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		}
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE id = %s', ContextChat_Installer::table( 'conversations' ), $id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// A record that the deletion was done, with the reference only (PP 33/2026 Pasal 86).
+		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			ContextChat_Installer::table( 'events' ),
+			array(
+				'conversation_id' => null,
+				'type'            => 'admin_deleted',
+				'detail'          => substr( (string) $reference, 0, 64 ),
+				'created_at'      => gmdate( 'Y-m-d H:i:s' ),
+			)
+		);
+		return true;
+	}
+
+	/**
 	 * Delete conversations past their expiry date, with their messages, quotes and events, in
 	 * batches of 500 (design plan section 10). Runs with the daily clean-up.
 	 *
@@ -207,8 +326,21 @@ class ContextChat_Chat_Store {
 			$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE id IN ({$in})", array_merge( array( ContextChat_Installer::table( 'conversations' ) ), $ids ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
 			$deleted += count( $ids );
 		}
-		// Events without a conversation (refused starts) follow the same retention.
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE conversation_id IS NULL AND created_at <= %s', ContextChat_Installer::table( 'events' ), gmdate( 'Y-m-d H:i:s', time() - self::RETENTION_DAYS * 86400 ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( $deleted ) {
+			// A record of the deletion, without personal data (PP 33/2026 Pasal 86 ayat 2 huruf f).
+			$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				ContextChat_Installer::table( 'events' ),
+				array(
+					'conversation_id' => null,
+					'type'            => 'retention_deleted',
+					'detail'          => (string) $deleted,
+					'created_at'      => $now,
+				)
+			);
+		}
+		// Events without a conversation (refused starts) follow the same retention; deletion
+		// records stay.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE conversation_id IS NULL AND type NOT IN ('retention_deleted', 'admin_deleted') AND created_at <= %s", ContextChat_Installer::table( 'events' ), gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * 86400 ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		// Stale conversation locks.
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE option_name LIKE %s AND option_value < %d', $wpdb->options, $wpdb->esc_like( 'contextchat_si_lock_' ) . '%', time() - 3600 ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		return $deleted;

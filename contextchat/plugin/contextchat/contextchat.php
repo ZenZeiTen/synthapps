@@ -3,7 +3,7 @@
  * Plugin Name:       ContextChat – Smart Chat Button for WhatsApp
  * Plugin URI:        https://github.com/ZenZeiTen/synthapps/tree/main/contextchat
  * Description:       A fast, accessible chat button for WhatsApp that pre-fills every message with the page, product and campaign the visitor came from, and routes it to the right agent.
- * Version:           2.0.0-dev
+ * Version:           2.0.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            NSXSFT
@@ -20,7 +20,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CONTEXTCHAT_VERSION', '2.0.0-dev' );
+define( 'CONTEXTCHAT_VERSION', '2.0.0' );
 define( 'CONTEXTCHAT_DB_VERSION', '1' );
 define( 'CONTEXTCHAT_FILE', __FILE__ );
 define( 'CONTEXTCHAT_DIR', plugin_dir_path( __FILE__ ) );
@@ -44,6 +44,7 @@ require_once CONTEXTCHAT_DIR . 'includes/si/class-si-router.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-si.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-countries.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-price-engine.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-prices.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-guard.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-validator.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-knowledge.php';
@@ -53,6 +54,9 @@ require_once CONTEXTCHAT_DIR . 'includes/si/class-handoff.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-orchestrator.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-chat-store.php';
 require_once CONTEXTCHAT_DIR . 'includes/si/class-chat-rest.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-admin-conversations.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-privacy.php';
+require_once CONTEXTCHAT_DIR . 'includes/si/class-si-analytics.php';
 
 register_activation_hook( __FILE__, array( 'ContextChat_Analytics', 'activate' ) );
 register_activation_hook( __FILE__, array( 'ContextChat_Installer', 'install' ) );
@@ -66,6 +70,7 @@ add_action(
 		add_action( 'init', array( 'ContextChat_Settings', 'register' ) );
 		add_action( 'init', array( 'ContextChat_Knowledge', 'register' ) );
 		add_action( 'init', array( 'ContextChat_Voice', 'register' ) );
+		add_action( 'init', array( 'ContextChat_Prices', 'register' ) );
 		ContextChat_Installer::maybe_install();
 		ContextChat_Analytics::init();
 		ContextChat_Frontend::init();
@@ -78,6 +83,9 @@ add_action(
 		if ( is_admin() ) {
 			ContextChat_Admin::init();
 			ContextChat_Admin_Analytics::init();
+			ContextChat_Admin_Conversations::init();
+			ContextChat_Privacy::init();
+			ContextChat_SI_Analytics::init();
 		}
 	}
 );

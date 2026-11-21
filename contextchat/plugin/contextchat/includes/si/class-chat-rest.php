@@ -83,25 +83,29 @@ class ContextChat_Chat_REST {
 				'callback'            => array( __CLASS__, 'start' ),
 				'permission_callback' => $open,
 				'args'                => array(
-					'lang'   => array(
+					'lang'    => array(
 						'type'    => 'string',
 						'enum'    => array( 'id', 'en' ),
 						'default' => 'id',
 					),
-					'page'   => array(
+					'page'    => array(
 						'type'      => 'string',
 						'default'   => '',
 						'maxLength' => 500,
 					),
-					'rule'   => array(
+					'rule'    => array(
 						'type'      => 'string',
 						'default'   => '',
 						'maxLength' => 64,
 					),
-					'device' => array(
+					'device'  => array(
 						'type'    => 'string',
 						'enum'    => array( 'mobile', 'desktop', '' ),
 						'default' => '',
+					),
+					'consent' => array(
+						'type'    => 'boolean',
+						'default' => false,
 					),
 				),
 			)
@@ -232,7 +236,65 @@ class ContextChat_Chat_REST {
 		 *
 		 * @param array $limits per_minute, starts_per_hour, per_day, per_conversation.
 		 */
-		return array_merge( ContextChat_Guard::LIMITS, (array) apply_filters( 'contextchat_si_limits', ContextChat_Guard::LIMITS ) );
+		$s      = ContextChat_Settings::get();
+		$limits = array(
+			'per_minute'       => (int) $s['si_limit_minute'],
+			'starts_per_hour'  => (int) $s['si_limit_starts'],
+			'per_day'          => (int) $s['si_limit_day'],
+			'per_conversation' => (int) $s['si_limit_conversation'],
+		);
+		return array_merge( ContextChat_Guard::LIMITS, $limits, (array) apply_filters( 'contextchat_si_limits', $limits ) );
+	}
+
+	/**
+	 * File-sharing hosts a visitor may not link to: the Privacy tab's list, with the filter applied.
+	 *
+	 * @return string[]
+	 */
+	public static function file_hosts() {
+		$hosts = ContextChat_Settings::hosts( ContextChat_Settings::get()['si_file_hosts'] );
+		/**
+		 * Filter the file-sharing hosts the SI chat refuses links to.
+		 *
+		 * @param string[] $hosts Host names.
+		 */
+		return (array) apply_filters( 'contextchat_si_file_hosts', $hosts ? $hosts : ContextChat_Guard::FILE_HOSTS );
+	}
+
+	/**
+	 * Days a conversation is kept (Privacy tab).
+	 *
+	 * @return int
+	 */
+	public static function retention_days() {
+		return max( 30, min( 3650, (int) ContextChat_Settings::get()['si_retention_days'] ) );
+	}
+
+	/**
+	 * A short fingerprint of the notice and policy address a visitor sees, kept with their consent
+	 * so the exact wording can be matched later.
+	 *
+	 * @param string $lang id or en.
+	 * @return string e.g. "id:3f2a9c1b0d4e".
+	 */
+	public static function notice_version( $lang ) {
+		return $lang . ':' . substr( sha1( self::notice( $lang ) . '|' . ContextChat_Settings::get()['si_privacy_url'] ), 0, 12 );
+	}
+
+	/**
+	 * The privacy notice shown above the chat, with {retention} filled in.
+	 *
+	 * @param string $lang id or en.
+	 * @return string
+	 */
+	public static function notice( $lang ) {
+		$days = self::retention_days();
+		if ( 'en' === $lang ) {
+			$period = 0 === $days % 365 ? sprintf( 1 === $days / 365 ? '%d year' : '%d years', $days / 365 ) : sprintf( '%d days', $days );
+		} else {
+			$period = 0 === $days % 365 ? sprintf( '%d tahun', $days / 365 ) : sprintf( '%d hari', $days );
+		}
+		return str_replace( '{retention}', $period, ContextChat_Voice::template( 'notice', $lang ) );
 	}
 
 	/**
@@ -260,7 +322,12 @@ class ContextChat_Chat_REST {
 		if ( $refused ) {
 			return $refused;
 		}
-		$lang = 'en' === $request['lang'] ? 'en' : 'id';
+		$lang    = 'en' === $request['lang'] ? 'en' : 'id';
+		$consent = ! empty( ContextChat_Settings::get()['si_consent'] );
+		if ( $consent && true !== $request['consent'] ) {
+			// The site asks visitors to agree to the notice first (Privacy tab).
+			return new WP_Error( 'contextchat_consent', 'The visitor has not agreed to the privacy notice.', array( 'status' => 400 ) );
+		}
 		if ( ! self::limiter()->start( ContextChat_Guard::visitor_hash(), time() ) ) {
 			self::log_limited( null, 'start' );
 			return self::limited( $lang );
@@ -281,6 +348,10 @@ class ContextChat_Chat_REST {
 			return new WP_Error( 'contextchat_store', 'The conversation could not be started.', array( 'status' => 500 ) );
 		}
 		self::store()->add_event( $created['id'], 'chat_started', '' );
+		if ( $consent ) {
+			// Proof of consent: which notice the visitor agreed to, and when (the event's time).
+			self::store()->add_event( $created['id'], 'consent', self::notice_version( $lang ) );
+		}
 		$greeting = ContextChat_Voice::template( 'greeting', $lang );
 		self::store()->add_message( $created['id'], 'system_template', $greeting, '' );
 
@@ -290,7 +361,8 @@ class ContextChat_Chat_REST {
 				'token'           => $created['token'],
 				'reference'       => $created['reference'],
 				'greeting'        => $greeting,
-				'notice'          => ContextChat_Voice::template( 'notice', $lang ),
+				'notice'          => self::notice( $lang ),
+				'privacy_url'     => ContextChat_Settings::get()['si_privacy_url'],
 				'lang'            => $lang,
 			),
 			201
@@ -327,7 +399,7 @@ class ContextChat_Chat_REST {
 			return self::limited( $lang, $conv, $state );
 		}
 
-		$hosts   = (array) apply_filters( 'contextchat_si_file_hosts', ContextChat_Guard::FILE_HOSTS );
+		$hosts   = self::file_hosts();
 		$verdict = ContextChat_Guard::inspect( (string) $request['text'], $hosts );
 		if ( ! $verdict['ok'] && 'empty' === $verdict['block'] ) {
 			return new WP_Error( 'contextchat_empty', 'Empty message.', array( 'status' => 400 ) );
@@ -514,12 +586,13 @@ class ContextChat_Chat_REST {
 		}
 		return new WP_REST_Response(
 			array(
-				'reference' => $conv['reference'],
-				'lang'      => $state['lang'],
-				'messages'  => $messages,
-				'quote'     => is_array( $state['quote'] ) ? self::quote_card( $state['quote'], $state['lang'] ) : null,
-				'handoff'   => $state['handoff_offered'] ? self::handoff_card( $conv, $state, $state['handoff_reason'], $state['lang'] ) : null,
-				'notice'    => ContextChat_Voice::template( 'notice', $state['lang'] ),
+				'reference'   => $conv['reference'],
+				'lang'        => $state['lang'],
+				'messages'    => $messages,
+				'quote'       => is_array( $state['quote'] ) ? self::quote_card( $state['quote'], $state['lang'] ) : null,
+				'handoff'     => $state['handoff_offered'] ? self::handoff_card( $conv, $state, $state['handoff_reason'], $state['lang'] ) : null,
+				'notice'      => self::notice( $state['lang'] ),
+				'privacy_url' => ContextChat_Settings::get()['si_privacy_url'],
 			),
 			200
 		);
@@ -608,26 +681,21 @@ class ContextChat_Chat_REST {
 	}
 
 	/**
-	 * The price engine with the site's table and the bundled country data.
+	 * The price engine with the site's price table and Apostille list.
 	 *
 	 * @return ContextChat_Price_Engine
 	 */
 	public static function engine() {
-		return new ContextChat_Price_Engine( self::price_table(), new ContextChat_Countries() );
+		return new ContextChat_Price_Engine( self::price_table(), new ContextChat_Countries( null, ContextChat_Prices::apostille() ) );
 	}
 
 	/**
-	 * The price table: the bundled seed, or a site's own through the filter.
+	 * The price table: the Prices tab's, or the bundled seed, with the filter applied.
 	 *
 	 * @return array
 	 */
 	public static function price_table() {
-		/**
-		 * Filter the price table the engine calculates from.
-		 *
-		 * @param array $table Decoded data/price-table.nusalexia.json.
-		 */
-		return (array) apply_filters( 'contextchat_price_table', ContextChat_Price_Engine::seed() );
+		return ContextChat_Prices::table();
 	}
 
 	/**

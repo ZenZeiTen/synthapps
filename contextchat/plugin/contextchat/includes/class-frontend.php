@@ -459,6 +459,9 @@ class ContextChat_Frontend {
 			'lang'     => $lang,
 			'host'     => (string) wp_parse_url( home_url(), PHP_URL_HOST ),
 			'idle'     => (int) $s['si_idle_minutes'] * 60000,
+			'consent'  => ! empty( $s['si_consent'] ),
+			'notice'   => ContextChat_Chat_REST::notice( $lang ),
+			'privacy'  => (string) $s['si_privacy_url'],
 			/* translators: %s: business name, e.g. Nusalexia. */
 			'title'    => sprintf( __( '%s SI Assistant', 'contextchat' ), $name ),
 			'subtitle' => __( 'Synthesized Intelligence · can hand you to our team', 'contextchat' ),
@@ -472,6 +475,9 @@ class ContextChat_Frontend {
 				'assistant'   => __( 'SI assistant', 'contextchat' ),
 				'error'       => __( 'The message could not be sent. Please try again.', 'contextchat' ),
 				'upload'      => ContextChat_Voice::template( 'upload', $lang ),
+				'privacy'     => __( 'Privacy policy', 'contextchat' ),
+				'agree'       => __( 'Agree and start', 'contextchat' ),
+				'ref'         => __( 'Chat reference', 'contextchat' ),
 			),
 		);
 	}

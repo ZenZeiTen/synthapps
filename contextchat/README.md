@@ -18,6 +18,7 @@ So the first message you receive reads *"Hi Budi! I need a sworn translation for
 - **WooCommerce** "Ask about this product" button with name, price, SKU and link.
 - **Shortcode and block**: `[contextchat text="Chat with us" agent="rina"]` and a "ContextChat button" block.
 - **Privacy-friendly analytics**: clicks by day, page, agent, button and device; CSV export; optional Google Analytics / Tag Manager events. No IP addresses, cookies or message text are stored.
+- **SI assistant (2.0, optional)**: a chat in the panel on Anthropic's Claude models, with the site's own key. It answers from your knowledge entries, gives estimates calculated in code from your price table, refuses ID numbers and documents, and hands over to your team on WhatsApp or by email with a summary. Off until you turn it on; see [SI assistant](#si-assistant-20).
 - **Translated into Indonesian** (Bahasa Indonesia), including the block editor strings. The plugin follows the site language set under Settings → General.
 - **Fast and accessible**: one small script with no jQuery, loaded only where a button shows; every button is a real link that works without JavaScript; keyboard and screen-reader support; reduced-motion and dark-mode aware; a bottom sheet on phones; works with page caching.
 
@@ -43,7 +44,7 @@ npm run build
 
 On Windows, if you don't know where your copy is, open the `contextchat` folder in File Explorer, type `powershell` in the address bar and press Enter: PowerShell opens in that folder. Running `npm run build` anywhere else fails with "Could not read package.json".
 
-The build prints the full path of the zip it wrote, `dist/contextchat-2.0.0-dev.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
+The build prints the full path of the zip it wrote, `dist/contextchat-2.0.0.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
 
 Requirements: WordPress 6.2 or newer, PHP 7.4 or newer. WooCommerce is optional.
 
@@ -84,7 +85,7 @@ How it fits together:
 - `includes/class-admin.php`, `class-settings.php` – settings screen and strict sanitising of every saved value.
 - `includes/class-admin-analytics.php` – the analytics screen and CSV export.
 
-## SI (2.0, in development)
+## SI assistant (2.0)
 
 ContextChat 2.0 adds an SI (Synthesized Intelligence) assistant to the chat panel, following the ContextChat 2.0 design plan (kept outside this repository). This first part adds the **ContextChat → SI** settings tab:
 
@@ -154,7 +155,7 @@ The fifth part adds the conversation itself, on the server:
   - the visitor asks for WhatsApp, email or a person, or hesitates about the price (keyword backup);
   - the API fails, the daily cap is reached, or after 40 visitor messages.
 - **Handoff** (`includes/si/class-handoff.php`). The summary is in the design plan's format, in Indonesian or English, and kept under 1,000 characters for WhatsApp by dropping the least important lines first. The email subject follows the house format `[Nusalexia] Terjemahan Tersumpah - EST-… - Permintaan Penawaran`. The summary goes to the agent chosen for translation or interpreting, else the first available agent, and the email to the address set on the SI tab.
-- **Endpoints** (`includes/si/class-chat-rest.php`): `POST chat/start`, `chat/message`, `chat/handoff`, `chat/idle` and `GET chat/resume` under `/wp-json/contextchat/v1/`.
+- **Endpoints** (`includes/si/class-chat-rest.php`): `POST chat/start`, `chat/message`, `chat/handoff`, `chat/idle` and `chat/resume` under `/wp-json/contextchat/v1/`, all POST so tokens never appear in addresses, with `Cache-Control: no-store`.
   - **Access:** each conversation has a random token, given once and stored only as a SHA-256 hash. Requests from other sites (a foreign `Origin`) and bodies over 4 KB are refused.
   - **Order of checks:** the rate limits, the 1.5-second first-message check and the guard all run before the model. Blocked messages are not stored.
   - **When it answers:** only when the SI chat is turned on (SI tab, off after updating) and a key is saved.
@@ -186,6 +187,56 @@ If the chat can't start, for example because it was switched off while the page 
 3. Choose the agents and the email for handoffs.
 4. Tick **Turn on the SI chat**.
 
+The seventh part adds the admin screens:
+
+- **Prices** tab (`includes/si/class-prices.php`). Edit the price table:
+  - rates per language pair, regular and sworn;
+  - legalisation and terminology fees;
+  - the next-day and same-day surcharges;
+  - two volume-discount tiers;
+  - the deposit rule, minimum pages, revisions and how long estimates stay valid.
+
+  Also: JSON import and export, a way back to the bundled table, and a warning after 90 days without a check. The Apostille member list is edited as lines (`AU 1995-03-16 Australia`), with a warning after a year. Both are stored only when they differ from the bundled data, so plugin updates keep bringing newer bundled prices until you change them.
+- **Privacy** tab:
+  - the keep-for period (30–3650 days, default 365), which sets the expiry of new chats and the daily clean-up;
+  - the privacy policy address, linked under the chat's notice;
+  - the rate limits;
+  - the refused file-sharing hosts.
+
+  `{retention}` in the notice shows the period.
+- **ContextChat → Conversations** (`includes/si/class-admin-conversations.php`), administrators only:
+  - a list with filters and search by reference;
+  - the transcript, with the team summary, estimates and processing record;
+  - a JSON export (without the token hash), for a visitor who asks for a copy;
+  - delete with a confirm box, recorded by reference only. Export and delete each check a nonce.
+
+The eighth part is the privacy check. [`docs/privacy-draft.md`](docs/privacy-draft.md) goes through Indonesia's Personal Data Protection Law (UU 27/2022) and its implementing regulation (PP 33/2026, in force from 16 January 2027), read from official copies. For each requirement it gives the article, what the plugin does, and what needs a legal decision; the transfer of chat text to Anthropic outside Indonesia comes first. Following it:
+
+- the notice names Anthropic as a language-model provider outside Indonesia;
+- the chat shows its reference, so visitors can quote it in a request for a copy or deletion;
+- an option, **Ask visitors to agree first**, shows the notice with an **Agree and start** button and records the agreement with a fingerprint of the notice;
+- WordPress's **Settings → Privacy → Policy Guide** offers a suggested policy section, with the site's settings filled in and placeholders for the legal review (`includes/si/class-privacy.php`).
+
+It is a starting point, not legal advice.
+
+The ninth part is a set of 30 golden conversations (`tests/golden/`), in Indonesian and English, covering:
+
+- estimates across language pairs and legalisation routes, express jobs and volume discounts, and a pair that is not offered;
+- interpreting, knowledge questions, price hesitation and asking for a person;
+- prompt injection, staff names, ID numbers and file links;
+- an off-topic question, a request for a promise, and a three-turn intake.
+
+`npm test` runs them dry: it checks the file, works out every expected estimate with the price engine, and plays the turns that are answered without the model. `npm run eval` plays them against the real API with the bundled knowledge, voice and prices, checks each reply (estimate, handoff, language, wording), and has Claude Haiku grade the tone against the voice guide. It needs `ANTHROPIC_API_KEY`, stops at `--max-cost` (default USD 2), writes `tests/golden/results/<time>/report.md`, and never runs in CI. Run it after changing the prompt, the voice, the knowledge or the models.
+
+The tenth part adds **SI analytics** under ContextChat → Analytics (`includes/si/class-si-analytics.php`):
+
+- the funnel: chats started, chats where the visitor wrote, estimates given, team offered, went to the team (by WhatsApp or email);
+- the service asked for;
+- refusals and errors (ID numbers, file links, rate limits, replies rewritten by the checker, API errors, the spending cap);
+- the model cost in total and per chat.
+
+A CSV export gives one row per chat, without message text: reference, language, device, path, status, service, handoff, number of visitor messages and estimates, last estimate and cost. Only chats still kept are counted.
+
 ## Translations
 
 `plugin/contextchat/languages/` holds the template (`contextchat.pot`) and the Indonesian translation (`contextchat-id_ID.po`). After changing strings in the code or editing a `.po` file, run:
@@ -199,8 +250,9 @@ This refreshes the template, brings every `.po` file in line with it (new string
 ## Tests
 
 ```bash
-npm test           # PHP and JavaScript unit tests (no WordPress needed)
+npm test           # PHP and JavaScript unit tests, and the golden conversations dry run (no WordPress needed)
 npm run test:e2e   # browser tests against a real WordPress site
+npm run eval       # golden conversations against the real API (needs ANTHROPIC_API_KEY; costs money)
 ```
 
 The PHP and JavaScript template engines are checked against the same cases in `tests/fixtures/templates.json`, so the link built on the server and the one built in the browser always say the same thing. The two price engines share `tests/fixtures/prices.json` in the same way.

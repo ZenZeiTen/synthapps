@@ -15,6 +15,11 @@ npm run build      # writes dist/contextchat-<version>.zip and prints its path
 npm run i18n       # after changing strings: refreshes the .pot, merges each .po, rebuilds .mo/.json
 ```
 
+`npm test` includes a dry run of the golden conversations (`tests/golden/`), which needs no network.
+The live run, `npm run eval`, plays them against the real API and has Claude Haiku grade the tone.
+It needs `ANTHROPIC_API_KEY` and costs money (stops at `--max-cost`, default $2), so run it only
+when the user asks, and never in CI. Run it after changing the prompt, voice, knowledge or models.
+
 CI: `.github/workflows/contextchat.yml` (lint on PHP 7.4 and 8.3, unit and browser tests, a build
 on Windows, release from the Run workflow button with "Publish a release" ticked on `main`).
 

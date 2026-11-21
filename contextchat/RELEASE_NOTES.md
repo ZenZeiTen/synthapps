@@ -1,39 +1,90 @@
 A WordPress plugin with a chat button for WhatsApp. It fills in each message with what the visitor was looking at — the page, the product and its price, the campaign they came from — and sends it to the right person on your team.
 
-> **Pre-release.** 2.0.0-dev is unfinished work on ContextChat 2.0: it adds the settings the coming SI assistant will run on, but not the assistant itself. Use it to try the new SI tab. For an ordinary site, stay on [ContextChat 1.1.0](https://github.com/ZenZeiTen/synthapps/releases/tag/contextchat-v1.1.0).
+Version 2.0.0 adds an optional **SI assistant**: a chat in the panel that answers questions, gives estimates from your price table and hands the visitor to your team with a summary. It is **off until you turn it on**, so nothing changes for visitors when you update.
 
 ## Install
 
-Download `contextchat-2.0.0-dev.zip` below. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your WhatsApp number with country code, or add agents.
+Download `contextchat-2.0.0.zip` below. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your WhatsApp number with country code, or add agents.
 
-Requires WordPress 6.2 or newer and PHP 7.4 or newer. WooCommerce is optional.
+Requires WordPress 6.2 or newer and PHP 7.4 or newer. WooCommerce is optional. The SI assistant needs an Anthropic API key; your site pays Anthropic directly.
 
-## What's new in 2.0.0-dev
+## What's new in 2.0.0
 
-Nothing changes for visitors: the chat button works exactly as in 1.1.0.
+### For visitors, once you turn the SI chat on
 
-New: **ContextChat → SI** tab, for administrators.
+- **A chat in the panel.** The SI assistant answers from your knowledge entries, in Indonesian or English, in the voice you set. It is told not to name staff (the names you list are blocked outright) and not to promise what your team has not confirmed.
+- **Estimates calculated in code.** The SI collects the details (document, languages, pages, destination, deadline), then shows an estimate card worked out by the plugin from your price table. The model never calculates a price. The card shows:
+  - the translation fee;
+  - Apostille, or ministry and embassy legalisation, chosen from the destination country;
+  - any express surcharge and volume discount;
+  - the total and the 50% deposit;
+  - a reference and how long the estimate is valid.
+- **Handoff to your team** on WhatsApp or by email, with a summary the visitor can edit first. The handoff is offered:
+  - when the visitor asks for a person;
+  - when they hesitate about the price;
+  - when the job needs the team (express, interpreting, a pair you don't offer);
+  - when they stay quiet after an estimate.
+- **Safe by default.** Messages with ID numbers, documents or file links are refused before anything is stored or sent. Every reply is checked for amounts, names, promises and length; a reply that fails is written again by the stronger model or replaced by a fixed reply.
+- **Privacy notice** above the chat, saying that chat text is processed by Anthropic outside Indonesia and how long it is kept, with a link to your privacy policy and the chat's reference.
 
-- **Anthropic API key.** Type it in the tab, or set it in `wp-config.php` with `define( 'CONTEXTCHAT_ANTHROPIC_KEY', 'sk-ant-…' );`, which takes precedence. A typed key is stored encrypted with a key derived from your site's `AUTH_KEY`, and is never shown again. If `AUTH_KEY` changes, the tab asks for the key again.
-- **Model auto-routing.** Claude Haiku 5.5 writes each reply. Claude Sonnet 5.5 writes it again only when the first reply fails a check, is declined, is cut off or comes back empty. You can also use one model only. Model names, effort and reply length are settings.
-- **Daily spending cap**, USD 10 by default. Each reply's cost is added to today's total, in your site time zone. Once the cap is reached, nothing more is sent that day.
-- **Test connection** sends one message and shows which model answered, the tokens used and the cost. A checkbox makes the first reply fail a check, to show the stronger model taking over.
+### For administrators
 
-The plugin contacts Anthropic only when you press **Test connection**. What is sent and why is under *External services* in `readme.txt`.
+New tabs and screens under **ContextChat**:
 
-Also: the zip can now be built on Windows with `npm run build`.
+- **SI**:
+  - the API key, stored encrypted or set in `wp-config.php`;
+  - model routing: Claude Haiku 5.5, with Claude Sonnet 5.5 when a reply fails a check;
+  - the daily spending cap, USD 10 by default;
+  - Test connection;
+  - turning the SI chat on, the business name, the handoff email and agents, and the idle time.
+- **Knowledge**: the entries the SI answers from, with import, export and the bundled set.
+- **Voice**: the voice guide, example replies, fixed replies, banned words and the staff names to block.
+- **Prices**:
+  - the price table, with import, export and a warning when prices are older than 90 days;
+  - the Apostille member list, with a yearly review warning.
+- **Privacy**:
+  - how long chats are kept (365 days by default);
+  - the privacy policy address;
+  - rate limits;
+  - refused file-sharing hosts;
+  - optionally, asking visitors to agree before the chat starts. Their agreement is recorded.
+- **Conversations**:
+  - read each chat with its summary, estimates and processing record;
+  - export it as JSON;
+  - delete it.
+- **Analytics**:
+  - an SI section with the funnel from chat started to team contacted;
+  - refusals and errors;
+  - model cost;
+  - a CSV export without message text.
 
-### Updating from 1.1.0
+WordPress's **Settings → Privacy → Policy Guide** offers a suggested privacy policy section for the SI chat. It was checked against Indonesia's Personal Data Protection Law (UU 27/2022) and its implementing regulation (PP 33/2026, in force from 16 January 2027). It is a starting point with parts to fill in, not legal advice.
 
-1. Download `contextchat-2.0.0-dev.zip` below.
+### Before you turn the SI chat on
+
+1. On **SI**, save your Anthropic API key and press **Test connection**.
+2. Check **Knowledge**, **Voice** (add your staff names to block) and **Prices** against your own business. The bundled data is Nusalexia's.
+3. Set the handoff agents and email on **SI**, and the keep-for period and privacy policy address on **Privacy**.
+4. Publish a privacy policy that covers the chat, and have it reviewed. The open questions are listed in `docs/privacy-draft.md` in the repository; the most important is sending chat text to Anthropic outside Indonesia.
+5. Tick **Turn on the SI chat**.
+
+The plugin contacts Anthropic only after you save a key and either press **Test connection** or turn the SI chat on. What is sent, and when, is under *External services* in `readme.txt`.
+
+### Updating from 1.1.0 or 2.0.0-dev
+
+1. Download `contextchat-2.0.0.zip` below.
 2. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and click **Install Now**.
 3. WordPress says the plugin is already installed. Click **Replace current with uploaded**.
 
-Your settings, agents, rules and click analytics stay as they are. Do not delete ContextChat first: deleting it removes its settings and statistics. To go back, upload `contextchat-1.1.0.zip` the same way.
+Your settings, agents, rules and click analytics stay as they are, and the new tables and options are created on the first page load. Do not delete ContextChat first: deleting it removes its settings, statistics and chats. To go back, upload `contextchat-1.1.0.zip` the same way; the SI tables are then left unused.
 
 ### Not yet tested
 
-- A real call to Anthropic. The tests use a stand-in for the Anthropic API, so the first real check is pressing **Test connection** with your key.
+- **Real Anthropic API calls.** The automated tests use a stand-in for the API. Before relying on the chat:
+  - press **Test connection**;
+  - run the golden conversations against the real API (`npm run eval`, see the README). It plays 30 conversations and has Claude Haiku grade the tone; it needs your key and costs a little.
+- **A real WooCommerce store and MySQL/MariaDB.** The browser tests run on SQLite with a stand-in for WooCommerce.
+- **The legal questions** in `docs/privacy-draft.md`. They need a lawyer, not a test.
 
 ## What's new in 1.1.0
 

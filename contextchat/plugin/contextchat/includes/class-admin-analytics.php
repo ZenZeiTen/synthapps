@@ -138,6 +138,107 @@ class ContextChat_Admin_Analytics {
 					<?php self::share_list( $r['sources'], 'source', $sources, $r['total'] ); ?>
 				</div>
 			</div>
+			<?php
+			if ( ContextChat_SI_Analytics::has_data() ) {
+				self::si_section( $days );
+			}
+			?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * The SI chat: funnel, refusals and errors, cost, services. No message text.
+	 *
+	 * @param int $days Days.
+	 */
+	private static function si_section( $days ) {
+		$si    = ContextChat_SI_Analytics::report( $days );
+		$steps = array(
+			array( __( 'Chats started', 'contextchat' ), $si['started'] ),
+			array( __( 'Visitor wrote', 'contextchat' ), $si['engaged'] ),
+			array( __( 'Estimate given', 'contextchat' ), $si['quoted'] ),
+			array( __( 'Team offered', 'contextchat' ), $si['offered'] ),
+			array( __( 'Went to the team', 'contextchat' ), $si['clicked'] ),
+		);
+		$labels = array(
+			'blocked_pii'          => __( 'Refused: ID numbers', 'contextchat' ),
+			'blocked_upload'       => __( 'Refused: documents or file links', 'contextchat' ),
+			'blocked_input'        => __( 'Refused: other (too long, markup)', 'contextchat' ),
+			'rate_limited'         => __( 'Over a rate limit', 'contextchat' ),
+			'validator_reject'     => __( 'Replies rewritten by the checker', 'contextchat' ),
+			'api_error'            => __( 'API errors', 'contextchat' ),
+			'cap_reached'          => __( 'Daily spending cap reached', 'contextchat' ),
+			'instructions_request' => __( 'Asked for the instructions', 'contextchat' ),
+			'name_request'         => __( 'Asked for staff names', 'contextchat' ),
+			'idle_offer'           => __( 'Idle offers after an estimate', 'contextchat' ),
+		);
+		$services = array(
+			'translation'  => __( 'Translation', 'contextchat' ),
+			'interpreting' => __( 'Interpreting', 'contextchat' ),
+			''             => __( 'Not known yet', 'contextchat' ),
+		);
+		$channels = array(
+			'whatsapp' => 'WhatsApp',
+			'email'    => __( 'Email', 'contextchat' ),
+		);
+		?>
+		<div class="ctxc-panel-box ctxc-si-analytics">
+			<h2><?php esc_html_e( 'SI chat', 'contextchat' ); ?></h2>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: 1: days in the report, 2: days chats are kept. */
+					esc_html__( 'Chats started in the last %1$d days. Only chats still kept are counted (Settings → Privacy keeps them %2$d days). No message text is used here or in the export.', 'contextchat' ),
+					(int) $days,
+					(int) ContextChat_Chat_REST::retention_days()
+				);
+				?>
+				<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=contextchat_si_export&range=' . $days ), 'contextchat_si_export' ) ); ?>"><?php esc_html_e( 'Export SI chats (CSV)', 'contextchat' ); ?></a>
+			</p>
+			<ol class="ctxc-funnel">
+				<?php foreach ( $steps as $i => $step ) : ?>
+					<?php $pct = $si['started'] ? round( $step[1] / $si['started'] * 100 ) : 0; ?>
+					<li>
+						<span class="ctxc-share-label"><?php echo esc_html( $step[0] ); ?></span>
+						<span class="ctxc-share-n"><?php echo esc_html( number_format_i18n( $step[1] ) . ( $i ? ' · ' . $pct . '%' : '' ) ); ?></span>
+						<span class="ctxc-share-bar"><span style="<?php echo esc_attr( 'width:' . ( $i ? $pct : ( $si['started'] ? 100 : 0 ) ) . '%' ); ?>"></span></span>
+					</li>
+				<?php endforeach; ?>
+			</ol>
+			<div class="ctxc-grid">
+				<div>
+					<h3><?php esc_html_e( 'Went to the team by', 'contextchat' ); ?></h3>
+					<?php self::share_list( $si['channels'], 'channel', $channels, $si['clicked'] ); ?>
+					<p class="description"><?php esc_html_e( 'A chat can use both, so the shares can add up to more than 100%.', 'contextchat' ); ?></p>
+					<h3><?php esc_html_e( 'Service', 'contextchat' ); ?></h3>
+					<?php self::share_list( $si['services'], 'service', $services, $si['started'] ); ?>
+				</div>
+				<div>
+					<h3><?php esc_html_e( 'Refusals and errors', 'contextchat' ); ?></h3>
+					<?php if ( $si['events'] ) : ?>
+						<table class="widefat striped">
+							<tbody>
+								<?php foreach ( $si['events'] as $row ) : ?>
+									<tr>
+										<td><?php echo esc_html( isset( $labels[ $row['type'] ] ) ? $labels[ $row['type'] ] : $row['type'] ); ?></td>
+										<td class="num"><?php echo esc_html( number_format_i18n( (int) $row['n'] ) ); ?></td>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+					<?php else : ?>
+						<p><?php esc_html_e( 'None in this period.', 'contextchat' ); ?></p>
+					<?php endif; ?>
+					<h3><?php esc_html_e( 'Model cost', 'contextchat' ); ?></h3>
+					<p class="ctxc-si-cost">
+						<?php
+						/* translators: 1: cost in US dollars, 2: cost per chat in US dollars. */
+						printf( esc_html__( '$%1$s in total, $%2$s per chat', 'contextchat' ), esc_html( number_format_i18n( $si['cost_micro_usd'] / 1000000, $si['cost_micro_usd'] < 1000000 ? 4 : 2 ) ), esc_html( number_format_i18n( $si['started'] ? $si['cost_micro_usd'] / 1000000 / $si['started'] : 0, 4 ) ) );
+						?>
+					</p>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
