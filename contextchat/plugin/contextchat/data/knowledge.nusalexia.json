@@ -1,0 +1,326 @@
+{
+ "version": "2026-11-21",
+ "sources": [
+  "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008",
+  "https://www.nusalexia.co.id/cara-memesan/",
+  "https://www.nusalexia.co.id/daftar-harga/",
+  "https://www.nusalexia.co.id/terjemahan-dokumen/"
+ ],
+ "note": "Seed knowledge for the Nusalexia SI chat. Indonesian; the SI answers English speakers in English from these entries. Left out on purpose: NPWP, bank account number, staff names, client lists and internal procedures.",
+ "entries": [
+  {
+   "id": "tentang",
+   "title": "Tentang Nusalexia",
+   "lang": "id",
+   "body": "Nusalexia Trans adalah agensi terjemahan profesional tersumpah di BSD City, berdiri sejak 2017.",
+   "tags": [
+    "umum",
+    "tentang"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#L",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "layanan",
+   "title": "Layanan Nusalexia",
+   "lang": "id",
+   "body": "Layanan Nusalexia: terjemahan (tersumpah dan non-tersumpah), interpretasi (juru bahasa), apostille dan legalisasi, subtitling (takarir), transkripsi, serta pelokalan konten (situs web, aplikasi, materi pemasaran, antarmuka perangkat lunak).",
+   "tags": [
+    "umum",
+    "layanan"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#C",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "tersumpah",
+   "title": "Terjemahan tersumpah dan reguler",
+   "lang": "id",
+   "body": "Terjemahan tersumpah adalah terjemahan yang disertai cap resmi dan afidavit dari penerjemah tersumpah. Terjemahan ini diakui untuk keperluan hukum, imigrasi, kedutaan, pengadilan dan pemerintahan. Terjemahan reguler (non-tersumpah) adalah terjemahan profesional yang akurat tanpa cap tersumpah, cocok untuk keperluan internal, pemasaran, situs web, e-commerce dan dokumen bisnis umum. Harga dihitung per halaman jadi A4.",
+   "tags": [
+    "terjemahan",
+    "tersumpah",
+    "reguler"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#C1",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "spesialisasi",
+   "title": "Bidang terjemahan",
+   "lang": "id",
+   "body": "Bidang yang ditangani: hukum (kontrak, dokumen pengadilan, surat kuasa, akta), medis (dokumen klinis, materi farmasi, formulir persetujuan, rekam medis), teknis (manual, spesifikasi teknik, lembar data produk), keuangan (laporan keuangan, laporan audit, dokumen perbankan), akademik (ijazah, transkrip, makalah penelitian, jurnal), perusahaan (profil perusahaan, MoU, dokumen pendirian), serta lokalisasi situs web dan konten digital.",
+   "tags": [
+    "terjemahan",
+    "bidang"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#C1",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "interpretasi",
+   "title": "Interpretasi (juru bahasa)",
+   "lang": "id",
+   "body": "Ada empat jenis interpretasi: simultan (juru bahasa berbicara bersamaan dengan pembicara, untuk konferensi dan acara besar), konsekutif (juru bahasa berbicara setelah pembicara jeda, untuk rapat, wawancara dan negosiasi), pendamping atau escort (mendampingi klien saat kunjungan pabrik, perjalanan bisnis atau negosiasi), dan daring (lewat Zoom, Google Meet atau platform lain). Sektor: bisnis, pemerintahan, hukum, pendidikan dan diplomatik. Tarif interpretasi tidak tercantum di daftar harga; setelah detail acara terkumpul, tim kami yang mengirimkan penawaran.",
+   "tags": [
+    "interpretasi",
+    "juru bahasa"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#C2",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "apostille",
+   "title": "Apostille dan legalisasi",
+   "lang": "id",
+   "body": "Apostille adalah pengesahan dokumen internasional berdasarkan Konvensi Apostille (Den Haag). Dokumen yang sudah diapostille bisa digunakan di negara anggota konvensi tanpa legalisasi kedutaan tambahan. Untuk negara yang bukan anggota, jalurnya legalisasi Kemenkum/Kemenlu lalu legalisasi kedutaan. Pilih salah satu jalur, sesuai negara tujuan. Apostille dan legalisasi dihitung per dokumen dan tidak mendapat diskon volume. Dokumen yang bisa diapostille antara lain akta kelahiran, akta nikah, ijazah, transkrip, akta perusahaan, izin usaha (SIUP, TDP, NIB), surat kuasa, kontrak, SKCK dan paspor. Prosesnya: klien mengirim dokumen, Nusalexia memprosesnya di instansi yang berwenang, lalu dokumen dikembalikan dengan sertifikat apostille atau legalisasi. Tanyakan ke instansi tujuan apa yang diminta: terjemahan tersumpah saja, legalisasi, atau apostille, dan tanyakan sejak awal apakah dokumen asli diperlukan.",
+   "tags": [
+    "apostille",
+    "legalisasi"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#C3",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "subtitling",
+   "title": "Subtitling (takarir)",
+   "lang": "id",
+   "body": "Layanan takarir untuk video kreator konten, video perusahaan, e-learning dan media. Takarir dibuat akurat, sesuai waktu, dan diformat untuk platform tujuan.",
+   "tags": [
+    "takarir",
+    "subtitling"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#C4",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "transkripsi",
+   "title": "Transkripsi",
+   "lang": "id",
+   "body": "Transkripsi audio atau video menjadi teks untuk keperluan hukum, kesehatan, media dan pendidikan. Hasilnya tepat, terformat, dan siap untuk dokumentasi atau analisis.",
+   "tags": [
+    "transkripsi"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#C5",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "pelokalan",
+   "title": "Pelokalan",
+   "lang": "id",
+   "body": "Pelokalan konten disesuaikan dengan norma budaya, idiom dan istilah industri setempat. Mencakup situs web, aplikasi, materi pemasaran dan antarmuka perangkat lunak.",
+   "tags": [
+    "pelokalan",
+    "lokalisasi"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#C6",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "cara-memesan",
+   "title": "Cara memesan",
+   "lang": "id",
+   "body": "Memesan tidak perlu formulir atau akun. Kirim dokumen lewat WhatsApp atau email, lalu klien menerima penawaran tertulis berisi harga dan tanggal selesai. Yang perlu dikirim: foto atau pindaian yang jelas dari setiap halaman (termasuk halaman belakang, cap dan tanda tangan); bahasa asal dan bahasa tujuan serta negara atau instansi penerima; keperluannya (visa, studi, menikah, kerja atau bisnis), karena keperluan menentukan apakah perlu terjemahan tersumpah, legalisasi atau apostille; dan tenggat. Prosesnya empat langkah: sapa kami lewat WhatsApp atau email; terima rincian harga dan tanggal selesai secara tertulis, angka itu tidak berubah di tengah jalan; DP 50% menjadi tanda mulai, lalu penerjemahan, revisi dan verifikasi dikerjakan oleh orang yang berbeda; draf dikirim untuk diperiksa dulu, lalu hard copy bercap diantar kurir atau bisa dijemput lewat Gojek/Grab.",
+   "tags": [
+    "memesan",
+    "proses"
+   ],
+   "source_url": "https://www.nusalexia.co.id/cara-memesan/",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "lama-pengerjaan",
+   "title": "Lama pengerjaan",
+   "lang": "id",
+   "body": "Lama pengerjaan umum, dalam hari kerja: dokumen pribadi (tersumpah) 1–2 hari, dokumen spesialis 3–5 hari, apostille dan legalisasi 5–10 hari, takarir dan transkripsi 2–4 hari. Tanggal pasti tercantum di penawaran tertulis. Tersedia layanan besok jadi dan hari ini jadi dengan biaya tambahan.",
+   "tags": [
+    "waktu",
+    "tenggat"
+   ],
+   "source_url": "https://www.nusalexia.co.id/cara-memesan/",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "ekspres",
+   "title": "Layanan ekspres",
+   "lang": "id",
+   "body": "Besok jadi menambah 50% dari biaya terjemahan, hari ini jadi (12 jam) menambah 100% dari biaya terjemahan. Pesanan hari ini jadi harus masuk sebelum 18.00 WIB pada hari kerja (Senin–Jumat). Pesanan ekspres hanya dikonfirmasi setelah tim memastikan penerjemah tersedia, jadi tim kami yang mengonfirmasinya. Biaya ekspres tidak dapat ditawar dan berlaku di atas biaya lainnya.",
+   "tags": [
+    "ekspres",
+    "besok jadi",
+    "hari ini jadi"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#G4",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "pembayaran",
+   "title": "Pembayaran",
+   "lang": "id",
+   "body": "DP 50% berlaku untuk proyek mulai Rp 1.000.000 dan untuk semua klien baru. Minimal pemesanan 1 halaman. Pembayaran bisa lewat transfer bank (BCA), kartu kredit online, atau layanan pembayaran online lainnya; detailnya dikonfirmasi bersama invoice. Untuk klien perusahaan, tim kami akan mengonfirmasi detail invoice dan PPh 23.",
+   "tags": [
+    "pembayaran",
+    "DP"
+   ],
+   "source_url": "https://www.nusalexia.co.id/daftar-harga/",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "diskon",
+   "title": "Diskon volume",
+   "lang": "id",
+   "body": "Diskon volume berlaku untuk biaya terjemahan saja: 20 dokumen asli atau lebih mendapat potongan 5%, 40 dokumen asli atau lebih mendapat potongan 10%. Diskon tidak berlaku untuk legalisasi atau apostille. Di luar diskon volume ini tidak ada diskon yang bisa dijanjikan lewat chat; permintaan penyesuaian harga diteruskan ke tim.",
+   "tags": [
+    "diskon",
+    "harga"
+   ],
+   "source_url": "https://www.nusalexia.co.id/daftar-harga/",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "kualitas",
+   "title": "Kualitas dan revisi",
+   "lang": "id",
+   "body": "Setiap terjemahan melalui double-editing: diterjemahkan oleh penerjemah spesialis, diperiksa oleh penyunting kedua, lalu dicek konsistensi dan formatnya sebelum dikirim. Garansi revisi gratis hingga 3 kali dalam 7 hari setelah pengiriman, untuk kesalahan penerjemah. Perubahan lingkup dari klien (tambahan, bahan baru, perubahan kebutuhan) dihitung terpisah. Permintaan revisi setelah 7 hari dinilai kasus per kasus.",
+   "tags": [
+    "kualitas",
+    "revisi",
+    "garansi"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#G3",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "hasil",
+   "title": "Bentuk hasil terjemahan",
+   "lang": "id",
+   "body": "Hasil standar berupa file Word (.docx) yang bisa disunting dan PDF. Untuk terjemahan tersumpah, hard copy bercap wajib dicetak; softcopy dikirim lebih dulu, lalu hard copy dikirim lewat kurir atau bisa diambil.",
+   "tags": [
+    "hasil",
+    "pengiriman"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#G2",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "format-dokumen",
+   "title": "Format dokumen yang diterima",
+   "lang": "id",
+   "body": "Dokumen sumber bisa berupa PDF, DOCX, JPG/PNG hasil pindaian, atau XLSX; dokumen asli lebih disukai. Pindaian atau foto yang kurang jelas bisa memengaruhi waktu pengerjaan dan harga. Dokumen tidak bisa dikirim lewat chat ini; kirim lewat WhatsApp atau email.",
+   "tags": [
+    "dokumen",
+    "file",
+    "format"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#H1",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "kerahasiaan",
+   "title": "Kerahasiaan dokumen",
+   "lang": "id",
+   "body": "Semua dokumen klien diperlakukan rahasia dan disimpan dengan aman; akses dibatasi untuk tim yang menangani proyek. Dokumen dan detail proyek tidak dibagikan ke pihak lain tanpa persetujuan tertulis klien.",
+   "tags": [
+    "kerahasiaan",
+    "keamanan"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#F5",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "jam-kerja",
+   "title": "Jam kerja dan kontak",
+   "lang": "id",
+   "body": "Jam kerja: Senin–Jumat, 09.00–18.00 WIB. Pesan di luar jam kerja dibalas pada hari kerja berikutnya. WhatsApp 0851-5753-9889 untuk respons cepat, email info@nusalexia.co.id untuk korespondensi proyek. Kantor di BSD City.",
+   "tags": [
+    "jam kerja",
+    "kontak"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#B",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "diteruskan-ke-tim",
+   "title": "Hal yang selalu diteruskan ke tim",
+   "lang": "id",
+   "body": "Tim kami yang menangani langsung: keluhan kualitas terjemahan (ditinjau bersama penerjemah dan ditawarkan revisi gratis dalam 7 hari), permintaan diskon di luar diskon volume, pengembalian dana, masalah pembayaran atau DP, pesanan ekspres (kapasitas penerjemah harus dikonfirmasi dulu), pertanyaan media, dan permintaan yang tidak lazim.",
+   "tags": [
+    "eskalasi"
+   ],
+   "source_url": "https://app.notion.com/p/36f6861a6da8818f84ddd43ea017d008#M",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "dokumen-ijazah-dan-transkrip",
+   "title": "Terjemahan tersumpah ijazah dan transkrip",
+   "lang": "id",
+   "body": "Ijazah dan transkrip untuk keperluan resmi biasanya perlu diterjemahkan oleh penerjemah tersumpah. Kapan dibutuhkan: mendaftar kuliah di luar negeri; melamar kerja di luar negeri dan mengurus visa kerja; pengakuan atau penyetaraan ijazah di negara lain. Yang perlu dikirim: foto atau pindaian yang jelas dari setiap halaman; ijazah dan transkrip sebagai dokumen terpisah, bolak-balik; bila ada salinan yang sudah dilegalisir kampus, kirim salinan itu lengkap dengan capnya. Tanyakan ke instansi tujuan apa yang diminta: terjemahan tersumpah saja, atau juga legalisasi Kemenkum, Kemenlu dan kedutaan, atau apostille untuk negara anggota Konvensi Apostille.",
+   "tags": [
+    "dokumen",
+    "ijazah-dan-transkrip"
+   ],
+   "source_url": "https://www.nusalexia.co.id/terjemahan-dokumen/ijazah-dan-transkrip/",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "dokumen-akta-kelahiran",
+   "title": "Terjemahan tersumpah akta kelahiran",
+   "lang": "id",
+   "body": "Akta kelahiran untuk keperluan resmi biasanya perlu diterjemahkan oleh penerjemah tersumpah. Kapan dibutuhkan: mengurus visa atau izin tinggal; menikah dengan warga negara asing atau di luar negeri; mendaftarkan anak ke sekolah atau mengurus kewarganegaraan di luar negeri. Yang perlu dikirim: foto atau pindaian yang jelas dari seluruh halaman, termasuk catatan pinggir, cap dan tanda tangan; beri tahu bila ejaan nama berbeda dengan paspor. Tanyakan ke instansi tujuan apa yang diminta: terjemahan tersumpah saja, atau juga legalisasi Kemenkum, Kemenlu dan kedutaan, atau apostille untuk negara anggota Konvensi Apostille.",
+   "tags": [
+    "dokumen",
+    "akta-kelahiran"
+   ],
+   "source_url": "https://www.nusalexia.co.id/terjemahan-dokumen/akta-kelahiran/",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "dokumen-akta-nikah",
+   "title": "Terjemahan tersumpah akta atau buku nikah",
+   "lang": "id",
+   "body": "Akta atau buku nikah untuk keperluan resmi biasanya perlu diterjemahkan oleh penerjemah tersumpah. Kapan dibutuhkan: visa pasangan atau penyatuan keluarga; mencatatkan pernikahan di negara lain; mengurus izin tinggal atau kewarganegaraan pasangan. Yang perlu dikirim: foto atau pindaian yang jelas dari setiap halaman yang berisi tulisan, cap atau foto; untuk buku nikah, kirim juga halaman sampul dalam. Tanyakan ke instansi tujuan apa yang diminta: terjemahan tersumpah saja, atau juga legalisasi Kemenkum, Kemenlu dan kedutaan, atau apostille untuk negara anggota Konvensi Apostille.",
+   "tags": [
+    "dokumen",
+    "akta-nikah"
+   ],
+   "source_url": "https://www.nusalexia.co.id/terjemahan-dokumen/akta-nikah/",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "dokumen-kartu-keluarga",
+   "title": "Terjemahan tersumpah kartu keluarga",
+   "lang": "id",
+   "body": "Kartu keluarga untuk keperluan resmi biasanya perlu diterjemahkan oleh penerjemah tersumpah. Kapan dibutuhkan: permohonan visa yang meminta bukti hubungan keluarga; menjadi sponsor anggota keluarga; mendaftarkan anak ke sekolah di luar negeri. Yang perlu dikirim: foto atau pindaian yang jelas dari versi kartu keluarga terbaru; pastikan semua kolom, cap atau tanda tangan elektronik dan kode QR terbaca. Tanyakan ke instansi tujuan apa yang diminta: terjemahan tersumpah saja, atau juga legalisasi Kemenkum, Kemenlu dan kedutaan, atau apostille untuk negara anggota Konvensi Apostille.",
+   "tags": [
+    "dokumen",
+    "kartu-keluarga"
+   ],
+   "source_url": "https://www.nusalexia.co.id/terjemahan-dokumen/kartu-keluarga/",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "dokumen-kontrak",
+   "title": "Terjemahan tersumpah kontrak dan perjanjian",
+   "lang": "id",
+   "body": "Kontrak dan perjanjian untuk keperluan resmi biasanya perlu diterjemahkan oleh penerjemah tersumpah. Kapan dibutuhkan: kerja sama dengan mitra di luar negeri; pengadilan, notaris dan perizinan; rapat direksi dan uji tuntas. Yang perlu dikirim: foto atau pindaian yang jelas dari setiap halaman; berkas yang bisa disunting (misalnya Word) bila ada, beserta pindaian yang sudah ditandatangani; sebutkan apakah terjemahannya harus tersumpah atau cukup reguler. Tanyakan ke instansi tujuan apa yang diminta: terjemahan tersumpah saja, atau juga legalisasi Kemenkum, Kemenlu dan kedutaan, atau apostille untuk negara anggota Konvensi Apostille.",
+   "tags": [
+    "dokumen",
+    "kontrak"
+   ],
+   "source_url": "https://www.nusalexia.co.id/terjemahan-dokumen/kontrak/",
+   "updated": "2026-11-21"
+  },
+  {
+   "id": "dokumen-skck",
+   "title": "Terjemahan tersumpah SKCK",
+   "lang": "id",
+   "body": "SKCK untuk keperluan resmi biasanya perlu diterjemahkan oleh penerjemah tersumpah. Kapan dibutuhkan: visa kerja dan izin tinggal; sebagian permohonan studi dan imigrasi. Yang perlu dikirim: foto atau pindaian yang jelas dari SKCK beserta lampirannya bila ada. SKCK memuat masa berlaku, jadi pastikan masih berlaku saat diterima instansi tujuan. Tanyakan ke instansi tujuan apa yang diminta: terjemahan tersumpah saja, atau juga legalisasi Kemenkum, Kemenlu dan kedutaan, atau apostille untuk negara anggota Konvensi Apostille.",
+   "tags": [
+    "dokumen",
+    "skck"
+   ],
+   "source_url": "https://www.nusalexia.co.id/terjemahan-dokumen/skck/",
+   "updated": "2026-11-21"
+  }
+ ]
+}

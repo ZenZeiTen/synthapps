@@ -130,6 +130,8 @@ class ContextChat_Admin {
 			'hours'      => __( 'Opening hours', 'contextchat' ),
 			'advanced'   => __( 'WooCommerce & advanced', 'contextchat' ),
 			'si'         => __( 'SI', 'contextchat' ),
+			'knowledge'  => __( 'Knowledge', 'contextchat' ),
+			'voice'      => __( 'Voice', 'contextchat' ),
 		);
 		?>
 		<div class="wrap ctxc-admin">
@@ -356,6 +358,8 @@ class ContextChat_Admin {
 				</section>
 
 				<?php self::si_tab(); ?>
+				<?php self::knowledge_tab(); ?>
+				<?php self::voice_tab(); ?>
 
 				<?php submit_button(); ?>
 			</form>
@@ -788,5 +792,253 @@ class ContextChat_Admin {
 			</td>
 		</tr>
 		<?php
+	}
+
+	/**
+	 * Knowledge tab: the entries the SI answers from.
+	 */
+	private static function knowledge_tab() {
+		$entries = ContextChat_Knowledge::entries();
+		$tokens  = ContextChat_Knowledge::size_tokens( $entries );
+		$base    = ContextChat_Knowledge::OPTION;
+		?>
+		<section id="ctxc-tab-knowledge" class="ctxc-tab" data-tab="knowledge" aria-labelledby="ctxc-tablink-knowledge">
+			<h2><?php esc_html_e( 'Knowledge', 'contextchat' ); ?></h2>
+			<p><?php esc_html_e( 'The SI states facts about your services, process and policies only from these entries. Prices are not entered here: they come from the price table, and every total is calculated in code. Leave out anything private, such as tax numbers, bank accounts, staff names and client names.', 'contextchat' ); ?></p>
+			<p class="ctxc-knowledge-status">
+				<?php
+				if ( ContextChat_Knowledge::using_seed() ) {
+					esc_html_e( 'Using the bundled entries, taken from the Nusalexia guidelines and website on 21 November 2026. They follow plugin updates until you change them; after that, your own copy is kept.', 'contextchat' );
+				} else {
+					esc_html_e( 'Using your saved entries.', 'contextchat' );
+				}
+				echo ' ';
+				printf(
+					/* translators: 1: number of entries, 2: approximate number of tokens. */
+					esc_html( _n( '%1$d entry, about %2$s tokens.', '%1$d entries, about %2$s tokens.', count( $entries ), 'contextchat' ) ),
+					(int) count( $entries ),
+					esc_html( number_format_i18n( $tokens ) )
+				);
+				if ( $tokens > 30000 ) {
+					echo ' <strong>' . esc_html__( 'That is more than about 30,000 tokens, which makes every reply slower and more expensive. Consider shortening entries.', 'contextchat' ) . '</strong>';
+				}
+				?>
+			</p>
+			<div class="ctxc-repeater" data-repeater="knowledge">
+				<div class="ctxc-rows">
+					<?php
+					foreach ( $entries as $i => $entry ) {
+						self::knowledge_row( (string) $i, $entry );
+					}
+					?>
+				</div>
+				<template><?php self::knowledge_row( '__i__', array() ); ?></template>
+				<button type="button" class="button ctxc-add"><?php esc_html_e( 'Add entry', 'contextchat' ); ?></button>
+			</div>
+
+			<h3><?php esc_html_e( 'Import and export', 'contextchat' ); ?></h3>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="ctxc-knowledge-export"><?php esc_html_e( 'Export', 'contextchat' ); ?></label></th>
+					<td><textarea id="ctxc-knowledge-export" class="large-text code" rows="6" readonly><?php echo esc_textarea( wp_json_encode( array( 'entries' => $entries ), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
+					<p class="description"><?php esc_html_e( 'The saved entries as JSON, for a backup or another site.', 'contextchat' ); ?></p></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ctxc-knowledge-import"><?php esc_html_e( 'Import', 'contextchat' ); ?></label></th>
+					<td><textarea id="ctxc-knowledge-import" name="<?php echo esc_attr( $base ); ?>[import]" class="large-text code" rows="4"></textarea>
+					<p class="description"><?php esc_html_e( 'Paste exported JSON here and save to replace all entries.', 'contextchat' ); ?></p></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Bundled entries', 'contextchat' ); ?></th>
+					<td><label><input type="checkbox" name="<?php echo esc_attr( $base ); ?>[reset]" value="1"> <?php esc_html_e( 'Replace all entries with the bundled ones when saving', 'contextchat' ); ?></label></td>
+				</tr>
+			</table>
+		</section>
+		<?php
+	}
+
+	/**
+	 * One knowledge entry row.
+	 *
+	 * @param string $i     Index.
+	 * @param array  $entry Entry.
+	 */
+	private static function knowledge_row( $i, array $entry ) {
+		$entry = array_merge(
+			array(
+				'id'         => '',
+				'title'      => '',
+				'lang'       => 'id',
+				'body'       => '',
+				'tags'       => array(),
+				'source_url' => '',
+				'updated'    => '',
+			),
+			$entry
+		);
+		$base  = ContextChat_Knowledge::OPTION . '[rows][' . $i . ']';
+		$uid   = 'ctxc-kn-' . $i;
+		?>
+		<div class="ctxc-row ctxc-knowledge-row">
+			<input type="hidden" name="<?php echo esc_attr( $base ); ?>[id]" value="<?php echo esc_attr( $entry['id'] ); ?>">
+			<input type="hidden" name="<?php echo esc_attr( $base ); ?>[updated]" value="<?php echo esc_attr( $entry['updated'] ); ?>">
+			<div class="ctxc-fields">
+				<label for="<?php echo esc_attr( $uid ); ?>-title"><?php esc_html_e( 'Title', 'contextchat' ); ?>
+					<input type="text" id="<?php echo esc_attr( $uid ); ?>-title" name="<?php echo esc_attr( $base ); ?>[title]" value="<?php echo esc_attr( $entry['title'] ); ?>">
+				</label>
+				<label for="<?php echo esc_attr( $uid ); ?>-lang"><?php esc_html_e( 'Language', 'contextchat' ); ?>
+					<select id="<?php echo esc_attr( $uid ); ?>-lang" name="<?php echo esc_attr( $base ); ?>[lang]">
+						<option value="id" <?php selected( $entry['lang'], 'id' ); ?>><?php esc_html_e( 'Indonesian', 'contextchat' ); ?></option>
+						<option value="en" <?php selected( $entry['lang'], 'en' ); ?>><?php esc_html_e( 'English', 'contextchat' ); ?></option>
+					</select>
+				</label>
+				<label for="<?php echo esc_attr( $uid ); ?>-tags"><?php esc_html_e( 'Tags', 'contextchat' ); ?>
+					<input type="text" id="<?php echo esc_attr( $uid ); ?>-tags" name="<?php echo esc_attr( $base ); ?>[tags]" value="<?php echo esc_attr( implode( ', ', $entry['tags'] ) ); ?>">
+				</label>
+				<label for="<?php echo esc_attr( $uid ); ?>-source"><?php esc_html_e( 'Source address', 'contextchat' ); ?>
+					<input type="url" id="<?php echo esc_attr( $uid ); ?>-source" name="<?php echo esc_attr( $base ); ?>[source_url]" value="<?php echo esc_attr( $entry['source_url'] ); ?>">
+				</label>
+				<label class="ctxc-wide" for="<?php echo esc_attr( $uid ); ?>-body"><?php esc_html_e( 'Text', 'contextchat' ); ?>
+					<textarea id="<?php echo esc_attr( $uid ); ?>-body" name="<?php echo esc_attr( $base ); ?>[body]" rows="4" maxlength="<?php echo (int) ContextChat_Knowledge::MAX_BODY; ?>"><?php echo esc_textarea( $entry['body'] ); ?></textarea>
+				</label>
+			</div>
+			<button type="button" class="button-link ctxc-remove" aria-label="<?php esc_attr_e( 'Remove entry', 'contextchat' ); ?>"><span class="dashicons dashicons-trash"></span></button>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Voice tab: voice guide, examples, fixed replies, banned words and staff names.
+	 */
+	private static function voice_tab() {
+		$v    = ContextChat_Voice::get();
+		$base = ContextChat_Voice::OPTION;
+		?>
+		<section id="ctxc-tab-voice" class="ctxc-tab" data-tab="voice" aria-labelledby="ctxc-tablink-voice">
+			<h2><?php esc_html_e( 'Voice', 'contextchat' ); ?></h2>
+			<p><?php esc_html_e( 'How the SI writes. Empty fields use the bundled defaults.', 'contextchat' ); ?></p>
+			<input type="hidden" name="<?php echo esc_attr( $base ); ?>[form]" value="1">
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="ctxc-voice-guide-id"><?php esc_html_e( 'Voice guide (Indonesian)', 'contextchat' ); ?></label></th>
+					<td><textarea id="ctxc-voice-guide-id" name="<?php echo esc_attr( $base ); ?>[guide][id]" class="large-text" rows="10"><?php echo esc_textarea( $v['guide']['id'] ); ?></textarea></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ctxc-voice-guide-en"><?php esc_html_e( 'Voice guide (English)', 'contextchat' ); ?></label></th>
+					<td><textarea id="ctxc-voice-guide-en" name="<?php echo esc_attr( $base ); ?>[guide][en]" class="large-text" rows="4"><?php echo esc_textarea( $v['guide']['en'] ); ?></textarea></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ctxc-voice-names"><?php esc_html_e( 'Names never to mention', 'contextchat' ); ?></label></th>
+					<td><textarea id="ctxc-voice-names" name="<?php echo esc_attr( $base ); ?>[names]" class="large-text" rows="3"><?php echo esc_textarea( implode( "\n", $v['names'] ) ); ?></textarea>
+					<p class="description"><?php esc_html_e( 'One per line: the names of staff and anyone else the SI must never name. A reply that contains one is rejected. The list starts empty so that no name is published in the plugin itself.', 'contextchat' ); ?></p></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ctxc-voice-banned"><?php esc_html_e( 'Extra banned words', 'contextchat' ); ?></label></th>
+					<td><textarea id="ctxc-voice-banned" name="<?php echo esc_attr( $base ); ?>[banned_words]" class="large-text" rows="3"><?php echo esc_textarea( implode( "\n", $v['banned_words'] ) ); ?></textarea>
+					<p class="description"><?php esc_html_e( 'One per line, on top of the built-in list ("AI", "kecerdasan buatan", "gue", "lo", "gak", "nggak" and emoji).', 'contextchat' ); ?></p></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Bundled voice', 'contextchat' ); ?></th>
+					<td><label><input type="checkbox" name="<?php echo esc_attr( $base ); ?>[reset]" value="1"> <?php esc_html_e( 'Go back to the bundled voice when saving', 'contextchat' ); ?></label></td>
+				</tr>
+			</table>
+
+			<h3><?php esc_html_e( 'Example replies', 'contextchat' ); ?></h3>
+			<p><?php esc_html_e( 'The SI copies the style of these replies. The first one is the reference reply.', 'contextchat' ); ?></p>
+			<div class="ctxc-repeater" data-repeater="examples">
+				<div class="ctxc-rows">
+					<?php
+					foreach ( $v['examples'] as $i => $example ) {
+						self::example_row( (string) $i, $example );
+					}
+					?>
+				</div>
+				<template><?php self::example_row( '__i__', array() ); ?></template>
+				<button type="button" class="button ctxc-add"><?php esc_html_e( 'Add example', 'contextchat' ); ?></button>
+			</div>
+
+			<h3><?php esc_html_e( 'Fixed replies', 'contextchat' ); ?></h3>
+			<p><?php esc_html_e( 'Sent without asking the model: greetings, blocked messages, limits and errors.', 'contextchat' ); ?></p>
+			<table class="widefat striped ctxc-templates-table">
+				<thead><tr><th><?php esc_html_e( 'When', 'contextchat' ); ?></th><th><?php esc_html_e( 'Indonesian', 'contextchat' ); ?></th><th><?php esc_html_e( 'English', 'contextchat' ); ?></th></tr></thead>
+				<tbody>
+					<?php foreach ( $v['templates'] as $key => $texts ) : ?>
+						<tr>
+							<th scope="row"><?php echo esc_html( self::template_label( $key ) ); ?></th>
+							<?php foreach ( array( 'id', 'en' ) as $lang ) : ?>
+								<td><textarea class="large-text" rows="3" aria-label="<?php echo esc_attr( self::template_label( $key ) . ' (' . $lang . ')' ); ?>" name="<?php echo esc_attr( $base . '[templates][' . $key . '][' . $lang . ']' ); ?>"><?php echo esc_textarea( $texts[ $lang ] ); ?></textarea></td>
+							<?php endforeach; ?>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		</section>
+		<?php
+	}
+
+	/**
+	 * One example row.
+	 *
+	 * @param string $i       Index.
+	 * @param array  $example Example.
+	 */
+	private static function example_row( $i, array $example ) {
+		$example = array_merge(
+			array(
+				'situation' => '',
+				'lang'      => 'id',
+				'reply'     => '',
+			),
+			$example
+		);
+		$base    = ContextChat_Voice::OPTION . '[examples][' . $i . ']';
+		$uid     = 'ctxc-ex-' . $i;
+		?>
+		<div class="ctxc-row ctxc-example-row">
+			<div class="ctxc-fields">
+				<label for="<?php echo esc_attr( $uid ); ?>-situation"><?php esc_html_e( 'Situation', 'contextchat' ); ?>
+					<input type="text" id="<?php echo esc_attr( $uid ); ?>-situation" name="<?php echo esc_attr( $base ); ?>[situation]" value="<?php echo esc_attr( $example['situation'] ); ?>">
+				</label>
+				<label for="<?php echo esc_attr( $uid ); ?>-lang"><?php esc_html_e( 'Language', 'contextchat' ); ?>
+					<select id="<?php echo esc_attr( $uid ); ?>-lang" name="<?php echo esc_attr( $base ); ?>[lang]">
+						<option value="id" <?php selected( $example['lang'], 'id' ); ?>><?php esc_html_e( 'Indonesian', 'contextchat' ); ?></option>
+						<option value="en" <?php selected( $example['lang'], 'en' ); ?>><?php esc_html_e( 'English', 'contextchat' ); ?></option>
+					</select>
+				</label>
+				<label class="ctxc-wide" for="<?php echo esc_attr( $uid ); ?>-reply"><?php esc_html_e( 'Reply', 'contextchat' ); ?>
+					<textarea id="<?php echo esc_attr( $uid ); ?>-reply" name="<?php echo esc_attr( $base ); ?>[reply]" rows="3"><?php echo esc_textarea( $example['reply'] ); ?></textarea>
+				</label>
+			</div>
+			<button type="button" class="button-link ctxc-remove" aria-label="<?php esc_attr_e( 'Remove example', 'contextchat' ); ?>"><span class="dashicons dashicons-trash"></span></button>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Readable names of the fixed replies.
+	 *
+	 * @param string $key Template key.
+	 * @return string
+	 */
+	private static function template_label( $key ) {
+		$labels = array(
+			'greeting'           => __( 'Greeting', 'contextchat' ),
+			'notice'             => __( 'Privacy notice before the first message', 'contextchat' ),
+			'busy'               => __( 'The model is busy or failed', 'contextchat' ),
+			'rate_limited'       => __( 'Too many messages', 'contextchat' ),
+			'upload'             => __( 'Tried to send a file or file link', 'contextchat' ),
+			'pii'                => __( 'Sent an ID or card number', 'contextchat' ),
+			'too_long'           => __( 'Message too long', 'contextchat' ),
+			'markup'             => __( 'Message could not be read', 'contextchat' ),
+			'unknown'            => __( 'No information on a question', 'contextchat' ),
+			'names'              => __( 'Asked for a staff name', 'contextchat' ),
+			'instructions'       => __( 'Asked for the SI\'s instructions', 'contextchat' ),
+			'conversation_limit' => __( 'Conversation too long', 'contextchat' ),
+			'cap_reached'        => __( 'Daily spending cap reached', 'contextchat' ),
+			'fallback'           => __( 'A reply failed its checks twice', 'contextchat' ),
+			'handoff_hours'      => __( 'Handoff outside opening hours', 'contextchat' ),
+			'idle'               => __( 'Offer after 3 minutes of silence', 'contextchat' ),
+		);
+		return isset( $labels[ $key ] ) ? $labels[ $key ] : $key;
 	}
 }

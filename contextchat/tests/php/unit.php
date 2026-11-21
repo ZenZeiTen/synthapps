@@ -20,6 +20,8 @@ require $plugin . '/includes/si/class-price-engine.php';
 require $plugin . '/includes/class-installer.php';
 require $plugin . '/includes/si/class-guard.php';
 require $plugin . '/includes/si/class-validator.php';
+require $plugin . '/includes/si/class-knowledge.php';
+require $plugin . '/includes/si/class-voice.php';
 
 // Just enough of WordPress's hook and plugin API for ContextChat_Updates.
 define( 'CONTEXTCHAT_FILE', $plugin . '/contextchat.php' );
@@ -460,6 +462,65 @@ check( 'validator: amount formats', ContextChat_Validator::amounts( 'Rp 1.775.00
 check( 'validator: sentences ignore number dots and abbreviations', ContextChat_Validator::sentences( 'Totalnya Rp 1.775.000, Kak. Dokumen ijazah, transkrip, dll. sudah termasuk. Tenggatnya kapan ya, Kak?' ), 3 );
 check( 'validator: a last sentence without a full stop counts', ContextChat_Validator::sentences( 'Satu. Dua' ), 2 );
 check( 'validator: words', ContextChat_Validator::words( 'Estimasinya Rp 1.775.000, Kak.' ), 4 );
+
+// Knowledge (T-06): seed, cleaning, import, search.
+$seed_kn = ContextChat_Knowledge::seed();
+check( 'knowledge: the seed has 26 entries', count( $seed_kn ), 26 );
+$all = json_encode( $seed_kn, JSON_UNESCAPED_UNICODE );
+check( 'knowledge: no tax number, bank account number or client list in the seed', array(
+	(bool) preg_match( '/\d{2,3}\.\d{3}\.\d{3}\.\d-\d{3}\.\d{3}/', $all ),
+	(bool) preg_match( '/\b\d{3}-\d{4}\b(?!-)/', str_replace( '0851-5753-9889', '', $all ) ),
+	false !== stripos( $all, 'PT Garindo' ),
+), array( false, false, false ) );
+check( 'knowledge: every seed entry keeps a source address', count( array_filter( $seed_kn, function ( $e ) {
+	return 0 === strpos( $e['source_url'], 'https://' );
+} ) ), 26 );
+check( 'knowledge: the seed is small enough to send whole (under 30,000 tokens)', ContextChat_Knowledge::size_tokens( $seed_kn ) < 30000, true );
+$cleaned = ContextChat_Knowledge::clean_entries( array(
+	array( 'title' => '<b>Judul</b>', 'body' => "Isi\r\n<script>x</script>teks", 'tags' => 'a, b,,c', 'lang' => 'fr', 'source_url' => 'javascript:alert(1)', 'id' => 'Same ID' ),
+	array( 'title' => 'Dua', 'body' => 'Isi dua', 'id' => 'same-id' ),
+	array( 'title' => 'Kosong', 'body' => '   ' ),
+) );
+check( 'knowledge: entries are cleaned', array( $cleaned[0]['title'], $cleaned[0]['body'], $cleaned[0]['tags'], $cleaned[0]['lang'], $cleaned[0]['source_url'], $cleaned[0]['id'], $cleaned[1]['id'], count( $cleaned ) ), array( 'Judul', "Isi\nxteks", array( 'a', 'b', 'c' ), 'id', '', 'same-id', 'same-id-2', 2 ) );
+check( 'knowledge: import accepts { entries } and a bare list, refuses other JSON', array( count( ContextChat_Knowledge::parse_import( '{"entries":[{"title":"A","body":"B"}]}' ) ), count( ContextChat_Knowledge::parse_import( '[{"title":"A","body":"B"}]' ) ), ContextChat_Knowledge::parse_import( '{"a":1}' ), ContextChat_Knowledge::parse_import( 'not json' ) ), array( 1, 1, null, null ) );
+check( 'knowledge: export and import round-trip the seed unchanged', ContextChat_Knowledge::parse_import( json_encode( array( 'entries' => $seed_kn ) ) ), $seed_kn );
+check( 'knowledge: search finds apostille first', ContextChat_Knowledge::search( $seed_kn, 'apostille untuk negara tujuan' )[0]['id'], 'apostille' );
+check( 'knowledge: search finds the revision policy', ContextChat_Knowledge::search( $seed_kn, 'berapa kali revisi gratis?' )[0]['id'], 'kualitas' );
+check( 'knowledge: search finds SKCK', ContextChat_Knowledge::search( $seed_kn, 'SKCK' )[0]['id'], 'dokumen-skck' );
+check( 'knowledge: search with no usable words finds nothing', ContextChat_Knowledge::search( $seed_kn, 'a ?' ), array() );
+check( 'knowledge: entries are wrapped as data for the model', 0 === strpos( ContextChat_Knowledge::for_prompt( array( $seed_kn[0] ) ), '<entry id="tentang" lang="id" source="' ), true );
+
+// Voice (T-11).
+$voice = ContextChat_Voice::defaults();
+check( 'voice: example 1 is the owner\'s sample, word for word', $voice['examples'][0]['reply'], 'Bisa untuk dokumen asli berbahasa Indonesia maupun hasil terjemahan tersumpah, Kak, tergantung persyaratan instansi di negara tujuan. Jadi, tidak otomatis keduanya harus diapostille. Kalau yang diminta keduanya, apostille-nya diajukan terpisah. Dokumennya untuk negara mana dan keperluan apa ya, Kak? Ada ketentuan dari instansi penerimanya?' );
+check( 'voice: 10 examples, at least one in English', array( count( $voice['examples'] ), in_array( 'en', array_column( $voice['examples'], 'lang' ), true ) ), array( 10, true ) );
+check( 'voice: no names are shipped', $voice['names'], array() );
+$vctx = array(
+	'amounts'   => array_merge( $engine->published_amounts(), array( 1775000, 887500, 375000, 1400000 ) ),
+	'site_host' => 'www.nusalexia.co.id',
+	'email'     => 'info@nusalexia.co.id',
+	'names'     => array(),
+);
+$failed = array();
+foreach ( $voice['templates'] as $key => $texts ) {
+	foreach ( $texts as $lang => $text ) {
+		$r = ContextChat_Validator::check( $text, $vctx );
+		if ( ! $r['ok'] || $r['text'] !== $text ) {
+			$failed[] = $key . '/' . $lang . ': ' . implode( ',', $r['reasons'] );
+		}
+	}
+}
+foreach ( $voice['examples'] as $i => $ex ) {
+	$r = ContextChat_Validator::check( $ex['reply'], $vctx );
+	if ( ! $r['ok'] ) {
+		$failed[] = 'example ' . ( $i + 1 ) . ': ' . implode( ',', $r['reasons'] );
+	}
+}
+check( 'voice: every fixed reply and example passes the reply checker', $failed, array() );
+check( 'voice: every fixed reply exists in both languages', count( array_filter( $voice['templates'], function ( $t ) {
+	return '' !== $t['id'] && '' !== $t['en'];
+} ) ), count( $voice['templates'] ) );
+check( 'voice: the wording never says AI', false === strpos( json_encode( $voice, JSON_UNESCAPED_UNICODE ), ' AI' ), true );
 
 echo "\n{$count} checks, {$failures} failed\n";
 exit( $failures ? 1 : 0 );

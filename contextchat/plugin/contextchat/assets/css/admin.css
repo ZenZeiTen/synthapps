@@ -140,3 +140,16 @@
 .ctxc-si-test-failed { color: #b32d2e; font-weight: 600; }
 .ctxc-si-test-attempt { font-family: Menlo, Consolas, monospace; font-size: 12px; color: #50575e; }
 .ctxc-si-test-reply { margin: 6px 0 10px; padding: 10px 12px; border-radius: 10px 2px 10px 10px; background: #dcf8c6; white-space: pre-wrap; }
+
+/* Knowledge and Voice tabs */
+.ctxc-knowledge-row .ctxc-fields,
+.ctxc-example-row .ctxc-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ctxc-fields input[type="url"],
+.ctxc-fields textarea { width: 100%; max-width: none; font-weight: 400; }
+.ctxc-knowledge-status { color: #3c434a; }
+.ctxc-templates-table textarea { min-width: 220px; }
+.ctxc-templates-table th[scope="row"] { width: 18%; font-weight: 600; }
+@media (max-width: 960px) {
+	.ctxc-knowledge-row .ctxc-fields,
+	.ctxc-example-row .ctxc-fields { grid-template-columns: 1fr; }
+}

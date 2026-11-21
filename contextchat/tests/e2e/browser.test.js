@@ -549,3 +549,50 @@ test( 'SI tab: the API key is stored encrypted and the models route automaticall
 	settings( { si_routing: 'auto', si_daily_cap_cents: 1000 } );
 	option( 'delete', 'contextchat_si_usage' );
 } );
+
+test( 'Knowledge and Voice tabs: the bundled entries load, edits save, and the bundle can be restored', async () => {
+	const page = await newPage();
+	await login( page );
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-knowledge' );
+	assert.equal( await page.locator( '#ctxc-tab-knowledge .ctxc-rows .ctxc-knowledge-row' ).count(), 26 );
+	assert.match( await page.locator( '.ctxc-knowledge-status' ).textContent(), /bundled entries.*26 entries, about [\d,]+ tokens/s );
+
+	// Edit one entry, remove another, add a new one.
+	await page.fill( '#ctxc-kn-0-title', 'Tentang kami' );
+	page.once( 'dialog', ( d ) => d.accept() );
+	await page.locator( '#ctxc-tab-knowledge .ctxc-knowledge-row' ).nth( 1 ).locator( '.ctxc-remove' ).click();
+	await page.click( '#ctxc-tab-knowledge .ctxc-add' );
+	const added = page.locator( '#ctxc-tab-knowledge .ctxc-knowledge-row' ).last();
+	await added.locator( 'input[name$="[title]"]' ).fill( 'Parkir' );
+	await added.locator( 'textarea[name$="[body]"]' ).fill( 'Parkir <b>gratis</b> di gedung.' );
+
+	// Voice: a staff name to block and an edited fixed reply.
+	await page.click( '#ctxc-tablink-voice' );
+	await page.fill( '#ctxc-voice-names', 'Nama Contoh\nNama Contoh\nOrang Lain' );
+	await page.fill( 'textarea[name="contextchat_si_voice[templates][busy][id]"]', 'Maaf, Kak, sedang sibuk.' );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+
+	const kn = option( 'get', 'contextchat_si_knowledge' );
+	assert.equal( kn.entries.length, 26 );
+	assert.equal( kn.entries[ 0 ].title, 'Tentang kami' );
+	assert.equal( kn.entries[ 1 ].id, 'tersumpah', 'the second entry was removed' );
+	assert.equal( kn.entries[ 25 ].body, 'Parkir gratis di gedung.', 'markup is removed' );
+	const voice = option( 'get', 'contextchat_si_voice' );
+	assert.deepEqual( voice.names, [ 'Nama Contoh', 'Orang Lain' ] );
+	assert.equal( voice.templates.busy.id, 'Maaf, Kak, sedang sibuk.' );
+	assert.equal( voice.templates.busy.en, undefined, 'unchanged replies are not stored' );
+	assert.deepEqual( voice.examples, [], 'unchanged examples are not stored' );
+
+	// Restore both bundles.
+	await page.goto( BASE + '/wp-admin/admin.php?page=contextchat#ctxc-tab-knowledge' );
+	assert.match( await page.locator( '.ctxc-knowledge-status' ).textContent(), /your saved entries/ );
+	await page.check( 'input[name="contextchat_si_knowledge[reset]"]' );
+	await page.click( '#ctxc-tablink-voice' );
+	await page.check( 'input[name="contextchat_si_voice[reset]"]' );
+	await page.click( '#submit' );
+	await page.waitForURL( /settings-updated=true/ );
+	assert.deepEqual( option( 'get', 'contextchat_si_knowledge' ), [], 'the bundle is used again' );
+	assert.deepEqual( option( 'get', 'contextchat_si_voice' ), [] );
+	await page.close();
+} );
