@@ -13,6 +13,7 @@ import { hardenSession, urlsFromArgs } from './security.js';
 import { execFile } from 'node:child_process';
 import { detectBrowsers, readProfile, parseBookmarksHtml } from './importer.js';
 import { Ai, MODELS } from './ai.js';
+import { Oracle } from './oracle.js';
 import * as page from './pagetools.js';
 import { Extensions } from './extensions.js';
 import { Bridge, claudeConfigPath, claudeEntry, readClaudeConfig, writeClaudeConfig } from './bridge.js';
@@ -37,7 +38,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'lintas-ui', privileges: { stand
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
-let win, tabs, webPanels, data, tms, ai, store, extensions, bridge;
+let win, tabs, webPanels, data, tms, ai, store, extensions, bridge, oracle;
 const pendingPermissions = new Map();
 const downloads = new Map();
 const httpAllowed = new Set();
@@ -519,6 +520,29 @@ function registerIpc() {
     return t.view ? t.view.webContents.executeJavaScriptInIsolatedWorld(page.WORLD_ID, [{ code: page.SELECTION }]) : '';
   });
   handle('ai.usage', () => ai.usage());
+
+  handle('oracle.ask', (tabId, text, o) => {
+    if (!Number.isInteger(tabId)) throw new Error('Open a web page to ask about it.');
+    if (typeof text !== 'string' || !text.trim() || text.length > 20000) throw new Error('Type a question (up to 20,000 characters).');
+    const history = Array.isArray(o?.history) ? o.history.slice(-20).map(h => ({ role: h?.role, content: typeof h?.content === 'string' ? h.content : '' })) : [];
+    return oracle.ask(tabId, text, { history });
+  });
+  handle('oracle.approve', (runId, callId, allow) => {
+    if (typeof runId !== 'string' || typeof callId !== 'string') throw new Error('Not allowed.');
+    return oracle.approve(runId, callId, allow === true);
+  });
+  handle('oracle.stop', runId => { if (typeof runId !== 'string') throw new Error('Not allowed.'); return oracle.stop(runId); });
+  handle('oracle.memory', () => oracle.memory());
+  handle('oracle.forget', id => { if (typeof id !== 'string' || !id || id.length > 64) throw new Error('Not allowed.'); return oracle.forget(id); });
+}
+
+/** The attached tab's page for the Oracle; never a private tab. */
+async function oracleReadPage(tabId) {
+  const t = tabs.get(Number(tabId));
+  if (t.private) throw new Error('Oracle cannot see private tabs.');
+  if (t.kind !== 'web' || !t.view) throw new Error('This tab does not show a web page. Open a web page to ask about it.');
+  const info = await pageInfo(t.view.webContents);
+  return { url: info.url, title: info.title, paragraphs: info.paragraphs };
 }
 
 async function syncBridge() {
@@ -726,6 +750,7 @@ app.whenReady().then(async () => {
   data = new BrowserData(store, app.getPath('userData'));
   tms = new Tms(store);
   ai = new Ai(app.getPath('userData'), () => data.settings());
+  oracle = new Oracle({ ai, runTool: mcpTool, readPage: oracleReadPage, emit, dataDir: app.getPath('userData') });
   protocol.handle('lintas-ui', serveRenderer);
 
   const ctx = {

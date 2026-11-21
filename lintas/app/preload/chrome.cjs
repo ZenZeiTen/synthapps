@@ -27,6 +27,7 @@ const groups = {
   webpanel: ['apps', 'show', 'reload', 'home', 'openInTab'],
   extpanel: ['close'],
   ai: ['suggest', 'review', 'extractTerms', 'translatePage', 'restorePage', 'translateText', 'ask', 'highlight', 'selection', 'usage'],
+  oracle: ['ask', 'approve', 'stop', 'memory', 'forget'],
 };
 
 const api = {};

@@ -60,6 +60,18 @@ export class Ai {
 
   usage() { return this.usageTotals; }
 
+  addUsage(inputTokens, outputTokens) {
+    this.usageTotals.requests++;
+    this.usageTotals.inputTokens += inputTokens || 0;
+    this.usageTotals.outputTokens += outputTokens || 0;
+  }
+
+  /** Plain-language message for an API error (used by the Oracle too). */
+  explain(e) { return explainError(e); }
+
+  /** Whether the server-side refusal fallback applies to this model. */
+  usesFallback(model) { return FALLBACK_MODELS.has(model); }
+
   /** One request; returns the text of the reply (or parsed JSON when schema is given). */
   async call({ system, user, schema, maxTokens = 8000, effort }) {
     const client = this.ensure();
