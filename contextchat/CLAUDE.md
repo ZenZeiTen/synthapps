@@ -20,8 +20,9 @@ The live run, `npm run eval`, plays them against the real API and has Claude Hai
 It needs `ANTHROPIC_API_KEY` and costs money (stops at `--max-cost`, default $2), so run it only
 when the user asks, and never in CI. Run it after changing the prompt, voice, knowledge or models.
 
-CI: `.github/workflows/contextchat.yml` (lint on PHP 7.4 and 8.3, unit and browser tests, a build
-on Windows, release from the Run workflow button with "Publish a release" ticked on `main`).
+CI: `.github/workflows/contextchat.yml` (a build on Windows, whose zip the release publishes; release
+from the Run workflow button with "Publish a release" ticked on `main`). It runs no lint or tests:
+run them here before pushing (see the root CLAUDE.md).
 
 ## Giving the user the plugin
 

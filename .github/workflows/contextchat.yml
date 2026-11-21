@@ -1,8 +1,11 @@
 name: ContextChat plugin
 
+# Builds the plugin zip on Windows (`npm run build` must work in PowerShell too) and publishes it on a
+# release. Unit and browser tests run in the Claude Code container before pushing, not here: see
+# CLAUDE.md, no Linux test or build jobs in Actions.
 on:
   # The "Run workflow" button on the Actions page. With "Publish a release" ticked, a run on main
-  # tests, builds and publishes release contextchat-v<Version from contextchat.php>.
+  # builds and publishes release contextchat-v<Version from contextchat.php>.
   workflow_dispatch:
     inputs:
       release:
@@ -14,97 +17,17 @@ on:
       - "contextchat/**"
       - ".github/workflows/contextchat.yml"
   push:
-    branches: [main]
-    # Pushing a tag named contextchat-v<version> builds, tests and publishes a release.
-    # Path filters are not applied to tag pushes.
+    # Pushing a tag named contextchat-v<version> builds and publishes a release.
     tags:
       - "contextchat-v*"
-    paths:
-      - "contextchat/**"
 
 permissions:
   contents: read
 
 jobs:
-  lint:
-    name: PHP ${{ matrix.php }} syntax
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        php: ["7.4", "8.3"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php }}
-          coverage: none
-      - name: Lint every PHP file
-        run: find contextchat -name '*.php' -print0 | xargs -0 -n1 php -l
-      - name: Unit tests
-        run: php contextchat/tests/php/unit.php
-
-  test:
-    name: Unit and browser tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: contextchat
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.3"
-          extensions: pdo_sqlite, sqlite3, mbstring, intl
-          coverage: none
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.x"
-          cache: npm
-          cache-dependency-path: contextchat/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm test
-      # The end-to-end run asks WP-CLI whether WordPress would offer an update for this plugin.
-      - name: Install WP-CLI
-        run: |
-          curl -fsSL -o "$RUNNER_TEMP/wp-cli.phar" https://github.com/wp-cli/wp-cli/releases/download/v2.11.0/wp-cli-2.11.0.phar
-          php "$RUNNER_TEMP/wp-cli.phar" --version
-          echo "WP_CLI=php $RUNNER_TEMP/wp-cli.phar" >> "$GITHUB_ENV"
-      - run: npm run test:e2e -- "$RUNNER_TEMP/screens"
-      # Report only: Update URI and the update filter keep a same-named WordPress.org plugin from
-      # being offered here, but a taken slug is still a reason to consider renaming the plugin.
-      - name: Is the contextchat slug taken on WordPress.org?
-        run: |
-          reply="$(curl -gsS -m 20 'https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]=contextchat&request[fields][sections]=0' || true)"
-          if [ -z "$reply" ] || ! jq -e . > /dev/null 2>&1 <<< "$reply"; then
-            msg="Could not reach api.wordpress.org to check the contextchat slug."
-          elif jq -e '.error' > /dev/null <<< "$reply"; then
-            msg="The contextchat slug is free on WordPress.org ($(jq -r '.error' <<< "$reply"))."
-          else
-            msg="The contextchat slug is TAKEN on WordPress.org: $(jq -r '"\(.name) \(.version) by \(.author | gsub("<[^>]*>"; ""))" | gsub("[\\r\\n]"; " ")' <<< "$reply")."
-            echo "::warning::$msg"
-          fi
-          echo "$msg"
-          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: contextchat-screens
-          path: ${{ runner.temp }}/screens
-          if-no-files-found: ignore
-      - run: npm run build
-      - name: Check the zip unpacks to a contextchat folder
-        run: |
-          unzip -tq dist/contextchat-*.zip
-          unzip -l dist/contextchat-*.zip | grep -q ' contextchat/contextchat.php$'
-      - uses: actions/upload-artifact@v4
-        with:
-          name: contextchat-plugin
-          path: contextchat/dist/*.zip
-
   windows-build:
     name: Build on Windows
-    # `npm run build` must work in PowerShell too, not only in CI's Linux.
+    # `npm run build` must work in PowerShell too, not only in the Linux dev container.
     runs-on: windows-latest
     defaults:
       run:
@@ -122,6 +45,11 @@ jobs:
           Expand-Archive $zip.FullName -DestinationPath "$env:RUNNER_TEMP/unpacked"
           if (-not (Test-Path "$env:RUNNER_TEMP/unpacked/contextchat/contextchat.php")) { throw "contextchat/contextchat.php is missing from $($zip.Name)" }
           Write-Output "$($zip.Name) unpacks correctly"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contextchat-plugin
+          path: contextchat/dist/*.zip
+          if-no-files-found: error
 
   release:
     name: Publish release
@@ -129,7 +57,7 @@ jobs:
     if: >-
       startsWith(github.ref, 'refs/tags/contextchat-v') ||
       (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
-    needs: [lint, test, windows-build]
+    needs: [windows-build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -147,6 +75,21 @@ jobs:
           # A version with a suffix, such as 2.0.0-dev, is published as a pre-release, so it never
           # becomes the repository's "Latest" release.
           case "$version" in *-*) echo "PRERELEASE=--prerelease" >> "$GITHUB_ENV" ;; esac
+      # Report only: Update URI and the update filter keep a same-named WordPress.org plugin from
+      # being offered here, but a taken slug is still a reason to consider renaming the plugin.
+      - name: Is the contextchat slug taken on WordPress.org?
+        run: |
+          reply="$(curl -gsS -m 20 'https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]=contextchat&request[fields][sections]=0' || true)"
+          if [ -z "$reply" ] || ! jq -e . > /dev/null 2>&1 <<< "$reply"; then
+            msg="Could not reach api.wordpress.org to check the contextchat slug."
+          elif jq -e '.error' > /dev/null <<< "$reply"; then
+            msg="The contextchat slug is free on WordPress.org ($(jq -r '.error' <<< "$reply"))."
+          else
+            msg="The contextchat slug is TAKEN on WordPress.org: $(jq -r '"\(.name) \(.version) by \(.author | gsub("<[^>]*>"; ""))" | gsub("[\\r\\n]"; " ")' <<< "$reply")."
+            echo "::warning::$msg"
+          fi
+          echo "$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@v4
         with:
           name: contextchat-plugin

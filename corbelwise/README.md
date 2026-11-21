@@ -90,7 +90,7 @@ npm test
 scripts/build-zips.sh
 ```
 
-builds `dist/corbelwise-<version>.zip`, `dist/corbelwise-toolkit-<version>.zip` and a marketplace package with both zips, the user guide and the license. In GitHub, the **Run workflow** button of the "Corbelwise" workflow with **Publish a release** ticked (on `main`), or a pushed `corbelwise-v<version>` tag, tests, builds and publishes a release.
+builds `dist/corbelwise-<version>.zip`, `dist/corbelwise-toolkit-<version>.zip` and a marketplace package with both zips, the user guide and the license. In GitHub, the **Run workflow** button of the "Corbelwise" workflow (on `main`), or a pushed `corbelwise-v<version>` tag, builds and publishes a release. It runs no tests: run them before pushing.
 
 When bumping a version, change it together in: `style.css` and `readme.txt` (`Stable tag`) and `CORBELWISE_VERSION` for the theme; the plugin header, `CWTK_VERSION` and `readme.txt` for the plugin; then run `python3 scripts/make-pot.py`. The static checks fail if the numbers disagree, and CI fails if the translation templates are stale.
 

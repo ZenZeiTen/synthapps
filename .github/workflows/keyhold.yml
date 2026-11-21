@@ -1,8 +1,10 @@
 name: keyhold
 
-# Tests Keyhold, builds the Windows app and checks it on Windows, builds the Android
-# app and the installable web app, and keeps them as downloadable artifacts. Two ways
-# to publish them as a GitHub release:
+# Tests Keyhold on Windows, builds the Windows app (and the Linux and macOS binaries,
+# cross-compiled on the same Windows runner) and checks it on Windows. For a release
+# only, it also builds the Android app and the installable web app on a Linux runner.
+# The Linux tests and the Chromium end-to-end test run in the Claude Code container
+# before pushing, not here: see CLAUDE.md. Two ways to publish a GitHub release:
 #  - the "Run workflow" button on the Actions page, run on main with "Publish a release"
 #    ticked: publishes release keyhold-v<version in keyhold/main.go>, creating that tag
 #    on the commit it built;
@@ -19,12 +21,8 @@ on:
       - "keyhold/**"
       - ".github/workflows/keyhold.yml"
   push:
-    branches: [main]
     tags:
       - "keyhold-v*"
-    paths:
-      - "keyhold/**"
-      - ".github/workflows/keyhold.yml"
   workflow_dispatch:
     inputs:
       release:
@@ -36,14 +34,10 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+  windows:
+    name: Test, build Keyhold.exe and check it on Windows
+    runs-on: windows-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: keyhold
@@ -58,50 +52,6 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
       - run: node --test test/core.test.mjs
-
-  browser:
-    name: End-to-end in Chromium (desktop app, sync server, phone)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: keyhold
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Playwright with Chromium
-        timeout-minutes: 10
-        run: |
-          npm install --no-save playwright@1.63.0
-          npx playwright install --with-deps chromium
-      - run: node test/e2e.mjs "$RUNNER_TEMP/keyhold-shots"
-        timeout-minutes: 10
-      - name: Screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: keyhold-e2e-screenshots
-          path: ${{ runner.temp }}/keyhold-shots
-          if-no-files-found: ignore
-          retention-days: 14
-
-  windows:
-    name: Build Keyhold.exe and check it on Windows
-    runs-on: windows-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: keyhold
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
       - name: Build every platform
         shell: bash
         run: ./scripts/build.sh
@@ -149,6 +99,10 @@ jobs:
 
   android:
     name: Build the Android app and the web app
+    # Only for a release: CLAUDE.md allows a Linux runner for release packaging, not on every push or PR.
+    if: >-
+      startsWith(github.ref, 'refs/tags/keyhold-v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -207,7 +161,7 @@ jobs:
     if: >-
       startsWith(github.ref, 'refs/tags/keyhold-v') ||
       (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
-    needs: [test, browser, windows, android]
+    needs: [windows, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -10,12 +10,8 @@ on:
       - "termextrax/**"
       - ".github/workflows/termextrax.yml"
   push:
-    branches: [main]
     tags:
       - "termextrax-v*"
-    paths:
-      - "termextrax/**"
-      - ".github/workflows/termextrax.yml"
   workflow_dispatch:
     inputs:
       release_tag:
