@@ -1,5 +1,6 @@
 /* Browser chrome: title-bar tab strip, toolbar + omnibox, bookmarks bar, content area, side panel. */
-#app { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr); height: 100vh; }
+#app { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); height: 100vh; }
+#tabstrip { grid-row: 1; } #toolbar { grid-row: 2; } #bookmarksbar { grid-row: 3; } #main { grid-row: 4; }
 :root { --tabstrip-h: 40px; --toolbar-h: 44px; --win-left: 8px; --win-right: 140px; }
 :root[data-platform="darwin"] { --win-left: 78px; --win-right: 8px; }
 :root[data-private="1"] { --frame: #2A2140; --frame-hover: rgba(235, 225, 255, .1); --frame-sep: rgba(235, 225, 255, .25); }
