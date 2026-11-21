@@ -4,7 +4,7 @@ Tags: whatsapp, chat, click to chat, woocommerce, contact
 Requires at least: 6.2
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -93,6 +93,17 @@ ContextChat 2.0 adds an SI (Synthesized Intelligence) assistant that uses Anthro
 All attributes are optional. Without `agent` the button follows your context rules; without `message` it uses the rule or default message.
 
 == Changelog ==
+
+= 2.0.0 =
+* New: an SI (Synthesized Intelligence) assistant in the chat panel, on Anthropic's Claude models with your own API key. Off until you turn it on.
+* New: estimates calculated in code from a price table you edit, with the Apostille or ministry-and-embassy route by destination country, express surcharges, volume discounts and the deposit; the model never works out a price.
+* New: the SI answers from knowledge entries you edit and writes in the voice you set; every reply is checked for amounts, names, promises and length before the visitor sees it.
+* New: handoff to your team on WhatsApp or by email with a summary the visitor can edit.
+* New: ID numbers, documents and file links are refused before anything is stored or sent; rate limits; a daily spending cap.
+* New: screens for Prices, Privacy (keep-for period, rate limits, refused hosts, policy link, optional agreement before the chat) and Conversations (read, export, delete).
+* New: SI analytics with a funnel and a CSV export without message text.
+* New: suggested privacy policy text under Settings → Privacy → Policy Guide, checked against UU 27/2022 and PP 33/2026 (not legal advice).
+* Nothing changes for visitors until the SI chat is turned on: the button and panel work as in 1.1.0.
 
 = 1.1.0 =
 * Fix: analytics count days in your site time zone. They were counted in UTC, so on a site in Jakarta chats started before 07:00 appeared under the previous day.

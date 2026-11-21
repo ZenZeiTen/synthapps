@@ -44,7 +44,7 @@ npm run build
 
 On Windows, if you don't know where your copy is, open the `contextchat` folder in File Explorer, type `powershell` in the address bar and press Enter: PowerShell opens in that folder. Running `npm run build` anywhere else fails with "Could not read package.json".
 
-The build prints the full path of the zip it wrote, `dist/contextchat-2.0.0-dev.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
+The build prints the full path of the zip it wrote, `dist/contextchat-2.0.0.zip`. In WordPress go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it. Then open **ContextChat** in the admin menu and enter your number (with country code) or add agents.
 
 Requirements: WordPress 6.2 or newer, PHP 7.4 or newer. WooCommerce is optional.
 
