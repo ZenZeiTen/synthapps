@@ -62,8 +62,8 @@
    "en": "Hello, I'm Nusalexia's SI assistant. What would you like translated, or how can I help?"
   },
   "notice": {
-   "id": "Percakapan ini dibantu Kecerdasan Sintesis dan disimpan selama 1 tahun untuk layanan pelanggan. Jangan kirim nomor identitas atau dokumen di sini; gunakan WhatsApp atau email.",
-   "en": "This chat is assisted by Synthesized Intelligence and kept for 1 year for customer service. Don't send ID numbers or documents here; use WhatsApp or email."
+   "id": "Percakapan ini dibantu Kecerdasan Sintesis dan disimpan selama {retention} untuk layanan pelanggan. Jangan kirim nomor identitas atau dokumen di sini; gunakan WhatsApp atau email.",
+   "en": "This chat is assisted by Synthesized Intelligence and kept for {retention} for customer service. Don't send ID numbers or documents here; use WhatsApp or email."
   },
   "busy": {
    "id": "Maaf, Kak, sistem sedang sibuk. Silakan lanjut lewat WhatsApp atau email di bawah, tim kami akan membantu langsung.",

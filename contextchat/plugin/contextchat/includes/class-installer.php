@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 class ContextChat_Installer {
 
 	/** Schema version of the SI tables. Raise it when a table changes. */
-	const VERSION = '2';
+	const VERSION = '3';
 
 	/** Option holding the installed schema version. */
 	const OPTION = 'contextchat_si_db_version';
@@ -120,8 +120,8 @@ class ContextChat_Installer {
 				KEY conv (conversation_id)
 			) {$charset};"
 		);
-		// Knowledge and voice can be large: keep them out of autoload.
-		foreach ( array( 'contextchat_si_knowledge', 'contextchat_si_voice' ) as $option ) {
+		// Knowledge, voice and the price data can be large: keep them out of autoload.
+		foreach ( array( 'contextchat_si_knowledge', 'contextchat_si_voice', 'contextchat_si_prices', 'contextchat_si_apostille' ) as $option ) {
 			if ( false === get_option( $option ) ) {
 				add_option( $option, array(), '', false );
 			}

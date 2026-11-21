@@ -472,6 +472,7 @@ class ContextChat_Frontend {
 				'assistant'   => __( 'SI assistant', 'contextchat' ),
 				'error'       => __( 'The message could not be sent. Please try again.', 'contextchat' ),
 				'upload'      => ContextChat_Voice::template( 'upload', $lang ),
+				'privacy'     => __( 'Privacy policy', 'contextchat' ),
 			),
 		);
 	}

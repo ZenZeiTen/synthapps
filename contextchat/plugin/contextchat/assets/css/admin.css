@@ -153,3 +153,21 @@
 	.ctxc-knowledge-row .ctxc-fields,
 	.ctxc-example-row .ctxc-fields { grid-template-columns: 1fr; }
 }
+
+/* Prices tab */
+.ctxc-price-row .ctxc-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ctxc-stale { color: #b32d2e; }
+@media (max-width: 960px) {
+	.ctxc-price-row .ctxc-fields { grid-template-columns: 1fr 1fr; }
+}
+
+/* Conversations screen */
+.ctxc-conv-filters { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 12px 0 4px; }
+.ctxc-conv-table { margin-top: 10px; }
+.ctxc-conv-summary { max-width: 760px; padding: 12px; background: #fff; border: 1px solid #dcdcde; white-space: pre-wrap; font-size: 13px; }
+.ctxc-conv-messages { max-width: 760px; margin: 0; list-style: none; }
+.ctxc-conv-msg { margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: #fff; border: 1px solid #dcdcde; }
+.ctxc-conv-msg.is-visitor { margin-left: 40px; background: #dcf8c6; border-color: #c4e8a8; }
+.ctxc-conv-who { margin: 0 0 4px; color: #50575e; font-size: 12px; }
+.ctxc-conv-text { overflow-wrap: anywhere; }
+.ctxc-conv-delete { margin-top: 12px; }

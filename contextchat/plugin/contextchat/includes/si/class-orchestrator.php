@@ -97,7 +97,9 @@ class ContextChat_Orchestrator {
 	 * @return string 'id' or 'en'.
 	 */
 	public static function detect_lang( $text, $fallback ) {
-		$words = preg_split( '/[^a-z]+/', strtolower( (string) $text ) );
+		// Web addresses say nothing about the visitor's language.
+		$text  = preg_replace( '~(?:https?://|www\.)\S+|\b[\w.-]+\.[a-z]{2,}(?:/\S*)?~i', ' ', (string) $text );
+		$words = preg_split( '/[^a-z]+/', strtolower( $text ) );
 		$id    = array( 'saya', 'mau', 'untuk', 'yang', 'berapa', 'dokumen', 'apa', 'bisa', 'kak', 'tidak', 'dan', 'ke', 'dari', 'ini', 'itu', 'harga', 'terjemahan', 'tersumpah', 'halaman', 'biaya', 'ada', 'apakah', 'bagaimana', 'kalau', 'dengan', 'sudah', 'belum', 'terima', 'kasih', 'halo', 'pak', 'bu', 'mohon', 'tolong', 'butuh', 'perlu', 'aku', 'gimana', 'kapan', 'jadi', 'juga', 'bahasa', 'ijazah', 'akta' );
 		$en    = array( 'the', 'i', 'my', 'how', 'what', 'please', 'need', 'is', 'to', 'a', 'and', 'for', 'of', 'do', 'you', 'can', 'much', 'translation', 'translate', 'document', 'documents', 'price', 'cost', 'hello', 'hi', 'thanks', 'thank', 'would', 'like', 'want', 'pages', 'sworn', 'certified', 'into', 'from', 'english', 'indonesian', 'does', 'it', 'are', 'there', 'your' );
 		$si    = 0;

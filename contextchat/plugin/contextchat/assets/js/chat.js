@@ -177,9 +177,18 @@
 			return row;
 		}
 
-		function notice( text ) {
+		function notice( text, url ) {
 			if ( text && ! log.querySelector( '.ctxc-si-notice' ) ) {
-				log.insertBefore( el( 'p', 'ctxc-si-notice', text ), log.firstChild );
+				var p = el( 'p', 'ctxc-si-notice', text );
+				if ( url && /^https?:\/\//i.test( url ) ) {
+					var a = el( 'a', '', t.privacy || 'Privacy policy' );
+					a.href = url;
+					a.target = '_blank';
+					a.rel = 'noopener noreferrer';
+					p.appendChild( win.document.createTextNode( ' ' ) );
+					p.appendChild( a );
+				}
+				log.insertBefore( p, log.firstChild );
 			}
 		}
 
@@ -367,7 +376,7 @@
 				if ( r.status === 201 && r.json ) {
 					session = { id: r.json.conversation_id, token: r.json.token, ref: r.json.reference };
 					writeSession( session );
-					notice( r.json.notice );
+					notice( r.json.notice, r.json.privacy_url );
 					say( 'assistant', r.json.greeting );
 					return true;
 				}
@@ -390,7 +399,7 @@
 					writeSession( null );
 					return begin();
 				}
-				notice( r.json.notice );
+				notice( r.json.notice, r.json.privacy_url );
 				( r.json.messages || [] ).forEach( function ( m ) {
 					say( m.role, m.text );
 				} );

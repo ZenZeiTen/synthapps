@@ -114,6 +114,14 @@ class ContextChat_Settings {
 			'si_agent_translation'  => '',
 			'si_agent_interpreting' => '',
 			'si_idle_minutes'       => 3,
+			// Privacy tab (design plan sections 9 and 10).
+			'si_retention_days'     => 365,
+			'si_limit_minute'       => ContextChat_Guard::LIMITS['per_minute'],
+			'si_limit_starts'       => ContextChat_Guard::LIMITS['starts_per_hour'],
+			'si_limit_day'          => ContextChat_Guard::LIMITS['per_day'],
+			'si_limit_conversation' => ContextChat_Guard::LIMITS['per_conversation'],
+			'si_file_hosts'         => implode( "\n", ContextChat_Guard::FILE_HOSTS ),
+			'si_privacy_url'        => '',
 		);
 	}
 
@@ -250,6 +258,15 @@ class ContextChat_Settings {
 		$out['si_agent_interpreting'] = in_array( sanitize_key( (string) self::val( $input, 'si_agent_interpreting', '' ) ), $agent_ids, true ) ? sanitize_key( (string) self::val( $input, 'si_agent_interpreting', '' ) ) : '';
 		$out['si_idle_minutes']       = self::int( $input, 'si_idle_minutes', 1, 30, $d['si_idle_minutes'] );
 
+		$out['si_retention_days']     = self::int( $input, 'si_retention_days', 30, 3650, $d['si_retention_days'] );
+		$out['si_limit_minute']       = self::int( $input, 'si_limit_minute', 1, 60, $d['si_limit_minute'] );
+		$out['si_limit_starts']       = self::int( $input, 'si_limit_starts', 1, 100, $d['si_limit_starts'] );
+		$out['si_limit_day']          = self::int( $input, 'si_limit_day', 1, 1000, $d['si_limit_day'] );
+		$out['si_limit_conversation'] = self::int( $input, 'si_limit_conversation', 4, 200, $d['si_limit_conversation'] );
+		$out['si_file_hosts']         = implode( "\n", self::hosts( self::val( $input, 'si_file_hosts', $d['si_file_hosts'] ) ) );
+		$url                          = esc_url_raw( trim( (string) self::val( $input, 'si_privacy_url', '' ) ), array( 'http', 'https' ) );
+		$out['si_privacy_url']        = mb_substr( $url, 0, 300 );
+
 		self::save_api_key( $input );
 
 		return $out;
@@ -362,6 +379,24 @@ class ContextChat_Settings {
 	 */
 	private static function val( $arr, $key, $default ) {
 		return is_array( $arr ) && array_key_exists( $key, $arr ) ? $arr[ $key ] : $default;
+	}
+
+	/**
+	 * Host names, one per line: lower case, without scheme, path or "www.", at most 50.
+	 *
+	 * @param mixed $text Lines.
+	 * @return string[]
+	 */
+	public static function hosts( $text ) {
+		$out = array();
+		foreach ( preg_split( '/[\s,]+/', strtolower( (string) $text ) ) as $host ) {
+			$host = preg_replace( '~^[a-z]+://~', '', trim( $host ) );
+			$host = preg_replace( '~^www\.~', '', (string) strtok( $host, '/' ) );
+			if ( '' !== $host && preg_match( '/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/', $host ) ) {
+				$out[ $host ] = $host;
+			}
+		}
+		return array_slice( array_values( $out ), 0, 50 );
 	}
 
 	/**
