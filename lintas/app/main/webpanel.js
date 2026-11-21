@@ -32,12 +32,12 @@ export class WebPanels {
     const app = WEB_APPS.find(a => a.id === id);
     const ext = app ? null : this.resolve(id);
     if (!app && !ext) throw new Error('Unknown web panel.');
-    v = new WebContentsView({ webPreferences: { session: this.ses, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: true, safeDialogs: true, navigateOnDragDrop: false } });
+    v = new WebContentsView({ webPreferences: { session: ext?.session || this.ses, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, spellcheck: true, safeDialogs: true, navigateOnDragDrop: false } });
     const wc = v.webContents;
     if (app) applySignInIdentity(wc);
     guardNavigation(wc);
     // Popups (sign-in, attachments, "open in new window") follow the same rules as in tabs
-    this.tabs.handleWindowOpen(wc, { private: false });
+    this.tabs.handleWindowOpen(wc, { private: !!ext?.session && ext.session !== this.ses });
     // Extension shortcuts work while the panel has focus too (Claude's Ctrl+E closes its panel)
     wc.on('before-input-event', (e, input) => { if (this.commandKey(input)) e.preventDefault(); });
     // An extension's panel page may close itself (window.close()), which ends the panel.

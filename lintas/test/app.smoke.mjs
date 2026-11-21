@@ -365,6 +365,29 @@ try {
     await setx({ fileAccess: true });
     assert.equal(await mark(fileUrl, '1'), '1', 'file access when allowed');
     await setx({ fileAccess: false });
+    // Private tabs: only extensions allowed there run in them
+    const privUrl = siteUrl + '?private';
+    const pt = await L(u => lintas.tabs.create({ url: u, private: true }), privUrl);
+    const opened = await app.evaluate(async ({ webContents }, u) => {
+      for (let i = 0; i < 150; i++) { if (webContents.getAllWebContents().some(x => x.getURL() === u && !x.isLoading())) return true; await new Promise(r => setTimeout(r, 100)); }
+      return false;
+    }, privUrl);
+    assert.ok(opened, 'private tab opened');
+    assert.equal(await mark(privUrl, ''), '', 'not in private tabs by default');
+    assert.equal((await L(() => lintas.tabs.list())).find(x => x.id === pt.id).partition, 'lintas-private', 'kept in memory while no extension may run there');
+    await L(id => lintas.tabs.close(id), pt.id);
+    r = await setx({ private: true });
+    assert.equal(r.private, true);
+    // Private tabs opened now use the private session that can run extensions
+    const pt2 = await L(u => lintas.tabs.create({ url: u, private: true }), privUrl);
+    assert.equal((await L(() => lintas.tabs.list())).find(x => x.id === pt2.id).partition, 'persist:lintas-private-ext');
+    assert.equal(await mark(privUrl, '1'), '1', 'in private tabs when allowed');
+    const privSes = await app.evaluate(({ session }) => session.fromPartition('persist:lintas-private-ext').extensions.getAllExtensions().map(e => e.id));
+    assert.deepEqual(privSes, [SITE_EXT], 'only the allowed extension runs in private tabs');
+    await setx({ private: false });
+    assert.equal(await mark(privUrl, ''), '', 'stopped in private tabs');
+    await L(id => lintas.tabs.close(id), pt2.id);
+    await L(id => lintas.tabs.activate(id), tabId);
     // An unpacked extension keeps the sites of its own manifest
     const hello = (await L(() => lintas.extensions.list())).find(e => e.name === 'Lintas test extension');
     await assert.rejects(L(id => lintas.extensions.setSettings(id, { siteAccess: 'sites', sites: ['example.com'] }), hello.id), /Web Store/);
@@ -404,9 +427,19 @@ try {
   assert.equal(s.httpsOnly, true);
 
   if (shots) await win.screenshot({ path: path.join(shots, 'e2e-window.png') });
+  // What private tabs with extensions stored is erased when Lintas quits
+  await app.evaluate(async ({ session }) => { const c = session.fromPartition('persist:lintas-private-ext').cookies; await c.set({ url: 'https://private.example/', name: 'lintas_private_probe', value: '1', expirationDate: Date.now() / 1000 + 3600 }); await c.flushStore(); });
+  await app.close();
+  {
+    const { DatabaseSync } = await import('node:sqlite');
+    const file = path.join(dataDir, 'Partitions', 'lintas-private-ext', 'Cookies');
+    const rows = fs.existsSync(file) ? new DatabaseSync(file, { readOnly: true }).prepare("SELECT count(*) AS n FROM cookies WHERE name = 'lintas_private_probe'").get().n : 0;
+    assert.equal(rows, 0, 'private cookies are erased on quit');
+  }
+
   console.log('E2E OK');
   if (log.length) console.log('Renderer console errors:\n' + log.join('\n'));
 } finally {
-  await app.close();
+  await app.close().catch(() => {});
   site.close();
 }

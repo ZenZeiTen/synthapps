@@ -97,6 +97,7 @@ export class TabManager {
     }
     const copy = !internal && url ? this.data.offlineByUrl(url) : null;
     return {
+      partition: t.partition || (t.private ? this.partitions.private : this.partitions.normal),
       id: t.id, kind: t.kind, url, title: t.title || (internal ? INTERNAL_TITLES[internalName(t.url)] || 'Lintas' : url),
       favicon: internal ? null : t.favicon || null, loading: !!t.loading,
       canGoBack: !internal && !!wc && !wc.isDestroyed() && wc.navigationHistory.canGoBack(),
@@ -145,9 +146,12 @@ export class TabManager {
 
   ensureView(t) {
     if (liveContents(t)) return t.view;
+    // A tab keeps its session for its whole life (private tabs opened before and after an extension
+    // was allowed in private tabs can use different private sessions)
+    t.partition ||= t.private ? this.partitions.private : this.partitions.normal;
     const view = new WebContentsView({
       webPreferences: {
-        partition: t.private ? this.partitions.private : this.partitions.normal,
+        partition: t.partition,
         sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: false,
         webSecurity: true, allowRunningInsecureContent: false, webviewTag: false,
         navigateOnDragDrop: false, safeDialogs: true, spellcheck: true, enableWebSQL: false,

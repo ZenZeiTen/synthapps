@@ -44,7 +44,16 @@ const downloads = new Map();
 const httpAllowed = new Set();
 let permSeq = 0, dlSeq = 0;
 
-const PARTITIONS = { normal: 'persist:lintas', private: 'lintas-private' };
+// Private tabs normally use a session kept in memory only. Electron cannot run extensions in such a
+// session, so while an extension is allowed in private tabs, new private tabs use privateExt instead:
+// a session on disk that Lintas erases when it starts and when it quits.
+const PARTITIONS = { normal: 'persist:lintas', private: 'lintas-private', privateExt: 'persist:lintas-private-ext' };
+const TAB_PARTITIONS = {
+  normal: PARTITIONS.normal,
+  get private() { return extensions?.private?.ses.extensions.getAllExtensions().length ? PARTITIONS.privateExt : PARTITIONS.private; },
+};
+/** Extensions for a tab: the normal instance, or the one for private tabs (only in the session it runs in). */
+const extFor = (t) => (!t ? extensions : t.private ? (t.partition === PARTITIONS.privateExt ? extensions?.private : null) : extensions) || null;
 
 function emit(event, payload) {
   if (win && !win.isDestroyed()) win.webContents.send('lintas:event', event, payload);
@@ -100,24 +109,26 @@ function createWindow() {
   win.on('minimize', () => { if (data.settings().minimizeToTray && tray) win.hide(); });
   win.webContents.on('will-navigate', e => e.preventDefault());
   // Extension shortcuts (manifest "commands") also work while the address bar or a panel has focus
-  win.webContents.on('before-input-event', (e, input) => { if (extensions?.commandKey(input)) e.preventDefault(); });
+  win.webContents.on('before-input-event', (e, input) => { if (extFor(tabs?.active())?.commandKey(input)) e.preventDefault(); });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.loadURL('lintas-ui://app/index.html');
 
   tabs = new TabManager({
-    win, data, emit, partitions: PARTITIONS, isMac,
+    win, data, emit, partitions: TAB_PARTITIONS, isMac,
     onContents: (wc, t) => {
       wc.on('did-finish-load', () => autoSaveOffline(t));
-      if (!t.private && extensions) extensions.addTab(wc);
+      extFor(t)?.addTab(wc);
     },
-    onActivate: (wc, t) => { if (!t.private && extensions) extensions.selectTab(wc); },
-    extras: (t) => extensions ? extensions.tabExtras(t) : {},
-    commandKey: (input) => !!extensions?.commandKey(input),
+    onActivate: (wc, t) => { extFor(t)?.selectTab(wc); },
+    extras: (t) => extFor(t)?.tabExtras(t) || {},
+    commandKey: (input) => !!extFor(tabs?.active())?.commandKey(input),
   });
 
   webPanels = new WebPanels({ win, ses: session.fromPartition(PARTITIONS.normal), tabs,
-    resolve: (key) => extensions?.panelTarget(key) || null, onGone: (key) => extensions?.forgetPanel(key), onCreated: (key, wc) => extensions?.panelCreated(key, wc),
-    commandKey: (input) => !!extensions?.commandKey(input) });
+    resolve: (key) => extensions?.panelTarget(key) || extensions?.private?.panelTarget(key) || null,
+    onGone: (key) => { extensions?.forgetPanel(key); extensions?.private?.forgetPanel(key); },
+    onCreated: (key, wc) => { extensions?.panelCreated(key, wc); extensions?.private?.panelCreated(key, wc); },
+    commandKey: (input) => !!extFor(tabs?.active())?.commandKey(input) });
   win.on('close', () => { tabs.persist(); store.flushAll(); });
   win.on('closed', () => { win = null; });
   nativeTheme.on('updated', () => {
@@ -277,7 +288,7 @@ function registerIpc() {
   handle('webpanel.reload', id => webPanels.reload(String(id)));
   handle('webpanel.home', id => webPanels.home(String(id)));
   handle('webpanel.openInTab', id => webPanels.openInTab(String(id)));
-  handle('extpanel.close', key => { if (typeof key === 'string' && key.startsWith('ext:')) extensions.closePanel(key); });
+  handle('extpanel.close', key => { if (typeof key === 'string' && key.startsWith('ext:')) for (const x of [extensions, extensions?.private]) if (x?.ownsKey(key)) x.closePanel(key); });
 
   handle('tabs.list', () => tabs.list());
   handle('tabs.create', (o = {}) => tabs.create(o));
@@ -770,19 +781,23 @@ app.whenReady().then(async () => {
     }),
     permissionStore: data.permissionStore(),
     httpAllowed,
-    extensionAccess: details => extensions?.pageAccess(details) || null,
-    extensionCookies: url => extensions.cookieHeader(url),
-    extensionSetCookies: (url, lines) => extensions.storeCookies(url, lines),
   };
   for (const p of Object.values(PARTITIONS)) {
     const ses = session.fromPartition(p);
-    hardenSession(ses, ctx);
+    // Extension pages use the cookies of the session they run in (normal or private tabs)
+    const x = () => Extensions.instances.get(ses) || null;
+    hardenSession(ses, { ...ctx,
+      extensionAccess: details => x()?.pageAccess(details) || null,
+      extensionCookies: url => x().cookieHeader(url),
+      extensionSetCookies: (url, lines) => x().storeCookies(url, lines) });
     wireDownloads(ses);
     ses.setSpellCheckerLanguages(['en-US', 'id'].filter(l => ses.availableSpellCheckerLanguages.includes(l)));
   }
   seedSample();
   extensions = new Extensions({ ses: session.fromPartition(PARTITIONS.normal), dataDir: app.getPath('userData'), getWin: () => win, getTabs: () => tabs, getPanels: () => webPanels, emit });
-  try { await extensions.init(); } catch (e) { console.error('Chrome extension support failed to start:', e); }
+  const privateExt = session.fromPartition(PARTITIONS.privateExt);
+  await erasePrivateExt();
+  try { await extensions.init(); await extensions.startPrivate(privateExt); } catch (e) { console.error('Chrome extension support failed to start:', e); }
   bridge = new Bridge({ dataDir: app.getPath('userData'), run: mcpTool });
   await syncBridge();
   registerIpc();
@@ -802,5 +817,20 @@ app.whenReady().then(async () => {
 
 app.on('activate', () => showWindow());
 app.on('window-all-closed', () => { store?.flushAll(); app.quit(); });
-app.on('before-quit', () => { tabs?.persist(); store?.flushAll(); bridge?.stop(); });
+let privateErased = false;
+app.on('before-quit', (e) => {
+  tabs?.persist(); store?.flushAll(); bridge?.stop();
+  // Private browsing data from tabs that ran extensions is erased before Lintas exits
+  if (!privateErased && app.isReady()) {
+    e.preventDefault();
+    privateErased = true;
+    erasePrivateExt().finally(() => app.quit());
+  }
+});
+
+/** Erases what private tabs with extensions stored (cookies, storage, cache); the extensions stay installed. */
+async function erasePrivateExt() {
+  const ses = session.fromPartition(PARTITIONS.privateExt);
+  await Promise.allSettled([ses.clearStorageData(), ses.clearCache(), ses.clearAuthCache(), ses.clearHostResolverCache()]);
+}
 
