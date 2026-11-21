@@ -24,6 +24,9 @@ does not let apps change the default themselves.
 - Chromium engine (Electron 45), every tab sandboxed, lazy session restore, private tabs.
 - Tracker blocking, HTTPS-first with an optional HTTPS-only mode, third-party cookie
   stripping, Do Not Track and Global Privacy Control, per-site permission prompts.
+- Google sign-in: Google refuses browsers built on Electron, so on `accounts.google.com`
+  (and `accounts.youtube.com`) only, Lintas identifies itself as Firefox. Every other site
+  sees the normal Chromium identity.
 - Tab strip, omnibox with suggestions, bookmarks bar, side panel, find in page, zoom,
   downloads, history and the usual keyboard shortcuts.
 - Import from Chrome, Edge, Firefox, Brave, Vivaldi, Opera or Chromium on the same

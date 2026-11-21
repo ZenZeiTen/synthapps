@@ -1,5 +1,9 @@
 Lintas is a fast, secure desktop browser (Chromium engine) that works online and offline, with a built-in Translation Management System, Claude AI features, Chrome extensions and a Claude Desktop (MCP) connection.
 
+## New in 0.2.1
+
+- **Google sign-in:** Google refused Lintas with "This browser or app may not be secure". On Google's sign-in pages only, Lintas now identifies itself as Firefox, which Google accepts. Signing in with a real account has not been tested; if Google still refuses, please report it.
+
 ## New in 0.2.0
 
 - **Import from another browser** (Settings > General): bookmarks, history, search engine and home page from Chrome, Edge, Firefox, Brave, Vivaldi or Opera, or a bookmarks HTML file.

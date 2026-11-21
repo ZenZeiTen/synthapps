@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveInput, isTracker, siteOf, isThirdParty, urlsFromArgs } from '../app/main/security.js';
+import { resolveInput, isTracker, siteOf, isThirdParty, urlsFromArgs, needsFirefoxIdentity, firefoxUserAgent } from '../app/main/security.js';
 
 test('omnibox input: HTTPS first, search otherwise, dangerous schemes never navigate', () => {
   assert.equal(resolveInput('kbbi.kemdikbud.go.id'), 'https://kbbi.kemdikbud.go.id');
@@ -37,4 +37,12 @@ test('urlsFromArgs: URLs and files Windows, macOS or Linux pass on the command l
   assert.ok(files.every(u => u.startsWith('file://')), files.join(' '));
   // Development: electron . <url>
   assert.deepEqual(urlsFromArgs(['electron', '.', 'https://a.test/'], { skip: 1, exists }), ['https://a.test/']);
+});
+
+test('Google sign-in pages, and only those, get the Firefox identity', () => {
+  assert.equal(needsFirefoxIdentity('https://accounts.google.com/v3/signin/identifier?x=1'), true);
+  assert.equal(needsFirefoxIdentity('https://www.google.com/search?q=accounts.google.com'), false);
+  assert.equal(needsFirefoxIdentity('https://accounts.google.com.evil.example/'), false);
+  assert.equal(needsFirefoxIdentity('not a url'), false);
+  assert.match(firefoxUserAgent('win32'), /^Mozilla\/5\.0 \(Windows NT 10\.0; Win64; x64; rv:\d+\.0\) Gecko\/20100101 Firefox\/\d+\.0$/);
 });
